@@ -1,6 +1,6 @@
 # Claude Code Instructions for Wheels & Wins
 
-## 📚 Essential Context Files (Read These First)
+## Essential Context Files (Read These First)
 When starting a new session, read these files to get up to speed:
 
 - **@docs/pam-rebuild-2025/PAM_FINAL_PLAN.md** - Complete 7-day rebuild plan and progress
@@ -9,22 +9,22 @@ When starting a new session, read these files to get up to speed:
 - **@backend/docs/api.md** - API endpoint documentation
 - **@CLAUDE.local.md** - Current session context (if exists)
 
-## 🚀 Quick Start
+## Quick Start
 **Dev Server**: http://localhost:8080 (NOT 3000!)
 **Stack**: React 18.3 + TypeScript + Vite + Tailwind + Supabase + FastAPI
 
-## 🎯 Strategic AI Decision (January 2025)
+## Strategic AI Decision (January 2025)
 
 **PAM AI Provider**: **Claude Sonnet 4.5** (Primary)
-- ✅ **Primary AI Brain**: Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
-- ✅ **Superior Performance**: State-of-the-art reasoning and function calling
-- ✅ **200K Token Context**: Massive context window for conversation history
-- ✅ **Best-in-Class**: Industry-leading accuracy and response quality
-- ✅ **Simple Architecture**: ONE AI brain via AsyncAnthropic client
-- 🔄 **Gemini Flash Fallback**: Cost-effective backup for simple queries
-- 🔄 **OpenAI Tertiary**: Available as additional fallback option
-- 💰 **Cost**: $3/1M input + $15/1M output tokens (Claude Sonnet 4.5)
-- 📋 **Reference**: See `/docs/pam-rebuild-2025/PAM_FINAL_PLAN.md` for full architecture
+- **Primary AI Brain**: Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
+- **Superior Performance**: State-of-the-art reasoning and function calling
+- **200K Token Context**: Massive context window for conversation history
+- **Best-in-Class**: Industry-leading accuracy and response quality
+- **Simple Architecture**: ONE AI brain via AsyncAnthropic client
+- **Gemini Flash Fallback**: Cost-effective backup for simple queries
+- **OpenAI Tertiary**: Available as additional fallback option
+- **Cost**: $3/1M input + $15/1M output tokens (Claude Sonnet 4.5)
+- **Reference**: See `/docs/pam-rebuild-2025/PAM_FINAL_PLAN.md` for full architecture
 
 ## Critical Commands
 ```bash
@@ -36,7 +36,7 @@ npm run lint             # ESLint
 npm run type-check       # TypeScript validation
 ```
 
-## 🧹 Dead Code Analysis & Cleanup (October 2025)
+## Dead Code Analysis & Cleanup (October 2025)
 
 ### Knip - Dead Code Detector
 **Status**: Installed in devDependencies only (NEVER deploys to production)
@@ -83,9 +83,9 @@ cat BASELINE_METRICS.md
 - Export: `exportUsageData()` function in browser console
 
 **Safety Protocol:**
-⛔ **DO NOT DELETE ANY CODE until October 22, 2025**
-⛔ **DO NOT delete files flagged by Knip without cross-referencing usage logs**
-⛔ **Maximum 5 files per deployment** (micro-batch deletions only)
+- **DO NOT DELETE ANY CODE until October 22, 2025**
+- **DO NOT delete files flagged by Knip without cross-referencing usage logs**
+- **Maximum 5 files per deployment** (micro-batch deletions only)
 
 **Critical Lessons from Cleanup Incidents:**
 1. **Incident #1 (Oct 8):** Deleted `pam_simple.py` → PAM outage → Restored
@@ -98,7 +98,7 @@ cat BASELINE_METRICS.md
 3. Create deletion plan (5 files max per batch)
 4. Test each batch thoroughly before next deletion
 
-## 🛡️ Git Safety Systems (IMPORTANT FOR ALL SESSIONS)
+## Git Safety Systems (IMPORTANT FOR ALL SESSIONS)
 
 ### Available Git Safety Tools
 - `scripts/git-safe` - Core corruption prevention system with flock protection
@@ -150,20 +150,20 @@ scripts/git-safe repair --nuclear
 ### Two-System Setup (CRITICAL: Staging & Production)
 We operate **two complete separate systems** sharing one Supabase database:
 
-#### 🔵 Production System
+#### Production System
 - **Frontend**: wheelsandwins.com (Netlify main branch)
 - **Backend**: pam-backend.onrender.com (Render)
 - **Database**: Shared Supabase instance
 - **Redis**: pam-redis.onrender.com (private network)
 - **Workers**: pam-celery-worker.onrender.com, pam-celery-beat.onrender.com
 
-#### 🟡 Staging System  
+#### Staging System  
 - **Frontend**: wheels-wins-staging.netlify.app (Netlify staging branch)
 - **Backend**: wheels-wins-backend-staging.onrender.com (Render)
 - **Database**: Same shared Supabase instance
 - **Workers**: wheels-wins-celery-worker-staging.onrender.com
 
-#### 🔄 Shared Services
+#### Shared Services
 - **Database**: Single Supabase PostgreSQL (shared between systems)
 - **Redis**: Separate Redis instances per environment
 
@@ -304,9 +304,9 @@ npm install -g @render/mcp-server
 
 Configuration: `~/.config/claude-desktop/claude_desktop_config.json`
 
-## 🔄 Development Workflow
+## Development Workflow
 
-### **Our Standard Development Process**
+### Standard Development Process
 Follow this structured approach for all features and fixes:
 
 1. **Plan the Architecture** 
@@ -339,7 +339,7 @@ Follow this structured approach for all features and fixes:
    - Update PLAN.md with lessons learned
    - Preserve knowledge for future iterations
 
-### **Workflow Tools**
+### Workflow Tools
 - **PLAN.md**: Structured planning templates in project root
 - **cloud.md files**: Architecture and context documentation per subsystem
 - **ADR templates**: Decision record formats in `/docs/decisions/`
@@ -347,14 +347,14 @@ Follow this structured approach for all features and fixes:
 - **`/resume [context]`**: Context restoration between sessions
 - **GitHub Integration**: Automated PR generation with context-rich descriptions
 
-### **Branch Protection & PR Requirements**
+### Branch Protection & PR Requirements
 - **Protected Branches**: staging and main branches are protected
 - **Pull Request Required**: All commits must be made to non-protected branches and submitted via PR
 - **Approval Required**: Pull requests require approval before merging
 - **No Direct Pushes**: Cannot push directly to protected branches
 - **Workflow**: Create feature branch → make changes → submit PR → get approval → merge
 
-### **Quality Gates**
+### Quality Gates
 - All implementations must have corresponding tests
 - TypeScript strict mode compliance required
 - Security review for authentication and data handling
@@ -363,7 +363,7 @@ Follow this structured approach for all features and fixes:
 
 ## Recent Fixes (January 2025)
 
-### ✅ Fixed Issues
+### Fixed Issues
 1. **Animation System**: Removed problematic page transitions
 2. **WebSocket Stability**: Fixed connection state management
 3. **Database**: Fixed RLS recursion, created missing tables
@@ -379,12 +379,12 @@ Follow this structured approach for all features and fixes:
 ## Current QA Issues (August 2025)
 
 ### Priority Fixes
-1. ✅ **Profile Settings**: Fixed sync with retry logic
-2. ✅ **Income Page**: Fixed duplicate buttons
-3. ✅ **Social Avatars**: Added fallback system
-4. ✅ **Savings Challenge**: Added button functionality
-5. ✅ **Budget Editor**: Extended date range
-6. ✅ **Money Maker**: Added onboarding guidance
+1. **Profile Settings**: Fixed sync with retry logic
+2. **Income Page**: Fixed duplicate buttons
+3. **Social Avatars**: Added fallback system
+4. **Savings Challenge**: Added button functionality
+5. **Budget Editor**: Extended date range
+6. **Money Maker**: Added onboarding guidance
 
 ## UI/UX Guidelines
 
@@ -476,8 +476,8 @@ When debugging staging/production issues, verify:
    ```bash
    # Production should use:
    VITE_API_BASE_URL=https://pam-backend.onrender.com
-   
-   # Staging should use:  
+
+   # Staging should use:
    VITE_API_BASE_URL=https://wheels-wins-backend-staging.onrender.com
    ```
 
@@ -489,9 +489,9 @@ When debugging staging/production issues, verify:
    ```
 
 3. **JWT Token Compatibility**:
-   - Staging frontend + staging backend = ✅
-   - Production frontend + production backend = ✅  
-   - Cross-environment = ❌ (JWT decode failures)
+   - Staging frontend + staging backend = OK
+   - Production frontend + production backend = OK
+   - Cross-environment = FAIL (JWT decode failures)
 
 ### Common Error Patterns
 - `"<!doctype"... is not valid JSON` = CORS/Environment mismatch
