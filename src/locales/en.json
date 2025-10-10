@@ -68,6 +68,8 @@
     }
   },
   "auth": {
+    "welcome": "Welcome to Wheels & Wins",
+    "subtitle": "Your complete RV companion for planning, budgeting, and connecting",
     "signIn": "Sign In",
     "signUp": "Sign Up",
     "email": "Email",
@@ -85,11 +87,42 @@
     "signInSuccess": "Welcome back!",
     "signUpSuccess": "Account created successfully!",
     "signInError": "Invalid email or password",
-    "signUpError": "Error creating account"
+    "signUpError": "Error creating account",
+    "login": {
+      "title": "Sign In",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "button": "Sign In",
+      "forgotPassword": "Forgot Password?",
+      "noAccount": "Don't have an account?",
+      "signUpLink": "Sign up"
+    },
+    "signup": {
+      "title": "Create Account",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "Choose a password",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Confirm your password",
+      "button": "Create Account",
+      "haveAccount": "Already have an account?",
+      "signInLink": "Sign in"
+    },
+    "social": {
+      "google": "Continue with Google",
+      "divider": "Or continue with email"
+    }
   },
   "pam": {
+    "title": "PAM Assistant",
+    "subtitle": "Your AI Travel Companion",
     "greeting": "Hi! I'm PAM, your AI travel companion. How can I help you today?",
+    "helpText": "I can help you with trip planning, budgeting, finding campgrounds, and more!",
     "placeholder": "Ask me anything...",
+    "inputPlaceholder": "Type your message or ask a question...",
     "voiceButton": "Start voice chat",
     "wakeWord": "Say 'Hey PAM' to activate",
     "listening": "Listening...",
@@ -110,6 +143,31 @@
   "wheels": {
     "title": "Wheels",
     "subtitle": "Plan trips, track maintenance, and optimize your travels",
+    "pageTitle": "Travel Planning",
+    "tabs": {
+      "tripPlanner": "Trip Planner",
+      "trips": "Trips",
+      "fuelLog": "Fuel Log",
+      "maintenance": "Vehicle Maintenance",
+      "storage": "RV Storage",
+      "safety": "Caravan Safety"
+    },
+    "loading": {
+      "tripPlanner": "Loading Trip Planner...",
+      "trips": "Loading Trips...",
+      "fuelLog": "Loading Fuel Log...",
+      "maintenance": "Loading Vehicle Maintenance...",
+      "storage": "Loading RV Storage...",
+      "safety": "Loading Safety Information..."
+    },
+    "errors": {
+      "tripPlanner": "Failed to load Trip Planner",
+      "trips": "Failed to load Trips",
+      "fuelLog": "Failed to load Fuel Log",
+      "maintenance": "Failed to load Vehicle Maintenance",
+      "storage": "Failed to load RV Storage",
+      "safety": "Failed to load Caravan Safety"
+    },
     "tripPlanner": {
       "title": "Trip Planner",
       "origin": "Starting Point",
@@ -137,6 +195,22 @@
   "wins": {
     "title": "Wins",
     "subtitle": "Track expenses and achieve your financial goals",
+    "tabs": {
+      "overview": "Overview",
+      "expenses": "Expenses",
+      "income": "Income",
+      "budgets": "Budgets",
+      "tips": "Tips",
+      "moneyMaker": "Make Money on the Road"
+    },
+    "loading": {
+      "overview": "Loading Overview...",
+      "expenses": "Loading Expenses...",
+      "income": "Loading Income...",
+      "budgets": "Loading Budgets...",
+      "tips": "Loading Money-Saving Tips...",
+      "moneyMaker": "Loading Money Maker..."
+    },
     "overview": {
       "totalBudget": "Total Budget",
       "totalSpent": "Total Spent",
@@ -176,6 +250,15 @@
   "social": {
     "title": "Social",
     "subtitle": "Connect with fellow RVers and share your adventures",
+    "tabs": {
+      "feed": "Feed",
+      "groups": "Groups",
+      "networking": "Network",
+      "planning": "Planning",
+      "marketplace": "Marketplace",
+      "hustleBoard": "Hustle Board",
+      "moderation": "Moderation"
+    },
     "feed": {
       "title": "Feed",
       "createPost": "Share your journey...",
