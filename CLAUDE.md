@@ -405,6 +405,240 @@ Follow this structured approach for all features and fixes:
 - **Security**: Auto-anonymization, GDPR compliant
 - **Files**: `src/components/bank-statement/`, `src/services/bankStatement/`
 
+## Anti-AI-Slop Rules (CRITICAL - READ FIRST)
+
+### Code Quality Standards - NO EXCEPTIONS
+
+**NEVER include any of the following patterns in code:**
+
+#### 1. Emojis in Code or Comments
+- **BANNED**: Any emoji in code, comments, or logging statements
+- **Examples**: ✅ ❌ 🚀 💡 🚨 ⚠️ 🎉 🔥 🎯 💰 📋
+- **Exception**: User-facing UI strings ONLY (e.g., toast messages, button labels)
+- **Why**: Unprofessional, breaks text processing, IDE issues
+
+```typescript
+// BAD
+logger.info("✅ User logged in successfully");
+console.log("🚀 Starting process...");
+
+// GOOD
+logger.info("User logged in successfully");
+console.log("Starting process...");
+```
+
+#### 2. Poor Error Handling
+- **BANNED**: Bare console.log/console.error in try/catch blocks
+- **BANNED**: Generic error messages without context
+- **BANNED**: Swallowing errors silently
+
+```typescript
+// BAD
+try {
+  await fetchData();
+} catch (error) {
+  console.log(error); // Useless
+}
+
+// GOOD
+try {
+  await fetchData();
+} catch (error) {
+  if (error instanceof NetworkError) {
+    logger.error("Network request failed", { error, endpoint });
+    toast.error("Unable to load data. Please check your connection.");
+  } else {
+    logger.error("Unexpected error in fetchData", { error });
+    throw error; // Re-throw if unhandled
+  }
+}
+```
+
+#### 3. Verbose or Obvious Comments
+- **BANNED**: Comments that restate what the code does
+- **BANNED**: "This function does X" when function name already says it
+- **REQUIRED**: Comments explain WHY, not WHAT
+
+```typescript
+// BAD
+// This function gets the user data
+function getUserData() { ... }
+
+// This increments the counter by 1
+counter++;
+
+// GOOD
+// Cache user data for 5 minutes to reduce API calls
+function getUserData() { ... }
+
+// Increment must happen before validation due to race condition
+counter++;
+```
+
+#### 4. Em-Dashes and Fancy Punctuation
+- **BANNED**: Em-dashes (—) in code, comments, or UI text
+- **USE**: Regular hyphens (-) or colons (:) instead
+- **Why**: Encoding issues, copy-paste problems, accessibility
+
+```typescript
+// BAD
+<p>Fill out as much or as little as you like — here's what you'll get</p>
+
+// GOOD
+<p>Fill out as much or as little as you like - here's what you'll get</p>
+```
+
+#### 5. Mismatched Naming and Logic
+- **BANNED**: Variable names that don't match their content
+- **BANNED**: Function names that don't describe their actual behavior
+
+```typescript
+// BAD
+const userData = fetchCompanySettings(); // Name says user, returns company
+function saveUser() { deleteUser(); } // Name says save, does delete
+
+// GOOD
+const companySettings = fetchCompanySettings();
+function deleteUser() { deleteUser(); }
+```
+
+#### 6. Hardcoded Mock Data in Production Code
+- **BANNED**: Mock data in files outside __tests__/ or __mocks__/
+- **BANNED**: TODO comments saying "replace with real API"
+- **REQUIRED**: Real implementations or clearly marked feature flags
+
+```typescript
+// BAD (in production file)
+async function getWeather() {
+  // TODO: Connect to real API
+  return { temp: 72, condition: "sunny" };
+}
+
+// GOOD
+async function getWeather(location: string) {
+  const response = await fetch(`/api/weather?location=${location}`);
+  return response.json();
+}
+```
+
+#### 7. Repeated Code Blocks
+- **BANNED**: Copy-pasted code with minor variations
+- **REQUIRED**: Extract to shared function or use parameters
+
+```typescript
+// BAD
+function processUserA() {
+  validate();
+  transform();
+  save();
+}
+function processUserB() {
+  validate();
+  transform();
+  save();
+}
+
+// GOOD
+function processUser(type: 'A' | 'B') {
+  validate();
+  transform();
+  save(type);
+}
+```
+
+#### 8. Imports/Dependencies That Don't Exist
+- **BANNED**: Importing non-existent packages
+- **BANNED**: Using APIs that don't exist in the current version
+- **REQUIRED**: Verify all imports against package.json
+
+```typescript
+// BAD
+import { nonExistentFunction } from 'made-up-library';
+
+// GOOD
+// Check package.json first, then import
+import { realFunction } from 'installed-library';
+```
+
+#### 9. Missing Integration Glue
+- **BANNED**: Creating new features without connecting to existing systems
+- **REQUIRED**: Wire new code into actual application flow
+
+```typescript
+// BAD - function exists but never called
+async function newFeature() { ... }
+
+// GOOD - function created AND registered
+async function newFeature() { ... }
+router.post('/new-feature', newFeature); // Wired up!
+```
+
+#### 10. Inconsistent Formatting
+- **BANNED**: Mixing tabs and spaces
+- **BANNED**: Inconsistent quote styles ('single' vs "double")
+- **REQUIRED**: Follow project's existing style (see .prettierrc)
+
+#### 11. Trivial or Meaningless Tests
+- **BANNED**: Tests that don't actually test anything
+- **BANNED**: Tests that just verify mocks return mocked values
+
+```typescript
+// BAD
+test('getUserData works', () => {
+  const mockData = { name: 'John' };
+  jest.mock('api', () => ({ get: () => mockData }));
+  expect(getUserData()).toBe(mockData); // Just testing the mock!
+});
+
+// GOOD
+test('getUserData handles network errors gracefully', async () => {
+  jest.spyOn(api, 'get').mockRejectedValue(new NetworkError());
+  const result = await getUserData();
+  expect(result).toBeNull();
+  expect(logger.error).toHaveBeenCalledWith('Network error fetching user');
+});
+```
+
+#### 12. Wrong or Hallucinated File Paths
+- **BANNED**: Creating files in non-existent directories
+- **REQUIRED**: Use Glob tool to verify directory structure first
+
+```bash
+# BAD - assuming directory exists
+Write: /src/components/new-feature/Component.tsx
+
+# GOOD - verify first
+Glob: src/components/**
+# Confirm directory exists or needs creation
+# THEN write file
+```
+
+### Enforcement
+
+**Before committing any code, verify:**
+- [ ] No emojis in code/comments (UI strings excepted)
+- [ ] All errors properly handled with context
+- [ ] Comments explain WHY, not WHAT
+- [ ] No em-dashes or fancy punctuation
+- [ ] Variable names match their content
+- [ ] No mock data in production paths
+- [ ] No repeated code blocks (DRY principle)
+- [ ] All imports exist in package.json
+- [ ] New features wired into application
+- [ ] Formatting consistent with project
+- [ ] Tests actually test behavior
+- [ ] File paths verified before creation
+
+**Quality Check Command:**
+```bash
+# Run before every commit
+npm run quality:check:full
+npm run type-check
+npm run lint
+```
+
+---
+
 ## Development Guidelines
 
 ### Code Standards
