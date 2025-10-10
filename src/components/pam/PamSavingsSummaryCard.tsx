@@ -13,36 +13,36 @@ import confetti from 'canvas-confetti';
 export const PamSavingsSummaryCard = () => {
   const [celebrationShown, setCelebrationShown] = useState(false);
 
-  // Fetch guarantee status
   const { data: guaranteeStatus, isLoading, error } = useQuery({
     queryKey: ['guarantee-status'],
     queryFn: () => pamSavingsApi.getGuaranteeStatus(),
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 60000,
     retry: 2,
     onError: (error) => {
-      console.warn('PAM Savings API unavailable, using fallback data:', error);
+      // Use fallback data silently - this is expected in staging/dev
+      if (import.meta.env.MODE === 'production') {
+        toast.error('Unable to load savings data', {
+          description: 'Using demo data temporarily'
+        });
+      }
     }
   });
 
-  // Fetch recent savings events
   const { data: recentEvents } = useQuery({
     queryKey: ['recent-savings'],
     queryFn: () => pamSavingsApi.getRecentSavingsEvents(5),
-    refetchInterval: 300000 // Refresh every 5 minutes
+    refetchInterval: 300000
   });
 
-  // Confetti celebration when guarantee met
+  // Trigger celebration only once per billing period when savings threshold met
   useEffect(() => {
     if (!guaranteeStatus || celebrationShown) return;
 
     const { guarantee_met, total_savings, billing_period_start } = guaranteeStatus;
-
-    // Check if we've already celebrated for this billing period
     const celebrationKey = `pam-celebration-${billing_period_start}`;
     const alreadyCelebrated = localStorage.getItem(celebrationKey);
 
     if (guarantee_met && total_savings >= 10 && !alreadyCelebrated) {
-      // Trigger confetti
       const duration = 3000;
       const end = Date.now() + duration;
 
@@ -69,19 +69,16 @@ export const PamSavingsSummaryCard = () => {
 
       frame();
 
-      // Show toast notification
       toast.success(`🎉 PAM saved you ${formatCurrency(total_savings)} this month!`, {
         description: "Your AI assistant is paying for herself!",
         duration: 5000,
       });
 
-      // Mark celebration as shown for this billing period
       localStorage.setItem(celebrationKey, 'true');
       setCelebrationShown(true);
     }
   }, [guaranteeStatus, celebrationShown]);
 
-  // Share functionality
   const handleShare = async () => {
     if (!displayData) return;
 
@@ -89,7 +86,6 @@ export const PamSavingsSummaryCard = () => {
     const shareUrl = 'https://wheelsandwins.com';
 
     try {
-      // Try Web Share API first (works on mobile)
       if (navigator.share) {
         await navigator.share({
           title: 'PAM Savings',
@@ -98,14 +94,12 @@ export const PamSavingsSummaryCard = () => {
         });
         toast.success('Shared successfully!');
       } else {
-        // Fallback to clipboard copy
         await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
         toast.success('Copied to clipboard!', {
           description: 'Share your PAM savings with your friends',
         });
       }
     } catch (error) {
-      // User cancelled share or clipboard failed
       if (error instanceof Error && error.name !== 'AbortError') {
         toast.error('Failed to share', {
           description: 'Please try again',
@@ -114,7 +108,7 @@ export const PamSavingsSummaryCard = () => {
     }
   };
 
-  // Mock data for when API is unavailable (staging environment)
+  // Fallback data for staging/development when API unavailable
   const mockSavingsData = {
     guarantee_met: true,
     total_savings: 18.50,

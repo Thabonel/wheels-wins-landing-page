@@ -16,8 +16,50 @@ from .unit_conversion import (
     format_gas_cost_response,
     convert_km_to_miles
 )
+from app.services.external.eia_gas_prices import get_fuel_price_for_region
 
 logger = logging.getLogger(__name__)
+
+
+async def _detect_user_region(user_id: str) -> str:
+    """
+    Detect user's region from their settings
+
+    Returns: Region code (US, CA, AU, UK, NZ, EU)
+    """
+    try:
+        supabase: Client = create_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        )
+
+        response = supabase.table("user_settings").select(
+            "regional_preferences"
+        ).eq("user_id", user_id).single().execute()
+
+        if response.data and response.data.get("regional_preferences"):
+            prefs = response.data["regional_preferences"]
+
+            # Detect from currency
+            currency = prefs.get("currency", "USD")
+            if currency == "CAD":
+                return "CA"
+            elif currency == "AUD":
+                return "AU"
+            elif currency == "GBP":
+                return "UK"
+            elif currency == "NZD":
+                return "NZ"
+            elif currency == "EUR":
+                return "EU"
+            else:
+                return "US"
+
+        return "US"  # Default
+
+    except Exception as e:
+        logger.warning(f"Could not detect user region: {e}")
+        return "US"
 
 
 async def calculate_gas_cost(
@@ -79,7 +121,28 @@ async def calculate_gas_cost(
                 logger.warning(f"Could not fetch vehicle fuel consumption: {e}")
                 mpg = 10.0  # Fallback to RV default
 
-        gas_price = gas_price or 3.50  # National average
+        # Get real gas price from regional API if not provided
+        if gas_price is None:
+            # Detect user's region
+            region = await _detect_user_region(user_id)
+            fuel_price_data = await get_fuel_price_for_region(region, "regular")
+
+            # Convert to USD per gallon if needed
+            if region == "US":
+                gas_price = fuel_price_data["price"]  # Already USD/gallon
+            else:
+                # Convert liters to gallons (1 gallon = 3.78541 liters)
+                price_per_gallon = fuel_price_data["price"] * 3.78541
+                # Note: This is still in local currency (AUD or EUR)
+                # For simplicity, we'll use it as-is for now
+                # TODO: Add currency conversion
+                gas_price = price_per_gallon
+
+            logger.info(
+                f"Using {region} fuel price: {fuel_price_data['price']:.2f} "
+                f"{fuel_price_data['currency']}/{fuel_price_data['unit']} "
+                f"(source: {fuel_price_data['source']})"
+            )
 
         # Calculate gallons needed
         gallons_needed = distance_miles / mpg

@@ -64,6 +64,10 @@ celery_app.conf.update(
             "task": "app.workers.tasks.maintenance_tasks.check_maintenance_reminders",
             "schedule": 86400.0,  # Daily
         },
+        "update-fuel-consumption-daily": {
+            "task": "app.workers.tasks.maintenance_tasks.update_vehicle_fuel_consumption_from_fillups",
+            "schedule": 86400.0,  # Daily - auto-learn MPG from fillups
+        },
         "cleanup-expired-data": {
             "task": "app.workers.tasks.cleanup_tasks.cleanup_expired_data",
             "schedule": 3600.0,  # Hourly

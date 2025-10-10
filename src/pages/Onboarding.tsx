@@ -87,7 +87,7 @@ const Onboarding: React.FC = () => {
         ...formData,
       };
 
-      console.log('🚀 Submitting onboarding data:', payload);
+      console.log('Submitting onboarding data:', payload);
 
       const response = await apiFetch('/api/v1/onboarding', {
         method: 'POST',
@@ -127,7 +127,7 @@ const Onboarding: React.FC = () => {
         }, 2000);
       } else {
         const errorText = await response.text();
-        console.error('❌ Webhook submission failed:', response.statusText, errorText);
+        console.error('Webhook submission failed:', response.statusText, errorText);
         toast({
           title: "Submission Failed",
           description: "We couldn't submit your details. Please try again in a few minutes.",
@@ -135,7 +135,7 @@ const Onboarding: React.FC = () => {
         });
       }
     } catch (error: any) {
-      console.error('❌ Network error during submission:', error);
+      console.error('Network error during submission:', error);
       toast({
         title: "Network Error",
         description: `Submission failed: ${error.message}`,
@@ -163,7 +163,7 @@ const Onboarding: React.FC = () => {
         <h1 className="text-3xl font-bold mb-4">Help Pam Help You!</h1>
         <p className="text-muted-foreground mb-2">The more Pam knows, the better she can help you.</p>
         <p className="text-muted-foreground mb-4">
-          Fill out as much or as little as you like — but here's what you'll get if you do:
+          Fill out as much or as little as you like - here's what you'll get if you do:
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Card className="border-green-200">
