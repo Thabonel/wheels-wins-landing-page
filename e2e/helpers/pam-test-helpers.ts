@@ -100,28 +100,7 @@ export async function askPAM(
   await inputField.clear();
   await inputField.fill(question);
 
-  // Find and click send button
-  const sendSelectors = [
-    'button[type="submit"]',
-    'button:has-text("Send")',
-    '[data-testid="pam-send"]',
-    'button[aria-label*="send"]'
-  ];
-
-  let sendButton = null;
-  for (const selector of sendSelectors) {
-    const button = page.locator(selector).first();
-    if (await button.isVisible().catch(() => false)) {
-      sendButton = button;
-      break;
-    }
-  }
-
-  if (!sendButton) {
-    throw new Error('PAM send button not found');
-  }
-
-  // Listen for response
+  // Listen for response before submitting
   const responsePromise = page.waitForResponse(
     response =>
       response.url().includes('/api/v1/pam') &&
@@ -129,7 +108,8 @@ export async function askPAM(
     { timeout }
   ).catch(() => null);
 
-  await sendButton.click();
+  // Submit by pressing Enter (SimplePAM supports this)
+  await inputField.press('Enter');
 
   // Wait for response
   const response = await responsePromise;

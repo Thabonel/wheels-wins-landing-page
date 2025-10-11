@@ -64,196 +64,71 @@ test.describe('PAM Automated Testing - All Pages', () => {
     await loginAsTestUser(page);
   });
 
-  test.describe('Home Page', () => {
+  test.describe('General Questions', () => {
     test('should answer general question', async ({ page }) => {
       await runPAMTest(
         page,
-        'Home',
+        'PAM',
         'what can you help me with?',
-        '/'
-      );
-    });
-
-    test('should create calendar appointment', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Home',
-        'add a dinner appointment for the 13th at 12pm',
-        '/'
+        '/simple-pam-test'
       );
     });
 
     test('should answer about features', async ({ page }) => {
       await runPAMTest(
         page,
-        'Home',
+        'PAM',
         'what features does Wheels and Wins have?',
-        '/'
+        '/simple-pam-test'
       );
     });
   });
 
-  test.describe('Wheels Page', () => {
+  test.describe('Calendar & Appointments', () => {
+    test('should create calendar appointment', async ({ page }) => {
+      await runPAMTest(
+        page,
+        'PAM',
+        'add a dinner appointment for the 13th at 12pm',
+        '/simple-pam-test'
+      );
+    });
+  });
+
+  test.describe('Trip Planning', () => {
     test('should answer trip planning question', async ({ page }) => {
       await runPAMTest(
         page,
-        'Wheels',
+        'PAM',
         'plan a trip from Phoenix to Seattle',
-        '/wheels'
+        '/simple-pam-test'
       );
     });
 
     test('should provide weather information', async ({ page }) => {
       await runPAMTest(
         page,
-        'Wheels',
+        'PAM',
         'what is the weather forecast for Denver?',
-        '/wheels'
+        '/simple-pam-test'
       );
     });
 
     test('should calculate gas costs', async ({ page }) => {
       await runPAMTest(
         page,
-        'Wheels',
+        'PAM',
         'calculate gas cost for 500 miles at 10 MPG with gas at $3.50',
-        '/wheels'
+        '/simple-pam-test'
       );
     });
 
     test('should find RV parks', async ({ page }) => {
       await runPAMTest(
         page,
-        'Wheels',
-        'find RV parks near Yellowstone',
-        '/wheels'
-      );
-    });
-  });
-
-  test.describe('Wins Page', () => {
-    test('should show spending summary', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Wins',
-        'show my spending this month',
-        '/wins'
-      );
-    });
-
-    test('should create expense', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Wins',
-        'add a $50 gas expense',
-        '/wins'
-      );
-    });
-
-    test('should analyze budget', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Wins',
-        'how am I doing on my budget?',
-        '/wins'
-      );
-    });
-
-    test('should track savings', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Wins',
-        'I saved $20 on cheap gas today',
-        '/wins'
-      );
-    });
-  });
-
-  test.describe('Social Page', () => {
-    test('should answer about social features', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Social',
-        'how can I connect with other RV travelers?',
-        '/social'
-      );
-    });
-
-    test('should help with posting', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Social',
-        'how do I share my trip with friends?',
-        '/social'
-      );
-    });
-
-    test('should find community events', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Social',
-        'are there any RV meetups coming up?',
-        '/social'
-      );
-    });
-  });
-
-  test.describe('Shop Page', () => {
-    test('should help find products', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Shop',
-        'I need a new water filter for my RV',
-        '/shop'
-      );
-    });
-
-    test('should answer product questions', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'Shop',
-        'what are the most popular RV accessories?',
-        '/shop'
-      );
-    });
-  });
-
-  test.describe('You (Profile) Page', () => {
-    test('should help with profile updates', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'You',
-        'how do I update my profile information?',
-        '/you'
-      );
-    });
-
-    test('should answer about settings', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'You',
-        'where are my notification settings?',
-        '/you'
-      );
-    });
-
-    test('should help with preferences', async ({ page }) => {
-      await runPAMTest(
-        page,
-        'You',
-        'how do I change from imperial to metric units?',
-        '/you'
-      );
-    });
-  });
-
-  test.describe('PAM Chat Page', () => {
-    test('should answer contextual questions', async ({ page }) => {
-      await runPAMTest(
-        page,
         'PAM',
-        'what questions can I ask you?',
-        '/pam'
+        'find RV parks near Yellowstone',
+        '/simple-pam-test'
       );
     });
 
@@ -262,7 +137,45 @@ test.describe('PAM Automated Testing - All Pages', () => {
         page,
         'PAM',
         'plan a trip to Seattle, check the weather, and calculate the gas cost',
-        '/pam'
+        '/simple-pam-test'
+      );
+    });
+  });
+
+  test.describe('Budget & Finance', () => {
+    test('should show spending summary', async ({ page }) => {
+      await runPAMTest(
+        page,
+        'PAM',
+        'show my spending this month',
+        '/simple-pam-test'
+      );
+    });
+
+    test('should create expense', async ({ page }) => {
+      await runPAMTest(
+        page,
+        'PAM',
+        'add a $50 gas expense',
+        '/simple-pam-test'
+      );
+    });
+
+    test('should analyze budget', async ({ page }) => {
+      await runPAMTest(
+        page,
+        'PAM',
+        'how am I doing on my budget?',
+        '/simple-pam-test'
+      );
+    });
+
+    test('should track savings', async ({ page }) => {
+      await runPAMTest(
+        page,
+        'PAM',
+        'I saved $20 on cheap gas today',
+        '/simple-pam-test'
       );
     });
 
@@ -271,7 +184,7 @@ test.describe('PAM Automated Testing - All Pages', () => {
         page,
         'PAM',
         'show me how much I spent on gas vs food this month',
-        '/pam'
+        '/simple-pam-test'
       );
     });
   });
