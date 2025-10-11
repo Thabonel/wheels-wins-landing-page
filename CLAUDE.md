@@ -9,6 +9,49 @@ When starting a new session, read these files to get up to speed:
 - **@backend/docs/api.md** - API endpoint documentation
 - **@CLAUDE.local.md** - Current session context (if exists)
 
+## Task & Issue Tracking
+
+**System**: GitHub Issues + Projects (integrated with repo)
+
+### Quick Commands
+```bash
+# List all issues
+gh issue list
+
+# Create new issue (uses templates)
+gh issue create
+
+# View specific issue
+gh issue view <number>
+
+# Search issues
+gh issue list --label "bug" --state open
+```
+
+### Issue Templates
+Located in `.github/ISSUE_TEMPLATE/`:
+- **bug_report.yml** - Bug reports with reproduction steps
+- **feature_request.yml** - New feature requests
+- **task.yml** - Development tasks and chores
+
+### Labels System
+**Type**: bug, enhancement, task
+**Priority**: critical, high, medium, low
+**Component**: pam, wins, wheels, social, shop, backend, frontend, database, admin
+**Status**: needs-triage, in-progress, blocked, ready-for-review
+**Effort**: small (<1 day), medium (1-3 days), large (1-2 weeks), xl (>2 weeks)
+
+### When to Create Issues
+- Bugs discovered during development
+- Feature requests from users or team
+- Technical debt that needs addressing
+- Documentation improvements needed
+
+### Current Active Issues
+Check: https://github.com/Thabonel/wheels-wins-landing-page/issues
+
+**IMPORTANT**: When you identify bugs or needed features during development, create GitHub issues using `gh issue create` so nothing gets lost.
+
 ## Quick Start
 **Dev Server**: http://localhost:8080 (NOT 3000!)
 **Stack**: React 18.3 + TypeScript + Vite + Tailwind + Supabase + FastAPI
