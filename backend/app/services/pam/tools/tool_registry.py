@@ -722,17 +722,17 @@ async def _register_all_tools(registry: ToolRegistry):
     try:
         logger.debug("🔄 Attempting to register YouTube Trip tool...")
         YouTubeTripTool = lazy_import("app.services.pam.tools.youtube_trip_tool", "YouTubeTripTool")
-        
+
         if YouTubeTripTool is None:
             raise ImportError("YouTubeTripTool not available")
-        
+
         registry.register_tool(
             tool=YouTubeTripTool(),
             function_definition={
                 "name": "search_travel_videos",
                 "description": "Search for travel videos, RV tips, destination guides, and camping tutorials on YouTube",
                 "parameters": {
-                    "type": "object", 
+                    "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
@@ -755,12 +755,77 @@ async def _register_all_tools(registry: ToolRegistry):
             priority=2
         )
         registered_count += 1
-        
+
     except ImportError as e:
         logger.warning(f"⚠️ Could not register YouTube Trip tool: {e}")
         failed_count += 1
     except Exception as e:
         logger.error(f"❌ YouTube Trip tool registration failed: {e}")
+        failed_count += 1
+
+    # Calendar Event Tool
+    try:
+        logger.debug("🔄 Attempting to register Calendar Event tool...")
+        CreateCalendarEventTool = lazy_import("app.services.pam.tools.create_calendar_event", "CreateCalendarEventTool")
+
+        if CreateCalendarEventTool is None:
+            raise ImportError("CreateCalendarEventTool not available")
+
+        registry.register_tool(
+            tool=CreateCalendarEventTool(),
+            function_definition={
+                "name": "create_calendar_event",
+                "description": "Create a calendar event or appointment for the user. Use this when user asks to schedule, book, or add appointments.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Title or name of the event"
+                        },
+                        "start_date": {
+                            "type": "string",
+                            "description": "Start date and time in ISO format (YYYY-MM-DDTHH:MM:SS)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "End date and time in ISO format (optional)"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Event description or notes (optional)"
+                        },
+                        "event_type": {
+                            "type": "string",
+                            "description": "Type of event: personal, work, travel, maintenance, etc."
+                        },
+                        "all_day": {
+                            "type": "boolean",
+                            "description": "Whether this is an all-day event"
+                        },
+                        "location_name": {
+                            "type": "string",
+                            "description": "Location of the event (optional)"
+                        },
+                        "reminder_minutes": {
+                            "type": "number",
+                            "description": "Minutes before event to send reminder (optional)"
+                        }
+                    },
+                    "required": ["title", "start_date"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=1
+        )
+        logger.info("✅ Calendar Event tool registered")
+        registered_count += 1
+
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Calendar Event tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Calendar Event tool registration failed: {e}")
         failed_count += 1
     
     # Web Scraper Tool removed - ChatGPT handles general information with its knowledge base
