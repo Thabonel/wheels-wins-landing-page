@@ -78,19 +78,19 @@ async def create_calendar_event(
         if reminder_minutes is None:
             reminder_minutes = [15]
 
-        # Build event data
+        # Build event data matching actual database schema
         event_data = {
             "user_id": user_id,
             "title": title,
             "description": description,
-            "start_date": start_dt.isoformat(),
-            "end_date": end_dt.isoformat(),
+            "date": start_dt.date().isoformat(),  # Separate date column
+            "start_time": start_dt.time().isoformat() if not all_day else None,  # Separate time column
+            "end_time": end_dt.time().isoformat() if not all_day else None,  # Separate end time
             "all_day": all_day,
-            "event_type": event_type,
-            "location_name": location_name,
+            "type": event_type,  # Column is 'type' not 'event_type'
+            "location": location_name,  # Column is 'location' not 'location_name'
             "reminder_minutes": reminder_minutes,
             "color": color,
-            "is_private": True,  # Default to private
         }
 
         # Insert into database
