@@ -130,3 +130,5 @@ orchestrator_test_*.json
 GEMINI_*.md
 ONGOING_MONITORING_*.md
 PAM_AI_*.md
+# E2E test reports (generated)
+e2e/reports/*.json

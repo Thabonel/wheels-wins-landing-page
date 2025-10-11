@@ -79,6 +79,52 @@ npm run lint             # ESLint
 npm run type-check       # TypeScript validation
 ```
 
+## PAM Automated Testing (October 2025)
+
+### Overview
+Comprehensive end-to-end testing system that automatically tests PAM across all pages, replacing tedious manual testing with a "test → fix → retest" loop.
+
+### Setup
+1. **Create test credentials file**:
+   ```bash
+   cp .env.test.example .env.test
+   # Edit .env.test with valid test user credentials
+   ```
+
+2. **Or use environment variables**:
+   ```bash
+   export TEST_USER_EMAIL="your-test-user@example.com"
+   export TEST_USER_PASSWORD="YourPassword123!"
+   ```
+
+### Running Tests
+```bash
+npm run test:pam:auto          # Run all PAM tests
+npm run test:pam:auto:headed   # Run with browser visible
+npm run test:pam:auto:debug    # Run with debug mode
+```
+
+### Test Coverage
+- **25+ tests** across 7 pages (Home, Wheels, Wins, Social, Shop, You, PAM)
+- **Automatic retry** logic (3 attempts with exponential backoff)
+- **Self-healing** tests with multiple selector fallbacks
+- **JSON reports** generated in `e2e/reports/`
+
+### What Gets Tested
+Each test asks PAM a question specific to the page context:
+- Calendar: "add a dinner appointment for the 13th at 12pm"
+- Trip: "plan a trip from Phoenix to Seattle"
+- Budget: "show my spending this month"
+- Social: "how can I connect with other RV travelers?"
+
+### Test Reports
+- Located: `e2e/reports/pam-test-report-latest.json`
+- Includes: success/failure status, response times, retry counts, error messages
+- CI/CD ready: JSON format for automated pipelines
+
+### Documentation
+See `e2e/README.md` for complete testing documentation.
+
 ## Dead Code Analysis & Cleanup (October 2025)
 
 ### Knip - Dead Code Detector
