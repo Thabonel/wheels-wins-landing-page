@@ -1043,10 +1043,20 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                 # Execute tools and get results
                 tool_results = await self._execute_tools(response.content)
 
+                # Convert Anthropic objects to dicts for storage
+                content_dicts = []
+                for block in response.content:
+                    if hasattr(block, 'model_dump'):
+                        content_dicts.append(block.model_dump())
+                    elif hasattr(block, 'dict'):
+                        content_dicts.append(block.dict())
+                    else:
+                        content_dicts.append({"type": "text", "text": str(block)})
+
                 # Add tool use to history
                 self.conversation_history.append({
                     "role": "assistant",
-                    "content": response.content,
+                    "content": content_dicts,
                     "timestamp": datetime.now().isoformat()
                 })
 
