@@ -649,7 +649,8 @@ npm run lint
 - **No mock data**: Production-ready code only
 
 ### SQL File Guidelines
-- **No Comments**: When creating SQL files, write only clean SQL statements
+- **Executable SQL Only**: SQL files must contain ONLY executable SQL statements that will run in Supabase
+- **No Comments**: Never include SQL comments, explanations, or documentation in SQL files
 - **No Instructions**: Never include "run separately" or other execution instructions
 - **Batch Execution**: All SQL should be designed to run as a complete script
 - **Clean Format**: One statement per line, no explanatory text
