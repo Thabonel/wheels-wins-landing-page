@@ -110,6 +110,9 @@ from app.services.pam.tools.profile.create_vehicle import create_vehicle
 from app.services.pam.tools.admin.add_knowledge import add_knowledge
 from app.services.pam.tools.admin.search_knowledge import search_knowledge
 
+# Import calendar tool
+from app.services.pam.tools.create_calendar_event import create_calendar_event
+
 logger = logging.getLogger(__name__)
 
 
@@ -824,6 +827,24 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     },
                     "required": []
                 }
+            },
+            {
+                "name": "create_calendar_event",
+                "description": "Create a calendar event or appointment for the user. Use this when user asks to schedule, add appointments, or create calendar events.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "description": "Title or name of the event"},
+                        "start_date": {"type": "string", "description": "Start date and time in ISO format (YYYY-MM-DDTHH:MM:SS)"},
+                        "end_date": {"type": "string", "description": "End date and time in ISO format (optional)"},
+                        "description": {"type": "string", "description": "Event description or notes (optional)"},
+                        "event_type": {"type": "string", "description": "Type of event: personal, work, travel, maintenance, etc."},
+                        "all_day": {"type": "boolean", "description": "Whether this is an all-day event"},
+                        "location_name": {"type": "string", "description": "Location of the event (optional)"},
+                        "reminder_minutes": {"type": "integer", "description": "Minutes before event to send reminder (optional)"}
+                    },
+                    "required": ["title", "start_date"]
+                }
             }
         ]
 
@@ -1158,7 +1179,9 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             "create_vehicle": create_vehicle,
             # Admin tools
             "add_knowledge": add_knowledge,
-            "search_knowledge": search_knowledge
+            "search_knowledge": search_knowledge,
+            # Calendar tools
+            "create_calendar_event": create_calendar_event
         }
 
         for block in content:
