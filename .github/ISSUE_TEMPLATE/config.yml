@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/Thabonel/wheels-wins-landing-page/tree/main/docs
+    about: Check our documentation for guides and API reference
+  - name: PAM Rebuild Plan
+    url: https://github.com/Thabonel/wheels-wins-landing-page/blob/main/docs/pam-rebuild-2025/PAM_FINAL_PLAN.md
+    about: View the current PAM rebuild roadmap and progress
