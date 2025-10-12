@@ -1,31 +1,28 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { useTranslation } from "react-i18next";
 
 const Testimonials = () => {
-  const { t } = useTranslation();
-
   const testimonials = [{
-    name: t('testimonials2.margaret.name'),
-    location: t('testimonials2.margaret.location'),
-    quote: t('testimonials2.margaret.quote')
+    name: "Margaret R.",
+    location: "Retired Nomad, 68",
+    quote: "Pam helped us keep travelling longer without money stress — and we've made real friends along the way."
   }, {
-    name: t('testimonials2.robert_linda.name'),
-    location: t('testimonials2.robert_linda.location'),
-    quote: t('testimonials2.robert_linda.quote')
+    name: "Robert & Linda",
+    location: "Canada",
+    quote: "I used to worry about costs. Now Pam tracks it all, and we've met other Snowbirds through the app."
   }, {
-    name: t('testimonials2.james.name'),
-    location: t('testimonials2.james.location'),
-    quote: t('testimonials2.james.quote')
+    name: "James T.",
+    location: "Full-time RVer, 72",
+    quote: "Feels like travelling with a team — Pam for planning, and a community that always waves back."
   }];
 
   return <section className="py-20 bg-transparent">
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-6">
-          {t('testimonials2.title')}
+          Why Travellers Love Pam & Wheels and Wins
         </h2>
 
         <p className="text-xl text-center mb-16 max-w-3xl mx-auto text-muted-foreground">
-          {t('testimonials2.subtitle')}
+          Stories from the Road
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
