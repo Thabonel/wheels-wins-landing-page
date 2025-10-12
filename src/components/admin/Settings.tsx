@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Save, RefreshCw, Settings as SettingsIcon, Shield, Mail, Users } from 'lucide-react';
+import { Save, RefreshCw, Settings as SettingsIcon, Shield, Mail, Users, BrainCircuit } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 
 interface SystemSetting {
@@ -37,6 +37,7 @@ const Settings = () => {
     enabled: true,
     require_approval: false
   });
+  const [aiRouter, setAiRouter] = useState({ enabled: false, dryRun: true });
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -68,6 +69,19 @@ const Settings = () => {
           enabled: true,
           require_approval: false
         });
+      }
+
+      // Fetch system_settings flags for AI router
+      try {
+        const res = await fetch('/api/v1/system-settings');
+        if (res.ok) {
+          const sys = await res.json();
+          const dry = sys?.ai_router_dry_run?.enabled ?? aiRouter.dryRun;
+          const on = sys?.ai_router_enabled?.enabled ?? aiRouter.enabled;
+          setAiRouter({ enabled: !!on, dryRun: !!dry });
+        }
+      } catch (e) {
+        // ignore
       }
 
       toast.success("Settings refreshed");
@@ -107,11 +121,29 @@ const Settings = () => {
     setSaving(true);
 
     try {
-      await Promise.all([
+      const updates: Promise<any>[] = [
         updateSetting('site_maintenance', siteMaintenance),
         updateSetting('email_notifications', emailNotifications),
         updateSetting('user_registration', userRegistration)
-      ]);
+      ];
+
+      // Persist AI router flags to system_settings via backend
+      try {
+        updates.push(fetch('/api/v1/system-settings/ai_router_dry_run', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: { enabled: aiRouter.dryRun } })
+        }));
+        updates.push(fetch('/api/v1/system-settings/ai_router_enabled', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: { enabled: aiRouter.enabled } })
+        }));
+      } catch (e) {
+        // ignore network errors here; user can retry
+      }
+
+      await Promise.all(updates);
 
       toast.success("Settings saved successfully");
     } catch (err) {
@@ -235,6 +267,41 @@ const Settings = () => {
             />
             <p className="text-sm text-gray-500 mt-1">Primary email for system notifications</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Router Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BrainCircuit className="h-5 w-5" />
+            AI Routing
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="ai-router-dry-run">Dry Run Mode</Label>
+              <p className="text-sm text-gray-500">Log recommendations without changing behavior</p>
+            </div>
+            <Switch
+              id="ai-router-dry-run"
+              checked={aiRouter.dryRun}
+              onCheckedChange={(checked) => setAiRouter(prev => ({ ...prev, dryRun: checked }))}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="ai-router-enabled">Enable Routing for Simple Chats</Label>
+              <p className="text-sm text-gray-500">Route simple REST chats to the most cost-effective model</p>
+            </div>
+            <Switch
+              id="ai-router-enabled"
+              checked={aiRouter.enabled}
+              onCheckedChange={(checked) => setAiRouter(prev => ({ ...prev, enabled: checked }))}
+            />
+          </div>
+          <p className="text-xs text-gray-500">Note: Provider API keys are configured on the server; this toggles runtime behavior only.</p>
         </CardContent>
       </Card>
 

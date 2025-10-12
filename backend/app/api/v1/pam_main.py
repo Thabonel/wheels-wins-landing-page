@@ -2410,7 +2410,16 @@ async def chat_endpoint(
         # DRY-RUN: Model router recommendation (does NOT change execution)
         router_recommendation = None
         try:
-            if _ai_router and os.getenv("AI_ROUTER_DRY_RUN", "false").lower() in ("1", "true", "yes"):
+            # Check DB-based flag first, then env var fallback
+            ai_router_dry_run = False
+            if _ai_router:
+                try:
+                    from app.core.database import get_supabase_client
+                    s = get_supabase_client().table("system_settings").select("setting_value").eq("setting_key", "ai_router_dry_run").maybe_single().execute()
+                    ai_router_dry_run = bool((getattr(s, 'data', {}) or {}).get('setting_value', {}).get('enabled', False))
+                except Exception:
+                    pass
+            if _ai_router and (ai_router_dry_run or os.getenv("AI_ROUTER_DRY_RUN", "false").lower() in ("1", "true", "yes")):
                 msg_text = request.message or ""
                 tool_keywords = [
                     "expense", "budget", "spending", "save", "savings",
@@ -2449,7 +2458,15 @@ async def chat_endpoint(
         response_text = None
         actions: list = []
         try:
-            if _ai_router and os.getenv("AI_ROUTER_ENABLED", "false").lower() in ("1", "true", "yes"):
+            ai_router_enabled_flag = False
+            if _ai_router:
+                try:
+                    from app.core.database import get_supabase_client
+                    s2 = get_supabase_client().table("system_settings").select("setting_value").eq("setting_key", "ai_router_enabled").maybe_single().execute()
+                    ai_router_enabled_flag = bool((getattr(s2, 'data', {}) or {}).get('setting_value', {}).get('enabled', False))
+                except Exception:
+                    pass
+            if _ai_router and (ai_router_enabled_flag or os.getenv("AI_ROUTER_ENABLED", "false").lower() in ("1", "true", "yes")):
                 msg_text = request.message or ""
                 tool_keywords = [
                     "expense", "budget", "spending", "save", "savings",
