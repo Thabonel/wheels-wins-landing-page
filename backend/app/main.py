@@ -102,6 +102,7 @@ from app.api.v1 import (
 from app.api.v1 import system_settings as system_settings_api
 from app.api.v1 import ai_structured as ai_structured_api
 from app.api.v1 import ai_ingest as ai_ingest_api
+from app.services.ai.automation import ensure_defaults, periodic_ingest_loop
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
@@ -291,6 +292,14 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Voice Conversation Manager initialized")
         except Exception as e:
             logger.warning(f"⚠️ Voice Conversation Manager initialization failed: {e}")
+
+        # --- AI Automation: Defaults + Periodic Ingest (non-blocking) ---
+        try:
+            ensure_defaults()
+            asyncio.create_task(periodic_ingest_loop())
+            logger.info("✅ AI automation started (defaults ensured, ingest loop running)")
+        except Exception as e:
+            logger.warning(f"⚠️ AI automation init failed (non-critical): {e}")
 
         # Initialize Enhanced PAM Orchestrator with AI providers (CRITICAL for WebSocket chat)
         logger.info("🧠 Initializing Enhanced PAM Orchestrator...")
