@@ -100,6 +100,7 @@ from app.api.v1 import (
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import system_settings as system_settings_api
+from app.api.v1 import ai_structured as ai_structured_api
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
@@ -803,6 +804,7 @@ app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"]
 app.include_router(openroute.router, prefix="/api/v1/openroute", tags=["OpenRoute Service Proxy"])
 app.include_router(health_consultation.router, prefix="/api/v1", tags=["Health Consultation"])
 app.include_router(system_settings_api.router)
+app.include_router(ai_structured_api.router)
 try:
     from app.api.v1 import ai_router as ai_router_api
     app.include_router(ai_router_api.router, prefix="")
