@@ -2442,6 +2442,60 @@ async def chat_endpoint(
         except Exception as e:
             logger.warning(f"AI Router dry-run failed (non-critical): {e}")
 
+        # Optional routing execution for simple cases (env flag)
+        used_ai_router = False
+        routed_provider = None
+        routed_model = None
+        response_text = None
+        actions: list = []
+        try:
+            if _ai_router and os.getenv("AI_ROUTER_ENABLED", "false").lower() in ("1", "true", "yes"):
+                msg_text = request.message or ""
+                tool_keywords = [
+                    "expense", "budget", "spending", "save", "savings",
+                    "trip", "plan", "route", "campground", "rv park", "gas", "fuel",
+                    "weather", "forecast", "road", "attraction", "favorite"
+                ]
+                needs_tools = any(k in msg_text.lower() for k in tool_keywords)
+                long_context = len(msg_text) > 3000
+                if not needs_tools and not long_context:
+                    system_msg = (
+                        "You are PAM, a concise, helpful assistant for RV travel and budgeting. "
+                        "Answer clearly in one or two sentences unless the user asks for details."
+                    )
+                    rr = RouteRequest(
+                        user_id=str(user_id),
+                        messages=[
+                            AIMessage(role="system", content=system_msg),
+                            AIMessage(role="user", content=msg_text),
+                        ],
+                        needs_tools=False,
+                        long_context=False,
+                        streaming=False,
+                        priority="normal",
+                    )
+                    # For transparency, include recommendation if not already
+                    if router_recommendation is None:
+                        decision = _ai_router.recommend(rr)
+                        router_recommendation = {
+                            "provider": decision.provider,
+                            "model": decision.model,
+                            "reason": decision.reason,
+                            "estimated_cost_usd": decision.estimated_cost_usd,
+                            "fallback_chain": decision.fallback_chain,
+                        }
+                    routed = await _ai_router.complete(rr, temperature=0.7, max_tokens=512)
+                    response_text = routed.content or "I'm here to help!"
+                    actions = []
+                    used_ai_router = True
+                    routed_provider = routed.provider
+                    routed_model = routed.model
+                    logger.info(
+                        f"✅ AI Router used: provider={routed_provider} model={routed_model} latency={routed.latency_ms:.0f}ms"
+                    )
+        except Exception as e:
+            logger.warning(f"AI Router execution failed; falling back to PersonalizedPamAgent: {e}")
+
         # Track user message for analytics
         from app.services.analytics.analytics import PamAnalytics
         analytics = PamAnalytics()
@@ -2451,34 +2505,35 @@ async def chat_endpoint(
             session_id=request.conversation_id or request.session_id
         )
 
-        # 🚀 NEW: Use unified PersonalizedPamAgent with user authentication context
-        user_jwt = current_user.get("jwt_token")
-        if user_jwt:
-            logger.info(f"🔐 Creating user-context PAM agent for enhanced database authentication")
-            from app.core.personalized_pam_agent import create_user_context_pam_agent
-            user_pam_agent = create_user_context_pam_agent(user_jwt)
-        else:
-            logger.warning(f"⚠️ No JWT token available, using service role fallback")
-            from app.core.personalized_pam_agent import personalized_pam_agent
-            user_pam_agent = personalized_pam_agent
+        # 🚀 Existing path: use PersonalizedPamAgent when router not used
+        pam_response = {"content": None, "actions": []}
+        if not used_ai_router:
+            user_jwt = current_user.get("jwt_token")
+            if user_jwt:
+                logger.info(f"🔐 Creating user-context PAM agent for enhanced database authentication")
+                from app.core.personalized_pam_agent import create_user_context_pam_agent
+                user_pam_agent = create_user_context_pam_agent(user_jwt)
+            else:
+                logger.warning(f"⚠️ No JWT token available, using service role fallback")
+                from app.core.personalized_pam_agent import personalized_pam_agent
+                user_pam_agent = personalized_pam_agent
 
-        logger.info(f"🤖 Processing with PersonalizedPamAgent - profile loading and context injection with proper RLS authentication")
-
-        # Process message with user-context agent (fixes authentication issues)
-        pam_response = await user_pam_agent.process_message(
-            user_id=str(user_id),
-            message=request.message,
-            session_id=request.conversation_id,
-            additional_context=context
-        )
-        actions = pam_response.get("actions", [])
+            logger.info(f"🤖 Processing with PersonalizedPamAgent - profile loading and context injection with proper RLS authentication")
+            pam_response = await user_pam_agent.process_message(
+                user_id=str(user_id),
+                message=request.message,
+                session_id=request.conversation_id,
+                additional_context=context
+            )
+            actions = pam_response.get("actions", [])
 
         # Calculate processing time
         processing_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds
         processing_time_seconds = processing_time / 1000.0
 
         # Determine response message
-        response_text = pam_response.get("content") or "I'm here to help!"
+        if response_text is None:
+            response_text = pam_response.get("content") or "I'm here to help!"
         has_error = False
         for action in actions or []:
             if action.get("type") == "error":
@@ -2535,7 +2590,8 @@ async def chat_endpoint(
             context_updates={
                 "profile_used": use_case.value if use_case else "general",
                 "cached_response": pam_response.get("cached", False),
-                **({"ai_router_recommendation": router_recommendation} if router_recommendation else {})
+                **({"ai_router_recommendation": router_recommendation} if router_recommendation else {}),
+                **({"ai_router_provider": routed_provider, "ai_router_model": routed_model} if used_ai_router else {})
             }
         )
         
