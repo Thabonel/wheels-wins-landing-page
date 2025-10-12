@@ -11,10 +11,8 @@ import { TrialConfirmationDialog } from "@/components/TrialConfirmationDialog";
 import { useSubscriptionFlow } from "@/hooks/useSubscriptionFlow";
 import { useRegion } from "@/context/RegionContext";
 import { convertPrice } from "@/services/currencyService";
-import { useTranslation } from "react-i18next";
 
 const PricingPlans = () => {
-  const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -78,36 +76,28 @@ const PricingPlans = () => {
       <section className="py-16 bg-gradient-to-b from-white to-gray-50">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">{t('pricing.title')}</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Choose Your Journey — Stay as Long as You Like</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              {t('pricing.subtitle')}
-              <span className="block text-sm mt-2">{t('pricing.currency_note', { currency: regionConfig.currency })}</span>
+              Start your adventure with a free 30-day trial — no credit card needed
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {/* Free Trial Plan */}
             <Card className="border-2 border-green-500/20 relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 bg-green-500 text-white px-3 py-1 text-xs font-semibold">
-                {t('pricing.free_trial.badge')}
-              </div>
               <CardHeader className="text-center pb-4">
-                <CardTitle className="text-xl">{t('pricing.free_trial.title')}</CardTitle>
-                <CardDescription className="text-sm">{t('pricing.free_trial.description')}</CardDescription>
+                <CardTitle className="text-xl">Free Trial</CardTitle>
+                <CardDescription className="text-sm">Full access to Pam & community</CardDescription>
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">{regionConfig.currencySymbol}0</span>
-                  <span className="text-muted-foreground ml-1">{t('pricing.free_trial.duration')}</span>
+                  <span className="text-4xl font-bold">A$0</span>
+                  <span className="text-muted-foreground ml-1">for 30 days</span>
                 </div>
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span>{t('pricing.free_trial.feature1')}</span>
-                  </li>
-                  <li className="flex items-start text-sm text-muted-foreground">
-                    <span className="mr-2">*</span>
-                    <span>{t('pricing.free_trial.feature2')}</span>
+                    <span>Full access to Pam & community</span>
                   </li>
                 </ul>
               </CardContent>
@@ -120,9 +110,9 @@ const PricingPlans = () => {
                   {isLoading === "price_1QT2VtDXysaVZSVhq8YjLRgX" ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('pricing.processing')}
+                      Processing...
                     </>
-                  ) : t('pricing.free_trial.button')}
+                  ) : "Start Free Trial (No credit card needed)"}
                 </Button>
               </CardFooter>
             </Card>
@@ -130,18 +120,18 @@ const PricingPlans = () => {
             {/* Monthly Plan */}
             <Card className="border-2 border-primary/20 flex flex-col">
               <CardHeader className="text-center pb-4">
-                <CardTitle className="text-xl">{t('pricing.monthly.title')}</CardTitle>
-                <CardDescription className="text-sm">{t('pricing.monthly.description')}</CardDescription>
+                <CardTitle className="text-xl">Monthly</CardTitle>
+                <CardDescription className="text-sm">Continue your adventure with Pam</CardDescription>
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">{monthlyPrice.formatted}</span>
-                  <span className="text-muted-foreground ml-1">{t('pricing.monthly.period')}</span>
+                  <span className="text-4xl font-bold">A$9.99</span>
+                  <span className="text-muted-foreground ml-1">/month</span>
                 </div>
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                    <span>{t('pricing.monthly.feature1')}</span>
+                    <span>Continue your adventure with Pam</span>
                   </li>
                 </ul>
               </CardContent>
@@ -154,9 +144,9 @@ const PricingPlans = () => {
                   {isLoading === "price_1QT2XeDXysaVZSVhFiWGHV4Y" ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('pricing.processing')}
+                      Processing...
                     </>
-                  ) : t('pricing.monthly.button')}
+                  ) : "Start Monthly Plan"}
                 </Button>
               </CardFooter>
             </Card>
@@ -164,25 +154,25 @@ const PricingPlans = () => {
             {/* Annual Plan */}
             <Card className="border-2 border-accent flex flex-col relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-accent text-accent-foreground px-3 py-1 text-xs font-semibold">
-                {t('pricing.annual.badge')}
+                Best Value
               </div>
               <CardHeader className="text-center pb-4">
-                <CardTitle className="text-xl">{t('pricing.annual.title')}</CardTitle>
-                <CardDescription className="text-sm">{t('pricing.annual.description')}</CardDescription>
+                <CardTitle className="text-xl">Annual</CardTitle>
+                <CardDescription className="text-sm">Includes Pam + free video course</CardDescription>
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">{annualPrice.formatted}</span>
-                  <span className="text-muted-foreground ml-1">{t('pricing.annual.period')}</span>
+                  <span className="text-4xl font-bold">A$99</span>
+                  <span className="text-muted-foreground ml-1">/year</span>
                 </div>
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                    <span>{t('pricing.annual.feature1')}</span>
+                    <span>Full access to Pam & community</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                    <span>{t('pricing.annual.feature2', { value: videoCourseValue.formatted })}</span>
+                    <span>Free video course (A$97 value)</span>
                   </li>
                 </ul>
               </CardContent>
@@ -195,9 +185,9 @@ const PricingPlans = () => {
                   {isLoading === "price_1QT2YqDXysaVZSVh7XaE9rJ8" ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('pricing.processing')}
+                      Processing...
                     </>
-                  ) : t('pricing.annual.button')}
+                  ) : "Start Annual Plan"}
                 </Button>
               </CardFooter>
             </Card>
