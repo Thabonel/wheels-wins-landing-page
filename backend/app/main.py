@@ -96,6 +96,7 @@ from app.api.v1 import (
     digistore24,
     national_parks,
     health_consultation,
+    community,  # Community contribution system
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import observability as observability_api
@@ -800,6 +801,12 @@ app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysi
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
 app.include_router(openroute.router, prefix="/api/v1/openroute", tags=["OpenRoute Service Proxy"])
 app.include_router(health_consultation.router, prefix="/api/v1", tags=["Health Consultation"])
+try:
+    from app.api.v1 import ai_router as ai_router_api
+    app.include_router(ai_router_api.router, prefix="")
+    logger.info("✅ AI Router endpoints registered")
+except Exception as e:
+    logger.warning(f"⚠️ AI Router endpoints not available: {e}")
 
 # Conditionally register routers that might fail to import
 if camping_router:
