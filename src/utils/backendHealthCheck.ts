@@ -144,19 +144,18 @@ class BackendHealthMonitor {
   }> {
     console.log('🔍 Starting comprehensive backend diagnostic...');
 
-    // HTTP endpoints to test
-    const httpEndpoints = [
-      import.meta.env.VITE_API_BASE_URL || 'https://pam-backend.onrender.com',
-      'https://pam-backend.onrender.com',
-      'https://api.wheelsandwins.com'
-    ].filter(Boolean);
+    // Derive endpoints from the single source of truth (pamService config)
+    const env = pamService.getCurrentEnvironment();
+    const cfg = pamService.getConfig();
 
-    // WebSocket endpoints to test
-    const wsEndpoints = [
-      import.meta.env.VITE_PAM_WEBSOCKET_URL || 'wss://pam-backend.onrender.com/api/v1/pam/ws',
-      'wss://pam-backend.onrender.com/api/v1/pam/ws',
-      'wss://api.wheelsandwins.com/pam/ws'
-    ].filter(Boolean);
+    // Build HTTP base URLs from configured health endpoints
+    const healthPrimary = cfg.REST_ENDPOINTS[env].primary.health;
+    const healthFallback = cfg.REST_ENDPOINTS[env].fallback.health;
+    const toBase = (url: string) => url.replace(/\/api\/v1\/pam\/health$/, '');
+    const httpEndpoints = [toBase(healthPrimary), toBase(healthFallback)].filter(Boolean);
+
+    // WebSocket endpoints from config
+    const wsEndpoints = [...cfg.WEBSOCKET_ENDPOINTS[env]];
 
     // Run HTTP health checks
     const httpHealthPromises = httpEndpoints.map(endpoint => this.checkHttpHealth(endpoint));
@@ -220,3 +219,4 @@ export const backendHealthMonitor = new BackendHealthMonitor();
 
 // Export types
 export type { HealthCheckResult, WebSocketTestResult };
+import pamService from '@/services/pamService';

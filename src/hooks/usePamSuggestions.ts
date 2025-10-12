@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { pamService } from '@/services/pamService';
+import { usePamConnection } from '@/hooks/usePamConnection';
 import { useTripStatus } from './useTripStatus';
 import { useBudgetSummary } from './useBudgetSummary';
 
@@ -22,6 +22,7 @@ export function usePamSuggestions() {
   const [suggestions, setSuggestions] = useState<PamSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isReady, sendMessage } = usePamConnection();
   
   // Get current context data
   const { tripStatus } = useTripStatus();
@@ -136,16 +137,12 @@ export function usePamSuggestions() {
 
   // Get AI-powered suggestions from PAM
   const fetchPamSuggestions = async () => {
-    if (!user) return [];
+    if (!user || !isReady) return [];
 
     try {
-      const token = await user.getIdToken();
-
-      // Request contextual suggestions from PAM
-      const response = await pamService.sendMessage({
-        message: 'Generate dashboard suggestions',
-        user_id: user.id,
-        context: {
+      const response = await sendMessage(
+        'Generate dashboard suggestions',
+        {
           current_page: 'dashboard',
           trip_active: !!tripStatus?.isActive,
           budget_status: budgetSummary ? {
@@ -153,7 +150,7 @@ export function usePamSuggestions() {
             days_remaining: budgetSummary.daysRemaining
           } : null
         }
-      }, token);
+      );
 
       // Parse PAM's response into suggestions
       if (response.response || response.content) {
