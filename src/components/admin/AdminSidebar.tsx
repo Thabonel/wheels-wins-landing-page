@@ -50,6 +50,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { name: 'User Feedback', icon: MessageCircle },
     { name: 'Learning Dashboard', icon: Brain },
     { name: 'AI Observability', icon: Activity },
+    { name: 'AI Router', icon: Brain },
     { name: 'Testing Dashboard', icon: TestTube },
     { name: 'Integration Testing', icon: TestTube },
     { name: 'Performance Test', icon: Zap },
