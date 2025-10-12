@@ -39,7 +39,6 @@ import { logEnvironmentStatus } from './config/env-validator';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import { RouteMonitor } from './components/common/RouteMonitor';
-import { FloatingPAM } from './components/pam/FloatingPAM';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
@@ -85,7 +84,6 @@ function App() {
                         <ScrollToTop />
                         <RouteMonitor />
                         <Layout>
-                          <FloatingPAM />
                           <div className="route-container">
                             <Suspense fallback={
                               <div className="flex items-center justify-center h-64 space-x-2">
