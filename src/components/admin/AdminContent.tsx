@@ -13,6 +13,7 @@ import {
   PAMAnalyticsDashboard,
   ObservabilityDashboard,
   TestingDashboard,
+  AIIndexer,
   ShopManagement,
   TripTemplateManagement,
   SupportTickets,
@@ -49,6 +50,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <ObservabilityDashboard />;
       case 'AI Router':
         return <AIRouterMetrics />;
+      case 'AI Index':
+        return <AIIndexer />;
       case 'Testing Dashboard':
         return <TestingDashboard />;
       case 'Integration Testing':
