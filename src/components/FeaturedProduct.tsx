@@ -26,7 +26,7 @@ const FeaturedProduct = () => {
                 <p className="text-lg mb-6">
                   Turn your travels into beautiful memories and income opportunities.
                   <br />
-                  🎥 Pam even helps you promote your creations to fellow travellers.
+                  Pam even helps you promote your creations to fellow travellers.
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4">

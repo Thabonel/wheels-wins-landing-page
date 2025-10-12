@@ -5,17 +5,17 @@ const HowItWorks = () => {
   const features = [
     {
       icon: <Users className="w-12 h-12 text-primary" />,
-      title: "💬 Community that Travels With You",
-      description: "Stay connected with other nomads — share tips, meet up on the road, and always have friends nearby."
+      title: "Community that Travels With You",
+      description: "Stay connected with other nomads - share tips, meet up on the road, and always have friends nearby."
     },
     {
       icon: <DollarSign className="w-12 h-12 text-primary" />,
-      title: "💰 Confidence in Every Dollar",
+      title: "Confidence in Every Dollar",
       description: "Let Pam track your expenses, find savings, and keep your adventures sustainable."
     },
     {
       icon: <Map className="w-12 h-12 text-primary" />,
-      title: "🗺️ Smarter Route Planning",
+      title: "Smarter Route Planning",
       description: "Avoid mistakes, plan scenic routes, and find hidden gems tailored to your travel style."
     },
   ];

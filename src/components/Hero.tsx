@@ -11,20 +11,20 @@ const Hero = () => {
       </div>
       <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 drop-shadow-lg">
-          Where Travellers Belong — and Pam Keeps the Journey Alive
+          Where Travellers Belong - and Pam Keeps the Journey Alive
         </h1>
         <p className="text-xl md:text-2xl text-white/90 mb-10 max-w-3xl mx-auto">
-          Wheels and Wins is your trusted travel companion — an AI-powered community that helps you plan smarter, spend wiser, and stay connected wherever the road leads.
+          Wheels and Wins is your trusted travel companion - an AI-powered community that helps you plan smarter, spend wiser, and stay connected wherever the road leads.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link to="/signup">
             <Button size="lg" className="text-xl font-semibold px-10 py-7 bg-accent text-accent-foreground hover:bg-accent/90">
-              👉 Start Free for 30 Days
+              Start Free for 30 Days
             </Button>
           </Link>
           <Link to="/simple-pam-test">
             <Button size="lg" variant="outline" className="text-xl font-semibold px-10 py-7 bg-white/10 text-white border-white/30 hover:bg-white/20">
-              👉 Meet Pam
+              Meet Pam
             </Button>
           </Link>
         </div>
