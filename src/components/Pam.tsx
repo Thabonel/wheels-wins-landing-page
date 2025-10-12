@@ -640,6 +640,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       // Get user location for weather and location-based queries
       let currentLocation = userContext?.current_location;
+      let locationObj: { latitude: number; longitude: number } | undefined;
       
       if (isLocationQuery && !currentLocation) {
         logger.debug('📍 Location-based query detected, requesting location proactively');
@@ -647,10 +648,19 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         
         if (location) {
           currentLocation = `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+          locationObj = { latitude: location.latitude, longitude: location.longitude };
           setUserContext(prev => ({
             ...prev,
             current_location: currentLocation
           }));
+        }
+      }
+
+      // If we still only have a string, try to parse to structured coords
+      if (!locationObj && typeof currentLocation === 'string') {
+        const parts = currentLocation.split(',').map(s => parseFloat(s.trim()));
+        if (parts.length === 2 && parts.every(n => Number.isFinite(n))) {
+          locationObj = { latitude: parts[0], longitude: parts[1] };
         }
       }
 
@@ -712,8 +722,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         {
           region: userContext?.region,
           current_page: 'pam_chat',
-          location: currentLocation,
-          userLocation: currentLocation,
+          // Backend tools expect structured location context with latitude/longitude
+          location: locationObj || undefined,
+          userLocation: locationObj || undefined,
           conversation_history: conversationHistory.slice(-3)
         }
       );
