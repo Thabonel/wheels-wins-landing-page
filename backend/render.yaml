@@ -46,6 +46,9 @@ services:
         value: true
       - key: TTS_VOICE_DEFAULT
         value: en-US-SaraNeural
+      # Email Service (Resend API for Celery workers)
+      - key: RESEND_API_KEY
+        sync: false  # Set manually in dashboard - required for automated emails
       # Monitoring
       - key: SENTRY_DSN
         sync: false  # Set manually in dashboard if needed
