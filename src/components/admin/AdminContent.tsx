@@ -6,6 +6,7 @@ import AuthTestingPanel from './AuthTestingPanel';
 import IntegrationTestingDashboard from './IntegrationTestingDashboard';
 import {
   LearningDashboard,
+  AIRouterMetrics,
   UserManagement,
   ContentModeration,
   ReportsAnalytics,
@@ -46,6 +47,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <LearningDashboard />;
       case 'AI Observability':
         return <ObservabilityDashboard />;
+      case 'AI Router':
+        return <AIRouterMetrics />;
       case 'Testing Dashboard':
         return <TestingDashboard />;
       case 'Integration Testing':
