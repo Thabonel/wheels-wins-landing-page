@@ -14,14 +14,21 @@ export interface UserLocationUpdate {
 class LocationService {
   private watchId: number | null = null;
   private lastUpdate: Date | null = null;
-  private updateInterval: number = 5 * 60 * 1000; // 5 minutes
-  private minDistanceThreshold: number = 0.001; // Roughly 100 meters
+  private updateInterval: number = 5 * 60 * 1000; // default 5 minutes
+  private minDistanceThreshold: number = 0.5; // default 0.5 km (~500 meters)
   private lastPosition: { lat: number; lng: number } | null = null;
 
   /**
    * Start tracking user location and updating the database
    */
-  async startLocationTracking(userId: string): Promise<void> {
+  async startLocationTracking(
+    userId: string,
+    options?: {
+      highAccuracy?: boolean;
+      minDistanceMeters?: number; // meters
+      minIntervalMs?: number; // milliseconds
+    }
+  ): Promise<void> {
     if (!navigator.geolocation) {
       throw new Error('Geolocation is not supported by this browser');
     }
@@ -30,6 +37,15 @@ class LocationService {
     const permission = await navigator.permissions.query({ name: 'geolocation' });
     if (permission.state === 'denied') {
       throw new Error('Location permission denied');
+    }
+
+    // Apply runtime thresholds if provided
+    if (options?.minIntervalMs && options.minIntervalMs > 0) {
+      this.updateInterval = options.minIntervalMs;
+    }
+    if (options?.minDistanceMeters && options.minDistanceMeters > 0) {
+      // Convert meters to kilometers for internal comparison
+      this.minDistanceThreshold = options.minDistanceMeters / 1000;
     }
 
     // Start watching position
@@ -41,9 +57,9 @@ class LocationService {
         console.error('Location tracking error:', error);
       },
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy: options?.highAccuracy ?? true,
         timeout: 10000,
-        maximumAge: 60000 // 1 minute
+        maximumAge: 60000 // allow cache up to 1 minute
       }
     );
   }

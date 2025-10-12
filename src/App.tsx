@@ -39,6 +39,7 @@ import { logEnvironmentStatus } from './config/env-validator';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import { RouteMonitor } from './components/common/RouteMonitor';
+import { LocationConsentManager } from './components/privacy/LocationConsentManager';
 import { PamConnectionProvider } from '@/contexts/PamConnectionProvider';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
@@ -83,6 +84,7 @@ function App() {
                     {/* <PamProvider> */}
                       {/* <LazyPamIntegrationProvider> */}
                         <PamConnectionProvider>
+                          <LocationConsentManager />
                           <ScrollToTop />
                           <RouteMonitor />
                           <Layout>

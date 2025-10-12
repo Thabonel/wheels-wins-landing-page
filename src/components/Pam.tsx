@@ -643,6 +643,14 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       let locationObj: { latitude: number; longitude: number } | undefined;
       
       if (isLocationQuery && !currentLocation) {
+        // If user has not opted in to precise location, show just-in-time consent modal
+        const allowPrecise = settings?.location_preferences?.use_current_location !== false;
+        if (!allowPrecise) {
+          window.dispatchEvent(new Event('open-location-consent'));
+          setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
+          addMessage("To give you local weather, please enable location or tell me your city.", "pam");
+          return;
+        }
         logger.debug('📍 Location-based query detected, requesting location proactively');
         const location = await requestUserLocation();
         
