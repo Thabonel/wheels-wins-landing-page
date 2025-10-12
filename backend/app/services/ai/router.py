@@ -227,8 +227,12 @@ class ModelRouter:
                 }
             else:
                 latency_summary[prov] = {"count": 0, "avg_ms": 0.0, "p95_ms": 0.0}
+        # Provider statuses
+        statuses = {name: prov.status.value for name, prov in self.providers.items()}
+
         return {
             "providers": list(self.providers.keys()),
+            "statuses": statuses,
             "recommendations": self.metrics.get("recommendations", {}),
             "executions": self.metrics.get("executions", {}),
             "estimated_cost_usd": self.metrics.get("est_cost_usd", {}),
