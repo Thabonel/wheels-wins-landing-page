@@ -23,6 +23,7 @@ class RouteRequest:
     long_context: bool = False
     streaming: bool = False
     priority: str = "normal"  # normal | high
+    speed_preference: str = "balanced"  # cheap | fast | balanced
 
 
 @dataclass
@@ -141,12 +142,70 @@ class ModelRouter:
                     fallback_chain=[n for n, _p, _ in candidates if n != "anthropic"],
                 )
 
-        # Simple case: choose cheapest estimated
-        name, provider, est = sorted(candidates, key=lambda t: t[2])[0]
+        # Speed-aware selection for simple cases
+        if req.speed_preference == "fast":
+            # Use observed avg latency if available, else prefer FAST_RESPONSE
+            latency_map = self.metrics.get("latency_ms", {})
+            def latency_score(n: str) -> float:
+                s = latency_map.get(n)
+                if s and s:
+                    # s is list of samples summary not stored here; metrics stores lists under latency_ms[prov]
+                    # But in get_metrics we summarize; here raw latency is stored per exec as list
+                    # We will estimate by average of samples
+                    samples = self.metrics["latency_ms"].get(n, [])
+                    return sum(samples)/len(samples) if samples else float('inf')
+                return float('inf')
+            # Compute by latency; if all inf, fallback to FAST_RESPONSE capability then cost
+            by_latency = sorted(candidates, key=lambda t: latency_score(t[0]))
+            best_name, best_provider, best_est = by_latency[0]
+            if latency_score(best_name) != float('inf'):
+                name, provider, est = best_name, best_provider, best_est
+            else:
+                fast_cap = [c for c in candidates if self._supports(c[1], AICapability.FAST_RESPONSE)]
+                if fast_cap:
+                    name, provider, est = sorted(fast_cap, key=lambda t: t[2])[0]
+                else:
+                    name, provider, est = sorted(candidates, key=lambda t: t[2])[0]
+        elif req.speed_preference == "balanced":
+            # Combine normalized cost and observed latency when available
+            latency_map = self.metrics.get("latency_ms", {})
+            # Build normalization terms
+            costs = [c[2] for c in candidates]
+            min_cost, max_cost = (min(costs), max(costs)) if costs else (0.0, 1.0)
+            def norm_cost(v: float) -> float:
+                if max_cost == min_cost:
+                    return 0.0
+                return (v - min_cost) / (max_cost - min_cost)
+            # Avg latency per provider
+            def avg_latency(n: str) -> float:
+                samples = latency_map.get(n, [])
+                return sum(samples)/len(samples) if samples else None
+            latencies = [avg_latency(n) for (n,_,_) in candidates if avg_latency(n) is not None]
+            min_lat = min(latencies) if latencies else None
+            max_lat = max(latencies) if latencies else None
+            def norm_latency(n: str) -> float:
+                if min_lat is None or max_lat is None or min_lat == max_lat:
+                    return 0.5  # neutral if unknown
+                v = avg_latency(n)
+                if v is None:
+                    return 0.5
+                return (v - min_lat) / (max_lat - min_lat)
+            # Weighted score: lower is better
+            def score(item):
+                n, p, est = item
+                return 0.6 * norm_cost(est) + 0.4 * norm_latency(n)
+            name, provider, est = sorted(candidates, key=score)[0]
+        else:
+            # cheap
+            name, provider, est = sorted(candidates, key=lambda t: t[2])[0]
+
+        # Simple case result
         decision = RouteDecision(
             provider=name,
             model=provider.config.default_model,
-            reason="Simple task → cheapest capable model",
+            reason=("Simple task → fastest observed" if req.speed_preference == "fast" else
+                    "Simple task → balanced cost/latency" if req.speed_preference == "balanced" else
+                    "Simple task → cheapest capable model"),
             estimated_cost_usd=est,
             capabilities=[c.value for c in provider.capabilities],
             fallback_chain=[n for n, _p, _ in candidates if n != name],

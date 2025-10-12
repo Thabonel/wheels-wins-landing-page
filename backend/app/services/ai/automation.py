@@ -37,6 +37,8 @@ def ensure_defaults():
     # Default automation flag
     if not _get_setting('ai_automation_enabled'):
         _upsert_setting('ai_automation_enabled', {'enabled': True})
+    if not _get_setting('ai_router_speed'):
+        _upsert_setting('ai_router_speed', {'mode': 'balanced'})
 
 
 def discover_seeds_from_sitemap(max_urls: int = 50) -> List[str]:
@@ -88,4 +90,3 @@ async def periodic_ingest_loop(interval_seconds: int = 6 * 60 * 60):
             # Never crash the loop
             pass
         await asyncio.sleep(interval_seconds)
-

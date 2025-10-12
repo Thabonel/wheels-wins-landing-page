@@ -2428,6 +2428,15 @@ async def chat_endpoint(
                 ]
                 needs_tools = any(k in msg_text.lower() for k in tool_keywords)
                 long_context = len(msg_text) > 3000
+                # Optional speed preference from DB setting
+                speed_pref = "balanced"
+                try:
+                    from app.core.database import get_supabase_client
+                    ssp = get_supabase_client().table("system_settings").select("setting_value").eq("setting_key", "ai_router_speed").maybe_single().execute()
+                    speed_pref = ((getattr(ssp, 'data', {}) or {}).get('setting_value', {}) or {}).get('mode', 'balanced')
+                except Exception:
+                    pass
+
                 rr = RouteRequest(
                     user_id=str(user_id),
                     messages=[AIMessage(role="user", content=msg_text)],
@@ -2435,6 +2444,7 @@ async def chat_endpoint(
                     long_context=long_context,
                     streaming=False,
                     priority="normal",
+                    speed_preference=speed_pref,
                 )
                 decision = _ai_router.recommend(rr)
                 router_recommendation = {
@@ -2480,17 +2490,27 @@ async def chat_endpoint(
                         "You are PAM, a concise, helpful assistant for RV travel and budgeting. "
                         "Answer clearly in one or two sentences unless the user asks for details."
                     )
-                    rr = RouteRequest(
-                        user_id=str(user_id),
-                        messages=[
-                            AIMessage(role="system", content=system_msg),
-                            AIMessage(role="user", content=msg_text),
-                        ],
-                        needs_tools=False,
-                        long_context=False,
-                        streaming=False,
-                        priority="normal",
-                    )
+                # speed preference from DB (fallback to balanced)
+                speed_pref2 = "balanced"
+                try:
+                    from app.core.database import get_supabase_client
+                    ssp2 = get_supabase_client().table("system_settings").select("setting_value").eq("setting_key", "ai_router_speed").maybe_single().execute()
+                    speed_pref2 = ((getattr(ssp2, 'data', {}) or {}).get('setting_value', {}) or {}).get('mode', 'balanced')
+                except Exception:
+                    pass
+
+                rr = RouteRequest(
+                    user_id=str(user_id),
+                    messages=[
+                        AIMessage(role="system", content=system_msg),
+                        AIMessage(role="user", content=msg_text),
+                    ],
+                    needs_tools=False,
+                    long_context=False,
+                    streaming=False,
+                    priority="normal",
+                    speed_preference=speed_pref2,
+                )
                     # For transparency, include recommendation if not already
                     if router_recommendation is None:
                         decision = _ai_router.recommend(rr)
