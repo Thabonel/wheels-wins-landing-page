@@ -41,6 +41,15 @@ class ModelRouter:
     def __init__(self):
         self.providers: Dict[str, AIProviderInterface] = {}
         self._initialize_providers()
+        # Simple in-memory metrics
+        self.metrics = {
+            "recommendations": {},  # provider -> count
+            "executions": {},       # provider -> count
+            "est_cost_usd": {},     # provider -> float
+            "latency_ms": {},       # provider -> list[float]
+            "last_decisions": []    # ring buffer of recent decisions
+        }
+        self._last_decisions_max = 50
 
     def _initialize_providers(self):
         # Anthropic (Claude)
@@ -134,7 +143,7 @@ class ModelRouter:
 
         # Simple case: choose cheapest estimated
         name, provider, est = sorted(candidates, key=lambda t: t[2])[0]
-        return RouteDecision(
+        decision = RouteDecision(
             provider=name,
             model=provider.config.default_model,
             reason="Simple task → cheapest capable model",
@@ -142,6 +151,9 @@ class ModelRouter:
             capabilities=[c.value for c in provider.capabilities],
             fallback_chain=[n for n, _p, _ in candidates if n != name],
         )
+        # Record recommendation
+        self._record_recommendation(decision)
+        return decision
 
     async def complete(self, req: RouteRequest, temperature: float = 0.7, max_tokens: Optional[int] = None) -> AIResponse:
         decision = self.recommend(req)
@@ -153,13 +165,15 @@ class ModelRouter:
         if provider.status == AIProviderStatus.UNKNOWN:
             await provider.initialize()
         try:
-            return await provider.complete(
+            resp = await provider.complete(
                 messages=req.messages,
                 model=decision.model,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 enable_tools=req.needs_tools,
             )
+            self._record_execution(resp.provider, resp.model, resp.latency_ms, decision.estimated_cost_usd)
+            return resp
         except Exception:
             # Fallback chain
             for name in decision.fallback_chain:
@@ -169,14 +183,55 @@ class ModelRouter:
                 if fb.status == AIProviderStatus.UNKNOWN:
                     await fb.initialize()
                 try:
-                    return await fb.complete(
+                    resp = await fb.complete(
                         messages=req.messages,
                         model=fb.config.default_model,
                         temperature=temperature,
                         max_tokens=max_tokens,
                         enable_tools=req.needs_tools,
                     )
+                    self._record_execution(resp.provider, resp.model, resp.latency_ms, decision.estimated_cost_usd)
+                    return resp
                 except Exception:
                     continue
             raise
 
+    # --- Metrics helpers ---
+    def _record_recommendation(self, decision: RouteDecision):
+        prov = decision.provider
+        self.metrics["recommendations"][prov] = self.metrics["recommendations"].get(prov, 0) + 1
+        self.metrics["est_cost_usd"][prov] = self.metrics["est_cost_usd"].get(prov, 0.0) + float(decision.estimated_cost_usd or 0.0)
+        self.metrics["last_decisions"].append({
+            "provider": decision.provider,
+            "model": decision.model,
+            "reason": decision.reason,
+            "estimated_cost_usd": decision.estimated_cost_usd,
+        })
+        if len(self.metrics["last_decisions"]) > self._last_decisions_max:
+            self.metrics["last_decisions"] = self.metrics["last_decisions"][ -self._last_decisions_max: ]
+
+    def _record_execution(self, provider: str, model: str, latency_ms: float, est_cost_usd: float):
+        self.metrics["executions"][provider] = self.metrics["executions"].get(provider, 0) + 1
+        self.metrics.setdefault("latency_ms", {})
+        self.metrics["latency_ms"].setdefault(provider, []).append(float(latency_ms or 0.0))
+
+    def get_metrics(self) -> Dict[str, Any]:
+        # Compute simple aggregates for latency
+        latency_summary: Dict[str, Dict[str, float]] = {}
+        for prov, samples in self.metrics.get("latency_ms", {}).items():
+            if samples:
+                latency_summary[prov] = {
+                    "count": len(samples),
+                    "avg_ms": sum(samples) / len(samples),
+                    "p95_ms": sorted(samples)[max(0, int(0.95 * len(samples)) - 1)],
+                }
+            else:
+                latency_summary[prov] = {"count": 0, "avg_ms": 0.0, "p95_ms": 0.0}
+        return {
+            "providers": list(self.providers.keys()),
+            "recommendations": self.metrics.get("recommendations", {}),
+            "executions": self.metrics.get("executions", {}),
+            "estimated_cost_usd": self.metrics.get("est_cost_usd", {}),
+            "latency_ms": latency_summary,
+            "last_decisions": self.metrics.get("last_decisions", []),
+        }

@@ -77,3 +77,11 @@ async def route_and_complete(payload: CompleteInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/metrics")
+async def router_metrics():
+    router = router_state["router"]
+    try:
+        return router.get_metrics()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
