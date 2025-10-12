@@ -54,6 +54,14 @@ from app.services.stt.manager import get_stt_manager
 from app.core.simple_pam_service import simple_pam_service
 from app.services.stt.base import AudioFormat
 
+# Optional AI router (dry-run only). This does not affect current behavior.
+try:
+    from app.services.ai.router import ModelRouter, RouteRequest
+    from app.services.ai.provider_interface import AIMessage
+    _ai_router = ModelRouter()
+except Exception:
+    _ai_router = None
+
 # LangGraph Agent Integration
 from app.core.feature_flags import feature_flags, is_feature_enabled
 from app.agents.orchestrator import PAMAgentOrchestrator
@@ -2396,8 +2404,43 @@ async def chat_endpoint(
         # Prepare minimal context - PersonalizedPamAgent handles the rest
         context = request.context or {}
         context["user_id"] = str(user_id)
-        
+
         logger.info(f"Processing chat request for user {user_id} with PersonalizedPamAgent")
+
+        # DRY-RUN: Model router recommendation (does NOT change execution)
+        router_recommendation = None
+        try:
+            if _ai_router and os.getenv("AI_ROUTER_DRY_RUN", "false").lower() in ("1", "true", "yes"):
+                msg_text = request.message or ""
+                tool_keywords = [
+                    "expense", "budget", "spending", "save", "savings",
+                    "trip", "plan", "route", "campground", "rv park", "gas", "fuel",
+                    "weather", "forecast", "road", "attraction", "favorite"
+                ]
+                needs_tools = any(k in msg_text.lower() for k in tool_keywords)
+                long_context = len(msg_text) > 3000
+                rr = RouteRequest(
+                    user_id=str(user_id),
+                    messages=[AIMessage(role="user", content=msg_text)],
+                    needs_tools=needs_tools,
+                    long_context=long_context,
+                    streaming=False,
+                    priority="normal",
+                )
+                decision = _ai_router.recommend(rr)
+                router_recommendation = {
+                    "provider": decision.provider,
+                    "model": decision.model,
+                    "reason": decision.reason,
+                    "estimated_cost_usd": decision.estimated_cost_usd,
+                    "fallback_chain": decision.fallback_chain,
+                }
+                logger.info(
+                    f"🧭 AI Router (dry-run): provider={decision.provider} model={decision.model} "
+                    f"reason={decision.reason} est_cost=${decision.estimated_cost_usd:.6f}"
+                )
+        except Exception as e:
+            logger.warning(f"AI Router dry-run failed (non-critical): {e}")
 
         # Track user message for analytics
         from app.services.analytics.analytics import PamAnalytics
@@ -2491,7 +2534,8 @@ async def chat_endpoint(
             timestamp=datetime.utcnow(),
             context_updates={
                 "profile_used": use_case.value if use_case else "general",
-                "cached_response": pam_response.get("cached", False)
+                "cached_response": pam_response.get("cached", False),
+                **({"ai_router_recommendation": router_recommendation} if router_recommendation else {})
             }
         )
         
