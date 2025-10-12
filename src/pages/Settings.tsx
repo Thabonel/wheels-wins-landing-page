@@ -9,6 +9,7 @@ import { PrivacySettings } from '@/components/settings/PrivacySettings';
 import { DisplaySettings } from '@/components/settings/DisplaySettings';
 import { RegionalSettings } from '@/components/settings/RegionalSettings';
 import { IntegrationSettings } from '@/components/settings/IntegrationSettings';
+import { LocationSettings } from '@/components/settings/LocationSettings';
 import { VoiceSettings } from '@/components/settings/VoiceSettings';
 
 export default function Settings() {
@@ -31,6 +32,7 @@ export default function Settings() {
         <ProfileSettings />
         <NotificationSettings />
         <PrivacySettings />
+        <LocationSettings />
         <DisplaySettings />
         <RegionalSettings />
         <IntegrationSettings />
