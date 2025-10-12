@@ -20,6 +20,7 @@ import { NotificationSettings } from "@/components/settings/NotificationSettings
 import { PrivacySettings } from "@/components/settings/PrivacySettings";
 import { PamSettings } from "@/components/settings/PamSettings";
 import { DisplaySettings } from "@/components/settings/DisplaySettings";
+import { LocationSettings } from "@/components/settings/LocationSettings";
 import { AccountSecurity } from "@/components/settings/AccountSecurity";
 import { AccountDeletion } from "@/components/settings/AccountDeletion";
 import { syncLocalPhotos } from "@/utils/fileUploadUtils";
@@ -287,6 +288,9 @@ const Profile = () => {
                   <TabsContent value="privacy" className="mt-6">
                     <ErrorBoundary>
                       <PrivacySettings />
+                      <div className="mt-6">
+                        <LocationSettings />
+                      </div>
                     </ErrorBoundary>
                   </TabsContent>
                   
