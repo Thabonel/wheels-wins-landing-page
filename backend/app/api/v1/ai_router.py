@@ -20,6 +20,7 @@ class RouteInput(BaseModel):
     long_context: bool = False
     streaming: bool = False
     priority: str = "normal"
+    speed_preference: str = "balanced"  # cheap | fast | balanced
 
 
 class CompleteInput(RouteInput):
@@ -41,6 +42,7 @@ async def recommend_route(payload: RouteInput):
         long_context=payload.long_context,
         streaming=payload.streaming,
         priority=payload.priority,
+        speed_preference=payload.speed_preference,
     )
     decision = router.recommend(req)
     return {
@@ -64,6 +66,7 @@ async def route_and_complete(payload: CompleteInput):
         long_context=payload.long_context,
         streaming=payload.streaming,
         priority=payload.priority,
+        speed_preference=payload.speed_preference,
     )
     try:
         resp = await router.complete(req, temperature=payload.temperature, max_tokens=payload.max_tokens)
