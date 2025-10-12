@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 // import claudeService, { type ChatMessage as ClaudeMessage } from '@/services/claude';
 // import { getToolsForClaude } from '@/services/pam/tools/toolRegistry';
 import { PamApiService } from '@/services/pamApiService';
-import { useUser, useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
+import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { VoiceSettings } from './voice/VoiceSettings';
 import { VoiceToggle } from './voice/VoiceToggle';
@@ -73,8 +73,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Hooks
-  const user = useUser();
-  const session = useSession();
+  const { user, token, session } = useAuth();
   const tts = useTextToSpeech({
     rate: 1.0,
     pitch: 1.0,
@@ -235,7 +234,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
 
     try {
       // Ensure user is authenticated for backend API
-      if (!user || !session?.access_token) {
+      if (!user || !token) {
         throw new Error('User authentication required');
       }
 
@@ -249,7 +248,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
             conversation_length: messages.length
           }
         }
-      }, session.access_token);
+      }, token);
 
       // Remove loading message and add response
       const responseContent = response.response || response.message || response.content || 'Sorry, I did not receive a proper response.';
@@ -280,8 +279,8 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
         message: error?.message,
         stack: error?.stack,
         user: !!user,
-        hasToken: !!session?.access_token,
-        tokenLength: session?.access_token?.length
+        hasToken: !!token,
+        tokenLength: token?.length
       });
 
       // Remove loading message and add error message
