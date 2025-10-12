@@ -2398,7 +2398,16 @@ async def chat_endpoint(
         context["user_id"] = str(user_id)
         
         logger.info(f"Processing chat request for user {user_id} with PersonalizedPamAgent")
-        
+
+        # Track user message for analytics
+        from app.services.analytics.analytics import PamAnalytics
+        analytics = PamAnalytics()
+        tracking_id = await analytics.track_user_message(
+            user_id=str(user_id),
+            message=request.message,
+            session_id=request.conversation_id or request.session_id
+        )
+
         # 🚀 NEW: Use unified PersonalizedPamAgent with user authentication context
         user_jwt = current_user.get("jwt_token")
         if user_jwt:
@@ -2460,7 +2469,18 @@ async def chat_endpoint(
             )
         
         session_id = request.conversation_id or request.session_id or str(uuid.uuid4())
-        
+
+        # Track PAM response for analytics
+        await analytics.track_pam_response(
+            user_id=str(user_id),
+            response=response_text,
+            tracking_id=tracking_id,
+            intent=pam_response.get("intent"),
+            confidence=pam_response.get("confidence"),
+            node_used=pam_response.get("node_used"),
+            session_id=session_id
+        )
+
         response = ChatResponse(
             response=response_text,
             actions=actions,

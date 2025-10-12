@@ -71,7 +71,18 @@ async def register(user_data: UserRegister):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create user"
         )
-    
+
+    # Send welcome email (async via Celery)
+    try:
+        from app.workers.tasks.email_tasks import send_welcome_email
+        send_welcome_email.delay(
+            user_email=user_data.email,
+            user_name=user_data.full_name or "Traveler"
+        )
+        logger.info(f"Welcome email queued for {user_data.email}")
+    except Exception as e:
+        logger.warning(f"Failed to queue welcome email: {e}")
+
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
