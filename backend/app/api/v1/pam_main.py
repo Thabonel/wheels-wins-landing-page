@@ -2485,7 +2485,18 @@ async def chat_endpoint(
                     ai_router_enabled_flag = bool((getattr(s2, 'data', {}) or {}).get('setting_value', {}).get('enabled', False))
                 except Exception:
                     pass
+            # Combine content classification policy with user privacy toggle
             external_allowed = (_classification is None) or (_classification.label not in ('PHI', 'FINANCIAL'))
+            # Load user privacy preference for external AI usage
+            user_external_ai_allowed = True
+            try:
+                from app.core.database import get_supabase_client
+                us = get_supabase_client().table('user_settings').select('privacy_preferences').eq('user_id', str(user_id)).maybe_single().execute()
+                prefs = ((getattr(us, 'data', {}) or {}).get('privacy_preferences')) or {}
+                user_external_ai_allowed = bool(prefs.get('ai_external_allowed', True))
+            except Exception:
+                pass
+            external_allowed = external_allowed and user_external_ai_allowed
             if _ai_router and external_allowed and (ai_router_enabled_flag or os.getenv("AI_ROUTER_ENABLED", "false").lower() in ("1", "true", "yes")):
                 msg_text = sanitized_message or ""
                 tool_keywords = [
@@ -2615,16 +2626,27 @@ async def chat_endpoint(
         
         session_id = request.conversation_id or request.session_id or str(uuid.uuid4())
 
-        # Track PAM response for analytics
-        await analytics.track_pam_response(
-            user_id=str(user_id),
-            response=response_text,
-            tracking_id=tracking_id,
-            intent=pam_response.get("intent"),
-            confidence=pam_response.get("confidence"),
-            node_used=pam_response.get("node_used"),
-            session_id=session_id
-        )
+        # Track PAM response for analytics only if data collection is enabled
+        try:
+            from app.core.database import get_supabase_client
+            supa_priv = get_supabase_client()
+            us_priv = supa_priv.table('user_settings').select('privacy_preferences').eq('user_id', str(user_id)).maybe_single().execute()
+            prefs_priv = ((getattr(us_priv, 'data', {}) or {}).get('privacy_preferences')) or {}
+            analytics_enabled_priv = bool(prefs_priv.get('data_collection', True))
+        except Exception:
+            analytics_enabled_priv = True
+        if analytics_enabled_priv:
+            from app.services.analytics.analytics import PamAnalytics
+            analytics_resp = PamAnalytics()
+            await analytics_resp.track_pam_response(
+                user_id=str(user_id),
+                response=response_text,
+                tracking_id=tracking_id,
+                intent=pam_response.get("intent"),
+                confidence=pam_response.get("confidence"),
+                node_used=pam_response.get("node_used"),
+                session_id=session_id
+            )
 
         response = ChatResponse(
             response=response_text,
