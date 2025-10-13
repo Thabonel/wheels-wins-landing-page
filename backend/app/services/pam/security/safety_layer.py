@@ -59,9 +59,9 @@ class SafetyLayer:
             logger.warning("GEMINI_API_KEY not set - LLM safety layer disabled")
         else:
             genai.configure(api_key=api_key)
-            # Fixed model name: gemini-1.5-flash (not gemini-1.5-flash-8b)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
-            logger.info("Gemini Flash safety layer available for emergency fallback")
+            # Updated to Gemini 2.5 (Gemini 1.x retired in 2025)
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
+            logger.info("Gemini 2.5 Flash safety layer available for emergency fallback")
 
         # Circuit breaker state for LLM failures
         self.llm_failure_count = 0
