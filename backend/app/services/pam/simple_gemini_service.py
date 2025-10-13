@@ -63,11 +63,11 @@ class SimpleGeminiService:
 
             # Initialize model
             # Try multiple model names in order of preference
+            # Note: Using standard v1beta model names (no -latest suffix)
             model_names = [
-                'gemini-1.5-flash-latest',  # Latest Flash model
-                'gemini-1.5-flash',          # Standard Flash
-                'gemini-1.5-pro-latest',     # Latest Pro model
-                'gemini-pro'                 # Fallback to older Pro
+                'gemini-1.5-flash',      # Standard Flash model (most common)
+                'gemini-1.5-pro',        # Standard Pro model (more capable)
+                'gemini-pro'             # Legacy fallback
             ]
 
             model_initialized = False
@@ -75,13 +75,27 @@ class SimpleGeminiService:
 
             for model_name in model_names:
                 try:
+                    # Step 1: Initialize model
                     self.model = genai.GenerativeModel(model_name)
-                    logger.info(f"✅ Successfully initialized {model_name}")
-                    model_initialized = True
-                    break
+                    logger.info(f"🔄 Attempting to initialize {model_name}...")
+
+                    # Step 2: Test the model immediately (critical - must succeed for this model to be used)
+                    test_response = self.model.generate_content("Hello! Just testing the connection.")
+
+                    # Step 3: Verify we got a valid response
+                    if test_response and test_response.text:
+                        logger.info(f"✅ Successfully initialized and tested {model_name}")
+                        logger.info(f"✅ Test response: {test_response.text[:50]}...")
+                        model_initialized = True
+                        break
+                    else:
+                        logger.warning(f"⚠️ {model_name} initialized but test returned no response")
+                        last_error = Exception(f"{model_name} test returned no response")
+                        continue
+
                 except Exception as model_error:
                     last_error = model_error
-                    logger.warning(f"Failed to initialize {model_name}: {model_error}")
+                    logger.warning(f"❌ Failed to initialize {model_name}: {model_error}")
                     continue
 
             if not model_initialized:
@@ -102,16 +116,10 @@ class SimpleGeminiService:
                 # Continue without function calling
                 self.function_handler = None
 
-            # Test the model with a simple request
-            test_response = self.model.generate_content("Hello! Just testing the connection.")
-            if test_response and test_response.text:
-                logger.info("✅ Simple Gemini Service initialized successfully")
-                logger.info(f"✅ Test response: {test_response.text[:50]}...")
-                self.is_initialized = True
-                return True
-            else:
-                logger.error("❌ Gemini test request failed - no response")
-                return False
+            # If we get here, model is initialized and tested successfully
+            logger.info("✅ Simple Gemini Service initialized successfully")
+            self.is_initialized = True
+            return True
 
         except Exception as e:
             logger.error(f"❌ Simple Gemini Service initialization failed: {e}")
