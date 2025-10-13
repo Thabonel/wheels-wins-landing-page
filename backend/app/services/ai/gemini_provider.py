@@ -48,13 +48,13 @@ class GeminiProvider(AIProviderInterface):
                 AICapability.FUNCTION_CALLING  # Function calling support
             ]
 
-        # Set default model - Gemini Flash for optimal speed/cost ratio
+        # Set default model - Gemini 2.5 Flash (1.x retired in 2025)
         if not config.default_model:
-            config.default_model = "gemini-1.5-flash"  # Latest Flash model
+            config.default_model = "gemini-2.5-flash"  # Gemini 2.5 stable model
 
-        # Set token limits - Gemini 1.5 capabilities
-        config.max_context_window = 1048576  # Gemini 1.5: 1M context window
-        config.max_tokens_per_request = 8192   # Gemini: 8K max output
+        # Set token limits - Gemini 2.5 capabilities
+        config.max_context_window = 1000000  # Gemini 2.5: 1M token context window
+        config.max_tokens_per_request = 8192   # Gemini 2.5: 8K max output
 
         # Set costs - Gemini Flash pricing (very cost-effective)
         config.cost_per_1k_input_tokens = 0.000075   # $0.075/M input tokens (Flash)
@@ -109,11 +109,11 @@ class GeminiProvider(AIProviderInterface):
         """Get model with Flash fallback options"""
         requested_model = model or self.config.default_model
 
-        # Gemini model hierarchy (Flash first for speed/cost)
+        # Gemini model hierarchy (2.5 series - 1.x retired in 2025)
         fallback_models = [
-            "gemini-1.5-flash",      # Primary: fastest and cheapest
-            "gemini-1.5-pro",       # Fallback: more capable but slower
-            "gemini-pro",           # Legacy fallback
+            "gemini-2.5-flash",      # Primary: fastest and cheapest
+            "gemini-2.5-pro",        # Fallback: more capable but slower
+            "gemini-2.5-flash-lite", # Legacy fallback
         ]
 
         # If specific model requested, try it first
@@ -306,10 +306,10 @@ class GeminiProvider(AIProviderInterface):
     def get_supported_models(self) -> List[str]:
         """Get list of supported Gemini models"""
         return [
-            "gemini-1.5-flash",     # Primary: fastest and cheapest
-            "gemini-1.5-pro",      # More capable but slower/more expensive
-            "gemini-pro",          # Legacy model
-            "gemini-pro-vision",   # Vision capabilities (legacy)
+            "gemini-2.5-flash",      # Primary: fastest and cheapest
+            "gemini-2.5-pro",        # More capable but slower/more expensive
+            "gemini-2.5-flash-lite", # Lightweight fallback
+            "gemini-2.5-flash-image", # Image generation
         ]
 
     def estimate_cost(
