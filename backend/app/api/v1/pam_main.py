@@ -2532,25 +2532,25 @@ async def chat_endpoint(
                     priority="normal",
                     speed_preference=speed_pref2,
                 )
-                    # For transparency, include recommendation if not already
-                    if router_recommendation is None:
-                        decision = _ai_router.recommend(rr)
-                        router_recommendation = {
-                            "provider": decision.provider,
-                            "model": decision.model,
-                            "reason": decision.reason,
-                            "estimated_cost_usd": decision.estimated_cost_usd,
-                            "fallback_chain": decision.fallback_chain,
-                        }
-                    routed = await _ai_router.complete(rr, temperature=0.7, max_tokens=512)
-                    response_text = routed.content or "I'm here to help!"
-                    actions = []
-                    used_ai_router = True
-                    routed_provider = routed.provider
-                    routed_model = routed.model
-                    logger.info(
-                        f"✅ AI Router used: provider={routed_provider} model={routed_model} latency={routed.latency_ms:.0f}ms"
-                    )
+                # For transparency, include recommendation if not already
+                if router_recommendation is None:
+                    decision = _ai_router.recommend(rr)
+                    router_recommendation = {
+                        "provider": decision.provider,
+                        "model": decision.model,
+                        "reason": decision.reason,
+                        "estimated_cost_usd": decision.estimated_cost_usd,
+                        "fallback_chain": decision.fallback_chain,
+                    }
+                routed = await _ai_router.complete(rr, temperature=0.7, max_tokens=512)
+                response_text = routed.content or "I'm here to help!"
+                actions = []
+                used_ai_router = True
+                routed_provider = routed.provider
+                routed_model = routed.model
+                logger.info(
+                    f"✅ AI Router used: provider={routed_provider} model={routed_model} latency={routed.latency_ms:.0f}ms"
+                )
         except Exception as e:
             logger.warning(f"AI Router execution failed; falling back to PersonalizedPamAgent: {e}")
 
