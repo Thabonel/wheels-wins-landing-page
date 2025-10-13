@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
 import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css';
 import './fresh-trip-planner.css';
+import '@/styles/mapbox-fixes.css';
 import { toast } from 'sonner';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
@@ -496,7 +497,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
                   'circle-stroke-color': '#3b82f6',
                   'circle-stroke-opacity': 0.4
                 }
-              });
+              }, 'waterway-label'); // Insert below labels for proper z-ordering
             }
 
             // Center map on first location (only once)

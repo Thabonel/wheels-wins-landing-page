@@ -1,0 +1,91 @@
+/* ============================================================================
+   Mapbox GL JS - GPS Location Indicators Z-Index Fix
+   ============================================================================
+
+   Problem: User location indicators (blue dot + accuracy circle) render
+   behind the map canvas layer, making them invisible despite being in the DOM.
+
+   Solution: Explicitly set z-index to ensure location indicators render
+   above all map layers.
+
+   Technical Details:
+   - Map canvas has z-index: 1 (Mapbox default)
+   - Map controls have z-index: 10 (Mapbox default)
+   - User location elements need z-index: 100 to be visible
+   - !important flag overrides Mapbox's dynamically-injected inline styles
+
+   Related Issue: Same fix applied on other site (commit bfc5a5c1f)
+   ============================================================================ */
+
+/* GPS Location Indicators - CRITICAL: Must render above map canvas */
+.mapboxgl-user-location-dot,
+.mapboxgl-user-location-accuracy-circle {
+  z-index: 100 !important;
+  pointer-events: none;  /* Let clicks pass through to map */
+}
+
+/* Ensure the user location dot is visible and styled correctly */
+.mapboxgl-user-location-dot {
+  width: 15px !important;
+  height: 15px !important;
+  background-color: #3b82f6 !important; /* Blue (matching our design) */
+  border: 2px solid #ffffff !important;
+  border-radius: 50% !important;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.8) !important;
+  position: absolute !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Accuracy circle styling (semi-transparent blue) */
+.mapboxgl-user-location-accuracy-circle {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  border: 2px solid rgba(59, 130, 246, 0.4) !important;
+  border-radius: 50% !important;
+  position: absolute !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* User location dot container should also be on top */
+.mapboxgl-user-location {
+  z-index: 100 !important;
+  position: absolute !important;
+}
+
+/* Direction arrow when user is moving */
+.mapboxgl-user-location-heading {
+  z-index: 101 !important;
+}
+
+/* Custom Mapbox Markers - Ensure they're visible above map */
+.mapboxgl-marker {
+  z-index: 100 !important;
+}
+
+/* Specifically for user location marker we created programmatically */
+/* This targets the blue marker we create via new mapboxgl.Marker({ color: '#3b82f6' }) */
+.mapboxgl-marker[style*="rgb(59, 130, 246)"],
+.mapboxgl-marker[style*="#3b82f6"] {
+  z-index: 100 !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Ensure marker SVG elements are visible */
+.mapboxgl-marker svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* ============================================================================
+   Z-Index Hierarchy (Low to High):
+   ============================================================================
+   1  - Map canvas (terrain, tiles, roads, buildings)
+   10 - Map controls (zoom buttons, compass, scale)
+   100 - User location indicators (dot, circle, markers)
+   101 - User direction arrow
+   ============================================================================ */
