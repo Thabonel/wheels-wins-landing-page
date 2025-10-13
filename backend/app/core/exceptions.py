@@ -12,6 +12,7 @@ class ErrorCode(Enum):
     INVALID_REQUEST = "invalid_request"
     AUTHENTICATION_FAILED = "authentication_failed"
     PERMISSION_DENIED = "permission_denied"
+    CONFIGURATION_ERROR = "configuration_error"
     
     # Database errors
     DATABASE_CONNECTION_ERROR = "database_connection_error"
@@ -25,6 +26,8 @@ class ErrorCode(Enum):
     PAM_ORCHESTRATOR_ERROR = "pam_orchestrator_error"
     PAM_SERVICE_UNAVAILABLE = "pam_service_unavailable"
     PAM_TIMEOUT = "pam_timeout"
+    EXTERNAL_SERVICE_UNAVAILABLE = "external_service_unavailable"
+    AI_SERVICE_ERROR = "ai_service_error"
     
     # WebSocket errors
     WEBSOCKET_CONNECTION_ERROR = "websocket_connection_error"

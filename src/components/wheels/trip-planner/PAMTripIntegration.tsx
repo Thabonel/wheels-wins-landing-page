@@ -85,7 +85,7 @@ export default function PAMTripIntegration({
     }
   };
 
-  // PAM WebSocket handled by main PamSimplified component
+  // PAM WebSocket handled by main Pam component
   const isConnected = false;
   const sendMessage = async () => {};
 

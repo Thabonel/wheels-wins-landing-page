@@ -1,0 +1,31 @@
+# Dependencies
+node_modules
+dist
+build
+
+# Build outputs
+*.min.js
+*.bundle.js
+
+# Configuration
+.eslintrc.js
+vite.config.ts
+
+# Backups and archives
+backups/
+backend/pam2_backend/
+*.backup
+
+# Legacy code
+src/services/pam/context/
+src/services/pam/performance/
+src/services/pam/integration-guide.ts
+
+# Generated files
+coverage/
+.vite/
+
+# Environment files
+.env
+.env.local
+.env.*.local

@@ -1,0 +1,351 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "submit": "Enviar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "settings": "Configuración",
+    "logout": "Cerrar Sesión",
+    "login": "Iniciar Sesión",
+    "signup": "Registrarse"
+  },
+  "nav": {
+    "wheels": "Ruedas",
+    "wins": "Ganancias",
+    "social": "Social",
+    "shop": "Tienda",
+    "profile": "Perfil",
+    "admin": "Administrador"
+  },
+  "landing": {
+    "hero": {
+      "title": "Tu Compañero RV Completo. Planifica, Presupuesta y Conecta",
+      "subtitle": "Ya seas un snowbird experimentado, una familia trabajando remotamente, o planificando tu retiro en el camino, Pam mantiene tus viajes organizados y asequibles.",
+      "cta": "Obtén la Ayuda de Pam Gratis por 30 Días",
+      "learnMore": "Más Información"
+    },
+    "features": {
+      "title": "Todo lo Que Necesitas para la Vida en el Camino",
+      "track_budget": {
+        "title": "Rastrea Tu Presupuesto de Viaje",
+        "description": "Gestiona fácilmente los gastos específicos de la vida en el camino, desde costos de combustible hasta tarifas de campamento."
+      },
+      "plan_routes": {
+        "title": "Planifica Rutas Perfectas",
+        "description": "Descubre destinos pintorescos, joyas ocultas y paradas amigables para RV en tu viaje."
+      },
+      "connect_travelers": {
+        "title": "Conéctate con Otros Viajeros",
+        "description": "Únete a una comunidad de roadtrippers experimentados que comparten consejos, historias y encuentros."
+      },
+      "ai_companion": {
+        "title": "Compañero de Viaje IA",
+        "description": "Pregúntale a Pam cualquier duda de viaje y obtén recomendaciones personalizadas para tu aventura."
+      },
+      "pam": {
+        "title": "PAM - Tu Asistente IA",
+        "description": "IA activada por voz que ayuda con presupuestos, planificación de viajes y te ahorra dinero"
+      },
+      "trips": {
+        "title": "Planificación Inteligente de Viajes",
+        "description": "Optimiza rutas, encuentra campamentos, rastrea costos de combustible y obtén pronósticos del tiempo"
+      },
+      "budget": {
+        "title": "Gestión Financiera",
+        "description": "Rastrea gastos, administra presupuestos y alcanza tus metas financieras"
+      },
+      "community": {
+        "title": "Conéctate con Otros Viajeros",
+        "description": "Comparte experiencias, encuentra compañeros de viaje y descubre joyas ocultas"
+      }
+    }
+  },
+  "auth": {
+    "signIn": "Iniciar Sesión",
+    "signUp": "Registrarse",
+    "email": "Correo Electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar Contraseña",
+    "forgotPassword": "¿Olvidaste tu Contraseña?",
+    "resetPassword": "Restablecer Contraseña",
+    "createAccount": "Crear Cuenta",
+    "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+    "dontHaveAccount": "¿No tienes una cuenta?",
+    "emailPlaceholder": "tu@ejemplo.com",
+    "passwordPlaceholder": "Ingresa tu contraseña",
+    "signingIn": "Iniciando sesión...",
+    "signingUp": "Creando cuenta...",
+    "signInSuccess": "¡Bienvenido de nuevo!",
+    "signUpSuccess": "¡Cuenta creada exitosamente!",
+    "signInError": "Correo o contraseña inválidos",
+    "signUpError": "Error al crear la cuenta"
+  },
+  "pam": {
+    "greeting": "¡Hola! Soy PAM, tu compañera de viaje IA. ¿Cómo puedo ayudarte hoy?",
+    "placeholder": "Pregúntame lo que quieras...",
+    "voiceButton": "Iniciar chat por voz",
+    "wakeWord": "Di 'Hey PAM' para activar",
+    "listening": "Escuchando...",
+    "thinking": "Pensando...",
+    "speaking": "Hablando...",
+    "savings": {
+      "title": "Dinero Ahorrado Este Mes",
+      "celebration": "🎉 ¡PAM te ahorró ${{amount}} este mes!",
+      "share": "Compartir mis ahorros"
+    },
+    "tools": {
+      "budget": "Gestionando tu presupuesto",
+      "trip": "Planificando tu viaje",
+      "expense": "Agregando gasto",
+      "weather": "Verificando el clima"
+    }
+  },
+  "wheels": {
+    "title": "Ruedas",
+    "subtitle": "Planifica viajes, rastrea mantenimiento y optimiza tus viajes",
+    "tripPlanner": {
+      "title": "Planificador de Viajes",
+      "origin": "Punto de Partida",
+      "destination": "Destino",
+      "budget": "Presupuesto",
+      "planTrip": "Planificar Viaje",
+      "optimizeRoute": "Optimizar Ruta"
+    },
+    "rvParks": {
+      "title": "Parques para RV",
+      "search": "Buscar campamentos...",
+      "filters": "Filtros",
+      "amenities": "Comodidades",
+      "priceRange": "Rango de Precio"
+    },
+    "maintenance": {
+      "title": "Mantenimiento",
+      "addRecord": "Agregar Registro",
+      "task": "Tarea",
+      "date": "Fecha",
+      "cost": "Costo",
+      "mileage": "Kilometraje"
+    }
+  },
+  "wins": {
+    "title": "Ganancias",
+    "subtitle": "Rastrea gastos y alcanza tus metas financieras",
+    "overview": {
+      "totalBudget": "Presupuesto Total",
+      "totalSpent": "Total Gastado",
+      "remaining": "Restante",
+      "savingsGoal": "Meta de Ahorro"
+    },
+    "expenses": {
+      "title": "Gastos",
+      "addExpense": "Agregar Gasto",
+      "category": "Categoría",
+      "amount": "Monto",
+      "description": "Descripción",
+      "date": "Fecha",
+      "categories": {
+        "fuel": "Combustible",
+        "food": "Comida",
+        "campground": "Campamento",
+        "maintenance": "Mantenimiento",
+        "entertainment": "Entretenimiento",
+        "other": "Otro"
+      }
+    },
+    "budget": {
+      "title": "Presupuesto",
+      "setBudget": "Establecer Presupuesto",
+      "monthly": "Mensual",
+      "weekly": "Semanal",
+      "alerts": "Alertas de Presupuesto"
+    },
+    "income": {
+      "title": "Ingresos",
+      "addIncome": "Agregar Ingreso",
+      "source": "Fuente",
+      "amount": "Monto"
+    }
+  },
+  "social": {
+    "title": "Social",
+    "subtitle": "Conéctate con otros viajeros y comparte tus aventuras",
+    "feed": {
+      "title": "Feed",
+      "createPost": "Comparte tu viaje...",
+      "post": "Publicar",
+      "like": "Me gusta",
+      "comment": "Comentar",
+      "share": "Compartir"
+    },
+    "messages": {
+      "title": "Mensajes",
+      "newMessage": "Nuevo Mensaje",
+      "sendMessage": "Enviar"
+    },
+    "nearby": {
+      "title": "Viajeros Cercanos",
+      "distance": "{{distance}} millas de distancia"
+    }
+  },
+  "shop": {
+    "title": "Tienda",
+    "subtitle": "Partes para RV, equipo y esenciales",
+    "search": "Buscar productos...",
+    "cart": "Carrito",
+    "checkout": "Pagar",
+    "addToCart": "Agregar al Carrito",
+    "categories": {
+      "parts": "Partes para RV",
+      "gear": "Equipo de Camping",
+      "electronics": "Electrónicos",
+      "accessories": "Accesorios"
+    }
+  },
+  "settings": {
+    "title": "Configuración",
+    "profile": "Perfil",
+    "display": "Pantalla",
+    "notifications": "Notificaciones",
+    "privacy": "Privacidad",
+    "language": {
+      "title": "Idioma",
+      "english": "Inglés",
+      "spanish": "Español",
+      "french": "Francés"
+    },
+    "theme": {
+      "title": "Tema",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Sistema"
+    },
+    "units": {
+      "title": "Unidades",
+      "imperial": "Imperial (millas, °F)",
+      "metric": "Métrico (km, °C)"
+    },
+    "currency": {
+      "title": "Moneda",
+      "usd": "USD ($)",
+      "eur": "EUR (€)",
+      "cad": "CAD ($)"
+    }
+  },
+  "pamspotlight.title": "Pam se Encarga de los Detalles — Tú Disfrutas del Viaje",
+  "pamspotlight.description": "Deja que Pam se encargue de los detalles—planificación de rutas, seguimiento de gastos y reuniones de viajeros—para que puedas concentrarte en el viaje.",
+  "pamspotlight.imageAlt": "Asistente de IA PAM - Tu compañero inteligente de planificación de viajes en RV para optimización de rutas y seguimiento de gastos",
+  "howitworks.title": "Cómo Funciona",
+  "howitworks.plan_your_trip": "Planifica Tu Viaje",
+  "howitworks.professionalgrade_route_planni": "Planificación de rutas de nivel profesional para evitar errores costosos",
+  "howitworks.financial_security": "Seguridad Financiera",
+  "howitworks.track_every_expense_and_mainta": "Realiza un seguimiento de cada gasto y mantén la confianza en tu presupuesto",
+  "howitworks.worklife_balance": "Equilibrio Entre Trabajo y Vida Personal",
+  "howitworks.connect_with_reliable_workspac": "Conéctate con espacios de trabajo confiables y comunidades de apoyo",
+  "pricingplans.choose_your_plan": "Elige Tu Plan",
+  "pricingplans.first_month_free": "Primer Mes Gratis",
+  "pricingplans.try_before_you_commit": "Prueba antes de comprometerte",
+  "pricingplans.full_access_to_our_platform_an": "Acceso completo a nuestra plataforma y comunidad",
+  "pricingplans.video_course_not_included": "Video Curso no incluido",
+  "pricingplans.monthly_membership": "Membresía Mensual",
+  "pricingplans.annual_membership": "Membresía Anual",
+  "pricingplans.best_value_just_825month_plus_": "Mejor precio - solo $8.25/mes y recibe el Video Curso de $97 GRATIS",
+  "pricingplans.contextauthcontext": "@/context/AuthContext",
+  "pricingplans.componentstrialconfirmationdia": "@/components/TrialConfirmationDialog",
+  "pricingplans.hooksusesubscriptionflow": "@/hooks/useSubscriptionFlow",
+  "pricingplans.contextregioncontext": "@/context/RegionContext",
+  "pricingplans.servicescurrencyservice": "@/services/currencyService",
+  "pricingplans.selectedplan": "planSeleccionado",
+  "pricingplans.error_creating_checkout_sessio": "Error al crear la sesión de pago:",
+  "pricingplans.failed_to_start_checkout_proce": "No se pudo iniciar el proceso de pago. Por favor, inténtalo de nuevo más tarde.",
+  "pricingplans.price1qt2vtdxysavzsvhq8yjlrgx": "price_1QT2VtDXysaVZSVhq8YjLRgX",
+  "pricingplans.free_trial": "Prueba Gratuita",
+  "pricingplans.get_started": "Comienza Ahora",
+  "pricingplans.price1qt2xedxysavzsvhfiwghv4y": "price_1QT2XeDXysaVZSVhFiWGHV4Y",
+  "pricingplans.monthly_plan": "Plan Mensual",
+  "pricingplans.select_plan": "Seleccionar Plan",
+  "pricingplans.price1qt2yqdxysavzsvh7xae9rj8": "price_1QT2YqDXysaVZSVh7XaE9rJ8",
+  "pricingplans.annual_plan": "Plan Anual",
+  "testimonials.join_thousands_of_travelers_wh": ">Únete a miles de viajeros que",
+  "testimonials.margaret_r": "Margaret R.",
+  "testimonials.retired_nomad_68": "Nómada jubilada, 68 años",
+  "testimonials.pam_has_been_my_travel_buddy_f": "Pam ha sido mi compañera de viaje durante 6 meses. Ella",
+  "testimonials.s_time_to_get_the_rv_serviced": "Es hora de darle servicio a la RV.",
+  "testimonials.james_t": "James T.",
+  "testimonials.fulltime_rver_72": "RVero de tiempo completo, 72 años",
+  "testimonials.i_was_hesitant_about_using_an_": "Tenía dudas sobre usar un asistente de IA a mi edad, pero es muy fácil hablar con Pam. Ella",
+  "featuredproduct": {
+    "title": "Crea Videos de Viaje Divertidos para Amigos y Familia",
+    "description": "Aprende a filmar, editar y compartir aventuras usando solo tu smartphone.",
+    "price": "$97",
+    "button": "Ver Curso →"
+  },
+  "testimonials2": {
+    "title": "Por Qué los Viajeros Aman a Pam",
+    "subtitle": "Únete a miles de viajeros que han descubierto viajes más fáciles y agradables",
+    "margaret": {
+      "name": "Margaret R.",
+      "location": "Nómada Jubilada, 68",
+      "quote": "Pam ha sido mi compañera de viaje durante 6 meses. Me ha ayudado a planificar rutas que evitan el tráfico pesado y encuentra los restaurantes más acogedores en el camino."
+    },
+    "robert_linda": {
+      "name": "Robert y Linda",
+      "location": "Snowbirds de Canadá",
+      "quote": "Nos encanta cómo Pam rastrea nuestros gastos. ¡No más hojas de cálculo! Incluso nos recuerda cuándo es hora de dar servicio al RV."
+    },
+    "james": {
+      "name": "James T.",
+      "location": "RVero de Tiempo Completo, 72",
+      "quote": "Tenía dudas sobre usar un asistente de IA a mi edad, pero Pam es muy fácil de usar. Me ha ayudado a conectarme con otros viajeros en cada ciudad nueva."
+    }
+  },
+  "calltoaction": {
+    "title": "Únete a Wheels and Wins Hoy",
+    "description": "Únete a Wheels and Wins hoy: disfruta de planificación sin estrés y una comunidad solidaria.",
+    "button": "Comienza la Prueba Gratuita",
+    "nocreditcard": "No se requiere tarjeta de crédito. Cancela en cualquier momento."
+  },
+  "footer": {
+    "copyright": "Wheels and Wins. Todos los derechos reservados.",
+    "terms": "Términos de Servicio",
+    "privacy": "Política de Privacidad",
+    "cookies": "Política de Cookies"
+  },
+  "pricing": {
+    "title": "Elige Tu Plan",
+    "subtitle": "Selecciona el plan perfecto para tu viaje. Comienza con una prueba gratuita en cualquier plan.",
+    "currency_note": "Precios mostrados en {{currency}}",
+    "processing": "Procesando...",
+    "free_trial": {
+      "badge": "Prueba Gratuita",
+      "title": "Primer Mes Gratis",
+      "description": "Prueba antes de comprometerte",
+      "duration": "por 30 días",
+      "feature1": "Acceso completo a nuestra plataforma y comunidad",
+      "feature2": "Video Curso no incluido",
+      "button": "Comenzar"
+    },
+    "monthly": {
+      "title": "Membresía Mensual",
+      "description": "Acceso completo a nuestra plataforma y comunidad",
+      "period": "/mes",
+      "feature1": "Acceso completo a nuestra plataforma y comunidad",
+      "button": "Seleccionar Plan"
+    },
+    "annual": {
+      "badge": "Mejor Valor",
+      "title": "Membresía Anual",
+      "description": "Mejor valor - solo $8.25/mes más el Video Curso de $97 GRATIS",
+      "period": "/año",
+      "feature1": "Acceso completo a nuestra plataforma y comunidad",
+      "feature2": "Incluye Video Curso (valor {{value}})",
+      "button": "Seleccionar Plan"
+    }
+  }
+}

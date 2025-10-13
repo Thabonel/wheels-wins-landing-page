@@ -1,0 +1,101 @@
+{
+  "languages": {
+    "es": {
+      "name": "Spanish",
+      "enabled": true,
+      "complete": true
+    },
+    "fr": {
+      "name": "French",
+      "enabled": true,
+      "complete": true
+    },
+    "de": {
+      "name": "German",
+      "enabled": true,
+      "complete": false
+    },
+    "tr": {
+      "name": "Turkish",
+      "enabled": true,
+      "complete": false
+    },
+    "es-AR": {
+      "name": "Argentine Spanish",
+      "enabled": true,
+      "complete": false
+    }
+  },
+  "aiProvider": {
+    "name": "anthropic",
+    "model": "claude-sonnet-4-5-20250929",
+    "maxTokens": 4096,
+    "temperature": 0.3,
+    "rateLimit": 10
+  },
+  "context": {
+    "domain": "RV travel and nomadic lifestyle",
+    "audience": "50-75 year old travelers, snowbirds, retirees",
+    "tone": "friendly, helpful, professional",
+    "brandNames": ["PAM", "Wheels & Wins"],
+    "technicalTerms": ["RV", "campground", "snowbird"]
+  },
+  "glossary": {
+    "PAM": {
+      "note": "AI assistant name - never translate",
+      "translations": {}
+    },
+    "Wheels & Wins": {
+      "note": "Brand name - never translate",
+      "translations": {}
+    },
+    "RV": {
+      "note": "Recreational vehicle - keep as-is",
+      "translations": {}
+    },
+    "snowbird": {
+      "note": "Seasonal traveler",
+      "translations": {
+        "de": "Wintervogel",
+        "tr": "kış göçmeni",
+        "es-AR": "viajero de invierno"
+      }
+    },
+    "trip planner": {
+      "translations": {
+        "es": "planificador de viajes",
+        "fr": "planificateur de voyage",
+        "de": "Reiseplaner",
+        "tr": "seyahat planlayıcısı",
+        "es-AR": "planificador de viajes"
+      }
+    },
+    "campground": {
+      "translations": {
+        "es": "campamento",
+        "fr": "terrain de camping",
+        "de": "Campingplatz",
+        "tr": "kamp alanı",
+        "es-AR": "camping"
+      }
+    },
+    "route": {
+      "translations": {
+        "es": "ruta",
+        "fr": "itinéraire",
+        "de": "Route",
+        "tr": "rota",
+        "es-AR": "ruta"
+      }
+    }
+  },
+  "batchSize": 50,
+  "preserveVariables": true,
+  "variablePattern": "{{\\w+}}",
+  "validation": {
+    "checkVariables": true,
+    "checkLength": true,
+    "maxLengthRatio": 1.5,
+    "checkKeys": true
+  }
+}

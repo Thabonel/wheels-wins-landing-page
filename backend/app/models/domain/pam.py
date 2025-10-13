@@ -95,7 +95,7 @@ class PamResponse(BaseModel):
     actions: List[Dict[str, Any]] = Field(default_factory=list)
     requires_followup: bool = False
     context_updates: Dict[str, Any] = Field(default_factory=dict)
-    voice_enabled: bool = False
+    voice_enabled: bool = True  # Voice is opt-out, enabled by default
 
 class PamSession(BaseModel):
     id: str

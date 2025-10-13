@@ -43,8 +43,8 @@ export class PamApiService {
     // Enhance message with location context
     const enhancedMessage = await this.enhanceMessageWithLocation(message);
     const endpoints = [
-      `${API_BASE_URL}/api/v1/pam/chat`,
-      // n8n webhook discontinued - removed n8n endpoint
+      `${API_BASE_URL}/api/v1/pam-simple/chat`, // PAM 2.0 with Claude Sonnet 4.5 and tools
+      `${API_BASE_URL}/api/v1/pam/chat`, // Fallback to old endpoint
     ];
 
     const headers: Record<string, string> = {

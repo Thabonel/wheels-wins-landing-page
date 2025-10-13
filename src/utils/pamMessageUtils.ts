@@ -3,11 +3,15 @@
  */
 
 export interface PamMessage {
+  id?: string;
   type?: string;
   content?: string;
   message?: string;
   response?: string;
   text?: string;
+  timestamp?: number;
+  metadata?: Record<string, any>;
+  actions?: Array<any>;
   [key: string]: any;
 }
 

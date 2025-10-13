@@ -173,9 +173,16 @@ class PAMLogger:
         event_data = event.to_dict()
         if additional_data:
             event_data.update(additional_data)
-        
+
+        # Map custom severity levels to valid logger methods
+        severity_map = {
+            "performance": "info",
+            "security": "warning"
+        }
+        severity_level = severity_map.get(event.severity.value, event.severity.value)
+
         # Log to main structured logger
-        log_method = getattr(self.logger, event.severity.value)
+        log_method = getattr(self.logger, severity_level)
         log_method(event.message, **event_data)
         
         # Log to specialized file loggers based on event type

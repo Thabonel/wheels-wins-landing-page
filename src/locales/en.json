@@ -1,0 +1,434 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "settings": "Settings",
+    "logout": "Log Out",
+    "login": "Log In",
+    "signup": "Sign Up"
+  },
+  "nav": {
+    "wheels": "Wheels",
+    "wins": "Wins",
+    "social": "Social",
+    "shop": "Shop",
+    "profile": "Profile",
+    "admin": "Admin"
+  },
+  "landing": {
+    "hero": {
+      "title": "Your Complete RV Companion. Plan, Budget & Connect",
+      "subtitle": "Whether you're a seasoned snowbird, a remote-working family, or planning retirement on the road, Pam keeps your trips organised and affordable.",
+      "cta": "Get Pam's Help Free for 30 Days",
+      "learnMore": "Learn More"
+    },
+    "features": {
+      "title": "Everything You Need for Life on the Road",
+      "track_budget": {
+        "title": "Track Your Travel Budget",
+        "description": "Easily manage expenses specific to life on the road, from fuel costs to campsite fees."
+      },
+      "plan_routes": {
+        "title": "Plan Perfect Routes",
+        "description": "Discover scenic destinations, hidden gems, and RV-friendly stops along your journey."
+      },
+      "connect_travelers": {
+        "title": "Connect with Fellow Travelers",
+        "description": "Join a community of experienced roadtrippers who share tips, stories, and meet-ups."
+      },
+      "ai_companion": {
+        "title": "AI Travel Companion",
+        "description": "Ask Pam any travel question and get personalized recommendations for your adventure."
+      },
+      "pam": {
+        "title": "PAM - Your AI Assistant",
+        "description": "Voice-activated AI that helps with budgets, trip planning, and saves you money"
+      },
+      "trips": {
+        "title": "Smart Trip Planning",
+        "description": "Optimize routes, find campgrounds, track fuel costs, and get weather forecasts"
+      },
+      "budget": {
+        "title": "Financial Management",
+        "description": "Track expenses, manage budgets, and achieve your financial goals"
+      },
+      "community": {
+        "title": "Connect with RVers",
+        "description": "Share experiences, find travel buddies, and discover hidden gems"
+      }
+    }
+  },
+  "auth": {
+    "welcome": "Welcome to Wheels & Wins",
+    "subtitle": "Your complete RV companion for planning, budgeting, and connecting",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "createAccount": "Create Account",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "Enter your password",
+    "signingIn": "Signing in...",
+    "signingUp": "Creating account...",
+    "signInSuccess": "Welcome back!",
+    "signUpSuccess": "Account created successfully!",
+    "signInError": "Invalid email or password",
+    "signUpError": "Error creating account",
+    "login": {
+      "title": "Sign In",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "button": "Sign In",
+      "forgotPassword": "Forgot Password?",
+      "noAccount": "Don't have an account?",
+      "signUpLink": "Sign up"
+    },
+    "signup": {
+      "title": "Create Account",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "Choose a password",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Confirm your password",
+      "button": "Create Account",
+      "haveAccount": "Already have an account?",
+      "signInLink": "Sign in"
+    },
+    "social": {
+      "google": "Continue with Google",
+      "divider": "Or continue with email"
+    }
+  },
+  "pam": {
+    "title": "PAM Assistant",
+    "subtitle": "Your AI Travel Companion",
+    "greeting": "Hi! I'm PAM, your AI travel companion. How can I help you today?",
+    "helpText": "I can help you with trip planning, budgeting, finding campgrounds, and more!",
+    "placeholder": "Ask me anything...",
+    "inputPlaceholder": "Type your message or ask a question...",
+    "voiceButton": "Start voice chat",
+    "wakeWord": "Say 'Hey PAM' to activate",
+    "listening": "Listening...",
+    "thinking": "Thinking...",
+    "speaking": "Speaking...",
+    "savings": {
+      "title": "Money Saved This Month",
+      "celebration": "🎉 PAM saved you ${{amount}} this month!",
+      "share": "Share my savings"
+    },
+    "tools": {
+      "budget": "Managing your budget",
+      "trip": "Planning your trip",
+      "expense": "Adding expense",
+      "weather": "Checking weather"
+    }
+  },
+  "wheels": {
+    "title": "Wheels",
+    "subtitle": "Plan trips, track maintenance, and optimize your travels",
+    "pageTitle": "Travel Planning",
+    "tabs": {
+      "tripPlanner": "Trip Planner",
+      "trips": "Trips",
+      "fuelLog": "Fuel Log",
+      "maintenance": "Vehicle Maintenance",
+      "storage": "RV Storage",
+      "safety": "Caravan Safety"
+    },
+    "loading": {
+      "tripPlanner": "Loading Trip Planner...",
+      "trips": "Loading Trips...",
+      "fuelLog": "Loading Fuel Log...",
+      "maintenance": "Loading Vehicle Maintenance...",
+      "storage": "Loading RV Storage...",
+      "safety": "Loading Safety Information..."
+    },
+    "errors": {
+      "tripPlanner": "Failed to load Trip Planner",
+      "trips": "Failed to load Trips",
+      "fuelLog": "Failed to load Fuel Log",
+      "maintenance": "Failed to load Vehicle Maintenance",
+      "storage": "Failed to load RV Storage",
+      "safety": "Failed to load Caravan Safety"
+    },
+    "tripPlanner": {
+      "title": "Trip Planner",
+      "origin": "Starting Point",
+      "destination": "Destination",
+      "budget": "Budget",
+      "planTrip": "Plan Trip",
+      "optimizeRoute": "Optimize Route"
+    },
+    "rvParks": {
+      "title": "RV Parks",
+      "search": "Search campgrounds...",
+      "filters": "Filters",
+      "amenities": "Amenities",
+      "priceRange": "Price Range"
+    },
+    "maintenance": {
+      "title": "Maintenance",
+      "addRecord": "Add Record",
+      "task": "Task",
+      "date": "Date",
+      "cost": "Cost",
+      "mileage": "Mileage"
+    }
+  },
+  "wins": {
+    "title": "Wins",
+    "subtitle": "Track expenses and achieve your financial goals",
+    "tabs": {
+      "overview": "Overview",
+      "expenses": "Expenses",
+      "income": "Income",
+      "budgets": "Budgets",
+      "tips": "Tips",
+      "moneyMaker": "Make Money on the Road"
+    },
+    "loading": {
+      "overview": "Loading Overview...",
+      "expenses": "Loading Expenses...",
+      "income": "Loading Income...",
+      "budgets": "Loading Budgets...",
+      "tips": "Loading Money-Saving Tips...",
+      "moneyMaker": "Loading Money Maker..."
+    },
+    "overview": {
+      "totalBudget": "Total Budget",
+      "totalSpent": "Total Spent",
+      "remaining": "Remaining",
+      "savingsGoal": "Savings Goal"
+    },
+    "expenses": {
+      "title": "Expenses",
+      "addExpense": "Add Expense",
+      "category": "Category",
+      "amount": "Amount",
+      "description": "Description",
+      "date": "Date",
+      "categories": {
+        "fuel": "Fuel",
+        "food": "Food",
+        "campground": "Campground",
+        "maintenance": "Maintenance",
+        "entertainment": "Entertainment",
+        "other": "Other"
+      }
+    },
+    "budget": {
+      "title": "Budget",
+      "setBudget": "Set Budget",
+      "monthly": "Monthly",
+      "weekly": "Weekly",
+      "alerts": "Budget Alerts"
+    },
+    "income": {
+      "title": "Income",
+      "addIncome": "Add Income",
+      "source": "Source",
+      "amount": "Amount"
+    }
+  },
+  "social": {
+    "title": "Social",
+    "subtitle": "Connect with fellow RVers and share your adventures",
+    "tabs": {
+      "feed": "Feed",
+      "groups": "Groups",
+      "networking": "Network",
+      "planning": "Planning",
+      "marketplace": "Marketplace",
+      "hustleBoard": "Hustle Board",
+      "moderation": "Moderation"
+    },
+    "feed": {
+      "title": "Feed",
+      "createPost": "Share your journey...",
+      "post": "Post",
+      "like": "Like",
+      "comment": "Comment",
+      "share": "Share"
+    },
+    "messages": {
+      "title": "Messages",
+      "newMessage": "New Message",
+      "sendMessage": "Send"
+    },
+    "nearby": {
+      "title": "Nearby RVers",
+      "distance": "{{distance}} miles away"
+    }
+  },
+  "shop": {
+    "title": "Shop",
+    "subtitle": "RV parts, gear, and essentials",
+    "search": "Search products...",
+    "cart": "Cart",
+    "checkout": "Checkout",
+    "addToCart": "Add to Cart",
+    "categories": {
+      "parts": "RV Parts",
+      "gear": "Camping Gear",
+      "electronics": "Electronics",
+      "accessories": "Accessories"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "display": "Display",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "language": {
+      "title": "Language",
+      "english": "English",
+      "spanish": "Spanish",
+      "french": "French"
+    },
+    "theme": {
+      "title": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "units": {
+      "title": "Units",
+      "imperial": "Imperial (miles, °F)",
+      "metric": "Metric (km, °C)"
+    },
+    "currency": {
+      "title": "Currency",
+      "usd": "USD ($)",
+      "eur": "EUR (€)",
+      "cad": "CAD ($)"
+    }
+  },
+  "pamspotlight.title": "Pam Handles the Details — You Enjoy the Journey",
+  "pamspotlight.description": "Let Pam handle the details—route planning, expense tracking, and traveler meetups—so you can focus on the journey.",
+  "pamspotlight.imageAlt": "PAM AI Assistant - Your intelligent RV trip planning companion for route optimization and expense tracking",
+  "howitworks.title": "How It Works",
+  "howitworks.plan_your_trip": "Plan Your Trip",
+  "howitworks.professionalgrade_route_planni": "Professional-grade route planning to avoid costly mistakes",
+  "howitworks.financial_security": "Financial Security",
+  "howitworks.track_every_expense_and_mainta": "Track every expense and maintain budget confidence",
+  "howitworks.worklife_balance": "Work-Life Balance",
+  "howitworks.connect_with_reliable_workspac": "Connect with reliable workspaces and supportive communities",
+  "pricingplans.choose_your_plan": "Choose Your Plan",
+  "pricingplans.first_month_free": "First Month Free",
+  "pricingplans.try_before_you_commit": "Try before you commit",
+  "pricingplans.full_access_to_our_platform_an": "Full access to our platform and community",
+  "pricingplans.video_course_not_included": "Video Course not included",
+  "pricingplans.monthly_membership": "Monthly Membership",
+  "pricingplans.annual_membership": "Annual Membership",
+  "pricingplans.best_value_just_825month_plus_": "Best value - just $8.25/month plus get the $97 Video Course FREE",
+  "pricingplans.contextauthcontext": "@/context/AuthContext",
+  "pricingplans.componentstrialconfirmationdia": "@/components/TrialConfirmationDialog",
+  "pricingplans.hooksusesubscriptionflow": "@/hooks/useSubscriptionFlow",
+  "pricingplans.contextregioncontext": "@/context/RegionContext",
+  "pricingplans.servicescurrencyservice": "@/services/currencyService",
+  "pricingplans.selectedplan": "selectedPlan",
+  "pricingplans.error_creating_checkout_sessio": "Error creating checkout session:",
+  "pricingplans.failed_to_start_checkout_proce": "Failed to start checkout process. Please try again later.",
+  "pricingplans.price1qt2vtdxysavzsvhq8yjlrgx": "price_1QT2VtDXysaVZSVhq8YjLRgX",
+  "pricingplans.free_trial": "Free Trial",
+  "pricingplans.get_started": "Get Started",
+  "pricingplans.price1qt2xedxysavzsvhfiwghv4y": "price_1QT2XeDXysaVZSVhFiWGHV4Y",
+  "pricingplans.monthly_plan": "Monthly Plan",
+  "pricingplans.select_plan": "Select Plan",
+  "pricingplans.price1qt2yqdxysavzsvh7xae9rj8": "price_1QT2YqDXysaVZSVh7XaE9rJ8",
+  "pricingplans.annual_plan": "Annual Plan",
+  "testimonials.join_thousands_of_travelers_wh": ">Join thousands of travelers who",
+  "testimonials.margaret_r": "Margaret R.",
+  "testimonials.retired_nomad_68": "Retired Nomad, 68",
+  "testimonials.pam_has_been_my_travel_buddy_f": "Pam has been my travel buddy for 6 months now. She",
+  "testimonials.s_time_to_get_the_rv_serviced": "s time to get the RV serviced.",
+  "testimonials.james_t": "James T.",
+  "testimonials.fulltime_rver_72": "Full-time RVer, 72",
+  "testimonials.i_was_hesitant_about_using_an_": "I was hesitant about using an AI assistant at my age, but Pam is so easy to talk to. She",
+  "featuredproduct": {
+    "title": "Make Fun Travel Videos for Friends & Family",
+    "description": "Learn to film, edit, and share adventures using just your smartphone.",
+    "price": "$97",
+    "button": "View Course →"
+  },
+  "testimonials2": {
+    "title": "Why Travelers Love Pam",
+    "subtitle": "Join thousands of travelers who've discovered easier, more enjoyable journeys",
+    "margaret": {
+      "name": "Margaret R.",
+      "location": "Retired Nomad, 68",
+      "quote": "Pam has been my travel buddy for 6 months now. She's helped me plan routes that avoid heavy traffic and finds the coziest diners along the way!"
+    },
+    "robert_linda": {
+      "name": "Robert & Linda",
+      "location": "Snowbirds from Canada",
+      "quote": "We love how Pam keeps track of our expenses. No more spreadsheets! She even reminds us when it's time to get the RV serviced."
+    },
+    "james": {
+      "name": "James T.",
+      "location": "Full-time RVer, 72",
+      "quote": "I was hesitant about using an AI assistant at my age, but Pam is so easy to talk to. She's helped me connect with other travelers in each new town."
+    }
+  },
+  "calltoaction": {
+    "title": "Join Wheels and Wins Today",
+    "description": "Join Wheels and Wins today—enjoy stress-free planning and a supportive community.",
+    "button": "Start Free Trial",
+    "nocreditcard": "No credit card required. Cancel anytime."
+  },
+  "footer": {
+    "copyright": "Wheels and Wins. All rights reserved.",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "cookies": "Cookie Policy"
+  },
+  "pricing": {
+    "title": "Choose Your Plan",
+    "subtitle": "Select the perfect plan for your journey. Start with a free trial on any plan.",
+    "currency_note": "Prices shown in {{currency}}",
+    "processing": "Processing...",
+    "free_trial": {
+      "badge": "Free Trial",
+      "title": "First Month Free",
+      "description": "Try before you commit",
+      "duration": "for 30 days",
+      "feature1": "Full access to our platform and community",
+      "feature2": "Video Course not included",
+      "button": "Get Started"
+    },
+    "monthly": {
+      "title": "Monthly Membership",
+      "description": "Full access to our platform and community",
+      "period": "/month",
+      "feature1": "Full access to our platform and community",
+      "button": "Select Plan"
+    },
+    "annual": {
+      "badge": "Best Value",
+      "title": "Annual Membership",
+      "description": "Best value - just $8.25/month plus get the $97 Video Course FREE",
+      "period": "/year",
+      "feature1": "Full access to our platform and community",
+      "feature2": "Includes Video Course ({{value}} value)",
+      "button": "Select Plan"
+    }
+  }
+}

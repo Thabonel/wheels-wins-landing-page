@@ -219,8 +219,10 @@ async def get_dashboard_data(
                 "detailed_metrics": detailed_metrics,
                 "health": health,
                 "platform_links": {
-                    "openai": "https://platform.openai.com/usage",
-                    "langfuse": getattr(observability.settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com')
+                    "anthropic": "https://console.anthropic.com/usage",
+                    "langfuse": getattr(observability.settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
+                    "gemini": "https://makersuite.google.com/app/usage",
+                    "openai": "https://platform.openai.com/usage"
                 }
             }
         }
@@ -266,12 +268,18 @@ async def get_observability_config_public():
             "enabled": getattr(settings, 'OBSERVABILITY_ENABLED', False),
             "environment": settings.ENVIRONMENT,
             "platforms": {
-                "openai": {
-                    "configured": bool(settings.OPENAI_API_KEY),
+                "anthropic": {
+                    "configured": bool(settings.ANTHROPIC_API_KEY),
                 },
                 "langfuse": {
                     "configured": bool(getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)),
                     "host": getattr(settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
+                },
+                "gemini": {
+                    "configured": bool(getattr(settings, 'GEMINI_API_KEY', None)),
+                },
+                "openai": {
+                    "configured": bool(getattr(settings, 'OPENAI_API_KEY', None)),
                 }
             }
         }
@@ -289,8 +297,10 @@ async def get_observability_config_public():
                 "enabled": False,
                 "environment": "unknown",
                 "platforms": {
-                    "openai": {"configured": False},
+                    "anthropic": {"configured": False},
                     "langfuse": {"configured": False},
+                    "gemini": {"configured": False},
+                    "openai": {"configured": False}
                 }
             }
         }
@@ -308,15 +318,23 @@ async def get_observability_configuration(
             "environment": settings.ENVIRONMENT,
             "langfuse_host": settings.LANGFUSE_HOST,
             "platforms": {
-                "openai": {
-                    "configured": bool(settings.OPENAI_API_KEY),
-                    "key_preview": f"{settings.OPENAI_API_KEY.get_secret_value()[:8]}..." if settings.OPENAI_API_KEY else None
+                "anthropic": {
+                    "configured": bool(settings.ANTHROPIC_API_KEY),
+                    "key_preview": f"{settings.ANTHROPIC_API_KEY.get_secret_value()[:8]}..." if settings.ANTHROPIC_API_KEY else None
                 },
                 "langfuse": {
                     "configured": bool(getattr(settings, 'LANGFUSE_SECRET_KEY', None) and getattr(settings, 'LANGFUSE_PUBLIC_KEY', None)),
                     "host": getattr(settings, 'LANGFUSE_HOST', 'https://cloud.langfuse.com'),
                     "public_key_preview": f"{getattr(settings, 'LANGFUSE_PUBLIC_KEY', '')[:8]}..." if getattr(settings, 'LANGFUSE_PUBLIC_KEY', None) else None
                 },
+                "gemini": {
+                    "configured": bool(getattr(settings, 'GEMINI_API_KEY', None)),
+                    "key_preview": f"{getattr(settings, 'GEMINI_API_KEY', '')[:8]}..." if getattr(settings, 'GEMINI_API_KEY', None) else None
+                },
+                "openai": {
+                    "configured": bool(getattr(settings, 'OPENAI_API_KEY', None)),
+                    "key_preview": f"{settings.OPENAI_API_KEY.get_secret_value()[:8]}..." if getattr(settings, 'OPENAI_API_KEY', None) else None
+                }
             }
         }
         
@@ -349,17 +367,25 @@ async def test_platform_connection(
 ) -> Dict[str, Any]:
     """Test connection to a specific observability platform"""
     try:
-        if platform not in ["openai", "langfuse"]:
+        if platform not in ["anthropic", "gemini", "langfuse", "openai"]:
             raise HTTPException(status_code=400, detail="Invalid platform")
-        
-        if platform == "openai":
-            client = observability.initialize_openai()
-            if client:
-                # Simple test - just check if client is initialized
-                result = {"connected": True, "message": "OpenAI client initialized successfully"}
+
+        if platform == "anthropic":
+            # Anthropic is the primary platform - always considered connected if configured
+            settings = get_settings()
+            if settings.ANTHROPIC_API_KEY:
+                result = {"connected": True, "message": "Claude Sonnet 4.5 (Primary AI) - API key configured"}
             else:
-                result = {"connected": False, "message": "Failed to initialize OpenAI client"}
-                
+                result = {"connected": False, "message": "Anthropic API key not configured"}
+
+        elif platform == "gemini":
+            success = observability.initialize_gemini()
+            if success:
+                # Simple test - just check if client is initialized
+                result = {"connected": True, "message": "Gemini client initialized successfully"}
+            else:
+                result = {"connected": False, "message": "Failed to initialize Gemini client"}
+
         elif platform == "langfuse":
             client = observability.initialize_langfuse()
             if client:
@@ -372,8 +398,14 @@ async def test_platform_connection(
                     result = {"connected": False, "message": f"Langfuse connection failed: {e}"}
             else:
                 result = {"connected": False, "message": "Failed to initialize Langfuse client"}
-                
-        
+
+        elif platform == "openai":
+            settings = get_settings()
+            if getattr(settings, 'OPENAI_API_KEY', None):
+                result = {"connected": True, "message": "OpenAI API key configured (available as fallback)"}
+            else:
+                result = {"connected": False, "message": "OpenAI API key not configured"}
+
         return {
             "status": "success",
             "data": result

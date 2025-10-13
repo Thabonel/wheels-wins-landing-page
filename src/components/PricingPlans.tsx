@@ -20,8 +20,8 @@ const PricingPlans = () => {
   const { region, regionConfig } = useRegion();
 
   // Convert prices based on region
-  const monthlyPrice = convertPrice(18, region);
-  const annualPrice = convertPrice(216, region);
+  const monthlyPrice = convertPrice(9.99, region);
+  const annualPrice = convertPrice(99, region);
   const videoCourseValue = convertPrice(97, region);
 
   const handleSubscription = async (priceId: string, planName: string) => {
@@ -76,41 +76,33 @@ const PricingPlans = () => {
       <section className="py-16 bg-gradient-to-b from-white to-gray-50">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Choose Your Plan</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Choose Your Journey — Stay as Long as You Like</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              Select the perfect plan for your journey. Start with a free trial on any plan.
-              <span className="block text-sm mt-2">Prices shown in {regionConfig.currency}</span>
+              Start your adventure with a free 30-day trial — no credit card needed
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {/* Free Trial Plan */}
             <Card className="border-2 border-green-500/20 relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 bg-green-500 text-white px-3 py-1 text-xs font-semibold">
-                Free Trial
-              </div>
               <CardHeader className="text-center pb-4">
-                <CardTitle className="text-xl">First Month Free</CardTitle>
-                <CardDescription className="text-sm">Try before you commit</CardDescription>
+                <CardTitle className="text-xl">Free Trial</CardTitle>
+                <CardDescription className="text-sm">Full access to Pam & community</CardDescription>
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">{regionConfig.currencySymbol}0</span>
+                  <span className="text-4xl font-bold">A$0</span>
                   <span className="text-muted-foreground ml-1">for 30 days</span>
                 </div>
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
-                    <span>Full access to our platform and community</span>
-                  </li>
-                  <li className="flex items-start text-sm text-muted-foreground">
-                    <span className="mr-2">*</span>
-                    <span>Video Course not included</span>
+                    <span>Full access to Pam & community</span>
                   </li>
                 </ul>
               </CardContent>
               <CardFooter>
-                <Button 
+                <Button
                   className="w-full bg-green-500 hover:bg-green-600"
                   onClick={() => handleSubscription("price_1QT2VtDXysaVZSVhq8YjLRgX", "Free Trial")}
                   disabled={isLoading === "price_1QT2VtDXysaVZSVhq8YjLRgX"}
@@ -120,7 +112,7 @@ const PricingPlans = () => {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processing...
                     </>
-                  ) : "Get Started"}
+                  ) : "Start Free Trial (No credit card needed)"}
                 </Button>
               </CardFooter>
             </Card>
@@ -128,23 +120,23 @@ const PricingPlans = () => {
             {/* Monthly Plan */}
             <Card className="border-2 border-primary/20 flex flex-col">
               <CardHeader className="text-center pb-4">
-                <CardTitle className="text-xl">Monthly Membership</CardTitle>
-                <CardDescription className="text-sm">Full access to our platform and community</CardDescription>
+                <CardTitle className="text-xl">Monthly</CardTitle>
+                <CardDescription className="text-sm">Continue your adventure with Pam</CardDescription>
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">{monthlyPrice.formatted}</span>
+                  <span className="text-4xl font-bold">A$9.99</span>
                   <span className="text-muted-foreground ml-1">/month</span>
                 </div>
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Full access to our platform and community</span>
+                    <span>Continue your adventure with Pam</span>
                   </li>
                 </ul>
               </CardContent>
               <CardFooter>
-                <Button 
+                <Button
                   className="w-full bg-primary hover:bg-primary/90"
                   onClick={() => handleSubscription("price_1QT2XeDXysaVZSVhFiWGHV4Y", "Monthly Plan")}
                   disabled={isLoading === "price_1QT2XeDXysaVZSVhFiWGHV4Y"}
@@ -154,7 +146,7 @@ const PricingPlans = () => {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processing...
                     </>
-                  ) : "Select Plan"}
+                  ) : "Start Monthly Plan"}
                 </Button>
               </CardFooter>
             </Card>
@@ -165,27 +157,27 @@ const PricingPlans = () => {
                 Best Value
               </div>
               <CardHeader className="text-center pb-4">
-                <CardTitle className="text-xl">Annual Membership</CardTitle>
-                <CardDescription className="text-sm">Save 33% plus get the $97 Video Course FREE</CardDescription>
+                <CardTitle className="text-xl">Annual</CardTitle>
+                <CardDescription className="text-sm">Includes Pam + free video course</CardDescription>
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">{annualPrice.formatted}</span>
+                  <span className="text-4xl font-bold">A$99</span>
                   <span className="text-muted-foreground ml-1">/year</span>
                 </div>
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Full access to our platform and community</span>
+                    <span>Full access to Pam & community</span>
                   </li>
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Includes Video Course ({videoCourseValue.formatted} value)</span>
+                    <span>Free video course (A$97 value)</span>
                   </li>
                 </ul>
               </CardContent>
               <CardFooter>
-                <Button 
+                <Button
                   className="w-full bg-accent hover:bg-accent/90"
                   onClick={() => handleSubscription("price_1QT2YqDXysaVZSVh7XaE9rJ8", "Annual Plan")}
                   disabled={isLoading === "price_1QT2YqDXysaVZSVh7XaE9rJ8"}
@@ -195,7 +187,7 @@ const PricingPlans = () => {
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Processing...
                     </>
-                  ) : "Select Plan"}
+                  ) : "Start Annual Plan"}
                 </Button>
               </CardFooter>
             </Card>

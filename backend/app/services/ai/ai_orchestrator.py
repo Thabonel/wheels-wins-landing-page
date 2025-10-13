@@ -20,10 +20,12 @@ from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
 from .gemini_provider import GeminiProvider
 from app.core.config import get_settings
+from app.core.infra_config import get_infra_settings
 from app.services.mcp_config import mcp_config
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+infra_settings = get_infra_settings()  # Use infra_settings for API keys
 
 
 class ProviderSelectionStrategy(Enum):
@@ -74,36 +76,45 @@ class AIOrchestrator:
     async def initialize(self):
         """Initialize all configured providers"""
         if self._initialized:
+            logger.info("AI Orchestrator already initialized")
             return
-        
-        logger.info("Initializing AI Orchestrator...")
-        
-        # Initialize Gemini provider FIRST (primary AI provider - fastest and cheapest)
-        if hasattr(settings, 'GEMINI_API_KEY') and settings.GEMINI_API_KEY:
+
+        logger.info("🔄 Initializing AI Orchestrator...")
+        logger.info(f"📋 Checking available API keys...")
+
+        # Log which API keys are available (securely)
+        gemini_available = hasattr(infra_settings, 'GEMINI_API_KEY') and infra_settings.GEMINI_API_KEY
+        anthropic_available = hasattr(infra_settings, 'ANTHROPIC_API_KEY') and infra_settings.ANTHROPIC_API_KEY
+        openai_available = hasattr(infra_settings, 'OPENAI_API_KEY') and infra_settings.OPENAI_API_KEY
+
+        logger.info(f"🔑 API Keys availability: OpenAI={openai_available}, Anthropic={anthropic_available}, Gemini={gemini_available}")
+
+        # Initialize OpenAI provider FIRST (primary AI provider - reliable and feature-rich)
+        if openai_available:
             try:
-                gemini_config = ProviderConfig(
-                    name="gemini",
-                    api_key=settings.GEMINI_API_KEY.get_secret_value() if hasattr(settings.GEMINI_API_KEY, 'get_secret_value') else str(settings.GEMINI_API_KEY),
-                    default_model=getattr(settings, 'GEMINI_DEFAULT_MODEL', 'gemini-1.5-flash'),
+                openai_config = ProviderConfig(
+                    name="openai",
+                    api_key=infra_settings.OPENAI_API_KEY.get_secret_value(),
+                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', 'gpt-5'),
                     max_retries=3,
                     timeout_seconds=30
                 )
-                gemini_provider = GeminiProvider(gemini_config)
-                if await gemini_provider.initialize():
-                    self.providers.append(gemini_provider)
-                    logger.info("✅ Gemini provider initialized successfully (primary)")
+                openai_provider = OpenAIProvider(openai_config)
+                if await openai_provider.initialize():
+                    self.providers.append(openai_provider)
+                    logger.info("✅ OpenAI provider initialized successfully (primary)")
                 else:
-                    logger.error("❌ Failed to initialize Gemini provider")
+                    logger.error("❌ Failed to initialize OpenAI provider")
             except Exception as e:
-                logger.error(f"Error initializing Gemini provider: {e}")
+                logger.error(f"Error initializing OpenAI provider: {e}")
 
-        # Initialize Anthropic provider as fallback
-        if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:
+        # Initialize Anthropic provider as secondary fallback
+        if hasattr(infra_settings, 'ANTHROPIC_API_KEY') and infra_settings.ANTHROPIC_API_KEY:
             try:
                 anthropic_config = ProviderConfig(
                     name="anthropic",
-                    api_key=settings.ANTHROPIC_API_KEY.get_secret_value() if settings.ANTHROPIC_API_KEY else None,
-                    default_model=getattr(settings, 'ANTHROPIC_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022'),
+                    api_key=infra_settings.ANTHROPIC_API_KEY.get_secret_value() if infra_settings.ANTHROPIC_API_KEY else None,
+                    default_model=getattr(infra_settings, 'ANTHROPIC_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022'),
                     max_retries=3,
                     timeout_seconds=30
                 )
@@ -112,32 +123,32 @@ class AIOrchestrator:
                     # Enable MCP tools for Anthropic
                     if mcp_config.enable_mcp_for_anthropic(anthropic_provider):
                         logger.info("✅ MCP tools enabled for Anthropic provider")
-                    
+
                     self.providers.append(anthropic_provider)
-                    logger.info("✅ Anthropic provider initialized successfully with MCP support")
+                    logger.info("✅ Anthropic provider initialized successfully (secondary)")
                 else:
                     logger.error("❌ Failed to initialize Anthropic provider")
             except Exception as e:
                 logger.error(f"Error initializing Anthropic provider: {e}")
-        
-        # Initialize OpenAI provider as fallback (if configured)
-        if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
+
+        # Initialize Gemini provider as tertiary fallback (cost-effective backup)
+        if gemini_available:
             try:
-                openai_config = ProviderConfig(
-                    name="openai",
-                    api_key=settings.OPENAI_API_KEY.get_secret_value(),
-                    default_model=getattr(settings, 'OPENAI_DEFAULT_MODEL', 'gpt-4-turbo-preview'),
+                gemini_config = ProviderConfig(
+                    name="gemini",
+                    api_key=infra_settings.GEMINI_API_KEY.get_secret_value() if hasattr(infra_settings.GEMINI_API_KEY, 'get_secret_value') else str(infra_settings.GEMINI_API_KEY),
+                    default_model=getattr(infra_settings, 'GEMINI_DEFAULT_MODEL', 'gemini-1.5-flash'),
                     max_retries=3,
                     timeout_seconds=30
                 )
-                openai_provider = OpenAIProvider(openai_config)
-                if await openai_provider.initialize():
-                    self.providers.append(openai_provider)
-                    logger.info("✅ OpenAI provider initialized successfully (fallback)")
+                gemini_provider = GeminiProvider(gemini_config)
+                if await gemini_provider.initialize():
+                    self.providers.append(gemini_provider)
+                    logger.info("✅ Gemini provider initialized successfully (tertiary)")
                 else:
-                    logger.error("❌ Failed to initialize OpenAI provider")
+                    logger.error("❌ Failed to initialize Gemini provider")
             except Exception as e:
-                logger.error(f"Error initializing OpenAI provider: {e}")
+                logger.error(f"Error initializing Gemini provider: {e}")
         
         # Initialize metrics for each provider
         for provider in self.providers:
@@ -153,9 +164,22 @@ class AIOrchestrator:
         
         # Start health check task
         self._health_check_task = asyncio.create_task(self._periodic_health_check())
-        
+
         self._initialized = True
-        logger.info(f"AI Orchestrator initialized with {len(self.providers)} providers")
+
+        # Detailed initialization summary
+        if self.providers:
+            provider_names = [p.name for p in self.providers]
+            logger.info(f"✅ AI Orchestrator successfully initialized with {len(self.providers)} providers: {', '.join(provider_names)}")
+            logger.info(f"🎯 Primary strategy: {self.strategy.value}")
+
+            # Log provider-specific details
+            for provider in self.providers:
+                provider_status = "✅ Ready" if provider.status.value == "healthy" else f"⚠️ {provider.status.value}"
+                logger.info(f"   - {provider.name}: {provider_status} (model: {provider.config.default_model})")
+        else:
+            logger.error("❌ AI Orchestrator initialized but NO PROVIDERS are available!")
+            logger.error("🚨 This will cause 'unable to process' errors in PAM WebSocket")
     
     async def complete(
         self,
@@ -165,6 +189,7 @@ class AIOrchestrator:
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        functions: Optional[List[Dict[str, Any]]] = None,
         **kwargs
     ) -> AIResponse:
         """
@@ -177,9 +202,14 @@ class AIOrchestrator:
         if not self.providers:
             raise RuntimeError("No AI providers available")
         
+        capabilities_required: Set[AICapability] = set(required_capabilities or [])
+
+        if functions:
+            capabilities_required.add(AICapability.FUNCTION_CALLING)
+
         # Get ordered list of providers to try
         providers_to_try = await self._select_providers(
-            required_capabilities,
+            capabilities_required or None,
             preferred_provider
         )
         
@@ -197,12 +227,22 @@ class AIOrchestrator:
                 
                 # Make the request
                 start_time = time.time()
+                provider_kwargs = dict(kwargs)
+
+                if functions and provider.supports(AICapability.FUNCTION_CALLING):
+                    provider_kwargs["functions"] = functions
+                elif functions:
+                    logger.debug(
+                        "Provider %s does not support function calling; omitting tool payload",
+                        provider.name
+                    )
+
                 response = await provider.complete(
                     messages=messages,
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens,
-                    **kwargs
+                    **provider_kwargs
                 )
                 
                 # Update metrics on success

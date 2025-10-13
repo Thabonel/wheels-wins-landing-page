@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { locationService } from '@/services/locationService';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { toast } from '@/hooks/use-toast';
 
 interface LocationTrackingState {
@@ -12,6 +13,7 @@ interface LocationTrackingState {
 
 export function useLocationTracking() {
   const { user } = useAuth();
+  const { settings } = useUserSettings();
   const [state, setState] = useState<LocationTrackingState>({
     isTracking: false,
     hasPermission: false,
@@ -55,7 +57,10 @@ export function useLocationTracking() {
     }
 
     // Check if location sharing is enabled for this user
-    const isEnabled = await locationService.isLocationSharingEnabled(user.id);
+    // Prefer user_settings privacy flag if available; fallback to service check
+    const isEnabled =
+      settings?.privacy_preferences?.location_sharing ??
+      (await locationService.isLocationSharingEnabled(user.id));
     if (!isEnabled) {
       toast({
         title: "Location Sharing Disabled",
@@ -68,7 +73,12 @@ export function useLocationTracking() {
     setState(prev => ({ ...prev, error: null }));
 
     try {
-      await locationService.startLocationTracking(user.id);
+      const onWheels = window.location.pathname.includes('/wheels');
+      await locationService.startLocationTracking(user.id, {
+        highAccuracy: onWheels,
+        minDistanceMeters: onWheels ? 300 : 500,
+        minIntervalMs: onWheels ? 120000 : 180000,
+      });
       setState(prev => ({ 
         ...prev, 
         isTracking: true, 
@@ -152,13 +162,12 @@ export function useLocationTracking() {
   useEffect(() => {
     if (user?.id && state.hasPermission && !state.isTracking) {
       // Auto-start tracking for logged-in users (if they have location sharing enabled)
-      locationService.isLocationSharingEnabled(user.id).then(isEnabled => {
-        if (isEnabled) {
-          startTracking();
-        }
-      });
+      const enabled = settings?.privacy_preferences?.location_sharing;
+      if (enabled) {
+        startTracking();
+      }
     }
-  }, [user?.id, state.hasPermission, state.isTracking, startTracking]);
+  }, [user?.id, state.hasPermission, state.isTracking, startTracking, settings?.privacy_preferences?.location_sharing]);
 
   // Stop tracking when user logs out
   useEffect(() => {

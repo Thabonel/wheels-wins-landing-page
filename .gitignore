@@ -14,6 +14,10 @@ coverage/
 .env.staging
 .env.ai-agents.local
 
+# Claude Code local session memory (personal notes, not for git)
+CLAUDE.local.md
+*.local.md
+
 # Package lock files (prevent accidental dependency updates)
 package-lock.json
 yarn.lock
@@ -27,6 +31,12 @@ yarn.lock
 REPO_HEALTH_CHECK.md
 scripts/git-safe-config
 git-safety-functions.sh
+
+# Knip Dead Code Analysis (Development Only - DO NOT COMMIT)
+knip-*.json
+knip-scan.json
+knip-initial-scan.json
+.knip-cache/
 
 # 🔒 Security & Secrets Prevention (DO NOT COMMIT)
 # Environment files with potential secrets
@@ -111,3 +121,14 @@ docs/maintenance/*.log
 *.old
 *_backup
 *_bak
+backups/
+test_*.py
+*_test_results_*.json
+orchestrator_test_*.json
+
+# AI Migration Documentation (may contain references to keys)
+GEMINI_*.md
+ONGOING_MONITORING_*.md
+PAM_AI_*.md
+# E2E test reports (generated)
+e2e/reports/*.json

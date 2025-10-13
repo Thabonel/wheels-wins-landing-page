@@ -1,0 +1,94 @@
+name: Task
+description: Track a development task or chore
+title: "[TASK]: "
+labels: ["task", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Track development tasks, refactoring, or technical debt
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Task Type
+      description: What kind of task is this?
+      options:
+        - Refactoring
+        - Documentation
+        - Testing
+        - Performance
+        - Security
+        - Dependencies
+        - Configuration
+        - Deployment
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this task?
+      options:
+        - Critical (Do immediately)
+        - High (This week)
+        - Medium (This month)
+        - Low (Backlog)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Task Description
+      description: What needs to be done?
+      placeholder: Refactor PAM conversation history to use Redis instead of in-memory storage...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know when this is complete?
+      placeholder: |
+        - [ ] Redis connection configured
+        - [ ] Conversation history saved to Redis
+        - [ ] History retrieved from Redis on reconnect
+        - [ ] Tests pass
+        - [ ] No memory leaks
+    validations:
+      required: true
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Related Issues
+      description: Link any related issues or PRs
+      placeholder: |
+        Relates to #123
+        Blocks #456
+        Blocked by #789
+
+  - type: checkboxes
+    id: effort
+    attributes:
+      label: Estimated Effort
+      description: How long will this take?
+      options:
+        - label: Small (< 4 hours)
+        - label: Medium (1-2 days)
+        - label: Large (3-5 days)
+        - label: XL (> 1 week)
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Technical Notes
+      description: Any implementation details or considerations?
+      placeholder: |
+        - Use Redis connection pooling
+        - Set TTL to 24 hours
+        - Add error handling for Redis failures

@@ -6,6 +6,7 @@ import { OfflineProvider } from './context/OfflineContext';
 import { ExpensesProvider } from './context/ExpensesContext';
 import { WheelsProvider } from './context/WheelsContext';
 import Layout from './components/Layout';
+import './i18n';
 // Lazy load all page components for optimal bundle splitting
 const Index = lazy(() => import('./pages/Index'));
 const Wheels = lazy(() => import('./pages/Wheels'));
@@ -38,6 +39,8 @@ import { logEnvironmentStatus } from './config/env-validator';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import { RouteMonitor } from './components/common/RouteMonitor';
+import { LocationConsentManager } from './components/privacy/LocationConsentManager';
+import { PamConnectionProvider } from '@/contexts/PamConnectionProvider';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
@@ -80,16 +83,18 @@ function App() {
                     {/* OLD PAM PROVIDERS - COMMENTED OUT FOR REMOVAL */}
                     {/* <PamProvider> */}
                       {/* <LazyPamIntegrationProvider> */}
-                        <ScrollToTop />
-                        <RouteMonitor />
-                        <Layout>
-                          <div className="route-container">
-                            <Suspense fallback={
-                              <div className="flex items-center justify-center h-64 space-x-2">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                <span className="text-gray-600">Loading page...</span>
-                              </div>
-                            }>
+                        <PamConnectionProvider>
+                          <LocationConsentManager />
+                          <ScrollToTop />
+                          <RouteMonitor />
+                          <Layout>
+                            <div className="route-container">
+                              <Suspense fallback={
+                                <div className="flex items-center justify-center h-64 space-x-2">
+                                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                  <span className="text-gray-600">Loading page...</span>
+                                </div>
+                              }>
                                 <Routes>
                                   <Route path="/" element={<Index />} />
                                   <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
@@ -132,7 +137,8 @@ function App() {
                                 </Routes>
                             </Suspense>
                           </div>
-                        </Layout>
+                          </Layout>
+                        </PamConnectionProvider>
                       {/* </LazyPamIntegrationProvider> */}
                     {/* </PamProvider> */}
                   </WheelsProvider>

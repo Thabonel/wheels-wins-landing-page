@@ -5,7 +5,7 @@ Integrates with existing settings and secrets management
 
 import logging
 from typing import Optional
-from openai import OpenAI
+# OpenAI import removed - using Gemini Flash instead
 
 # AgentOps removed - no longer needed
 
@@ -42,10 +42,11 @@ class ObservabilityConfig:
 
     def __init__(self):
         self.settings = get_infra_settings()
-        self.openai_client: Optional[OpenAI] = None
+        # OpenAI client removed - using Gemini Flash instead
         self.langfuse_client: Optional[Langfuse] = None
         self.tracer = None
         self._initialized = False
+        self.agentops_initialized = False  # AgentOps removed, always False
 
     def is_enabled(self) -> bool:
         """Check if observability is enabled"""
@@ -140,9 +141,9 @@ class ObservabilityConfig:
         if self._initialized:
             return
 
-        logger.info("🚀 Initializing AI agent observability stack...")
+        logger.info("🚀 Initializing AI agent observability stack (Gemini + Langfuse)...")
         self.initialize_tracing()
-        self.initialize_openai()
+        self.initialize_gemini()
         self.initialize_langfuse()
 
         self._initialized = True
@@ -159,9 +160,9 @@ class ObservabilityConfig:
         return {
             "enabled": self.is_enabled(),
             "initialized": self._initialized,
-            "openai": {
-                "configured": bool(self.settings.OPENAI_API_KEY),
-                "client_ready": self.openai_client is not None,
+            "gemini": {
+                "configured": bool(self.settings.GEMINI_API_KEY),
+                "client_ready": True,  # Simplified for Gemini
             },
             "langfuse": {
                 "configured": bool(

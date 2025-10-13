@@ -22,6 +22,8 @@ export const LazySupportTickets = lazy(() => import('./SupportTickets'));
 export const LazyLearningDashboard = lazy(() => import('./LearningDashboard'));
 export const LazySettings = lazy(() => import('./Settings'));
 export const LazyPerformanceTestPage = lazy(() => import('../../dev/PerformanceTestPage'));
+export const LazyAIRouterMetrics = lazy(() => import('./AIRouterMetrics'));
+export const LazyAIIndexer = lazy(() => import('./AIIndexer'));
 
 // Loading component for admin sections
 const AdminSectionLoader = ({ section }: { section: string }) => (
@@ -61,3 +63,5 @@ export const SupportTickets = withLazyLoading(LazySupportTickets, "Support Ticke
 export const LearningDashboard = withLazyLoading(LazyLearningDashboard, "Learning Dashboard");
 export const Settings = withLazyLoading(LazySettings, "Settings");
 export const PerformanceTestPage = withLazyLoading(LazyPerformanceTestPage, "Performance Test");
+export const AIRouterMetrics = withLazyLoading(LazyAIRouterMetrics, "AI Router Metrics");
+export const AIIndexer = withLazyLoading(LazyAIIndexer, "AI Index Builder");

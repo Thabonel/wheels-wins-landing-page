@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { PamMessage } from '@/hooks/pam/usePamWebSocketUnified';
+import type { PamMessage } from '@/utils/pamMessageUtils';
 
 export interface MessageCache {
   id: string;

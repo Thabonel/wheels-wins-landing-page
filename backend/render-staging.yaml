@@ -40,6 +40,9 @@ services:
         value: true
       - key: TTS_VOICE_DEFAULT
         value: en-US-AriaNeural
+      # Email Service (Resend API for Celery workers)
+      - key: RESEND_API_KEY
+        sync: false  # Set manually in dashboard - required for automated emails
       # CORS Configuration for staging
       - key: CORS_ALLOWED_ORIGINS
         value: "https://staging-wheelsandwins.netlify.app,https://wheels-wins-staging.netlify.app,http://localhost:8080,http://localhost:3000,http://localhost:5173"

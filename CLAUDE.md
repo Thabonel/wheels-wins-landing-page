@@ -1,19 +1,73 @@
 # Claude Code Instructions for Wheels & Wins
 
-## 🚀 Quick Start
+## Essential Context Files (Read These First)
+When starting a new session, read these files to get up to speed:
+
+- **@docs/pam-rebuild-2025/PAM_FINAL_PLAN.md** - Complete 7-day rebuild plan and progress
+- **@docs/pam-rebuild-2025/DAY_4_COMPLETE.md** - Latest completed work
+- **@backend/docs/architecture.md** - System architecture overview
+- **@backend/docs/api.md** - API endpoint documentation
+- **@CLAUDE.local.md** - Current session context (if exists)
+
+## Task & Issue Tracking
+
+**System**: GitHub Issues + Projects (integrated with repo)
+
+### Quick Commands
+```bash
+# List all issues
+gh issue list
+
+# Create new issue (uses templates)
+gh issue create
+
+# View specific issue
+gh issue view <number>
+
+# Search issues
+gh issue list --label "bug" --state open
+```
+
+### Issue Templates
+Located in `.github/ISSUE_TEMPLATE/`:
+- **bug_report.yml** - Bug reports with reproduction steps
+- **feature_request.yml** - New feature requests
+- **task.yml** - Development tasks and chores
+
+### Labels System
+**Type**: bug, enhancement, task
+**Priority**: critical, high, medium, low
+**Component**: pam, wins, wheels, social, shop, backend, frontend, database, admin
+**Status**: needs-triage, in-progress, blocked, ready-for-review
+**Effort**: small (<1 day), medium (1-3 days), large (1-2 weeks), xl (>2 weeks)
+
+### When to Create Issues
+- Bugs discovered during development
+- Feature requests from users or team
+- Technical debt that needs addressing
+- Documentation improvements needed
+
+### Current Active Issues
+Check: https://github.com/Thabonel/wheels-wins-landing-page/issues
+
+**IMPORTANT**: When you identify bugs or needed features during development, create GitHub issues using `gh issue create` so nothing gets lost.
+
+## Quick Start
 **Dev Server**: http://localhost:8080 (NOT 3000!)
 **Stack**: React 18.3 + TypeScript + Vite + Tailwind + Supabase + FastAPI
 
-## 🎯 Strategic AI Decision (September 2025)
+## Strategic AI Decision (January 2025)
 
-**PAM AI Provider**: **Google Gemini 1.5 Flash** (Primary)
-- ✅ **Ultra Cost Effective**: $0.075/M input tokens (25x cheaper than Claude)
-- ✅ **Lightning Fast**: Optimized for sub-second response times
-- ✅ **Massive Context**: 1M token context window vs 200K for Claude
-- ✅ **Superior Multimodal**: Native vision, audio, and document processing
-- ✅ **Google Infrastructure**: Reliable global scaling and availability
-- 🔄 **Claude Fallback**: Available if needed, but Gemini is primary
-- 🔄 **OpenAI Deprecated**: Removed due to high costs and complexity
+**PAM AI Provider**: **Claude Sonnet 4.5** (Primary)
+- **Primary AI Brain**: Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
+- **Superior Performance**: State-of-the-art reasoning and function calling
+- **200K Token Context**: Massive context window for conversation history
+- **Best-in-Class**: Industry-leading accuracy and response quality
+- **Simple Architecture**: ONE AI brain via AsyncAnthropic client
+- **Gemini Flash Fallback**: Cost-effective backup for simple queries
+- **OpenAI Tertiary**: Available as additional fallback option
+- **Cost**: $3/1M input + $15/1M output tokens (Claude Sonnet 4.5)
+- **Reference**: See `/docs/pam-rebuild-2025/PAM_FINAL_PLAN.md` for full architecture
 
 ## Critical Commands
 ```bash
@@ -25,7 +79,115 @@ npm run lint             # ESLint
 npm run type-check       # TypeScript validation
 ```
 
-## 🛡️ Git Safety Systems (IMPORTANT FOR ALL SESSIONS)
+## PAM Automated Testing (October 2025)
+
+### Overview
+Comprehensive end-to-end testing system that automatically tests PAM across all pages, replacing tedious manual testing with a "test → fix → retest" loop.
+
+### Setup
+1. **Create test credentials file**:
+   ```bash
+   cp .env.test.example .env.test
+   # Edit .env.test with valid test user credentials
+   ```
+
+2. **Or use environment variables**:
+   ```bash
+   export TEST_USER_EMAIL="your-test-user@example.com"
+   export TEST_USER_PASSWORD="YourPassword123!"
+   ```
+
+### Running Tests
+```bash
+npm run test:pam:auto          # Run all PAM tests
+npm run test:pam:auto:headed   # Run with browser visible
+npm run test:pam:auto:debug    # Run with debug mode
+```
+
+### Test Coverage
+- **25+ tests** across 7 pages (Home, Wheels, Wins, Social, Shop, You, PAM)
+- **Automatic retry** logic (3 attempts with exponential backoff)
+- **Self-healing** tests with multiple selector fallbacks
+- **JSON reports** generated in `e2e/reports/`
+
+### What Gets Tested
+Each test asks PAM a question specific to the page context:
+- Calendar: "add a dinner appointment for the 13th at 12pm"
+- Trip: "plan a trip from Phoenix to Seattle"
+- Budget: "show my spending this month"
+- Social: "how can I connect with other RV travelers?"
+
+### Test Reports
+- Located: `e2e/reports/pam-test-report-latest.json`
+- Includes: success/failure status, response times, retry counts, error messages
+- CI/CD ready: JSON format for automated pipelines
+
+### Documentation
+See `e2e/README.md` for complete testing documentation.
+
+## Dead Code Analysis & Cleanup (October 2025)
+
+### Knip - Dead Code Detector
+**Status**: Installed in devDependencies only (NEVER deploys to production)
+**Version**: v5.64.2
+**License**: ISC (free, open-source)
+
+**What Knip Does:**
+- Static analysis to detect unused files, exports, types, dependencies
+- October 8, 2025 baseline: 288 unused files (33.8% of frontend)
+- Used ONLY in development/staging environments
+- Results excluded from git (.gitignore)
+
+**Key Files:**
+- `knip.json` - Configuration for TypeScript scanning
+- `BASELINE_METRICS.md` - October 8, 2025 snapshot before cleanup
+- `MONITORING_PERIOD_OCT_8_22.md` - 2-week monitoring plan
+- `docs/CLEANUP_SAFETY_PROTOCOL.md` - Safety rules and incident log
+
+**Commands:**
+```bash
+# Run Knip scan (development only)
+npx knip
+
+# Analyze results
+./scripts/analyze-knip-results.sh
+
+# View baseline metrics
+cat BASELINE_METRICS.md
+```
+
+### Production Usage Tracking (Oct 8-22, 2025)
+**Purpose:** Collect real production data before ANY code deletion
+
+**Backend Tracking:**
+- Middleware: `backend/app/middleware/usage_tracker.py`
+- Storage: Redis (30-day retention)
+- Tracks: Endpoint paths, call counts, timestamps
+- API: `/api/v1/usage-tracking/stats?days=14`
+
+**Frontend Tracking:**
+- Utility: `src/utils/usageTracking.ts`
+- Storage: localStorage (production only)
+- Tracks: Component render counts, timestamps
+- Export: `exportUsageData()` function in browser console
+
+**Safety Protocol:**
+- **DO NOT DELETE ANY CODE until October 22, 2025**
+- **DO NOT delete files flagged by Knip without cross-referencing usage logs**
+- **Maximum 5 files per deployment** (micro-batch deletions only)
+
+**Critical Lessons from Cleanup Incidents:**
+1. **Incident #1 (Oct 8):** Deleted `pam_simple.py` → PAM outage → Restored
+2. **Incident #2 (Oct 8):** Cleanup exposed orchestrator naming bug → Fixed in 15min
+3. **Key takeaway:** Static analysis reveals latent bugs (GOOD), but need integration tests first
+
+**Next Steps (After Oct 22):**
+1. Export production usage logs
+2. Cross-reference Knip results with zero-usage files
+3. Create deletion plan (5 files max per batch)
+4. Test each batch thoroughly before next deletion
+
+## Git Safety Systems (IMPORTANT FOR ALL SESSIONS)
 
 ### Available Git Safety Tools
 - `scripts/git-safe` - Core corruption prevention system with flock protection
@@ -77,22 +239,21 @@ scripts/git-safe repair --nuclear
 ### Two-System Setup (CRITICAL: Staging & Production)
 We operate **two complete separate systems** sharing one Supabase database:
 
-#### 🔵 Production System
+#### Production System
 - **Frontend**: wheelsandwins.com (Netlify main branch)
 - **Backend**: pam-backend.onrender.com (Render)
 - **Database**: Shared Supabase instance
 - **Redis**: pam-redis.onrender.com (private network)
 - **Workers**: pam-celery-worker.onrender.com, pam-celery-beat.onrender.com
 
-#### 🟡 Staging System  
+#### Staging System  
 - **Frontend**: wheels-wins-staging.netlify.app (Netlify staging branch)
 - **Backend**: wheels-wins-backend-staging.onrender.com (Render)
 - **Database**: Same shared Supabase instance
 - **Workers**: wheels-wins-celery-worker-staging.onrender.com
 
-#### 🔄 Shared Services
+#### Shared Services
 - **Database**: Single Supabase PostgreSQL (shared between systems)
-- **Data Collector**: wheels-wins-data-collector.onrender.com
 - **Redis**: Separate Redis instances per environment
 
 ### Environment Variable Configuration
@@ -108,14 +269,14 @@ Frontend (wheelsandwins.com) ◄──► Backend (pam-backend) ◄──► Sha
 ├── React/TS/PWA (Netlify)         ├── FastAPI/Redis               ├── Supabase DB
 ├── Vite 5.4.19                    ├── Celery Workers              ├── Mapbox GL
 ├── Tailwind 3.4.11                ├── WebSocket                   ├── Google Gemini Flash
-└── PWA Manifest                   └── TTS/STT                     └── Data Collector
+└── PWA Manifest                   └── TTS/STT
 
 Staging:
 Frontend (staging.netlify.app) ◄──► Backend (staging.onrender.com) ◄──► Shared Services
 ├── React/TS/PWA (Netlify)          ├── FastAPI/Redis                ├── Supabase DB
 ├── Vite 5.4.19                     ├── Celery Workers               ├── Mapbox GL
 ├── Tailwind 3.4.11                 ├── WebSocket                    ├── Google Gemini Flash
-└── PWA Manifest                    └── TTS/STT                      └── Data Collector
+└── PWA Manifest                    └── TTS/STT
 ```
 
 ## Environment Variables
@@ -171,8 +332,6 @@ src/
 5. **wheels-wins-backend-staging**: https://wheels-wins-backend-staging.onrender.com
 6. **wheels-wins-celery-worker-staging**: Staging background tasks
 
-#### Shared Services
-7. **wheels-wins-data-collector**: https://wheels-wins-data-collector.onrender.com
 
 ### Database (Supabase - Shared)
 - **Single PostgreSQL instance** shared between staging and production
@@ -204,6 +363,18 @@ src/
 
 ### Available MCP Servers
 1. **Supabase**: Direct SQL operations
+   - **Capabilities**: Direct database access, table management, storage operations
+   - **Project URL**: https://ydevatqwkoccxhtejdor.supabase.co
+   - **Service Role**: Available for admin operations
+   - **Access Level**: Full read/write access via service role key
+   - **What Claude Can Do**:
+     - Read all tables (bypassing RLS)
+     - Update/INSERT/DELETE records directly
+     - Create/modify tables and schemas
+     - Execute any SQL queries
+     - Manage storage buckets
+   - **Security**: Service role key stored locally only, never in codebase
+   - **Use Cases**: Direct database fixes, data migrations, troubleshooting RLS issues
 2. **Serena**: Semantic code analysis
 3. **Render**: Deployment management
 4. **Code Analyzer**: AI-powered integration
@@ -222,9 +393,9 @@ npm install -g @render/mcp-server
 
 Configuration: `~/.config/claude-desktop/claude_desktop_config.json`
 
-## 🔄 Development Workflow
+## Development Workflow
 
-### **Our Standard Development Process**
+### Standard Development Process
 Follow this structured approach for all features and fixes:
 
 1. **Plan the Architecture** 
@@ -257,7 +428,7 @@ Follow this structured approach for all features and fixes:
    - Update PLAN.md with lessons learned
    - Preserve knowledge for future iterations
 
-### **Workflow Tools**
+### Workflow Tools
 - **PLAN.md**: Structured planning templates in project root
 - **cloud.md files**: Architecture and context documentation per subsystem
 - **ADR templates**: Decision record formats in `/docs/decisions/`
@@ -265,14 +436,14 @@ Follow this structured approach for all features and fixes:
 - **`/resume [context]`**: Context restoration between sessions
 - **GitHub Integration**: Automated PR generation with context-rich descriptions
 
-### **Branch Protection & PR Requirements**
+### Branch Protection & PR Requirements
 - **Protected Branches**: staging and main branches are protected
 - **Pull Request Required**: All commits must be made to non-protected branches and submitted via PR
 - **Approval Required**: Pull requests require approval before merging
 - **No Direct Pushes**: Cannot push directly to protected branches
 - **Workflow**: Create feature branch → make changes → submit PR → get approval → merge
 
-### **Quality Gates**
+### Quality Gates
 - All implementations must have corresponding tests
 - TypeScript strict mode compliance required
 - Security review for authentication and data handling
@@ -281,7 +452,7 @@ Follow this structured approach for all features and fixes:
 
 ## Recent Fixes (January 2025)
 
-### ✅ Fixed Issues
+### Fixed Issues
 1. **Animation System**: Removed problematic page transitions
 2. **WebSocket Stability**: Fixed connection state management
 3. **Database**: Fixed RLS recursion, created missing tables
@@ -297,12 +468,12 @@ Follow this structured approach for all features and fixes:
 ## Current QA Issues (August 2025)
 
 ### Priority Fixes
-1. ✅ **Profile Settings**: Fixed sync with retry logic
-2. ✅ **Income Page**: Fixed duplicate buttons
-3. ✅ **Social Avatars**: Added fallback system
-4. ✅ **Savings Challenge**: Added button functionality
-5. ✅ **Budget Editor**: Extended date range
-6. ✅ **Money Maker**: Added onboarding guidance
+1. **Profile Settings**: Fixed sync with retry logic
+2. **Income Page**: Fixed duplicate buttons
+3. **Social Avatars**: Added fallback system
+4. **Savings Challenge**: Added button functionality
+5. **Budget Editor**: Extended date range
+6. **Money Maker**: Added onboarding guidance
 
 ## UI/UX Guidelines
 
@@ -323,6 +494,240 @@ Follow this structured approach for all features and fixes:
 - **Security**: Auto-anonymization, GDPR compliant
 - **Files**: `src/components/bank-statement/`, `src/services/bankStatement/`
 
+## Anti-AI-Slop Rules (CRITICAL - READ FIRST)
+
+### Code Quality Standards - NO EXCEPTIONS
+
+**NEVER include any of the following patterns in code:**
+
+#### 1. Emojis in Code or Comments
+- **BANNED**: Any emoji in code, comments, or logging statements
+- **Examples**: ✅ ❌ 🚀 💡 🚨 ⚠️ 🎉 🔥 🎯 💰 📋
+- **Exception**: User-facing UI strings ONLY (e.g., toast messages, button labels)
+- **Why**: Unprofessional, breaks text processing, IDE issues
+
+```typescript
+// BAD
+logger.info("✅ User logged in successfully");
+console.log("🚀 Starting process...");
+
+// GOOD
+logger.info("User logged in successfully");
+console.log("Starting process...");
+```
+
+#### 2. Poor Error Handling
+- **BANNED**: Bare console.log/console.error in try/catch blocks
+- **BANNED**: Generic error messages without context
+- **BANNED**: Swallowing errors silently
+
+```typescript
+// BAD
+try {
+  await fetchData();
+} catch (error) {
+  console.log(error); // Useless
+}
+
+// GOOD
+try {
+  await fetchData();
+} catch (error) {
+  if (error instanceof NetworkError) {
+    logger.error("Network request failed", { error, endpoint });
+    toast.error("Unable to load data. Please check your connection.");
+  } else {
+    logger.error("Unexpected error in fetchData", { error });
+    throw error; // Re-throw if unhandled
+  }
+}
+```
+
+#### 3. Verbose or Obvious Comments
+- **BANNED**: Comments that restate what the code does
+- **BANNED**: "This function does X" when function name already says it
+- **REQUIRED**: Comments explain WHY, not WHAT
+
+```typescript
+// BAD
+// This function gets the user data
+function getUserData() { ... }
+
+// This increments the counter by 1
+counter++;
+
+// GOOD
+// Cache user data for 5 minutes to reduce API calls
+function getUserData() { ... }
+
+// Increment must happen before validation due to race condition
+counter++;
+```
+
+#### 4. Em-Dashes and Fancy Punctuation
+- **BANNED**: Em-dashes (—) in code, comments, or UI text
+- **USE**: Regular hyphens (-) or colons (:) instead
+- **Why**: Encoding issues, copy-paste problems, accessibility
+
+```typescript
+// BAD
+<p>Fill out as much or as little as you like — here's what you'll get</p>
+
+// GOOD
+<p>Fill out as much or as little as you like - here's what you'll get</p>
+```
+
+#### 5. Mismatched Naming and Logic
+- **BANNED**: Variable names that don't match their content
+- **BANNED**: Function names that don't describe their actual behavior
+
+```typescript
+// BAD
+const userData = fetchCompanySettings(); // Name says user, returns company
+function saveUser() { deleteUser(); } // Name says save, does delete
+
+// GOOD
+const companySettings = fetchCompanySettings();
+function deleteUser() { deleteUser(); }
+```
+
+#### 6. Hardcoded Mock Data in Production Code
+- **BANNED**: Mock data in files outside __tests__/ or __mocks__/
+- **BANNED**: TODO comments saying "replace with real API"
+- **REQUIRED**: Real implementations or clearly marked feature flags
+
+```typescript
+// BAD (in production file)
+async function getWeather() {
+  // TODO: Connect to real API
+  return { temp: 72, condition: "sunny" };
+}
+
+// GOOD
+async function getWeather(location: string) {
+  const response = await fetch(`/api/weather?location=${location}`);
+  return response.json();
+}
+```
+
+#### 7. Repeated Code Blocks
+- **BANNED**: Copy-pasted code with minor variations
+- **REQUIRED**: Extract to shared function or use parameters
+
+```typescript
+// BAD
+function processUserA() {
+  validate();
+  transform();
+  save();
+}
+function processUserB() {
+  validate();
+  transform();
+  save();
+}
+
+// GOOD
+function processUser(type: 'A' | 'B') {
+  validate();
+  transform();
+  save(type);
+}
+```
+
+#### 8. Imports/Dependencies That Don't Exist
+- **BANNED**: Importing non-existent packages
+- **BANNED**: Using APIs that don't exist in the current version
+- **REQUIRED**: Verify all imports against package.json
+
+```typescript
+// BAD
+import { nonExistentFunction } from 'made-up-library';
+
+// GOOD
+// Check package.json first, then import
+import { realFunction } from 'installed-library';
+```
+
+#### 9. Missing Integration Glue
+- **BANNED**: Creating new features without connecting to existing systems
+- **REQUIRED**: Wire new code into actual application flow
+
+```typescript
+// BAD - function exists but never called
+async function newFeature() { ... }
+
+// GOOD - function created AND registered
+async function newFeature() { ... }
+router.post('/new-feature', newFeature); // Wired up!
+```
+
+#### 10. Inconsistent Formatting
+- **BANNED**: Mixing tabs and spaces
+- **BANNED**: Inconsistent quote styles ('single' vs "double")
+- **REQUIRED**: Follow project's existing style (see .prettierrc)
+
+#### 11. Trivial or Meaningless Tests
+- **BANNED**: Tests that don't actually test anything
+- **BANNED**: Tests that just verify mocks return mocked values
+
+```typescript
+// BAD
+test('getUserData works', () => {
+  const mockData = { name: 'John' };
+  jest.mock('api', () => ({ get: () => mockData }));
+  expect(getUserData()).toBe(mockData); // Just testing the mock!
+});
+
+// GOOD
+test('getUserData handles network errors gracefully', async () => {
+  jest.spyOn(api, 'get').mockRejectedValue(new NetworkError());
+  const result = await getUserData();
+  expect(result).toBeNull();
+  expect(logger.error).toHaveBeenCalledWith('Network error fetching user');
+});
+```
+
+#### 12. Wrong or Hallucinated File Paths
+- **BANNED**: Creating files in non-existent directories
+- **REQUIRED**: Use Glob tool to verify directory structure first
+
+```bash
+# BAD - assuming directory exists
+Write: /src/components/new-feature/Component.tsx
+
+# GOOD - verify first
+Glob: src/components/**
+# Confirm directory exists or needs creation
+# THEN write file
+```
+
+### Enforcement
+
+**Before committing any code, verify:**
+- [ ] No emojis in code/comments (UI strings excepted)
+- [ ] All errors properly handled with context
+- [ ] Comments explain WHY, not WHAT
+- [ ] No em-dashes or fancy punctuation
+- [ ] Variable names match their content
+- [ ] No mock data in production paths
+- [ ] No repeated code blocks (DRY principle)
+- [ ] All imports exist in package.json
+- [ ] New features wired into application
+- [ ] Formatting consistent with project
+- [ ] Tests actually test behavior
+- [ ] File paths verified before creation
+
+**Quality Check Command:**
+```bash
+# Run before every commit
+npm run quality:check:full
+npm run type-check
+npm run lint
+```
+
+---
+
 ## Development Guidelines
 
 ### Code Standards
@@ -333,7 +738,8 @@ Follow this structured approach for all features and fixes:
 - **No mock data**: Production-ready code only
 
 ### SQL File Guidelines
-- **No Comments**: When creating SQL files, write only clean SQL statements
+- **Executable SQL Only**: SQL files must contain ONLY executable SQL statements that will run in Supabase
+- **No Comments**: Never include SQL comments, explanations, or documentation in SQL files
 - **No Instructions**: Never include "run separately" or other execution instructions
 - **Batch Execution**: All SQL should be designed to run as a complete script
 - **Clean Format**: One statement per line, no explanatory text
@@ -394,8 +800,8 @@ When debugging staging/production issues, verify:
    ```bash
    # Production should use:
    VITE_API_BASE_URL=https://pam-backend.onrender.com
-   
-   # Staging should use:  
+
+   # Staging should use:
    VITE_API_BASE_URL=https://wheels-wins-backend-staging.onrender.com
    ```
 
@@ -407,9 +813,9 @@ When debugging staging/production issues, verify:
    ```
 
 3. **JWT Token Compatibility**:
-   - Staging frontend + staging backend = ✅
-   - Production frontend + production backend = ✅  
-   - Cross-environment = ❌ (JWT decode failures)
+   - Staging frontend + staging backend = OK
+   - Production frontend + production backend = OK
+   - Cross-environment = FAIL (JWT decode failures)
 
 ### Common Error Patterns
 - `"<!doctype"... is not valid JSON` = CORS/Environment mismatch

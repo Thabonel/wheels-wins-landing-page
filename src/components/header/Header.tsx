@@ -9,6 +9,7 @@ import LoginButton from "./LoginButton";
 import UserMenu from "./UserMenu";
 import { Button } from "@/components/ui/button";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
+import LanguageSelector from "@/components/LanguageSelector";
 
 const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
@@ -39,6 +40,9 @@ const Header = () => {
       <NavigationLinks isVisible={showNavigation} />
       {/* Auth Buttons */}
       <div className="flex items-center space-x-2 sm:space-x-4">
+        {/* Language Selector - Always visible */}
+        <LanguageSelector />
+
         {/* Show Shop and Login buttons on homepage when not authenticated */}
         {isHomePage && !isAuthenticated && !isDevMode && (
           <>

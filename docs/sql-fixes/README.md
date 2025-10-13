@@ -1,8 +1,35 @@
-# SQL Fixes for Supabase Performance
+# SQL Fixes for Supabase
 
-**ALL SQL FILES** from the entire Wheels & Wins project are now in this folder (235 files).
+**This folder contains SQL migrations and fixes for the Wheels & Wins database.**
 
-## 🚨 PRIORITY ORDER - Start with these files:
+---
+
+## 🚨 URGENT: PAM Tables Fix (January 11, 2025)
+
+**Issue:** "operator does not exist: bigint = uuid" error when creating PAM tables
+
+**Quick Fix (2 minutes):**
+1. Open Supabase SQL Editor
+2. Copy: `00_fix_missing_pam_tables_safe.sql`
+3. Paste and Run
+4. Done!
+
+**Files:**
+- `00_fix_missing_pam_tables_safe.sql` - ⭐ Type-safe version (USE THIS)
+- `01_diagnose_profiles_table.sql` - Diagnostic queries
+- `EXECUTION_GUIDE.md` - Complete step-by-step guide
+- `DATABASE_FIX_GUIDE.md` - Troubleshooting guide
+
+This creates 4 missing PAM tables and fixes 5 broken tools:
+- track_savings
+- export_budget_report
+- add_knowledge
+- search_knowledge
+- create_calendar_event
+
+---
+
+## 📈 PERFORMANCE OPTIMIZATION - Start with these files:
 
 ### CRITICAL - Fix 80% of performance issues:
 1. `11_optimize_realtime_performance.sql` ⭐
