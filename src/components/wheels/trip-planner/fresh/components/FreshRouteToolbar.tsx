@@ -279,9 +279,24 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
           <Menu className="w-4 h-4" />
         </button>
       </div>
-      
+
+      {/* GPS Location Legend - Shows what the blue dot and green circle mean */}
+      <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2">
+        <div className="bg-white/95 backdrop-blur-sm rounded-md shadow-md px-3 py-1.5 flex items-center gap-3 text-xs border border-gray-200">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 border border-white shadow-sm"></div>
+            <span className="text-gray-700 font-medium">Your Position</span>
+          </div>
+          <div className="w-px h-4 bg-gray-300"></div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-full border-2 border-green-500 bg-green-100/50"></div>
+            <span className="text-gray-700 font-medium">GPS Accuracy</span>
+          </div>
+        </div>
+      </div>
+
       {/* Mobile-friendly version with labels */}
-      <div className="hidden lg:block absolute top-full left-1/2 transform -translate-x-1/2 mt-2 text-xs text-gray-500 whitespace-nowrap">
+      <div className="hidden lg:block absolute top-full left-1/2 transform -translate-x-1/2 mt-14 text-xs text-gray-500 whitespace-nowrap">
         <span className="inline-flex items-center space-x-4">
           <span>Ctrl+Z: Undo</span>
           <span>•</span>
