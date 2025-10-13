@@ -27,6 +27,7 @@ from . import (
     digistore24,
     national_parks,
     health_consultation,
+    community,  # Community tips contribution system
     intent,  # Intent classification system
     # camping,  # Loaded with import guard
     # youtube_scraper,  # Loaded with import guard
@@ -61,6 +62,7 @@ __all__ = [
     'digistore24',
     'national_parks',
     'health_consultation',
+    'community',  # Community tips contribution system
     'intent',  # Intent classification system
     # 'camping',  # Loaded with import guard
     # 'youtube_scraper',  # Loaded with import guard
