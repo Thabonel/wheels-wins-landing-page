@@ -2407,6 +2407,15 @@ async def chat_endpoint(
 
         logger.info(f"Processing chat request for user {user_id} with PersonalizedPamAgent")
 
+        # PRIVACY: classify and create a sanitized version of the message
+        try:
+            from app.services.privacy.classifier import classify as privacy_classify, redact as privacy_redact
+            _classification = privacy_classify(request.message or "")
+            sanitized_message = privacy_redact(request.message or "") if _classification.label != 'PUBLIC' else (request.message or "")
+        except Exception:
+            _classification = None
+            sanitized_message = request.message or ""
+
         # DRY-RUN: Model router recommendation (does NOT change execution)
         router_recommendation = None
         try:
@@ -2420,7 +2429,7 @@ async def chat_endpoint(
                 except Exception:
                     pass
             if _ai_router and (ai_router_dry_run or os.getenv("AI_ROUTER_DRY_RUN", "false").lower() in ("1", "true", "yes")):
-                msg_text = request.message or ""
+                msg_text = sanitized_message or ""
                 tool_keywords = [
                     "expense", "budget", "spending", "save", "savings",
                     "trip", "plan", "route", "campground", "rv park", "gas", "fuel",
@@ -2476,8 +2485,9 @@ async def chat_endpoint(
                     ai_router_enabled_flag = bool((getattr(s2, 'data', {}) or {}).get('setting_value', {}).get('enabled', False))
                 except Exception:
                     pass
-            if _ai_router and (ai_router_enabled_flag or os.getenv("AI_ROUTER_ENABLED", "false").lower() in ("1", "true", "yes")):
-                msg_text = request.message or ""
+            external_allowed = (_classification is None) or (_classification.label not in ('PHI', 'FINANCIAL'))
+            if _ai_router and external_allowed and (ai_router_enabled_flag or os.getenv("AI_ROUTER_ENABLED", "false").lower() in ("1", "true", "yes")):
+                msg_text = sanitized_message or ""
                 tool_keywords = [
                     "expense", "budget", "spending", "save", "savings",
                     "trip", "plan", "route", "campground", "rv park", "gas", "fuel",
@@ -2533,12 +2543,12 @@ async def chat_endpoint(
         except Exception as e:
             logger.warning(f"AI Router execution failed; falling back to PersonalizedPamAgent: {e}")
 
-        # Track user message for analytics
+        # Track user message for analytics (redacted)
         from app.services.analytics.analytics import PamAnalytics
         analytics = PamAnalytics()
         tracking_id = await analytics.track_user_message(
             user_id=str(user_id),
-            message=request.message,
+            message=(sanitized_message[:256] + '...') if sanitized_message and len(sanitized_message) > 256 else sanitized_message,
             session_id=request.conversation_id or request.session_id
         )
 
@@ -2558,7 +2568,7 @@ async def chat_endpoint(
             logger.info(f"🤖 Processing with PersonalizedPamAgent - profile loading and context injection with proper RLS authentication")
             pam_response = await user_pam_agent.process_message(
                 user_id=str(user_id),
-                message=request.message,
+                message=sanitized_message,
                 session_id=request.conversation_id,
                 additional_context=context
             )
