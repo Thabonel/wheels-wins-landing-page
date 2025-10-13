@@ -43,10 +43,18 @@
     VITE_PAM_WEBSOCKET_URL = "wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws"
     VITE_ENVIRONMENT = "preview"
 
+# Serve static assets directly (don't redirect)
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+
+# SPA fallback - redirect all other routes to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
 
 # Security and SEO headers
 [[headers]]
