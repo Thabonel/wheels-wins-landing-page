@@ -26,6 +26,12 @@ from app.core.cors_settings import CORSSettings
 # Import enhanced security setup
 from app.core.enhanced_security_setup import setup_enhanced_security, SecurityConfiguration
 
+# Import security headers middleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
+
+# Import rate limiting middleware
+from app.middleware.rate_limit import RateLimitMiddleware
+
 # Temporarily disabled due to WebSocket route conflicts
 # from langserve import add_routes
 # from app.services.pam.mcp.controllers.pauter_router import PauterRouter
@@ -68,7 +74,6 @@ from app.api.v1 import (
     monitoring,
     receipts,
     pam,
-    pam_ai_sdk,
     auth,
     subscription,
     support,
@@ -91,8 +96,13 @@ from app.api.v1 import (
     digistore24,
     national_parks,
     health_consultation,
+    community,  # Community contribution system
     # camping,  # Loaded separately with import guard
 )
+from app.api.v1 import system_settings as system_settings_api
+from app.api.v1 import ai_structured as ai_structured_api
+from app.api.v1 import ai_ingest as ai_ingest_api
+from app.services.ai.automation import ensure_defaults, periodic_ingest_loop
 from app.api.v1 import observability as observability_api
 from app.api import websocket, actions
 from app.api.v1 import voice_streaming
@@ -283,6 +293,63 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"⚠️ Voice Conversation Manager initialization failed: {e}")
 
+        # --- AI Automation: Defaults + Periodic Ingest (non-blocking) ---
+        try:
+            ensure_defaults()
+            asyncio.create_task(periodic_ingest_loop())
+            logger.info("✅ AI automation started (defaults ensured, ingest loop running)")
+        except Exception as e:
+            logger.warning(f"⚠️ AI automation init failed (non-critical): {e}")
+
+        # Initialize Enhanced PAM Orchestrator with AI providers (CRITICAL for WebSocket chat)
+        logger.info("🧠 Initializing Enhanced PAM Orchestrator...")
+        try:
+            from app.services.pam.enhanced_orchestrator import get_enhanced_orchestrator
+
+            # This will create and initialize the AI orchestrator with all providers
+            orchestrator_instance = await get_enhanced_orchestrator()
+
+            if orchestrator_instance.is_initialized:
+                logger.info("✅ Enhanced PAM Orchestrator fully initialized")
+
+                # Log AI provider status
+                if hasattr(orchestrator_instance, 'ai_orchestrator') and orchestrator_instance.ai_orchestrator:
+                    provider_count = len(orchestrator_instance.ai_orchestrator.providers) if orchestrator_instance.ai_orchestrator.providers else 0
+                    if provider_count > 0:
+                        provider_names = [p.name for p in orchestrator_instance.ai_orchestrator.providers]
+                        logger.info(f"✅ AI Providers ready: {', '.join(provider_names)} ({provider_count} total)")
+                    else:
+                        logger.warning("⚠️ Enhanced PAM Orchestrator initialized but no AI providers available")
+                else:
+                    logger.warning("⚠️ Enhanced PAM Orchestrator initialized but ai_orchestrator is None")
+            else:
+                logger.error("❌ Enhanced PAM Orchestrator failed to initialize properly")
+
+        except Exception as orchestrator_error:
+            logger.error(f"❌ Enhanced PAM Orchestrator initialization failed: {orchestrator_error}")
+            logger.error("🚨 PAM WebSocket will respond with 'unable to process' until this is fixed")
+            # Don't fail startup - continue without PAM AI functionality
+
+        # Initialize Simple Gemini Service as backup (CRITICAL fallback for PAM)
+        logger.info("💎 Initializing Simple Gemini Service as backup...")
+        try:
+            from app.services.pam.simple_gemini_service import get_simple_gemini_service
+
+            # Initialize the simple service
+            simple_service = await get_simple_gemini_service()
+
+            if simple_service.is_initialized:
+                logger.info("✅ Simple Gemini Service initialized successfully (fallback ready)")
+                service_status = simple_service.get_status()
+                logger.info(f"✅ Simple Gemini status: {service_status}")
+            else:
+                logger.error("❌ Simple Gemini Service failed to initialize")
+                logger.error("🚨 No fallback available for PAM - both orchestrator and simple service failed")
+
+        except Exception as simple_error:
+            logger.error(f"❌ Simple Gemini Service initialization failed: {simple_error}")
+            logger.error("🚨 No fallback available for PAM if orchestrator fails")
+
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
 
@@ -396,8 +463,24 @@ logger.info("🛡️ Initializing enhanced security system...")
 security_config = setup_enhanced_security(app)
 logger.info("✅ Enhanced security system fully operational")
 
+# Setup usage tracking middleware (for dead code removal - Oct 8-22, 2025)
+from app.middleware.usage_tracker import track_api_usage
+app.middleware("http")(track_api_usage)
+logger.info("✅ Usage tracking middleware enabled (2-week monitoring period)")
+
 # Setup other middleware
 app.add_middleware(MonitoringMiddleware, monitor=production_monitor)
+
+# Add security headers middleware (must be early in chain)
+environment = getattr(settings, 'NODE_ENV', 'production')
+app.add_middleware(SecurityHeadersMiddleware, environment=environment)
+logger.info(f"✅ Security headers middleware added (environment: {environment})")
+
+# Add rate limiting middleware
+redis_url = os.getenv("REDIS_URL")
+app.add_middleware(RateLimitMiddleware, redis_url=redis_url)
+logger.info(f"✅ Rate limiting middleware added (Redis: {redis_url or 'localhost'})")
+
 setup_middleware(app)
 app.add_middleware(GuardrailsMiddleware)
 
@@ -428,6 +511,27 @@ print(f"🔒 CORS: Security level = {'PRODUCTION' if is_production_cors else 'DE
 print(f"🔒 CORS: Credentials support = ENABLED")
 print(f"🔒 CORS: Origin validation = EXPLICIT_ONLY (no wildcards)")
 print(f"🔒 CORS: Total allowed origins = {len(allowed_origins)}")
+
+# Add ServerErrorMiddleware FIRST to catch errors and ensure they have CORS headers
+from starlette.middleware.errors import ServerErrorMiddleware
+
+async def server_error_handler(request: Request, exc: Exception):
+    """Handle server errors and ensure proper response format for CORS"""
+    logger.error(f"Server error in {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "path": str(request.url.path),
+            "timestamp": datetime.utcnow().isoformat()
+        },
+    )
+
+app.add_middleware(
+    ServerErrorMiddleware,
+    handler=server_error_handler,
+)
+print("✅ ServerErrorMiddleware added (ensures errors have CORS headers)")
 
 # Add CORS middleware - Using CORSSettings configuration
 try:
@@ -601,7 +705,63 @@ app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
-app.include_router(pam_ai_sdk.router, prefix="/api/v1/pam-ai-sdk", tags=["PAM AI SDK"])
+# PAM 2.0 - Clean, modular implementation (Phase 1 setup)
+# PAM 2.0 - Modular AI Assistant (New Architecture)
+try:
+    from app.services.pam_2.api.routes import router as pam_2_router
+    from app.services.pam_2.api.websocket import websocket_endpoint as pam_2_websocket
+    app.include_router(pam_2_router, prefix="/api/v1/pam-2", tags=["PAM 2.0"])
+    app.websocket("/api/v1/pam-2/chat/ws/{user_id}")(pam_2_websocket)
+    logger.info("✅ PAM 2.0 modular architecture loaded successfully")
+except Exception as pam2_error:
+    logger.error(f"❌ Failed to load PAM 2.0: {pam2_error}")
+    # Fallback to old PAM 2.0 if new structure fails
+    try:
+        from app.api.v1 import pam_2
+        app.include_router(pam_2.router, prefix="/api/v1/pam-2", tags=["PAM 2.0 Fallback"])
+        logger.warning("⚠️ Using fallback PAM 2.0 implementation")
+    except Exception as fallback_error:
+        logger.error(f"❌ PAM 2.0 fallback also failed: {fallback_error}")
+
+# PAM Hybrid System - REMOVED (simplified to single Claude Sonnet 4.5 implementation)
+# Hybrid system deleted during Day 1 cleanup (October 1, 2025)
+# See docs/DELETION_MANIFEST_20251001.md for details
+
+# PAM Simple - NEW clean implementation (Day 2, October 1, 2025)
+# Simple WebSocket + REST endpoints using core PAM brain
+try:
+    from app.api.v1 import pam_simple
+    app.include_router(pam_simple.router, prefix="/api/v1/pam-simple", tags=["PAM Simple"])
+    logger.info("✅ PAM Simple (Claude Sonnet 4.5) loaded successfully")
+except Exception as simple_error:
+    logger.error(f"❌ Failed to load PAM Simple: {simple_error}")
+
+# PAM 2.0 Simple + Tools - Barry-inspired architecture (October 4, 2025)
+# Combines Barry AI's proven simplicity with PAM's 40 action tools
+try:
+    from app.api.v1 import pam_simple_with_tools
+    app.include_router(pam_simple_with_tools.router, prefix="/api/v1", tags=["PAM 2.0 Simple"])
+    logger.info("✅ PAM 2.0 Simple + Tools (Barry-inspired) loaded successfully")
+except Exception as pam2_error:
+    logger.error(f"❌ Failed to load PAM 2.0 Simple: {pam2_error}")
+    print(f"⚠️ PAM 2.0 Simple unavailable: {pam2_error}")
+
+# PAM Savings API - Day 3 (October 1, 2025)
+# Savings tracking and celebration endpoints
+try:
+    from app.api.v1.pam import savings
+    app.include_router(savings.router, prefix="/api/v1/pam/savings", tags=["PAM Savings"])
+    logger.info("✅ PAM Savings API loaded successfully")
+except Exception as savings_error:
+    logger.error(f"❌ Failed to load PAM Savings API: {savings_error}")
+
+# Usage Tracking API - For safe code cleanup (October 8-22, 2025)
+try:
+    from app.api.v1 import usage_tracking
+    app.include_router(usage_tracking.router, prefix="/api/v1/usage-tracking", tags=["Usage Tracking"])
+    logger.info("✅ Usage tracking API loaded successfully")
+except Exception as tracking_error:
+    logger.error(f"❌ Failed to load usage tracking API: {tracking_error}")
 
 # Import and add intent classification routes
 try:
@@ -653,6 +813,16 @@ app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysi
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
 app.include_router(openroute.router, prefix="/api/v1/openroute", tags=["OpenRoute Service Proxy"])
 app.include_router(health_consultation.router, prefix="/api/v1", tags=["Health Consultation"])
+app.include_router(community.router, prefix="/api/v1/community", tags=["Community"])
+app.include_router(system_settings_api.router)
+app.include_router(ai_structured_api.router)
+app.include_router(ai_ingest_api.router)
+try:
+    from app.api.v1 import ai_router as ai_router_api
+    app.include_router(ai_router_api.router, prefix="")
+    logger.info("✅ AI Router endpoints registered")
+except Exception as e:
+    logger.warning(f"⚠️ AI Router endpoints not available: {e}")
 
 # Conditionally register routers that might fail to import
 if camping_router:

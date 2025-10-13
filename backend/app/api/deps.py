@@ -876,25 +876,10 @@ async def get_current_user_optional(
         return None
 
 
-# PAM Orchestrator Dependency
-async def get_pam_orchestrator():
-    """Get PAM orchestrator instance"""
-    try:
-        # Get the enhanced orchestrator instance
-        orchestrator_instance = await get_enhanced_orchestrator()
-        
-        # Ensure it's initialized
-        if not orchestrator_instance.is_initialized:
-            logger.info("🚀 Initializing Enhanced PAM Orchestrator...")
-            await orchestrator_instance.initialize()
-        
-        return orchestrator_instance
-    except Exception as e:
-        # Safe error message extraction to prevent JSON serialization errors
-        error_message = _safe_error_message(e)
-        logger.error(f"❌ Failed to get PAM orchestrator: {error_message}")
-        # Return the global instance as fallback
-        return orchestrator
+# DUPLICATE DELETED: get_pam_orchestrator() was defined twice in this file
+# The first definition at line 109 is the canonical one used by the app
+# This duplicate at line 880 has been removed to avoid confusion
+# Deleted: October 9, 2025 - See docs/OBSOLETE_CODE_AUDIT.md
 
 
 # Utility Dependencies

@@ -231,7 +231,8 @@ class ToolRegistry:
         tool_name: str,
         user_id: str,
         parameters: Dict[str, Any],
-        timeout: Optional[int] = None
+        timeout: Optional[int] = None,
+        context: Optional[Dict[str, Any]] = None
     ) -> ToolExecutionResult:
         """
         Execute a tool with error handling and timeout
@@ -275,10 +276,18 @@ class ToolRegistry:
             logger.info(f"🔧 Executing tool: {tool_name} for user: {user_id}")
             
             # Execute tool with timeout
-            result = await asyncio.wait_for(
-                tool.execute(user_id, parameters),
-                timeout=execution_timeout
-            )
+            # Check if tool supports context parameter (like WeatherTool)
+            import inspect
+            if 'context' in inspect.signature(tool.execute).parameters:
+                result = await asyncio.wait_for(
+                    tool.execute(user_id, parameters, context),
+                    timeout=execution_timeout
+                )
+            else:
+                result = await asyncio.wait_for(
+                    tool.execute(user_id, parameters),
+                    timeout=execution_timeout
+                )
             
             execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             
@@ -648,7 +657,64 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Mapbox tool registration failed: {e}")
         failed_count += 1
     
-    # Weather Tool removed - ChatGPT handles weather with user location context
+    # Weather Tool - FREE OpenMeteo API (no API key required!)
+    try:
+        logger.debug("🔄 Attempting to register Weather tool (FREE OpenMeteo)...")
+        OpenMeteoWeatherTool = lazy_import("app.services.pam.tools.openmeteo_weather_tool", "OpenMeteoWeatherTool")
+
+        if OpenMeteoWeatherTool is None:
+            raise ImportError("OpenMeteoWeatherTool not available")
+
+        registry.register_tool(
+            tool=OpenMeteoWeatherTool(),
+            function_definition={
+                "name": "weather_advisor",
+                "description": "Get current weather conditions, forecasts, and RV travel conditions for locations. Essential for trip planning and safety. Uses FREE OpenMeteo API (no API key required).",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["get_current", "get_forecast", "check_travel_conditions", "get_route_weather"],
+                            "description": "Weather action to perform"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Location for weather (city name, coordinates, or address)"
+                        },
+                        "days": {
+                            "type": "number",
+                            "description": "Number of days for forecast (1-7, default 5)"
+                        },
+                        "departure_time": {
+                            "type": "string",
+                            "description": "Planned departure time for travel conditions check"
+                        },
+                        "vehicle_type": {
+                            "type": "string",
+                            "description": "Type of RV for travel condition assessment"
+                        },
+                        "route_points": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of locations along a route for route weather"
+                        }
+                    },
+                    "required": ["action", "location"]
+                }
+            },
+            capability=ToolCapability.WEATHER,
+            priority=1
+        )
+        logger.info("✅ Weather tool registered (FREE OpenMeteo API)")
+        registered_count += 1
+
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Weather tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Weather tool registration failed: {e}")
+        failed_count += 1
     
     # Google Places Tool removed - ChatGPT handles place recommendations with user location context
     
@@ -656,17 +722,17 @@ async def _register_all_tools(registry: ToolRegistry):
     try:
         logger.debug("🔄 Attempting to register YouTube Trip tool...")
         YouTubeTripTool = lazy_import("app.services.pam.tools.youtube_trip_tool", "YouTubeTripTool")
-        
+
         if YouTubeTripTool is None:
             raise ImportError("YouTubeTripTool not available")
-        
+
         registry.register_tool(
             tool=YouTubeTripTool(),
             function_definition={
                 "name": "search_travel_videos",
                 "description": "Search for travel videos, RV tips, destination guides, and camping tutorials on YouTube",
                 "parameters": {
-                    "type": "object", 
+                    "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
@@ -689,12 +755,77 @@ async def _register_all_tools(registry: ToolRegistry):
             priority=2
         )
         registered_count += 1
-        
+
     except ImportError as e:
         logger.warning(f"⚠️ Could not register YouTube Trip tool: {e}")
         failed_count += 1
     except Exception as e:
         logger.error(f"❌ YouTube Trip tool registration failed: {e}")
+        failed_count += 1
+
+    # Calendar Event Tool
+    try:
+        logger.debug("🔄 Attempting to register Calendar Event tool...")
+        CreateCalendarEventTool = lazy_import("app.services.pam.tools.create_calendar_event", "CreateCalendarEventTool")
+
+        if CreateCalendarEventTool is None:
+            raise ImportError("CreateCalendarEventTool not available")
+
+        registry.register_tool(
+            tool=CreateCalendarEventTool(),
+            function_definition={
+                "name": "create_calendar_event",
+                "description": "Create a calendar event or appointment for the user. Use this when user asks to schedule, book, or add appointments.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Title or name of the event"
+                        },
+                        "start_date": {
+                            "type": "string",
+                            "description": "Start date and time in ISO format (YYYY-MM-DDTHH:MM:SS)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "End date and time in ISO format (optional)"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Event description or notes (optional)"
+                        },
+                        "event_type": {
+                            "type": "string",
+                            "description": "Type of event: personal, work, travel, maintenance, etc."
+                        },
+                        "all_day": {
+                            "type": "boolean",
+                            "description": "Whether this is an all-day event"
+                        },
+                        "location_name": {
+                            "type": "string",
+                            "description": "Location of the event (optional)"
+                        },
+                        "reminder_minutes": {
+                            "type": "number",
+                            "description": "Minutes before event to send reminder (optional)"
+                        }
+                    },
+                    "required": ["title", "start_date"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=1
+        )
+        logger.info("✅ Calendar Event tool registered")
+        registered_count += 1
+
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Calendar Event tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Calendar Event tool registration failed: {e}")
         failed_count += 1
     
     # Web Scraper Tool removed - ChatGPT handles general information with its knowledge base

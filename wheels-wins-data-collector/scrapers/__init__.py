@@ -1,1 +1,0 @@
-# Scrapers module for Wheels & Wins Data Collection System

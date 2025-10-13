@@ -6,7 +6,8 @@
 import React, { useState } from 'react';
 import { HelpCircle, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePamAssistant } from '@/hooks/pam/usePamAssistant';
+// TEMP: usePamAssistant removed during cleanup (used deleted PamContext)
+// import { usePamAssistant } from '@/hooks/pam/usePamAssistant';
 import {
   Tooltip,
   TooltipContent,
@@ -35,7 +36,10 @@ export const PamHelpButton: React.FC<PamHelpButtonProps> = ({
   size = 'md',
   variant = 'default'
 }) => {
-  const { getHelp, isReady, isLoading } = usePamAssistant();
+  // TEMP: Disabled during cleanup - needs refactor to use pamService.ts instead
+  // const { getHelp, isReady, isLoading } = usePamAssistant();
+  const isReady = false; // Temporarily disabled
+  const isLoading = false;
   const [isOpen, setIsOpen] = useState(false);
   const [helpText, setHelpText] = useState<string>('');
   const [isGettingHelp, setIsGettingHelp] = useState(false);
@@ -45,7 +49,9 @@ export const PamHelpButton: React.FC<PamHelpButtonProps> = ({
 
     try {
       setIsGettingHelp(true);
-      const help = await getHelp(page, context);
+      // TEMP: Disabled during cleanup
+      // const help = await getHelp(page, context);
+      const help = "PAM Help is temporarily unavailable during cleanup. Please use the main PAM chat.";
       setHelpText(help);
       setIsOpen(true);
     } catch (error) {

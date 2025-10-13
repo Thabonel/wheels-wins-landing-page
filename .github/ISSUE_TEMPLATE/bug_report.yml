@@ -1,0 +1,113 @@
+name: Bug Report
+description: Report a bug or issue
+title: "[BUG]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this bug!
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - Critical (App broken/data loss)
+        - High (Major feature broken)
+        - Medium (Feature partially broken)
+        - Low (Minor issue)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the app is affected?
+      options:
+        - PAM AI Assistant
+        - Wins (Financial)
+        - Wheels (Travel/Trip Planning)
+        - Social Features
+        - Shop
+        - Authentication
+        - Admin Dashboard
+        - Backend API
+        - Frontend UI
+        - Database
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Clear description of what's broken
+      placeholder: PAM WebSocket disconnects after 30 seconds...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this?
+      placeholder: |
+        1. Go to PAM chat
+        2. Send a message
+        3. Wait 30 seconds
+        4. See WebSocket disconnect
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen?
+      placeholder: WebSocket should stay connected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: WebSocket disconnects with code 1006
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where did this happen?
+      options:
+        - Production (wheelsandwins.com)
+        - Staging (wheels-wins-staging.netlify.app)
+        - Local Development
+      multiple: true
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs / Screenshots
+      description: Paste any error logs or attach screenshots
+      placeholder: |
+        ```
+        Error: WebSocket closed with code 1006
+        at handleDisconnect (pamService.ts:123)
+        ```
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: This happens only on mobile Safari...

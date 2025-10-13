@@ -1,32 +1,114 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Sparkles, DollarSign, TrendingUp, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sparkles, DollarSign, TrendingUp, Shield, Share2, Copy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { pamSavingsApi } from '@/services/pamSavingsService';
 import { formatCurrency } from '@/lib/utils';
+import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 
 export const PamSavingsSummaryCard = () => {
-  // Fetch guarantee status
+  const [celebrationShown, setCelebrationShown] = useState(false);
+
   const { data: guaranteeStatus, isLoading, error } = useQuery({
     queryKey: ['guarantee-status'],
     queryFn: () => pamSavingsApi.getGuaranteeStatus(),
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 60000,
     retry: 2,
     onError: (error) => {
-      console.warn('PAM Savings API unavailable, using fallback data:', error);
+      // Use fallback data silently - this is expected in staging/dev
+      if (import.meta.env.MODE === 'production') {
+        toast.error('Unable to load savings data', {
+          description: 'Using demo data temporarily'
+        });
+      }
     }
   });
 
-  // Fetch recent savings events
   const { data: recentEvents } = useQuery({
     queryKey: ['recent-savings'],
     queryFn: () => pamSavingsApi.getRecentSavingsEvents(5),
-    refetchInterval: 300000 // Refresh every 5 minutes
+    refetchInterval: 300000
   });
 
-  // Mock data for when API is unavailable (staging environment)
+  // Trigger celebration only once per billing period when savings threshold met
+  useEffect(() => {
+    if (!guaranteeStatus || celebrationShown) return;
+
+    const { guarantee_met, total_savings, billing_period_start } = guaranteeStatus;
+    const celebrationKey = `pam-celebration-${billing_period_start}`;
+    const alreadyCelebrated = localStorage.getItem(celebrationKey);
+
+    if (guarantee_met && total_savings >= 10 && !alreadyCelebrated) {
+      const duration = 3000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 3,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#10b981', '#3b82f6', '#8b5cf6']
+        });
+        confetti({
+          particleCount: 3,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#10b981', '#3b82f6', '#8b5cf6']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+
+      frame();
+
+      toast.success(`🎉 PAM saved you ${formatCurrency(total_savings)} this month!`, {
+        description: "Your AI assistant is paying for herself!",
+        duration: 5000,
+      });
+
+      localStorage.setItem(celebrationKey, 'true');
+      setCelebrationShown(true);
+    }
+  }, [guaranteeStatus, celebrationShown]);
+
+  const handleShare = async () => {
+    if (!displayData) return;
+
+    const shareText = `I saved ${formatCurrency(displayData.total_savings)} with PAM this month! 🎉 My AI assistant is helping me manage my RV finances automatically.`;
+    const shareUrl = 'https://wheelsandwins.com';
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'PAM Savings',
+          text: shareText,
+          url: shareUrl,
+        });
+        toast.success('Shared successfully!');
+      } else {
+        await navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
+        toast.success('Copied to clipboard!', {
+          description: 'Share your PAM savings with your friends',
+        });
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        toast.error('Failed to share', {
+          description: 'Please try again',
+        });
+      }
+    }
+  };
+
+  // Fallback data for staging/development when API unavailable
   const mockSavingsData = {
     guarantee_met: true,
     total_savings: 18.50,
@@ -96,7 +178,7 @@ export const PamSavingsSummaryCard = () => {
             </div>
           </div>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
           <div className="text-right">
             <div className="text-lg font-bold text-green-600 dark:text-green-400">
               {formatCurrency(displayData.total_savings)}
@@ -109,6 +191,17 @@ export const PamSavingsSummaryCard = () => {
             <div className="text-sm font-medium">{displayData.savings_events_count} saves</div>
             <div className="text-xs text-muted-foreground">{Math.round(savingsProgress)}%</div>
           </div>
+          {displayData.total_savings >= 10 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleShare}
+              className="h-8 w-8"
+              title="Share your savings"
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

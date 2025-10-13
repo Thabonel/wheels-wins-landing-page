@@ -24,6 +24,9 @@ class ToolResult:
         return {
             "success": self.success,
             "data": self.data,
+            # Maintain backward compatibility for callers expecting a
+            # ``result`` field while aligning with the newer ``data`` key.
+            "result": self.data,
             "error": self.error,
             "metadata": self.metadata or {}
         }

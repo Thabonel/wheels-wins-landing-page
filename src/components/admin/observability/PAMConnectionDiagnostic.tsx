@@ -5,8 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, Send, Activity, Brain, MessageSquare, Settings, Cloud } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { claudeService } from '@/services/claude/claudeService';
-import { getToolsForClaude } from '@/services/pam/tools/toolRegistry';
 import { logger } from '@/lib/logger';
 
 interface TestResult {
@@ -20,93 +18,154 @@ interface TestResult {
 }
 
 interface DiagnosticResults {
-  apiKeyCheck: TestResult;
-  claudeServiceCheck: TestResult;
+  configCheck: TestResult;
+  backendServiceCheck: TestResult;
   toolsCheck: TestResult;
   chatTest: TestResult;
   lastCheck: Date | null;
 }
 
 export function PAMConnectionDiagnostic() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [testing, setTesting] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [results, setResults] = useState<DiagnosticResults>({
-    apiKeyCheck: { status: 'checking' },
-    claudeServiceCheck: { status: 'checking' },
+    configCheck: { status: 'checking' },
+    backendServiceCheck: { status: 'checking' },
     toolsCheck: { status: 'checking' },
     chatTest: { status: 'checking' },
     lastCheck: null
   });
 
-  const runApiKeyCheck = async (): Promise<TestResult> => {
+  // Environment detection - determines which PAM backend to test
+  const getEnvironment = (): 'production' | 'staging' => {
+    if (typeof window !== 'undefined') {
+      return window.location.hostname === 'wheelsandwins.com' ? 'production' : 'staging';
+    }
+    return 'staging';
+  };
+
+  // Get PAM backend URLs based on environment
+  const getPamEndpoints = () => {
+    const env = getEnvironment();
+
+    // PAM 2.0 Simple endpoints (Barry-inspired architecture)
+    return {
+      production: {
+        health: 'https://pam-backend.onrender.com/api/v1/pam-simple/health',
+        chat: 'https://pam-backend.onrender.com/api/v1/pam-simple/chat'
+      },
+      staging: {
+        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/health',
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/chat'
+      }
+    }[env];
+  };
+
+  const runConfigCheck = async (): Promise<TestResult> => {
     try {
       const startTime = Date.now();
-      
-      // Check if API key is configured
-      const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+      const env = getEnvironment();
       const responseTime = Date.now() - startTime;
-      
-      if (!apiKey) {
-        return {
-          status: 'error',
-          message: 'Anthropic API key not configured in environment variables',
-          responseTime
-        };
-      }
-      
-      if (!apiKey.startsWith('sk-ant-api')) {
-        return {
-          status: 'error',
-          message: 'Invalid API key format - should start with sk-ant-api',
-          responseTime
-        };
-      }
-      
+
       return {
         status: 'success',
-        message: `API key configured (${apiKey.substring(0, 20)}...)`,
-        responseTime
+        message: `PAM 2.0 configured for ${env} environment`,
+        responseTime,
+        data: {
+          environment: env,
+          pamVersion: '2.0',
+          provider: 'Google Gemini 1.5 Flash',
+          note: 'Backend handles API key authentication'
+        }
       };
     } catch (error: any) {
       return {
         status: 'error',
-        message: 'API key validation failed',
+        message: 'Configuration check failed',
         error: error.message || 'Unknown error'
       };
     }
   };
 
-  const runClaudeServiceCheck = async (): Promise<TestResult> => {
+  const runBackendServiceCheck = async (): Promise<TestResult> => {
     try {
       const startTime = Date.now();
-      
-      // Check if service is initialized
-      const isReady = claudeService.isReady();
-      
-      if (!isReady) {
+      const endpoints = getPamEndpoints();
+      const env = getEnvironment();
+
+      if (!endpoints) {
         return {
           status: 'error',
-          message: 'Claude service is not properly initialized',
+          message: 'No PAM endpoints configured for current environment',
           responseTime: Date.now() - startTime
         };
       }
-      
-      // Get service configuration
-      const config = claudeService.getConfig();
-      
-      return {
-        status: 'success',
-        message: `Claude service ready (Model: ${config.model})`,
-        responseTime: Date.now() - startTime,
-        data: config
-      };
+
+      logger.info(`Testing PAM 2.0 health endpoint for ${env}:`, endpoints.health);
+
+      // Real health check to current environment's PAM backend
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(endpoints.health, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          status: 'success',
+          message: `PAM 2.0 backend healthy on ${env}`,
+          responseTime,
+          endpoint: endpoints.health,
+          statusCode: response.status,
+          data: {
+            service: data.service || 'pam-2.0',
+            version: data.version || '2.0.0',
+            environment: env,
+            modules: data.modules || {},
+            status: data.status || 'ok'
+          }
+        };
+      } else {
+        const errorText = await response.text().catch(() => 'Unable to read error response');
+        return {
+          status: 'error',
+          message: `PAM 2.0 backend health check failed (${response.status})`,
+          responseTime,
+          endpoint: endpoints.health,
+          statusCode: response.status,
+          error: errorText
+        };
+      }
     } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+
+      if (error.name === 'AbortError') {
+        return {
+          status: 'timeout',
+          message: 'PAM 2.0 backend health check timed out (>10s)',
+          responseTime,
+          endpoint: getPamEndpoints()?.health,
+          error: 'Request timeout'
+        };
+      }
+
       return {
         status: 'error',
-        message: 'Claude service check failed',
-        error: error.message || 'Unknown error',
-        responseTime: Date.now() - Date.now()
+        message: 'PAM 2.0 backend health check failed',
+        responseTime,
+        endpoint: getPamEndpoints()?.health,
+        error: error.message || 'Network error'
       };
     }
   };
@@ -114,144 +173,213 @@ export function PAMConnectionDiagnostic() {
   const runToolsCheck = async (): Promise<TestResult> => {
     try {
       const startTime = Date.now();
-      
-      // Get available tools from registry
-      const tools = getToolsForClaude(user?.id || 'test-user');
-      const responseTime = Date.now() - startTime;
-      
-      if (!tools || tools.length === 0) {
+      const endpoints = getPamEndpoints();
+      const env = getEnvironment();
+
+      if (!endpoints) {
         return {
           status: 'error',
-          message: 'No tools available for PAM functionality',
-          responseTime
+          message: 'No PAM endpoints available for tools check',
+          responseTime: Date.now() - startTime
         };
       }
-      
-      // Count tools by category
-      const toolsByCategory = tools.reduce((acc: Record<string, number>, tool: any) => {
-        const category = tool.category || 'unknown';
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {});
-      
-      return {
-        status: 'success',
-        message: `${tools.length} tools loaded: ${Object.entries(toolsByCategory)
-          .map(([cat, count]) => `${cat} (${count})`)
-          .join(', ')}`,
-        responseTime,
-        data: { total: tools.length, byCategory: toolsByCategory }
-      };
+
+      // PAM 2.0 tools are integrated into the health endpoint response
+      logger.info(`Checking PAM 2.0 tools availability for ${env}`);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+      const response = await fetch(endpoints.health, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // PAM 2.0 returns modules status
+        const modules = data.modules || {};
+        const moduleCount = Object.keys(modules).length;
+        const readyModules = Object.values(modules).filter(status => status === 'ready' || status === 'healthy').length;
+
+        return {
+          status: readyModules === moduleCount ? 'success' : 'degraded',
+          message: `${readyModules}/${moduleCount} PAM 2.0 modules ready`,
+          responseTime,
+          endpoint: endpoints.health,
+          data: {
+            modules,
+            environment: env,
+            totalModules: moduleCount,
+            readyModules,
+            provider: 'Google Gemini 1.5 Flash'
+          }
+        };
+      } else {
+        return {
+          status: 'error',
+          message: `Tools check failed - backend unreachable (${response.status})`,
+          responseTime,
+          endpoint: endpoints.health,
+          statusCode: response.status
+        };
+      }
     } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+
+      if (error.name === 'AbortError') {
+        return {
+          status: 'timeout',
+          message: 'Tools check timed out',
+          responseTime,
+          error: 'Request timeout'
+        };
+      }
+
       return {
         status: 'error',
         message: 'Tools check failed',
-        error: error.message || 'Unknown error',
-        responseTime: Date.now() - Date.now()
+        responseTime,
+        error: error.message || 'Network error'
       };
     }
   };
 
   const runChatTest = async (): Promise<TestResult> => {
+    const startTime = Date.now();
+
     try {
       // Check if user is authenticated
       if (!user) {
-        return { 
-          status: 'error', 
-          message: 'No user logged in. Please log in to test PAM chat.' 
-        };
-      }
-
-      logger.info('Testing PAM Direct Claude API chat', { userId: user.id, email: user.email });
-
-      const startTime = Date.now();
-      
-      // Test Claude service connection directly
-      const testResponse = await claudeService.sendMessage(
-        'Hello! This is a connection test from the PAM diagnostics. Please respond with "PAM Direct Claude API is working!"',
-        'You are PAM, the personal assistant for Wheels & Wins. Respond to connection tests with the exact requested message.',
-        {
-          maxTokens: 50,
-          temperature: 0,
-          tools: getToolsForClaude(user.id),
-          userId: user.id
-        }
-      );
-      
-      const responseTime = Date.now() - startTime;
-      
-      if (testResponse && testResponse.trim().length > 0) {
-        return {
-          status: 'success',
-          message: 'PAM Direct Claude API is working! Received AI response.',
-          responseTime,
-          data: { response: testResponse }
-        };
-      } else {
         return {
           status: 'error',
-          message: 'Empty response from Claude API',
+          message: 'No user logged in. Please log in to test PAM chat.',
+          responseTime: Date.now() - startTime
+        };
+      }
+      const endpoints = getPamEndpoints();
+      const env = getEnvironment();
+
+      if (!endpoints) {
+        return {
+          status: 'error',
+          message: 'No PAM chat endpoints configured',
+          responseTime: Date.now() - startTime
+        };
+      }
+
+      logger.info(`Testing PAM 2.0 chat for ${env}`, {
+        userId: user.id,
+        email: user.email,
+        endpoint: endpoints.chat
+      });
+
+      // Prepare test message
+      const testMessage = {
+        user_id: user.id,
+        message: "PAM diagnostic test - please respond with 'OK'",
+        context: {
+          region: 'admin-diagnostic',
+          current_page: 'admin-diagnostics',
+          test: true
+        },
+        session_id: `diagnostic-${Date.now()}`
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+      const response = await fetch(endpoints.chat, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(testMessage)
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Check if we got a valid response
+        const hasResponse = data.response || data.message || data.content;
+
+        return {
+          status: hasResponse ? 'success' : 'degraded',
+          message: hasResponse
+            ? `PAM 2.0 chat test successful on ${env}`
+            : 'PAM responded but without message content',
           responseTime,
-          data: { response: testResponse }
+          endpoint: endpoints.chat,
+          statusCode: response.status,
+          data: {
+            response: hasResponse,
+            environment: env,
+            pamVersion: '2.0',
+            metadata: data.metadata || null,
+            fullResponse: data
+          }
+        };
+      } else {
+        const errorText = await response.text().catch(() => 'Unable to read error response');
+        return {
+          status: 'error',
+          message: `PAM 2.0 chat test failed (${response.status})`,
+          responseTime,
+          endpoint: endpoints.chat,
+          statusCode: response.status,
+          error: errorText
         };
       }
-      
+
     } catch (error: any) {
-      logger.error('PAM Direct Claude API test failed', error);
-      
-      const errorMessage = error.message || 'Unknown error';
-      
-      if (errorMessage.includes('API_KEY_MISSING')) {
-        return { 
-          status: 'error', 
-          message: 'Anthropic API key not configured',
-          error: { message: errorMessage, type: 'config' }
+      const responseTime = Date.now() - startTime;
+
+      if (error.name === 'AbortError') {
+        return {
+          status: 'timeout',
+          message: 'PAM 2.0 chat test timed out (>15s)',
+          responseTime,
+          endpoint: getPamEndpoints()?.chat,
+          error: 'Request timeout'
         };
       }
-      
-      if (errorMessage.includes('API_KEY_INVALID')) {
-        return { 
-          status: 'error', 
-          message: 'Invalid Anthropic API key',
-          error: { message: errorMessage, type: 'auth' }
-        };
-      }
-      
-      if (errorMessage.includes('RATE_LIMITED')) {
-        return { 
-          status: 'error', 
-          message: 'Rate limit exceeded on Anthropic API',
-          error: { message: errorMessage, type: 'rate_limit' }
-        };
-      }
-      
-      if (errorMessage.includes('NETWORK_ERROR')) {
-        return { 
-          status: 'error', 
-          message: 'Network error connecting to Anthropic API',
-          error: { message: errorMessage, type: 'network' }
-        };
-      }
-      
-      return { 
-        status: 'error', 
-        message: `Direct Claude API test failed: ${errorMessage}`,
-        error: { message: errorMessage, stack: error.stack }
+
+      logger.error('PAM 2.0 chat test failed', error);
+
+      return {
+        status: 'error',
+        message: 'PAM 2.0 chat test failed',
+        responseTime,
+        endpoint: getPamEndpoints()?.chat,
+        error: { message: error.message || 'Unknown error', stack: error.stack }
       };
     }
   };
 
   const runComprehensiveTest = async (showIndividualToasts = false) => {
     setTesting(true);
-    
+
     if (showIndividualToasts) {
-      toast.info('Running comprehensive PAM diagnostics...');
+      toast.info('Running comprehensive PAM 2.0 diagnostics...');
     }
 
     // Initialize all tests as checking
     setResults(prev => ({
-      apiKeyCheck: { status: 'checking' },
-      claudeServiceCheck: { status: 'checking' },
+      configCheck: { status: 'checking' },
+      backendServiceCheck: { status: 'checking' },
       toolsCheck: { status: 'checking' },
       chatTest: { status: 'checking' },
       lastCheck: null
@@ -259,50 +387,50 @@ export function PAMConnectionDiagnostic() {
 
     try {
       // Run tests sequentially with progress updates
-      if (showIndividualToasts) toast.info('1/4 Checking API key...');
-      const apiKeyResult = await runApiKeyCheck();
-      setResults(prev => ({ ...prev, apiKeyCheck: apiKeyResult }));
+      if (showIndividualToasts) toast.info('1/4 Checking configuration...');
+      const configResult = await runConfigCheck();
+      setResults(prev => ({ ...prev, configCheck: configResult }));
 
-      if (showIndividualToasts) toast.info('2/4 Checking Claude service...');
-      const claudeServiceResult = await runClaudeServiceCheck();
-      setResults(prev => ({ ...prev, claudeServiceCheck: claudeServiceResult }));
+      if (showIndividualToasts) toast.info('2/4 Checking backend service...');
+      const backendServiceResult = await runBackendServiceCheck();
+      setResults(prev => ({ ...prev, backendServiceCheck: backendServiceResult }));
 
       if (showIndividualToasts) toast.info('3/4 Checking PAM tools...');
       const toolsResult = await runToolsCheck();
       setResults(prev => ({ ...prev, toolsCheck: toolsResult }));
 
       // Only test chat if core components are ready
-      if (apiKeyResult.status === 'success' && claudeServiceResult.status === 'success') {
-        if (showIndividualToasts) toast.info('4/4 Testing PAM Direct Claude API...');
+      if (configResult.status === 'success' && backendServiceResult.status === 'success') {
+        if (showIndividualToasts) toast.info('4/4 Testing PAM 2.0 Chat...');
         const chatResult = await runChatTest();
-        setResults(prev => ({ 
-          ...prev, 
+        setResults(prev => ({
+          ...prev,
           chatTest: chatResult,
           lastCheck: new Date()
         }));
       } else {
-        setResults(prev => ({ 
-          ...prev, 
-          chatTest: { status: 'error', message: 'Skipped due to API key or service initialization issues' },
+        setResults(prev => ({
+          ...prev,
+          chatTest: { status: 'error', message: 'Skipped due to configuration or service initialization issues' },
           lastCheck: new Date()
         }));
       }
 
       if (showIndividualToasts) {
-        const allPassed = [apiKeyResult, claudeServiceResult, toolsResult].every(
+        const allPassed = [configResult, backendServiceResult, toolsResult].every(
           r => ['success', 'operational'].includes(r.status)
         );
-        
+
         if (allPassed) {
-          toast.success('✅ All PAM diagnostics passed!');
+          toast.success('✅ All PAM 2.0 diagnostics passed!');
         } else {
-          toast.warning('⚠️ Some PAM diagnostics failed. Check details below.');
+          toast.warning('⚠️ Some PAM 2.0 diagnostics failed. Check details below.');
         }
       }
     } catch (error) {
       console.error('Comprehensive test failed:', error);
       if (showIndividualToasts) {
-        toast.error('❌ PAM diagnostics failed');
+        toast.error('❌ PAM 2.0 diagnostics failed');
       }
     } finally {
       setTesting(false);
@@ -311,13 +439,13 @@ export function PAMConnectionDiagnostic() {
 
   useEffect(() => {
     runComprehensiveTest(false);
-    
+
     // Auto-refresh every 30 seconds if enabled
     let interval: NodeJS.Timeout;
     if (autoRefresh) {
       interval = setInterval(() => runComprehensiveTest(false), 30000);
     }
-    
+
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -366,8 +494,8 @@ export function PAMConnectionDiagnostic() {
   };
 
   const getOverallStatus = () => {
-    const statuses = [results.apiKeyCheck.status, results.claudeServiceCheck.status, results.toolsCheck.status];
-    
+    const statuses = [results.configCheck.status, results.backendServiceCheck.status, results.toolsCheck.status];
+
     if (statuses.includes('checking')) return 'checking';
     if (statuses.every(s => ['success', 'operational'].includes(s))) return 'success';
     if (statuses.some(s => ['error', 'offline'].includes(s))) return 'error';
@@ -379,8 +507,8 @@ export function PAMConnectionDiagnostic() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center">
-            <Activity className="w-5 h-5 mr-2" />
-            PAM Connection Diagnostic
+            <Brain className="w-5 h-5 mr-2" />
+            PAM 2.0 Connection Diagnostic
             <Badge variant={getStatusColor(getOverallStatus())} className="ml-2">
               {testing ? 'Testing...' : getOverallStatus()}
             </Badge>
@@ -395,17 +523,17 @@ export function PAMConnectionDiagnostic() {
               <RefreshCw className={`w-4 h-4 mr-1 ${autoRefresh ? 'animate-spin' : ''}`} />
               Auto
             </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => runComprehensiveTest(false)}
               disabled={testing}
             >
               <RefreshCw className={`w-4 h-4 mr-1 ${testing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Button 
-              onClick={() => runComprehensiveTest(true)} 
+            <Button
+              onClick={() => runComprehensiveTest(true)}
               disabled={testing}
               size="sm"
             >
@@ -422,8 +550,9 @@ export function PAMConnectionDiagnostic() {
       <CardContent className="space-y-4">
         {/* Connection Details */}
         <div className="text-sm text-muted-foreground space-y-1 pb-2 border-b">
-          <p><strong>PAM Architecture:</strong> Direct Claude API (Anthropic SDK)</p>
-          <p><strong>API Provider:</strong> Anthropic Claude 3.5 Sonnet</p>
+          <p><strong>Environment:</strong> {getEnvironment().toUpperCase()}</p>
+          <p><strong>PAM Version:</strong> 2.0 (Claude Sonnet 4.5)</p>
+          <p><strong>Backend URL:</strong> {getPamEndpoints()?.health || 'Not configured'}</p>
           <p><strong>User:</strong> {user?.email || 'Not logged in'}</p>
           {results.lastCheck && (
             <p><strong>Last checked:</strong> {results.lastCheck.toLocaleTimeString()}</p>
@@ -432,56 +561,56 @@ export function PAMConnectionDiagnostic() {
 
         {/* Test Results */}
         <div className="space-y-3">
-          {/* API Key Check */}
+          {/* Configuration Check */}
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div className="flex items-center gap-3">
               <Cloud className="w-4 h-4 text-gray-500" />
               <div>
-                <span className="font-medium">1. Anthropic API Key</span>
-                {results.apiKeyCheck.responseTime && (
+                <span className="font-medium">1. Environment Configuration</span>
+                {results.configCheck.responseTime && (
                   <div className="text-xs text-muted-foreground">
-                    Validation: {results.apiKeyCheck.responseTime}ms
+                    Check: {results.configCheck.responseTime}ms
                   </div>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {getStatusIcon(results.apiKeyCheck.status)}
-              <Badge variant={getStatusColor(results.apiKeyCheck.status) as any}>
-                {results.apiKeyCheck.status}
+              {getStatusIcon(results.configCheck.status)}
+              <Badge variant={getStatusColor(results.configCheck.status) as any}>
+                {results.configCheck.status}
               </Badge>
             </div>
           </div>
-          {results.apiKeyCheck.message && (
+          {results.configCheck.message && (
             <div className="text-xs text-muted-foreground pl-4 -mt-2">
-              {results.apiKeyCheck.message}
-              {results.apiKeyCheck.error && ` | Error: ${results.apiKeyCheck.error}`}
+              {results.configCheck.message}
+              {results.configCheck.error && ` | Error: ${results.configCheck.error}`}
             </div>
           )}
 
-          {/* Claude Service Check */}
+          {/* Backend Service Check */}
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div className="flex items-center gap-3">
-              <Brain className="w-4 h-4 text-gray-500" />
+              <Cloud className="w-4 h-4 text-gray-500" />
               <div>
-                <span className="font-medium">2. Claude Service</span>
-                {results.claudeServiceCheck.responseTime && (
+                <span className="font-medium">2. Backend Service</span>
+                {results.backendServiceCheck.responseTime && (
                   <div className="text-xs text-muted-foreground">
-                    Initialization: {results.claudeServiceCheck.responseTime}ms
+                    Response: {results.backendServiceCheck.responseTime}ms
                   </div>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {getStatusIcon(results.claudeServiceCheck.status)}
-              <Badge variant={getStatusColor(results.claudeServiceCheck.status) as any}>
-                {results.claudeServiceCheck.status}
+              {getStatusIcon(results.backendServiceCheck.status)}
+              <Badge variant={getStatusColor(results.backendServiceCheck.status) as any}>
+                {results.backendServiceCheck.status}
               </Badge>
             </div>
           </div>
-          {results.claudeServiceCheck.message && (
+          {results.backendServiceCheck.message && (
             <div className="text-xs text-muted-foreground pl-4 -mt-2">
-              {results.claudeServiceCheck.message}
+              {results.backendServiceCheck.message}
             </div>
           )}
 
@@ -490,7 +619,7 @@ export function PAMConnectionDiagnostic() {
             <div className="flex items-center gap-3">
               <Settings className="w-4 h-4 text-gray-500" />
               <div>
-                <span className="font-medium">3. PAM Tools Registry</span>
+                <span className="font-medium">3. PAM 2.0 Tools Registry</span>
                 {results.toolsCheck.responseTime && (
                   <div className="text-xs text-muted-foreground">
                     Loading: {results.toolsCheck.responseTime}ms
@@ -516,10 +645,10 @@ export function PAMConnectionDiagnostic() {
             <div className="flex items-center gap-3">
               <MessageSquare className="w-4 h-4 text-gray-500" />
               <div>
-                <span className="font-medium">4. Direct Claude API Chat</span>
+                <span className="font-medium">4. PAM 2.0 Chat Test</span>
                 {results.chatTest.responseTime && (
                   <div className="text-xs text-muted-foreground">
-                    API Response: {results.chatTest.responseTime}ms
+                    Response: {results.chatTest.responseTime}ms
                   </div>
                 )}
               </div>
@@ -536,9 +665,9 @@ export function PAMConnectionDiagnostic() {
               {results.chatTest.message}
               {results.chatTest.data && results.chatTest.status === 'success' && (
                 <div className="mt-1 p-2 bg-green-50 border border-green-200 rounded text-xs overflow-auto max-h-40">
-                  <strong>Claude API Response:</strong>
+                  <strong>Backend Response:</strong>
                   <div className="mt-1 whitespace-pre-wrap break-words">
-                    {typeof results.chatTest.data.response === 'string' 
+                    {typeof results.chatTest.data.response === 'string'
                       ? results.chatTest.data.response
                       : JSON.stringify(results.chatTest.data, null, 2)}
                   </div>
@@ -546,8 +675,8 @@ export function PAMConnectionDiagnostic() {
               )}
               {results.chatTest.error && (
                 <div className="mt-1 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
-                  <strong>Error:</strong> {typeof results.chatTest.error === 'object' 
-                    ? JSON.stringify(results.chatTest.error) 
+                  <strong>Error:</strong> {typeof results.chatTest.error === 'object'
+                    ? JSON.stringify(results.chatTest.error)
                     : results.chatTest.error}
                 </div>
               )}
@@ -562,8 +691,8 @@ export function PAMConnectionDiagnostic() {
             <div className="flex items-center gap-2">
               {getStatusIcon(getOverallStatus())}
               <Badge variant={getStatusColor(getOverallStatus()) as any} className="capitalize">
-                {testing ? 'Testing in progress...' : 
-                 getOverallStatus() === 'success' ? 'All systems operational' :
+                {testing ? 'Testing in progress...' :
+                 getOverallStatus() === 'success' ? 'PAM 2.0 operational' :
                  getOverallStatus() === 'error' ? 'Issues detected' :
                  getOverallStatus() === 'warning' ? 'Partial functionality' :
                  'System check in progress'}

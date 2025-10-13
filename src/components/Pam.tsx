@@ -7,9 +7,8 @@ const pamEnabled = true;
 // Regular imports
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { pamUIController } from "@/lib/PamUIController";
-// Use Backend API instead of Direct Claude API to leverage PersonalizedPamAgent
-import { PamApiService } from "@/services/pamApiService";
+// Use WebSocket PAM Service for real-time communication
+import { usePamConnection } from "@/hooks/usePamConnection";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -75,7 +74,12 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [messages, setMessages] = useState<PamMessage[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<"Connected" | "Connecting" | "Disconnected">("Disconnected");
+  const { status: pamStatus, isReady, sendMessage: sendPamMessage } = usePamConnection();
+  const connectionStatus: "Connected" | "Connecting" | "Disconnected" = pamStatus.isConnected
+    ? "Connected"
+    : pamStatus.isConnecting
+    ? "Connecting"
+    : "Disconnected";
   const [userContext, setUserContext] = useState<any>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -207,35 +211,26 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     };
   }, [isSpeaking, currentAudio]);
 
-  // Initialize PAM with Direct Claude API when component mounts
+  // Initialize PAM when component mounts (no direct WS handling here)
   useEffect(() => {
-    // Guard: Don't run side effects if PAM is disabled
     if (!pamEnabled) return;
-    
-    logger.debug('🚀 PAM useEffect triggered with user:', { userId: user?.id, hasUser: !!user, hasSession: !!session });
-    
-    // Expose test functions to window for debugging (development only)
-    if (import.meta.env.DEV) {
-      (window as any).testPamConnection = testMinimalConnection;
-      
-      logger.debug('🧪 PAM DEBUG: Test functions exposed:');
-      logger.debug('  - window.testPamConnection() - Original connection test');
-    }
-    
+    logger.debug('🚀 PAM mount: user context', { userId: user?.id, hasUser: !!user, hasSession: !!session });
     if (user?.id) {
-      logger.debug('📋 PAM: Initializing with Direct Claude API...');
-      
-      // Persist session ID for conversation continuity
       localStorage.setItem('pam_session_id', sessionId);
-      
-      // Load conversation from localStorage only (no backend calls)
       loadConversationMemory();
-      connectToBackend();
-    } else {
-      logger.debug('❌ PAM: No user ID, skipping connection');
     }
     // eslint-disable-next-line
   }, [user?.id, sessionId]);
+
+  // On first ready connection, show greeting once
+  useEffect(() => {
+    if (!pamEnabled) return;
+    if (isReady && messages.length === 0 && !hasShownWelcomeRef.current) {
+      logger.debug('💬 PAM: Adding greeting message on first ready connection');
+      addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
+      hasShownWelcomeRef.current = true;
+    }
+  }, [isReady, messages.length]);
 
   // Update location context when tracking state changes
   useEffect(() => {
@@ -470,29 +465,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const connectToBackend = useCallback(async () => {
-    // Backend PersonalizedPamAgent API - uses authentication context
-    logger.debug('🤖 PAM: Using Backend PersonalizedPamAgent API');
-
-    // Check if we have user authentication and backend is accessible
-    if (user && sessionToken) {
-      setConnectionStatus("Connected");
-
-      // Show welcome message if first time
-      if (messages.length === 0 && !hasShownWelcomeRef.current) {
-        logger.debug('💬 PAM: Adding greeting message');
-        addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
-        hasShownWelcomeRef.current = true;
-      }
-
-      logger.debug('✅ PAM: Backend PersonalizedPamAgent API ready');
-      return;
-    } else {
-      setConnectionStatus("Disconnected");
+    logger.debug('🤖 PAM: connectToBackend called (provider manages socket)');
+    if (!user?.id || !sessionToken) {
       addMessage("🤖 Hi! I'm PAM. Please sign in to continue...", "pam");
-      logger.warn('⚠️ PAM: Backend API not ready - missing user authentication');
+      logger.warn('⚠️ PAM: Missing user authentication');
+      return;
     }
-    
-    // Original function was complex WebSocket setup - removed for Direct API
+    // Greeting is handled in isReady effect
   }, [user?.id, sessionToken]);
 
   // Minimal test function for debugging Backend API connection
@@ -504,10 +483,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     logger.debug('🤖 Backend API Ready:', isReady);
 
     if (isReady) {
-      setConnectionStatus("Connected");
+      addMessage("Backend API available. PAM is ready.", "pam");
       logger.debug('✅ PAM: Backend API test successful');
     } else {
-      setConnectionStatus("Disconnected");
+      addMessage("Backend API not available. Please sign in.", "pam");
       logger.debug('❌ PAM: Backend API test failed - no user authentication');
     }
   }, [user, sessionToken]);
@@ -661,17 +640,35 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       
       // Get user location for weather and location-based queries
       let currentLocation = userContext?.current_location;
+      let locationObj: { latitude: number; longitude: number } | undefined;
       
       if (isLocationQuery && !currentLocation) {
+        // If user has not opted in to precise location, show just-in-time consent modal
+        const allowPrecise = settings?.location_preferences?.use_current_location !== false;
+        if (!allowPrecise) {
+          window.dispatchEvent(new Event('open-location-consent'));
+          setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
+          addMessage("To give you local weather, please enable location or tell me your city.", "pam");
+          return;
+        }
         logger.debug('📍 Location-based query detected, requesting location proactively');
         const location = await requestUserLocation();
         
         if (location) {
           currentLocation = `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+          locationObj = { latitude: location.latitude, longitude: location.longitude };
           setUserContext(prev => ({
             ...prev,
             current_location: currentLocation
           }));
+        }
+      }
+
+      // If we still only have a string, try to parse to structured coords
+      if (!locationObj && typeof currentLocation === 'string') {
+        const parts = currentLocation.split(',').map(s => parseFloat(s.trim()));
+        if (parts.length === 2 && parts.every(n => Number.isFinite(n))) {
+          locationObj = { latitude: parts[0], longitude: parts[1] };
         }
       }
 
@@ -725,21 +722,20 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         throw new Error('User authentication required');
       }
 
-      // Use Backend PersonalizedPamAgent API with user authentication context
-      logger.debug('🤖 Sending message to Backend PersonalizedPamAgent API');
+      // Use WebSocket PAM Service for real-time communication
+      logger.debug('🤖 Sending message to PAM WebSocket service');
 
-      const pamApiService = PamApiService.getInstance();
-      const pamResponse = await pamApiService.sendMessage({
-        message: message,
-        user_id: user?.id || '',
-        context: {
+      const pamResponse = await sendPamMessage(
+        message,
+        {
           region: userContext?.region,
           current_page: 'pam_chat',
-          location: currentLocation,
-          userLocation: currentLocation,
-          conversation_history: conversationHistory.slice(-3) // Send last 3 messages for context
+          // Backend tools expect structured location context with latitude/longitude
+          location: locationObj || undefined,
+          userLocation: locationObj || undefined,
+          conversation_history: conversationHistory.slice(-3)
         }
-      }, sessionToken);
+      );
 
       // Remove thinking indicator and add PAM's response
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
@@ -753,10 +749,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         await speakText(responseContent);
       }
 
-      logger.debug('✅ Backend PersonalizedPamAgent API response received successfully');
+      logger.debug('✅ PAM WebSocket response received successfully');
 
     } catch (error) {
-      logger.error('❌ Failed to send message via Backend PersonalizedPamAgent API:', error);
+      logger.error('❌ Failed to send message via PAM WebSocket service:', error);
       logger.error('❌ PAM Error Details:', {
         message: error?.message,
         user: !!user,
@@ -813,31 +809,29 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     return () => {
       logger.debug('🧹 PAM component unmounting - cleaning up resources...');
-      
+
       // Clear timeouts
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      
-      // Close WebSocket
-      if (wsRef.current) {
-        wsRef.current.close(1000, 'Component unmounting');
-      }
-      
+
+      // Provider manages the shared WebSocket lifecycle; no direct close here
+      // Provider manages shared socket; do not close here
+
       // Stop all voice-related activities and release microphone
       stopAudioLevelMonitoring();
       stopWakeWordListening();
-      
+
       // Clean up audio manager
       audioManager.stopAll();
       logger.debug('🎵 Audio manager stats:', audioManager.getStats());
-      
+
       // Stop any active media recording
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
       }
-      
-      logger.debug('✅ PAM cleanup completed - microphone released');
+
+      logger.debug('✅ PAM cleanup completed - WebSocket disconnected, microphone released');
     };
   }, []);
 

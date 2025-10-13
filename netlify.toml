@@ -1,4 +1,4 @@
-# Force fresh deployment - cache fix - URL migration complete
+# Force fresh deployment - cache fix - URL migration complete - rebuild trigger Oct 4 2025
 [build]
   publish = "dist" 
   command = "npm run build:netlify"

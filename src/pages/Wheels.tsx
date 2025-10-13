@@ -1,5 +1,6 @@
 
 import { useState, lazy, Suspense, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TabTransition } from "@/components/common/TabTransition";
@@ -11,38 +12,40 @@ import { useSearchParams } from "react-router-dom";
 
 // Lazy load heavy components to reduce initial bundle size
 // Using FreshTripPlanner - the advanced fullscreen trip planner
-const FreshTripPlanner = lazy(() => 
+// Note: Error messages use translation hook, but fallback to English if translation fails
+const FreshTripPlanner = lazy(() =>
   import('@/components/wheels/trip-planner/fresh/FreshTripPlanner').catch(() => ({
     default: () => <div className="p-4 text-red-600">Failed to load Trip Planner</div>
   }))
 );
-const TripsHub = lazy(() => 
+const TripsHub = lazy(() =>
   import('@/components/wheels/trips/TripsHub').catch(() => ({
     default: () => <div className="p-4 text-red-600">Failed to load Trips</div>
   }))
 );
-const FuelLog = lazy(() => 
+const FuelLog = lazy(() =>
   import("@/components/wheels/FuelLog").catch(() => ({
     default: () => <div className="p-4 text-red-600">Failed to load Fuel Log</div>
   }))
 );
-const VehicleMaintenance = lazy(() => 
+const VehicleMaintenance = lazy(() =>
   import("@/components/wheels/VehicleMaintenance").catch(() => ({
     default: () => <div className="p-4 text-red-600">Failed to load Vehicle Maintenance</div>
   }))
 );
-const RVStorageOrganizer = lazy(() => 
+const RVStorageOrganizer = lazy(() =>
   import("@/components/wheels/RVStorageOrganizer").catch(() => ({
     default: () => <div className="p-4 text-red-600">Failed to load RV Storage</div>
   }))
 );
-const CaravanSafety = lazy(() => 
+const CaravanSafety = lazy(() =>
   import("@/components/wheels/CaravanSafety").catch(() => ({
     default: () => <div className="p-4 text-red-600">Failed to load Caravan Safety</div>
   }))
 );
 
 const Wheels = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("trip-planner");
   const isMobile = useIsMobile();
@@ -72,27 +75,27 @@ const Wheels = () => {
   const tabs = [
     {
       id: "trip-planner",
-      label: "Trip Planner"
+      label: t('wheels.tabs.tripPlanner')
     },
     {
       id: "trips",
-      label: "Trips"
+      label: t('wheels.tabs.trips')
     },
     {
       id: "fuel-log",
-      label: "Fuel Log"
+      label: t('wheels.tabs.fuelLog')
     },
     {
       id: "vehicle-maintenance",
-      label: "Vehicle Maintenance"
+      label: t('wheels.tabs.maintenance')
     },
     {
       id: "rv-storage",
-      label: "RV Storage"
+      label: t('wheels.tabs.storage')
     },
     {
       id: "caravan-safety",
-      label: "Caravan Safety"
+      label: t('wheels.tabs.safety')
     }
   ];
 
@@ -103,9 +106,9 @@ const Wheels = () => {
         <div className="w-full lg:w-3/4 h-full bg-white rounded-lg shadow-sm border">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">Travel Planning</h1>
-              <PamHelpButton 
-                page="wheels" 
+              <h1 className="text-2xl font-bold text-gray-900">{t('wheels.pageTitle')}</h1>
+              <PamHelpButton
+                page="wheels"
                 context={`Currently viewing ${activeTab.replace('-', ' ')}`}
                 variant="default"
               />
@@ -142,7 +145,7 @@ const Wheels = () => {
                     <Suspense fallback={
                       <div className="flex items-center justify-center h-96">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                        <span className="ml-3 text-gray-600">Loading Trip Planner...</span>
+                        <span className="ml-3 text-gray-600">{t('wheels.loading.tripPlanner')}</span>
                       </div>
                     }>
                       <div className="h-[600px] relative rounded-lg overflow-hidden">
@@ -162,51 +165,51 @@ const Wheels = () => {
                   <Suspense fallback={
                     <div className="flex items-center justify-center h-96">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                      <span className="ml-3 text-gray-600">Loading Trips...</span>
+                      <span className="ml-3 text-gray-600">{t('wheels.loading.trips')}</span>
                     </div>
                   }>
                     <TripsHub />
                   </Suspense>
                 </TabTransition>
-                
+
                 <TabTransition activeTab={activeTab} tabId="fuel-log" className="mt-0">
                   <Suspense fallback={
                     <div className="flex items-center justify-center h-96">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                      <span className="ml-3 text-gray-600">Loading Fuel Log...</span>
+                      <span className="ml-3 text-gray-600">{t('wheels.loading.fuelLog')}</span>
                     </div>
                   }>
                     <FuelLog />
                   </Suspense>
                 </TabTransition>
-                
+
                 <TabTransition activeTab={activeTab} tabId="vehicle-maintenance" className="mt-0">
                   <Suspense fallback={
                     <div className="flex items-center justify-center h-96">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                      <span className="ml-3 text-gray-600">Loading Vehicle Maintenance...</span>
+                      <span className="ml-3 text-gray-600">{t('wheels.loading.maintenance')}</span>
                     </div>
                   }>
                     <VehicleMaintenance />
                   </Suspense>
                 </TabTransition>
-                
+
                 <TabTransition activeTab={activeTab} tabId="rv-storage" className="mt-0">
                   <Suspense fallback={
                     <div className="flex items-center justify-center h-96">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                      <span className="ml-3 text-gray-600">Loading RV Storage...</span>
+                      <span className="ml-3 text-gray-600">{t('wheels.loading.storage')}</span>
                     </div>
                   }>
                     <RVStorageOrganizer />
                   </Suspense>
                 </TabTransition>
-                
+
                 <TabTransition activeTab={activeTab} tabId="caravan-safety" className="mt-0">
                   <Suspense fallback={
                     <div className="flex items-center justify-center h-96">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                      <span className="ml-3 text-gray-600">Loading Safety Information...</span>
+                      <span className="ml-3 text-gray-600">{t('wheels.loading.safety')}</span>
                     </div>
                   }>
                     <CaravanSafety />

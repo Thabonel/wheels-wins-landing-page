@@ -34,6 +34,19 @@ interface UserSettings {
     timezone: string;
     date_format: string;
   };
+  location_preferences?: {
+    default_location?: {
+      latitude?: number;
+      longitude?: number;
+      city?: string;
+      state?: string;
+      country?: string;
+      accuracy?: number;
+      timestamp?: number;
+    };
+    use_current_location?: boolean;
+    auto_detect_location?: boolean;
+  };
   pam_preferences: {
     voice_enabled: boolean;
     proactive_suggestions: boolean;
@@ -155,6 +168,10 @@ export const useUserSettings = () => {
             integration_preferences: {
               shop_travel_integration: true,
               auto_add_purchases_to_storage: false,
+            },
+            location_preferences: {
+              use_current_location: true,
+              auto_detect_location: false,
             }
           };
           
@@ -224,6 +241,10 @@ export const useUserSettings = () => {
         integration_preferences: {
           shop_travel_integration: true,
           auto_add_purchases_to_storage: false,
+        },
+        location_preferences: {
+          use_current_location: true,
+          auto_detect_location: false,
         }
       };
       

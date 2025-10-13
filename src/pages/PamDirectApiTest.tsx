@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PamSimplified } from '@/components/PamSimplified';
+import Pam from '@/components/Pam';
 import { featureFlags } from '@/services/featureFlags';
 import { claudeService } from '@/services/claude/claudeService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -276,7 +276,7 @@ export const PamDirectApiTest: React.FC = () => {
       </div>
 
       {/* PAM Component */}
-      <PamSimplified mode="floating" />
+      <Pam />
     </div>
   );
 };

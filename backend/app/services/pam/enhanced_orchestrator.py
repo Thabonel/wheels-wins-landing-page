@@ -21,7 +21,7 @@ from app.services.database import get_database_service
 from app.services.cache import cache_service
 from app.services.pam.context_manager import ContextManager
 from app.services.ai.ai_orchestrator import AIOrchestrator
-from app.services.ai.provider_interface import AIMessage, AIResponse
+from app.services.ai.provider_interface import AIMessage, AIResponse, AICapability
 from app.observability import observe_agent, observe_llm_call
 from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
 from app.services.pam.tools.tool_capabilities import ToolCapability
@@ -30,6 +30,8 @@ from app.core.errors import (
     raise_external_service_error, raise_rate_limit_error
 )
 from app.services.pam.intelligent_conversation import AdvancedIntelligentConversation
+from app.services.claude_ai_service import get_claude_ai_service, ClaudeAIService
+from app.services.pam.claude_conversation_adapter import ClaudeConversationAdapter
 
 # Import domain-specific nodes
 from app.services.pam.nodes.wheels_node import wheels_node
@@ -297,23 +299,37 @@ class EnhancedPamOrchestrator:
         """Initialize the intelligent conversation service for AI-powered responses"""
         try:
             logger.info("🧠 Initializing Intelligent Conversation Service...")
-            
-            # Create instance of AdvancedIntelligentConversation
-            self.intelligent_conversation = AdvancedIntelligentConversation()
-            
-            # Initialize the service
-            await self.intelligent_conversation.initialize()
-            
+            logger.info("🎯 Using Claude Sonnet 4.5 as primary AI brain")
+
+            # Try to use Claude AI Service first (preferred)
+            try:
+                claude_service = await get_claude_ai_service()
+                # Wrap Claude service in adapter to match expected interface
+                self.intelligent_conversation = ClaudeConversationAdapter(claude_service)
+                await self.intelligent_conversation.initialize()  # No-op for Claude, but maintains interface
+                logger.info("✅ Using ClaudeAIService (Claude Sonnet 4.5) via adapter")
+                service_type = "claude"
+            except Exception as claude_error:
+                logger.warning(f"⚠️ Claude unavailable ({claude_error}), trying OpenAI fallback...")
+                # Fallback to OpenAI if Claude fails
+                self.intelligent_conversation = AdvancedIntelligentConversation()
+                await self.intelligent_conversation.initialize()
+                logger.info("✅ Using AdvancedIntelligentConversation (OpenAI fallback)")
+                service_type = "openai"
+
             self.service_capabilities["intelligent_conversation"] = ServiceCapability(
                 name="intelligent_conversation",
                 status=ServiceStatus.HEALTHY,
                 confidence=1.0,
                 last_check=datetime.utcnow(),
-                metadata={"capabilities": ["emotional_intelligence", "context_aware", "learning"]}
+                metadata={
+                    "service_type": service_type,
+                    "capabilities": ["emotional_intelligence", "context_aware", "learning"]
+                }
             )
-            
-            logger.info("✅ Intelligent Conversation Service initialized successfully")
-            
+
+            logger.info(f"✅ Intelligent Conversation Service initialized successfully ({service_type})")
+
         except Exception as e:
             logger.error(f"❌ Intelligent Conversation initialization failed: {e}")
             self.service_capabilities["intelligent_conversation"] = ServiceCapability(
@@ -1093,19 +1109,28 @@ class EnhancedPamOrchestrator:
                 AIMessage(role="system", content="You are PAM, a helpful AI assistant with access to various tools for travel planning and expense management."),
                 AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context, cls=DateTimeEncoder)}")
             ]
-            
+
             # Note: Tool support will depend on provider capabilities
+            completion_kwargs: Dict[str, Any] = {}
+            required_capabilities = set()
+
+            if tools:
+                completion_kwargs["functions"] = tools
+                required_capabilities.add(AICapability.FUNCTION_CALLING)
+
             ai_response = await self.ai_orchestrator.complete(
                 messages=messages,
                 temperature=0.7,
-                max_tokens=2048
-                # Tools passed separately if provider supports them
+                max_tokens=2048,
+                required_capabilities=required_capabilities or None,
+                **completion_kwargs
             )
-            
+
             logger.debug(f"📤 AI service response received: {type(ai_response)}")
             logger.debug(f"📤 AI response content length: {len(str(ai_response)) if ai_response else 0}")
-            
+
             # Handle function calling if present
+            tool_results: Optional[Dict[str, Any]] = None
             if hasattr(ai_response, 'function_calls') and ai_response.function_calls:
                 tool_results = await self._execute_tool_calls(
                     ai_response.function_calls,
@@ -1152,7 +1177,11 @@ Based on these results, please provide a helpful response to the user's original
                         "finish_reason": ai_response.finish_reason
                     }
                 }
-                
+
+                if tool_results:
+                    response["ai_metadata"]["tool_results"] = tool_results
+                    response.setdefault("capabilities_used", []).append("tools")
+
                 # Add TTS enhancement if available
                 if enhanced_context.tts_available and enhanced_context.preferred_response_mode != ResponseMode.TEXT_ONLY:
                     response["audio_data"] = await self._generate_audio(
@@ -2039,3 +2068,9 @@ async def get_enhanced_orchestrator() -> EnhancedPamOrchestrator:
     if not enhanced_orchestrator.is_initialized:
         await enhanced_orchestrator.initialize()
     return enhanced_orchestrator
+
+
+# Alias for backward compatibility (pam_main.py uses this name)
+async def get_pam_orchestrator() -> EnhancedPamOrchestrator:
+    """Alias for get_enhanced_orchestrator - maintains backward compatibility"""
+    return await get_enhanced_orchestrator()

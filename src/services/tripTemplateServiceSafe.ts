@@ -59,8 +59,8 @@ export const tripTemplateServiceSafe = {
           tags: ['australia', 'coastal', 'scenic', 'victoria'],
           usageCount: 0,
           isPublic: true,
-          imageUrl: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/templates/great-ocean-road-classic.jpg',
-          image_url: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/templates/great-ocean-road-classic.jpg'
+          imageUrl: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/twelve_apostles_victoria_2006.jpg',
+          image_url: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/twelve_apostles_victoria_2006.jpg'
         },
         {
           id: 'aus-big-lap',
@@ -93,8 +93,8 @@ export const tripTemplateServiceSafe = {
           tags: ['australia', 'beaches', 'reef', 'queensland'],
           usageCount: 0,
           isPublic: true,
-          imageUrl: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/templates/east-coast-discovery.jpg',
-          image_url: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/templates/east-coast-discovery.jpg'
+          imageUrl: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/great_barrier_reef.jpg',
+          image_url: 'https://kycoklimpzkyrecbjecn.supabase.co/storage/v1/object/public/trip-images/great_barrier_reef.jpg'
         },
         {
           id: 'aus-red-centre',
@@ -733,8 +733,12 @@ export const tripTemplateServiceSafe = {
       const enhancedTemplates = templates.map((template) => {
         console.log(`  Processing template: ${template.name} (${template.id})`);
 
-        // Get existing image URL or provide safe fallback
-        const existingImageUrl = template.imageUrl || template.image_url;
+        // Get existing image URL from multiple sources
+        const existingImageUrl = template.imageUrl || template.image_url ||
+          (template.media_urls && Array.isArray(template.media_urls) && template.media_urls.length > 0
+            ? template.media_urls[0]
+            : null);
+
         const safeImageUrl = existingImageUrl
           ? safeImageService.getSafeImageUrl(existingImageUrl, template.id)
           : safeImageService.getTemplateImage(template.id);

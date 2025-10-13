@@ -3,8 +3,22 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function Home() {
+  const orgJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Wheels & Wins",
+    "url": "https://wheelsandwins.com",
+    "sameAs": [
+      "https://github.com/Thabonel/wheels-wins-landing-page"
+    ],
+    "license": "CC BY 4.0"
+  };
   return (
     <div className="container mx-auto p-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+      />
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
           Welcome to Wheels & Wins
