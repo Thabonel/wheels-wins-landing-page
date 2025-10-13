@@ -32,7 +32,7 @@ class GeminiProvider(AIProviderInterface):
                 # Optionally VISION if enabled later
             ]
         if not config.default_model:
-            config.default_model = "gemini-1.5-flash"
+            config.default_model = "gemini-2.5-flash"  # Updated to Gemini 2.5 (1.x retired in 2025)
 
         # Approximate costs (adjust via env/config as needed)
         if config.cost_per_1k_input_tokens == 0.0:
@@ -40,8 +40,8 @@ class GeminiProvider(AIProviderInterface):
         if config.cost_per_1k_output_tokens == 0.0:
             config.cost_per_1k_output_tokens = 0.0015
 
-        config.max_context_window = 128000
-        config.max_tokens_per_request = 4096
+        config.max_context_window = 1000000  # Gemini 2.5 supports 1M token context
+        config.max_tokens_per_request = 8192  # Increased for Gemini 2.5
 
         super().__init__(config)
         self.client = None
