@@ -150,3 +150,22 @@
   background-color: #3b82f6 !important; /* Blue for waypoints */
   border-color: #2563eb !important;
 }
+
+/* User Location Indicator Styling */
+/* Make the GPS accuracy circle green to distinguish it from route markers */
+.mapboxgl-user-location-accuracy-circle {
+  background-color: rgba(34, 197, 94, 0.2) !important; /* Green with transparency */
+  border: 2px solid rgba(34, 197, 94, 0.4) !important;
+}
+
+/* Keep the user position dot blue (more visible) */
+.mapboxgl-user-location-dot {
+  background-color: #3b82f6 !important;
+  border: 2px solid white !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.6) !important;
+}
+
+/* User location heading indicator (direction arrow) */
+.mapboxgl-user-location-dot::before {
+  background-color: #3b82f6 !important;
+}

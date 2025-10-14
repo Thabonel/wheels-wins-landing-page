@@ -281,7 +281,7 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
       </div>
 
       {/* Mobile-friendly version with labels */}
-      <div className="hidden lg:block absolute top-full left-1/2 transform -translate-x-1/2 mt-2 text-xs text-gray-500 whitespace-nowrap">
+      <div className="hidden lg:block absolute top-full left-1/2 transform -translate-x-1/2 mt-14 text-xs text-gray-500 whitespace-nowrap">
         <span className="inline-flex items-center space-x-4">
           <span>Ctrl+Z: Undo</span>
           <span>•</span>
