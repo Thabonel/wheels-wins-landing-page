@@ -29,7 +29,7 @@ async def create_calendar_event(
     event_type: str = "personal",
     all_day: bool = False,
     location_name: Optional[str] = None,
-    reminder_minutes: Optional[list] = None,
+    reminder_minutes: Optional[int] = None,
     color: str = "#3b82f6",
     **kwargs
 ) -> Dict[str, Any]:
@@ -74,9 +74,9 @@ async def create_calendar_event(
         else:
             end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
 
-        # Default reminders: 15 minutes before
+        # Default reminders: 15 minutes before (integer, not array)
         if reminder_minutes is None:
-            reminder_minutes = [15]
+            reminder_minutes = 15
 
         # Build event data matching actual database schema
         event_data = {
