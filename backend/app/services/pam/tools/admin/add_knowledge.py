@@ -133,7 +133,7 @@ async def add_knowledge(
         # SECURITY: Check if user has admin privileges
         supabase = get_supabase_client()
         try:
-            profile_response = supabase.table("profiles").select("role").eq("id", user_id).execute()
+            profile_response = supabase.table("profiles").select("role").eq("user_id", user_id).execute()
 
             if not profile_response.data or len(profile_response.data) == 0:
                 logger.warning(f"User {user_id} profile not found while attempting to add knowledge")
