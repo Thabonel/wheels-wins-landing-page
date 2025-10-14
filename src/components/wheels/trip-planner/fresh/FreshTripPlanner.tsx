@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
 import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css';
 import './fresh-trip-planner.css';
+import '@/styles/mapbox-fixes.css';
 import { toast } from 'sonner';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
@@ -100,7 +101,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
   const directionsRef = useRef<MapboxDirections | null>(null);
-  
+
   // Hooks
   const { user } = useAuth();
   
@@ -245,7 +246,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       
       // Add scale control
       newMap.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
-      
+
       // Add geolocate control only if not already created
       if (!geolocateControlRef.current) {
         geolocateControlRef.current = new mapboxgl.GeolocateControl({
@@ -258,7 +259,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         });
         newMap.addControl(geolocateControlRef.current, 'top-right');
       }
-      
+
       // Add native Mapbox fullscreen control with container option
       // This ensures the entire trip planner (including toolbar) goes fullscreen
       const tripPlannerRoot = mapContainerRef.current?.closest('[data-trip-planner-root="true"]');
@@ -442,7 +443,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       }
     };
   }, []); // Only run once on mount
-  
+
   // Track panel state is now managed by React component directly
   // No need for manual control updates
   
