@@ -108,16 +108,23 @@ const Wheels = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-bold text-gray-900">{t('wheels.pageTitle')}</h1>
-                <span className="text-sm text-gray-600 flex items-center gap-2">
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 border border-white shadow-sm"></span>
-                    <span>Your Position</span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm text-gray-600 flex items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 border border-white shadow-sm"></span>
+                      <span>Your Position</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-4 h-4 rounded-full bg-blue-500 border-2 border-blue-400 opacity-50"></span>
+                      <span>GPS Range</span>
+                    </span>
                   </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-4 h-4 rounded-full bg-blue-500 border-2 border-blue-400 opacity-50"></span>
-                    <span>GPS Range</span>
+                  <span className="text-xs text-gray-500 flex items-center gap-2">
+                    <span>Map Interaction: Right-click + drag to rotate • Ctrl/Cmd + drag to pitch/tilt • Touch: two-finger rotation • Drag route line to change path</span>
+                    <span>•</span>
+                    <span>Compass Reset: Click compass to reset map orientation</span>
                   </span>
-                </span>
+                </div>
               </div>
               <PamHelpButton
                 page="wheels"
