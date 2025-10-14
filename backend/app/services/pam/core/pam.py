@@ -944,6 +944,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
         If we have incomplete tool execution in history, we must clean it to prevent API errors.
         """
         messages = []
+        filtered_tool_use_ids = set()
 
         for i, msg in enumerate(self.conversation_history):
             # Only include user and assistant messages (skip system context)
@@ -981,6 +982,12 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                             f"Found tool_use without tool_result at message {i}, "
                             f"filtering tool_use blocks to prevent API error"
                         )
+                        # Track IDs of filtered tool_use blocks
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "tool_use":
+                                if "id" in block:
+                                    filtered_tool_use_ids.add(block["id"])
+
                         # Keep only text blocks, remove tool_use blocks
                         filtered_content = [
                             block for block in content
@@ -993,6 +1000,23 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                             continue
 
                         content = filtered_content
+
+            # Filter out orphaned tool_result blocks from user messages
+            if msg["role"] == "user" and isinstance(content, list) and filtered_tool_use_ids:
+                filtered_content = [
+                    block for block in content
+                    if not (isinstance(block, dict) and
+                           block.get("type") == "tool_result" and
+                           block.get("tool_use_id") in filtered_tool_use_ids)
+                ]
+                if filtered_content != content:
+                    logger.warning(f"Filtered orphaned tool_result blocks from message {i}")
+                    content = filtered_content
+
+            # Skip empty user messages after filtering
+            if msg["role"] == "user" and isinstance(content, list) and not content:
+                logger.warning(f"Skipping message {i} - only contained orphaned tool_result blocks")
+                continue
 
             messages.append({
                 "role": msg["role"],
