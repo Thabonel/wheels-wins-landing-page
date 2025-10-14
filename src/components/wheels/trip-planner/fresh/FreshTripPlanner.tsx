@@ -8,7 +8,6 @@ import '@/styles/mapbox-fixes.css';
 import { toast } from 'sonner';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
-import { useUserSettings } from '@/hooks/useUserSettings';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 // Removed custom FreshFullscreenControl - using native Mapbox control instead
 import FreshTrackPanel from './components/FreshTrackPanel';
@@ -100,15 +99,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
   const directionsRef = useRef<MapboxDirections | null>(null);
-  const userLocationMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const locationInitializedRef = useRef(false);
-  const mapCenteredOnUserRef = useRef(false);
-  const watchPositionIdRef = useRef<number | null>(null);
 
   // Hooks
   const { user } = useAuth();
-  const { settings } = useUserSettings();
   
   // User profile state for vehicle-specific recommendations
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -251,6 +246,19 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       
       // Add scale control
       newMap.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
+
+      // Add geolocate control only if not already created
+      if (!geolocateControlRef.current) {
+        geolocateControlRef.current = new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true
+          },
+          trackUserLocation: true,
+          showUserHeading: true,
+          showAccuracyCircle: true // Show the accuracy circle
+        });
+        newMap.addControl(geolocateControlRef.current, 'top-right');
+      }
 
       // Add native Mapbox fullscreen control with container option
       // This ensures the entire trip planner (including toolbar) goes fullscreen
@@ -420,6 +428,10 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         mapRef.current.removeControl(directionsRef.current);
         directionsRef.current = null;
       }
+      if (geolocateControlRef.current && mapRef.current) {
+        mapRef.current.removeControl(geolocateControlRef.current);
+        geolocateControlRef.current = null;
+      }
       // Track management cleanup handled by React component lifecycle
       if (mapOptionsControlRef.current && typeof mapOptionsControlRef.current.cleanup === 'function') {
         mapOptionsControlRef.current.cleanup();
@@ -431,114 +443,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       }
     };
   }, []); // Only run once on mount
-
-  // Auto GPS tracking - always show user location if permission granted
-  useEffect(() => {
-    if (!mapRef.current || locationInitializedRef.current) return;
-
-    // Check if user granted location permission during onboarding
-    const locationEnabled = settings?.location_preferences?.use_current_location;
-
-    if (locationEnabled && navigator.geolocation) {
-      locationInitializedRef.current = true;
-
-      // Start watching user's position
-      watchPositionIdRef.current = navigator.geolocation.watchPosition(
-        (position) => {
-          const { latitude, longitude, accuracy } = position.coords;
-
-          // Update or create user location marker
-          if (!userLocationMarkerRef.current && mapRef.current) {
-            userLocationMarkerRef.current = new mapboxgl.Marker({
-              color: '#3b82f6',
-              scale: 0.8
-            })
-              .setLngLat([longitude, latitude])
-              .addTo(mapRef.current);
-          } else if (userLocationMarkerRef.current) {
-            userLocationMarkerRef.current.setLngLat([longitude, latitude]);
-          }
-
-          // Update or create accuracy circle
-          if (mapRef.current) {
-            const source = mapRef.current.getSource('user-accuracy') as mapboxgl.GeoJSONSource;
-            if (source) {
-              source.setData({
-                type: 'Feature',
-                geometry: {
-                  type: 'Point',
-                  coordinates: [longitude, latitude]
-                },
-                properties: { accuracy }
-              });
-            } else {
-              // Create accuracy circle layer
-              mapRef.current.addSource('user-accuracy', {
-                type: 'geojson',
-                data: {
-                  type: 'Feature',
-                  geometry: {
-                    type: 'Point',
-                    coordinates: [longitude, latitude]
-                  },
-                  properties: { accuracy }
-                }
-              });
-
-              mapRef.current.addLayer({
-                id: 'user-accuracy-circle',
-                type: 'circle',
-                source: 'user-accuracy',
-                paint: {
-                  'circle-radius': accuracy / 0.075, // Convert meters to pixels approximately
-                  'circle-color': '#3b82f6',
-                  'circle-opacity': 0.2,
-                  'circle-stroke-width': 2,
-                  'circle-stroke-color': '#3b82f6',
-                  'circle-stroke-opacity': 0.4
-                }
-              }, 'waterway-label'); // Insert below labels for proper z-ordering
-            }
-
-            // Center map on first location (only once)
-            if (!mapCenteredOnUserRef.current) {
-              mapCenteredOnUserRef.current = true;
-              mapRef.current.flyTo({
-                center: [longitude, latitude],
-                zoom: 13,
-                duration: 1500
-              });
-            }
-          }
-        },
-        (error) => {
-          console.warn('Location unavailable:', error);
-          toast.error('Unable to access your location. Please enable location services.');
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 10000,
-          timeout: 5000
-        }
-      );
-    }
-
-    // Cleanup
-    return () => {
-      if (watchPositionIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchPositionIdRef.current);
-        watchPositionIdRef.current = null;
-      }
-      if (userLocationMarkerRef.current) {
-        userLocationMarkerRef.current.remove();
-        userLocationMarkerRef.current = null;
-      }
-      if (mapRef.current && mapRef.current.getLayer('user-accuracy-circle')) {
-        mapRef.current.removeLayer('user-accuracy-circle');
-        mapRef.current.removeSource('user-accuracy');
-      }
-    };
-  }, [mapRef.current, settings]);
 
   // Track panel state is now managed by React component directly
   // No need for manual control updates
