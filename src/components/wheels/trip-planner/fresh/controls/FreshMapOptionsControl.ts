@@ -269,10 +269,117 @@ export class FreshMapOptionsControl {
       overlayItem.appendChild(overlayLabel);
       overlaysSection.appendChild(overlayItem);
     });
-    
+
     this.dropdown.appendChild(overlaysSection);
+
+    // Navigation Features section
+    const navigationSection = document.createElement('div');
+    navigationSection.style.cssText = 'padding: 12px; border-top: 1px solid #eee;';
+
+    const navigationTitle = document.createElement('div');
+    navigationTitle.textContent = '🧭 Navigation Features';
+    navigationTitle.style.cssText = 'font-weight: 600; font-size: 12px; color: #333; margin-bottom: 8px;';
+    navigationSection.appendChild(navigationTitle);
+
+    // Navigation feature toggles
+    const navigationOptions = [
+      { id: 'navigation-tracking', name: 'Navigation Tracking', icon: '🎯', description: 'Map follows as you move' },
+      { id: 'show-heading', name: 'Show Direction Arrow', icon: '➡️', description: 'Display compass heading' },
+    ];
+
+    navigationOptions.forEach(feature => {
+      const featureItem = document.createElement('div');
+      featureItem.style.cssText = 'margin-bottom: 8px;';
+
+      const featureLabel = document.createElement('label');
+      featureLabel.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        padding: 6px 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      `;
+
+      const featureInfo = document.createElement('div');
+      featureInfo.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+
+      const featureIcon = document.createElement('span');
+      featureIcon.textContent = feature.icon;
+      featureIcon.style.fontSize = '16px';
+
+      const featureText = document.createElement('div');
+      featureText.innerHTML = `
+        <div style="font-size: 13px; color: #374151; font-weight: 500;">${feature.name}</div>
+        <div style="font-size: 11px; color: #6b7280;">${feature.description}</div>
+      `;
+
+      featureInfo.appendChild(featureIcon);
+      featureInfo.appendChild(featureText);
+
+      // Toggle switch
+      const toggleWrapper = document.createElement('div');
+      toggleWrapper.style.cssText = 'position: relative;';
+
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      toggle.id = `navigation-${feature.id}`;
+      toggle.checked = feature.id === 'show-heading'; // Show heading enabled by default
+      toggle.style.cssText = 'position: absolute; opacity: 0; width: 0; height: 0;';
+
+      const toggleSlider = document.createElement('div');
+      toggleSlider.style.cssText = `
+        width: 36px;
+        height: 20px;
+        background-color: ${toggle.checked ? '#3b82f6' : '#e5e7eb'};
+        border-radius: 10px;
+        position: relative;
+        transition: background-color 0.3s;
+        cursor: pointer;
+      `;
+
+      const toggleHandle = document.createElement('div');
+      toggleHandle.style.cssText = `
+        width: 16px;
+        height: 16px;
+        background-color: white;
+        border-radius: 50%;
+        position: absolute;
+        top: 2px;
+        left: ${toggle.checked ? '18px' : '2px'};
+        transition: left 0.3s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      `;
+
+      toggleSlider.appendChild(toggleHandle);
+      toggleWrapper.appendChild(toggle);
+      toggleWrapper.appendChild(toggleSlider);
+
+      toggle.addEventListener('change', () => {
+        const isChecked = toggle.checked;
+        toggleSlider.style.backgroundColor = isChecked ? '#3b82f6' : '#e5e7eb';
+        toggleHandle.style.left = isChecked ? '18px' : '2px';
+        this.options.onOverlayToggle(feature.id, isChecked);
+      });
+
+      featureLabel.addEventListener('mouseover', () => {
+        featureLabel.style.backgroundColor = '#f9fafb';
+      });
+
+      featureLabel.addEventListener('mouseout', () => {
+        featureLabel.style.backgroundColor = 'transparent';
+      });
+
+      featureLabel.appendChild(featureInfo);
+      featureLabel.appendChild(toggleWrapper);
+      featureItem.appendChild(featureLabel);
+      navigationSection.appendChild(featureItem);
+    });
+
+    this.dropdown.appendChild(navigationSection);
   }
-  
+
   // Public methods for external control
   public toggleDropdown(): void {
     if (this.isOpen) {
