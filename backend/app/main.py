@@ -217,6 +217,15 @@ async def lifespan(app: FastAPI):
         await cache_service.initialize()
         logger.info("✅ Redis cache service initialized")
 
+        # Validate database schema (prevents id/user_id confusion)
+        try:
+            from app.core.schema_validator import run_startup_validation
+            await run_startup_validation()
+            logger.info("✅ Database schema validation completed")
+        except Exception as schema_error:
+            logger.warning(f"⚠️ Schema validation error: {schema_error}")
+            logger.info("💡 Backend continuing despite schema validation failure")
+
         # Initialize production monitoring
         await production_monitor.start_monitoring()
         logger.info("✅ Production monitoring system initialized")

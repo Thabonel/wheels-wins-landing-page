@@ -326,9 +326,9 @@ class GraphEnhancedOrchestrator(EnhancedOrchestrator):
         
         try:
             supabase = await get_supabase_client()
-            
+
             # Sync user profile
-            user_profile = await supabase.table("profiles").select("*").eq("user_id", user_id).single()
+            user_profile = await supabase.table("profiles").select("*").eq("id", user_id).single()
             if user_profile.data:
                 user_entity = GraphEntityFactory.create_user_entity(user_profile.data)
                 await self.graph_store.create_entity(user_entity)

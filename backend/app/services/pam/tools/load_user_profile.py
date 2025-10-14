@@ -42,7 +42,7 @@ class LoadUserProfileTool(BaseTool):
             profile_response = (
                 self.supabase.table("profiles")
                 .select("*")
-                .eq("user_id", user_id)  # profiles uses user_id as primary key
+                .eq("id", user_id)  # profiles uses id as primary key (Supabase standard)
                 .single()
                 .execute()
             )
