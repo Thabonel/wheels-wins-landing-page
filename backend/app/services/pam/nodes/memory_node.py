@@ -169,7 +169,7 @@ class MemoryNode:
         """Get user profile data for context"""
         try:
             # Get from profiles table (your existing user profile structure)
-            result = self.supabase.table("profiles").select("*").eq("user_id", user_id).execute()
+            result = self.supabase.table("profiles").select("*").eq("id", user_id).execute()
             
             if not result.data:
                 print(f"⚠️ No profile found for user {user_id}")
@@ -630,7 +630,7 @@ class MemoryNode:
         """Update user profile with extracted data"""
         try:
             # Get existing profile
-            existing_profile = self.supabase.table("profiles").select("*").eq("user_id", user_id).execute()
+            existing_profile = self.supabase.table("profiles").select("*").eq("id", user_id).execute()
             
             updates = {}
             
@@ -674,10 +674,10 @@ class MemoryNode:
             if updates:
                 if existing_profile.data:
                     # Update existing profile
-                    result = self.supabase.table("profiles").update(updates).eq("user_id", user_id).execute()
+                    result = self.supabase.table("profiles").update(updates).eq("id", user_id).execute()
                 else:
                     # Create new profile
-                    updates['user_id'] = user_id
+                    updates['id'] = user_id
                     result = self.supabase.table("profiles").insert(updates).execute()
                 
                 if result.data:
@@ -997,7 +997,7 @@ PAM: {response}"""
     async def get_profile_completeness(self, user_id: str) -> Dict[str, Any]:
         """Analyze profile completeness and suggest missing information"""
         try:
-            profile_result = self.supabase.table("profiles").select("*").eq("user_id", user_id).execute()
+            profile_result = self.supabase.table("profiles").select("*").eq("id", user_id).execute()
             
             if not profile_result.data:
                 return {

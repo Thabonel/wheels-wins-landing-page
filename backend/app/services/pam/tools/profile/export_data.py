@@ -40,7 +40,7 @@ async def export_data(
 
         # Export profile
         profile_response = supabase.table("profiles").select("*").eq(
-            "user_id", user_id
+            "id", user_id
         ).execute()
         export_data_obj["profile"] = profile_response.data[0] if profile_response.data else None
 
