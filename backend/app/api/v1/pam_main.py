@@ -372,8 +372,13 @@ class PAMSecurityMiddleware:
             r'\.\./.*\.\.',
             r'/etc/passwd',
             r'/proc/',
-            # Command injection
-            r'[;&|`$()]',
+            # Command injection (specific patterns, not dollar amounts)
+            r'\$\(.*\)',
+            r'\$\{.*\}',
+            r'`.*`',
+            r'&&',
+            r'\|\|',
+            r';\s*(rm|cat|ls|curl|wget|bash|sh)',
             # Excessive caps (potential spam/abuse)
             r'^[A-Z\s!]{50,}$'
         ]
