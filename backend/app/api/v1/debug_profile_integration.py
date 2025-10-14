@@ -153,7 +153,7 @@ async def debug_profile_integration(
         try:
             # Test service role client
             service_client = get_supabase()
-            service_profile = service_client.table("profiles").select("id, vehicle_type, make_model_year, fuel_type").eq("id", token_user_id).execute()
+            service_profile = service_client.table("profiles").select("user_id, vehicle_type, make_model_year, fuel_type").eq("user_id", token_user_id).execute()
 
             logger.info(f"✅ Service role query result: {service_profile.data}")
 
@@ -166,7 +166,7 @@ async def debug_profile_integration(
 
         try:
             user_client = get_user_context_supabase_client(credentials.credentials)
-            user_profile = user_client.table("profiles").select("id, vehicle_type, make_model_year, fuel_type").eq("id", token_user_id).execute()
+            user_profile = user_client.table("profiles").select("user_id, vehicle_type, make_model_year, fuel_type").eq("user_id", token_user_id).execute()
 
             logger.info(f"✅ User context query result: {user_profile.data}")
 
