@@ -744,6 +744,17 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       const responseContent = pamResponse.response || pamResponse.message || pamResponse.content || "I encountered an issue processing your request.";
       addMessage(responseContent, "pam", message);
 
+      // Check if PAM created/updated/deleted a calendar event and trigger refresh
+      const calendarKeywords = ['calendar', 'appointment', 'event', 'meeting', 'schedule', 'booked', 'added to your calendar', 'created event'];
+      const isCalendarAction = calendarKeywords.some(keyword =>
+        responseContent.toLowerCase().includes(keyword) || message.toLowerCase().includes(keyword)
+      );
+
+      if (isCalendarAction) {
+        logger.debug('📅 Calendar action detected, dispatching reload event');
+        window.dispatchEvent(new CustomEvent('reload-calendar'));
+      }
+
       // If voice is enabled, speak the response
       if (settings?.pam_preferences?.voice_enabled) {
         await speakText(responseContent);
