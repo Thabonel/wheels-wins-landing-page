@@ -8,13 +8,15 @@ export interface DatabaseCalendarEvent {
   user_id: string;
   title: string;
   description: string | null;
-  date: string;
-  time: string | null;
-  start_time: string | null;
-  end_time: string | null;
+  start_date: string;  // ⚠️ Changed from 'date' to match actual DB schema
+  end_date: string;    // ⚠️ Changed from 'time' to match actual DB schema
+  all_day: boolean;
+  event_type: string | null;
+  location_name: string | null;
+  reminder_minutes: number[] | null;
+  color: string | null;
+  is_private: boolean;
   timezone: string | null;
-  type: string | null;
-  location: string | null;
   created_at: string | null;
   updated_at?: string | null;
 }
@@ -26,10 +28,13 @@ export const useCalendarEvents = () => {
 
   // Convert database event to CalendarEvent format
   const convertToCalendarEvent = (dbEvent: DatabaseCalendarEvent): CalendarEvent => {
-    const eventDate = new Date(dbEvent.date);
-    const startTime = dbEvent.start_time?.substring(0, 5) || "09:00";
-    const endTime = dbEvent.end_time?.substring(0, 5) || "10:00";
-    
+    const eventDate = new Date(dbEvent.start_date);
+    const endDate = new Date(dbEvent.end_date);
+
+    // Extract time from ISO timestamps
+    const startTime = eventDate.toTimeString().substring(0, 5); // HH:MM format
+    const endTime = endDate.toTimeString().substring(0, 5);     // HH:MM format
+
     return {
       id: dbEvent.id,
       title: dbEvent.title,
@@ -38,8 +43,8 @@ export const useCalendarEvents = () => {
       time: startTime,
       startTime,
       endTime,
-      type: (dbEvent.type as "reminder" | "trip" | "booking" | "maintenance" | "inspection") || "reminder",
-      location: dbEvent.location || undefined,
+      type: (dbEvent.event_type as "reminder" | "trip" | "booking" | "maintenance" | "inspection") || "reminder",
+      location: dbEvent.location_name || undefined,
     };
   };
 
