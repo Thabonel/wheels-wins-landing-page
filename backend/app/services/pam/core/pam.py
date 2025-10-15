@@ -163,7 +163,13 @@ class PAM:
         primary_model = model_config.get_primary_model()
         self.model = primary_model.model_id
 
-        logger.info(f"PAM using model: {primary_model.name} ({self.model})")
+        # Enable intelligent routing (chooses best model per query)
+        self.use_intelligent_routing = os.getenv("PAM_INTELLIGENT_ROUTING", "true").lower() == "true"
+
+        logger.info(
+            f"PAM using model: {primary_model.name} ({self.model}), "
+            f"Intelligent routing: {'enabled' if self.use_intelligent_routing else 'disabled'}"
+        )
 
         # Conversation context (in-memory for now, will add persistence later)
         self.conversation_history: List[Dict[str, Any]] = []
@@ -1092,15 +1098,37 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
         """
         import time
         from app.config.model_config import get_model_config
+        from app.services.pam.intelligent_router import get_intelligent_router
 
         try:
             # Use filtered tools if provided, otherwise use all tools
             tools_to_use = filtered_tools if filtered_tools is not None else self.tools
 
-            # Get model config for potential failover
+            # Intelligent model selection (chooses best model for this query)
             model_config = get_model_config()
             current_model = self.model
-            max_retries = 3  # Try primary + 2 fallbacks max
+
+            if self.use_intelligent_routing:
+                router = get_intelligent_router()
+                # Get last user message for complexity detection
+                last_message = next(
+                    (msg["content"] for msg in reversed(messages) if msg["role"] == "user"),
+                    ""
+                )
+                if isinstance(last_message, list):
+                    last_message = " ".join(
+                        block.get("text", "") for block in last_message
+                        if isinstance(block, dict) and block.get("type") == "text"
+                    )
+
+                selection = await router.select_model(
+                    message=str(last_message),
+                    context={}
+                )
+                current_model = selection.model.model_id
+                logger.info(f"🎯 Intelligent routing: {selection.reasoning}")
+
+            max_retries = 3  # Try selected + 2 fallbacks max
 
             for attempt in range(max_retries):
                 try:
@@ -1213,6 +1241,17 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     "timestamp": datetime.now().isoformat()
                 })
 
+                # Track performance for intelligent routing
+                if self.use_intelligent_routing and 'selection' in locals():
+                    router = get_intelligent_router()
+                    router.track_performance(
+                        model_id=current_model,
+                        complexity=selection.complexity,
+                        latency_ms=claude_elapsed_ms,
+                        success=True,
+                        cost=selection.estimated_cost
+                    )
+
                 logger.info(f"PAM response with tools ({len(assistant_message)} chars)")
                 return assistant_message
 
@@ -1235,6 +1274,17 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     "content": assistant_message,
                     "timestamp": datetime.now().isoformat()
                 })
+
+                # Track performance for intelligent routing
+                if self.use_intelligent_routing and 'selection' in locals():
+                    router = get_intelligent_router()
+                    router.track_performance(
+                        model_id=current_model,
+                        complexity=selection.complexity,
+                        latency_ms=claude_elapsed_ms,
+                        success=True,
+                        cost=selection.estimated_cost
+                    )
 
                 logger.info(f"PAM response without tools ({len(assistant_message)} chars)")
                 logger.info(f"🔍 Full assistant message: {assistant_message}")
