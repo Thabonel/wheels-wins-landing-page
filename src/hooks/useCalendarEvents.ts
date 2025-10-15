@@ -116,12 +116,12 @@ export const useCalendarEvents = () => {
     }
   };
 
-  // Set up realtime subscription
+  // Set up realtime subscription and PAM calendar refresh listener
   useEffect(() => {
     console.log("🟢 useEffect running - about to load events");
     loadEvents();
 
-    // Subscribe to changes
+    // Subscribe to database changes
     const channel = supabase
       .channel("calendar_events_changes")
       .on(
@@ -139,8 +139,17 @@ export const useCalendarEvents = () => {
       )
       .subscribe();
 
+    // Listen for PAM-triggered calendar reloads
+    const handleCalendarReload = () => {
+      console.log("📅 PAM triggered calendar reload");
+      loadEvents();
+    };
+
+    window.addEventListener('reload-calendar', handleCalendarReload);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('reload-calendar', handleCalendarReload);
     };
   }, []);
 
