@@ -1018,6 +1018,20 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                 logger.warning(f"Skipping message {i} - only contained orphaned tool_result blocks")
                 continue
 
+            # CRITICAL: Validate content is never empty (string, list, or any type)
+            # Claude API requires all messages to have non-empty content
+            is_empty = False
+            if isinstance(content, str) and not content.strip():
+                is_empty = True
+            elif isinstance(content, list) and not content:
+                is_empty = True
+            elif content is None:
+                is_empty = True
+
+            if is_empty:
+                logger.warning(f"Skipping message {i} - empty content after filtering (role={msg['role']})")
+                continue
+
             messages.append({
                 "role": msg["role"],
                 "content": content
