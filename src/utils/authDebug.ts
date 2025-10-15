@@ -485,7 +485,7 @@ export async function createEmergencyAccess(userId: string): Promise<{ success: 
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('id, user_id, email')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single();
 
     if (error) {

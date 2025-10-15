@@ -312,7 +312,7 @@ async function updateProfilePhotoUrl(
     const { error } = await supabase
       .from('profiles')
       .update({ [field]: url })
-      .eq('user_id', user.id);
+      .eq('id', user.id);
 
     if (error) {
       console.error('Failed to update profile during sync:', error);

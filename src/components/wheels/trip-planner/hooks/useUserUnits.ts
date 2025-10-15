@@ -20,7 +20,7 @@ export function useUserUnits() {
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('region')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .single();
 
         if (error) {
