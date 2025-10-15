@@ -1084,12 +1084,15 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     "timestamp": datetime.now().isoformat()
                 })
 
+                # Add tool results to conversation history (CRITICAL: must be saved for next turn)
+                self.conversation_history.append({
+                    "role": "user",
+                    "content": tool_results,
+                    "timestamp": datetime.now().isoformat()
+                })
+
                 # Build new messages with tool results
                 messages_with_tools = self._build_claude_messages()
-                messages_with_tools.append({
-                    "role": "user",
-                    "content": tool_results
-                })
 
                 # Call Claude again with tool results (with caching)
                 final_response = await self.client.messages.create(
