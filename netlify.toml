@@ -106,3 +106,13 @@
   [headers.values]
     Content-Type = "text/plain; charset=utf-8"
     Cache-Control = "public, max-age=86400, must-revalidate"
+
+# Netlify Functions configuration
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Scheduled Functions - E2E Health Checks
+# Runs every 5 minutes to detect issues fast (like Big Tech)
+[[functions."health-check"]]
+  schedule = "*/5 * * * *"
