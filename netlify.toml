@@ -111,8 +111,3 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-
-# Scheduled Functions - E2E Health Checks
-# Runs every 5 minutes to detect issues fast (like Big Tech)
-[[functions."health-check"]]
-  schedule = "*/5 * * * *"
