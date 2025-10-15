@@ -156,7 +156,14 @@ class PAM:
             raise ValueError("ANTHROPIC_API_KEY or ANTHROPIC-WHEELS-KEY environment variable not set")
 
         self.client = AsyncAnthropic(api_key=api_key)
-        self.model = "claude-sonnet-4-5-20250929"
+
+        # Use dynamic model configuration (hot-swappable via environment)
+        from app.config.model_config import get_model_config
+        model_config = get_model_config()
+        primary_model = model_config.get_primary_model()
+        self.model = primary_model.model_id
+
+        logger.info(f"PAM using model: {primary_model.name} ({self.model})")
 
         # Conversation context (in-memory for now, will add persistence later)
         self.conversation_history: List[Dict[str, Any]] = []
@@ -1080,33 +1087,71 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
         2. If Claude wants to use a tool, execute it
         3. Send tool result back to Claude
         4. Get final response
+
+        Includes automatic failover to backup models if primary fails.
         """
         import time
+        from app.config.model_config import get_model_config
+
         try:
             # Use filtered tools if provided, otherwise use all tools
             tools_to_use = filtered_tools if filtered_tools is not None else self.tools
 
-            # Call Claude with tools and prompt caching
-            # Cache the system prompt and tools (they don't change per request)
-            claude_start = time.time()
-            logger.info(f"🧠 Calling Claude API with {len(tools_to_use)} tools...")
+            # Get model config for potential failover
+            model_config = get_model_config()
+            current_model = self.model
+            max_retries = 3  # Try primary + 2 fallbacks max
 
-            response = await self.client.messages.create(
-                model=self.model,
-                max_tokens=2048,
-                system=[
-                    {
-                        "type": "text",
-                        "text": self.system_prompt,
-                        "cache_control": {"type": "ephemeral"}
-                    }
-                ],
-                messages=messages,
-                tools=tools_to_use
-            )
+            for attempt in range(max_retries):
+                try:
+                    # Call Claude with tools and prompt caching
+                    # Cache the system prompt and tools (they don't change per request)
+                    claude_start = time.time()
+                    logger.info(f"🧠 [Attempt {attempt + 1}/{max_retries}] Calling Claude API ({current_model}) with {len(tools_to_use)} tools...")
 
-            claude_elapsed_ms = (time.time() - claude_start) * 1000
-            logger.info(f"✅ Claude API response received in {claude_elapsed_ms:.1f}ms")
+                    response = await self.client.messages.create(
+                        model=current_model,
+                        max_tokens=2048,
+                        system=[
+                            {
+                                "type": "text",
+                                "text": self.system_prompt,
+                                "cache_control": {"type": "ephemeral"}
+                            }
+                        ],
+                        messages=messages,
+                        tools=tools_to_use
+                    )
+
+                    claude_elapsed_ms = (time.time() - claude_start) * 1000
+                    logger.info(f"✅ Claude API response received from {current_model} in {claude_elapsed_ms:.1f}ms")
+
+                    # Success! Return to normal flow
+                    break
+
+                except Exception as api_error:
+                    logger.warning(f"⚠️ Model {current_model} failed on attempt {attempt + 1}: {api_error}")
+
+                    # Mark model as unhealthy temporarily
+                    model_config.mark_model_unhealthy(current_model, duration_minutes=5)
+
+                    # Try next model in fallback chain
+                    if attempt < max_retries - 1:
+                        next_model_config = model_config.get_next_model(current_model)
+                        if next_model_config:
+                            current_model = next_model_config.model_id
+                            logger.info(f"🔄 Failing over to {next_model_config.name} ({current_model})")
+                        else:
+                            logger.error("❌ No fallback models available, using last attempted model")
+                            raise api_error
+                    else:
+                        # Last attempt failed
+                        raise api_error
+
+            # Update instance model if we switched
+            if current_model != self.model:
+                logger.info(f"💾 Updating PAM instance model from {self.model} to {current_model}")
+                self.model = current_model
 
             # Check if Claude wants to use tools
             if response.stop_reason == "tool_use":
