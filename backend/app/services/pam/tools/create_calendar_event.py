@@ -26,7 +26,7 @@ async def create_calendar_event(
     start_date: str,  # ISO format: "2025-09-30T14:00:00Z"
     end_date: Optional[str] = None,
     description: Optional[str] = None,
-    event_type: str = "personal",
+    event_type: str = "reminder",  # Changed from 'personal' to match frontend types
     all_day: bool = False,
     location_name: Optional[str] = None,
     reminder_minutes: Optional[int] = None,
@@ -42,7 +42,7 @@ async def create_calendar_event(
         start_date: Start date/time in ISO format (required)
         end_date: End date/time in ISO format (optional)
         description: Event description (optional)
-        event_type: Type of event - personal, trip, maintenance, meeting, reminder, birthday, holiday
+        event_type: Type of event - reminder (default), trip, booking, maintenance, inspection
         all_day: Whether this is an all-day event
         location_name: Location name (optional)
         reminder_minutes: Array of reminder times in minutes before event [15, 60, 1440]
@@ -57,10 +57,12 @@ async def create_calendar_event(
         # Get Supabase client
         supabase: Client = get_supabase_client()
 
-        # Validate event_type
-        valid_types = ['personal', 'trip', 'maintenance', 'meeting', 'reminder', 'birthday', 'holiday']
+        # Validate event_type - must match frontend CalendarEvent types
+        # Frontend only supports: reminder, trip, booking, maintenance, inspection
+        valid_types = ['reminder', 'trip', 'booking', 'maintenance', 'inspection']
         if event_type not in valid_types:
-            event_type = 'personal'
+            logger.warning(f"Invalid event_type '{event_type}', defaulting to 'reminder'")
+            event_type = 'reminder'
 
         # Parse dates
         start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))

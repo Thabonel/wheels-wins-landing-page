@@ -31,9 +31,25 @@ export const useCalendarEvents = () => {
     const eventDate = new Date(dbEvent.start_date);
     const endDate = new Date(dbEvent.end_date);
 
-    // Extract time from ISO timestamps
-    const startTime = eventDate.toTimeString().substring(0, 5); // HH:MM format
-    const endTime = endDate.toTimeString().substring(0, 5);     // HH:MM format
+    // Extract time in HH:MM format (using local timezone display)
+    const formatTime = (date: Date): string => {
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    };
+
+    const startTime = formatTime(eventDate);
+    const endTime = formatTime(endDate);
+
+    // Map event_type to valid CalendarEvent types
+    // Database allows 'personal' as default, but UI only supports specific types
+    const validTypes = ["reminder", "trip", "booking", "maintenance", "inspection"] as const;
+    let eventType: typeof validTypes[number] = "reminder"; // default
+
+    if (dbEvent.event_type && validTypes.includes(dbEvent.event_type as any)) {
+      eventType = dbEvent.event_type as typeof validTypes[number];
+    }
+    // If event_type is 'personal' or any other value, it maps to 'reminder'
 
     return {
       id: dbEvent.id,
@@ -43,7 +59,7 @@ export const useCalendarEvents = () => {
       time: startTime,
       startTime,
       endTime,
-      type: (dbEvent.event_type as "reminder" | "trip" | "booking" | "maintenance" | "inspection") || "reminder",
+      type: eventType,
       location: dbEvent.location_name || undefined,
     };
   };
