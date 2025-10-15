@@ -17,7 +17,7 @@ from pydantic import BaseModel
 import logging
 
 from app.services.pam.intelligent_router import get_intelligent_router
-from app.core.auth import require_admin
+from app.core.unified_auth import require_admin
 
 logger = logging.getLogger(__name__)
 
