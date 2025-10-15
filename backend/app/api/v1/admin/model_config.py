@@ -24,7 +24,7 @@ from app.config.model_config import (
     MODEL_REGISTRY,
     ModelConfig
 )
-from app.core.auth import get_current_user, require_admin
+from app.core.unified_auth import require_admin
 
 logger = logging.getLogger(__name__)
 
