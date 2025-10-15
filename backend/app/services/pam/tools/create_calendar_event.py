@@ -83,13 +83,12 @@ async def create_calendar_event(
             "user_id": user_id,
             "title": title,
             "description": description,
-            "date": start_dt.date().isoformat(),  # Separate date column
-            "start_time": start_dt.time().isoformat() if not all_day else None,  # Separate time column
-            "end_time": end_dt.time().isoformat() if not all_day else None,  # Separate end time
+            "start_date": start_dt.isoformat(),  # TIMESTAMP WITH TIME ZONE
+            "end_date": end_dt.isoformat(),  # TIMESTAMP WITH TIME ZONE
             "all_day": all_day,
-            "type": event_type,  # Column is 'type' not 'event_type'
-            "location": location_name,  # Column is 'location' not 'location_name'
-            "reminder_minutes": reminder_minutes,
+            "event_type": event_type,  # Column is 'event_type'
+            "location_name": location_name,  # TEXT column for location name
+            "reminder_minutes": [reminder_minutes] if isinstance(reminder_minutes, int) else reminder_minutes,  # Array of integers
             "color": color,
         }
 
