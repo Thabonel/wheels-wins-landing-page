@@ -22,6 +22,7 @@ export interface DatabaseCalendarEvent {
 }
 
 export const useCalendarEvents = () => {
+  console.log("🔵 useCalendarEvents hook called");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -66,21 +67,24 @@ export const useCalendarEvents = () => {
 
   // Load events from database
   const loadEvents = async () => {
+    console.log("🟡 loadEvents() called - checking auth");
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log("🟡 Auth result:", { hasUser: !!user, hasError: !!userError, userId: user?.id });
+
       if (userError) {
-        console.error("Auth error:", userError);
-        setLoading(false);
-        return;
-      }
-      
-      if (!user) {
-        console.log("User not authenticated");
+        console.error("❌ Auth error:", userError);
         setLoading(false);
         return;
       }
 
-      console.log("Loading events for user:", user.id);
+      if (!user) {
+        console.log("⚠️ User not authenticated");
+        setLoading(false);
+        return;
+      }
+
+      console.log("✅ Loading events for user:", user.id);
 
       const { data, error } = await supabase
         .from("calendar_events")
@@ -114,6 +118,7 @@ export const useCalendarEvents = () => {
 
   // Set up realtime subscription
   useEffect(() => {
+    console.log("🟢 useEffect running - about to load events");
     loadEvents();
 
     // Subscribe to changes
