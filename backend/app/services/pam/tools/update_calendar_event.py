@@ -49,11 +49,11 @@ async def update_calendar_event(
     Returns:
         Dict with updated event details
     """
-    from app.integrations.supabase import get_supabase_client
+    from app.database.supabase_client import get_supabase_service
 
     try:
-        # Get Supabase client
-        supabase: Client = get_supabase_client()
+        # Use service_role client to bypass RLS (PAM is already authenticated)
+        supabase: Client = get_supabase_service()
 
         # First verify the event exists and belongs to the user
         existing_response = supabase.table("calendar_events").select("*").eq("id", event_id).eq("user_id", user_id).execute()
