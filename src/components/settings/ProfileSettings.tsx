@@ -23,7 +23,7 @@ export const ProfileSettings = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('full_name,nickname')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single();
       if (!error && data) {
         setFullName(data.full_name || '');
@@ -42,7 +42,7 @@ export const ProfileSettings = () => {
       const { error } = await supabase
         .from('profiles')
         .update({ full_name: fullName, nickname })
-        .eq('user_id', user.id);
+        .eq('id', user.id);
       if (error) throw error;
       toast.success('Profile updated');
     } catch (err) {

@@ -30,7 +30,7 @@ const UserMenu = () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('profile_image_url')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .maybeSingle();
 
       console.log('Profile data:', data);

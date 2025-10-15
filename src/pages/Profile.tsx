@@ -81,7 +81,7 @@ const Profile = () => {
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ [updateField]: url })
-        .eq('user_id', user.id);
+        .eq('id', user.id);
         
       if (updateError) {
         console.error('Profile update error:', updateError);
@@ -129,7 +129,7 @@ const Profile = () => {
       const { error } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('user_id', user.id);
+        .eq('id', user.id);
         
       if (error) {
         throw new Error(error.message || 'Failed to update profile');
