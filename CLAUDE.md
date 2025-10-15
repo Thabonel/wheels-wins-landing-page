@@ -1,8 +1,15 @@
 # Claude Code Instructions for Wheels & Wins
 
+## 🚨 CRITICAL: Read BEFORE Touching Database Queries
+**Before writing ANY database queries, read:**
+- **@docs/DATABASE_SCHEMA_REFERENCE.md** - THE SOURCE OF TRUTH for all table schemas
+- **Rule:** Use ACTUAL column names from this doc, not what you think they should be
+- **Example:** `profiles` table uses `id` NOT `user_id` (if you get this wrong, PAM breaks)
+
 ## Essential Context Files (Read These First)
 When starting a new session, read these files to get up to speed:
 
+- **@docs/DATABASE_SCHEMA_REFERENCE.md** - Database schema (READ BEFORE ANY DB QUERIES)
 - **@docs/pam-rebuild-2025/PAM_FINAL_PLAN.md** - Complete 7-day rebuild plan and progress
 - **@docs/pam-rebuild-2025/DAY_4_COMPLETE.md** - Latest completed work
 - **@backend/docs/architecture.md** - System architecture overview
