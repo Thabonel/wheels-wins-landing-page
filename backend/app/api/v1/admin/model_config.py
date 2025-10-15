@@ -28,7 +28,7 @@ from app.core.auth import get_current_user, require_admin
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/models", tags=["admin", "models"])
+router = APIRouter(prefix="/models", tags=["admin", "models"])
 
 
 class ModelConfigResponse(BaseModel):

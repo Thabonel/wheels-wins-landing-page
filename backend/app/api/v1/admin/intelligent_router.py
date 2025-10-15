@@ -21,7 +21,7 @@ from app.core.auth import require_admin
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/router", tags=["admin", "intelligent-router"])
+router = APIRouter(prefix="/router", tags=["admin", "intelligent-router"])
 
 
 class RouterConfigResponse(BaseModel):
