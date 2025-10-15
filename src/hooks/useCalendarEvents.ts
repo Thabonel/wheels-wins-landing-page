@@ -65,7 +65,7 @@ export const useCalendarEvents = () => {
         .from("calendar_events")
         .select("*")
         .eq("user_id", user.id)
-        .order("date", { ascending: true });
+        .order("start_date", { ascending: true });
 
       if (error) {
         console.error("Error loading calendar events:", error);
