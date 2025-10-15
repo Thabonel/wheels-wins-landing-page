@@ -51,11 +51,12 @@ async def create_calendar_event(
     Returns:
         Dict with created event details
     """
-    from app.integrations.supabase import get_supabase_client
+    from app.database.supabase_client import get_supabase_service
 
     try:
-        # Get Supabase client
-        supabase: Client = get_supabase_client()
+        # Get Supabase service client (bypasses RLS for authorized PAM operations)
+        # PAM is already authenticated via WebSocket/JWT, so using service_role is safe
+        supabase: Client = get_supabase_service()
 
         # Validate event_type - must match frontend CalendarEvent types
         # Frontend only supports: reminder, trip, booking, maintenance, inspection
