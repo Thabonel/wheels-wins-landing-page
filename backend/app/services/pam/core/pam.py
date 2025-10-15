@@ -110,8 +110,10 @@ from app.services.pam.tools.profile.create_vehicle import create_vehicle
 from app.services.pam.tools.admin.add_knowledge import add_knowledge
 from app.services.pam.tools.admin.search_knowledge import search_knowledge
 
-# Import calendar tool
+# Import calendar tools
 from app.services.pam.tools.create_calendar_event import create_calendar_event
+from app.services.pam.tools.update_calendar_event import update_calendar_event
+from app.services.pam.tools.delete_calendar_event import delete_calendar_event
 
 logger = logging.getLogger(__name__)
 
@@ -845,6 +847,36 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     },
                     "required": ["title", "start_date"]
                 }
+            },
+            {
+                "name": "update_calendar_event",
+                "description": "Update an existing calendar event. Use this when user asks to move, reschedule, change, or modify an appointment. You must first find the event_id using context or by asking the user.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "event_id": {"type": "string", "description": "UUID of the event to update (required)"},
+                        "title": {"type": "string", "description": "New title or name of the event (optional)"},
+                        "start_date": {"type": "string", "description": "New start date and time in ISO format (optional)"},
+                        "end_date": {"type": "string", "description": "New end date and time in ISO format (optional)"},
+                        "description": {"type": "string", "description": "New event description (optional)"},
+                        "event_type": {"type": "string", "description": "New event type (optional)"},
+                        "all_day": {"type": "boolean", "description": "Whether this is an all-day event (optional)"},
+                        "location_name": {"type": "string", "description": "New location (optional)"},
+                        "reminder_minutes": {"type": "integer", "description": "New reminder time in minutes (optional)"}
+                    },
+                    "required": ["event_id"]
+                }
+            },
+            {
+                "name": "delete_calendar_event",
+                "description": "Delete a calendar event. Use this when user asks to remove, cancel, or delete an appointment. You must first find the event_id using context or by asking the user.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "event_id": {"type": "string", "description": "UUID of the event to delete"}
+                    },
+                    "required": ["event_id"]
+                }
             }
         ]
 
@@ -1232,7 +1264,9 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             "add_knowledge": add_knowledge,
             "search_knowledge": search_knowledge,
             # Calendar tools
-            "create_calendar_event": create_calendar_event
+            "create_calendar_event": create_calendar_event,
+            "update_calendar_event": update_calendar_event,
+            "delete_calendar_event": delete_calendar_event
         }
 
         for block in content:
