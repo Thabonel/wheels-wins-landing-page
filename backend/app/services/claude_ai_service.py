@@ -362,8 +362,20 @@ Always use current, real-time information when available.
             # Get tools from registry for Claude function calling
             tools = None
             if self.tool_registry and self.tool_registry.is_initialized:
-                tools = self.tool_registry.get_openai_functions(user_context=user_context)
-                logger.info(f"🔧 Passing {len(tools)} tools to Claude API")
+                openai_tools = self.tool_registry.get_openai_functions(user_context=user_context)
+
+                # Convert OpenAI format to Claude format
+                # OpenAI uses "parameters", Claude uses "input_schema"
+                claude_tools = []
+                for tool in openai_tools:
+                    claude_tools.append({
+                        "name": tool["name"],
+                        "description": tool["description"],
+                        "input_schema": tool["parameters"]  # Rename key for Claude API
+                    })
+
+                tools = claude_tools
+                logger.info(f"🔧 Passing {len(tools)} tools to Claude API (converted from OpenAI format)")
             else:
                 logger.warning("⚠️ Tool registry not initialized - Claude will have no tool access")
 
@@ -427,13 +439,17 @@ Always use current, real-time information when available.
 
                     # Send tool results back to Claude for final response
                     # Add assistant's tool use message to conversation
+                    assistant_content = []
+                    if response.content:
+                        assistant_content.append({"type": "text", "text": response.content})
+                    assistant_content.extend([
+                        {"type": "tool_use", "id": tc["id"], "name": tc["name"], "input": tc["input"]}
+                        for tc in response.tool_calls
+                    ])
+
                     messages.append(ClaudeMessage(
                         role="assistant",
-                        content=[
-                            {"type": "text", "text": response.content} if response.content else None,
-                            *[{"type": "tool_use", "id": tc["id"], "name": tc["name"], "input": tc["input"]}
-                              for tc in response.tool_calls]
-                        ]
+                        content=assistant_content
                     ))
 
                     # Add tool results as user message
