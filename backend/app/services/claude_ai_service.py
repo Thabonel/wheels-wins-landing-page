@@ -78,6 +78,7 @@ class ClaudeResponse:
     streaming: bool = False
     cached: bool = False
     confidence_score: Optional[float] = None
+    tool_calls: Optional[List[Dict[str, Any]]] = None  # Tool use requests from Claude
 
 class ClaudeError(Exception):
     """Claude API specific errors"""
@@ -268,12 +269,20 @@ Always use current, real-time information when available.
         latency = (time.time() - start_time) * 1000
         data = response.json()
 
-        # Extract response content
+        # Extract response content and tool calls
         content = ""
+        tool_calls = []
         if "content" in data and data["content"]:
             for block in data["content"]:
                 if block["type"] == "text":
                     content += block["text"]
+                elif block["type"] == "tool_use":
+                    # Claude wants to use a tool
+                    tool_calls.append({
+                        "id": block.get("id"),
+                        "name": block.get("name"),
+                        "input": block.get("input", {})
+                    })
 
         # Track usage and performance
         usage = data.get("usage", {})
@@ -287,7 +296,10 @@ Always use current, real-time information when available.
         cost = (input_tokens * 0.003 / 1000) + (output_tokens * 0.015 / 1000)  # $3/M input, $15/M output
         self.total_cost += cost
 
-        logger.info(f"Claude response: {output_tokens} tokens, {latency:.0f}ms, ${cost:.4f}")
+        if tool_calls:
+            logger.info(f"🔧 Claude response: {len(tool_calls)} tool calls, {output_tokens} tokens, {latency:.0f}ms, ${cost:.4f}")
+        else:
+            logger.info(f"Claude response: {output_tokens} tokens, {latency:.0f}ms, ${cost:.4f}")
 
         return ClaudeResponse(
             content=content,
@@ -295,7 +307,8 @@ Always use current, real-time information when available.
             usage=usage,
             latency_ms=latency,
             stop_reason=data.get("stop_reason", "end_turn"),
-            streaming=False
+            streaming=False,
+            tool_calls=tool_calls if tool_calls else None
         )
 
     async def _handle_streaming_response(self, response: httpx.Response) -> AsyncGenerator[str, None]:
@@ -346,24 +359,114 @@ Always use current, real-time information when available.
                 timestamp=datetime.now()
             ))
 
+            # Get tools from registry for Claude function calling
+            tools = None
+            if self.tool_registry and self.tool_registry.is_initialized:
+                tools = self.tool_registry.get_openai_functions(user_context=user_context)
+                logger.info(f"🔧 Passing {len(tools)} tools to Claude API")
+            else:
+                logger.warning("⚠️ Tool registry not initialized - Claude will have no tool access")
+
             # Get response from Claude
             response = await self.chat_completion(
                 messages=messages,
                 user_id=user_id,
                 user_context=user_context,
-                stream=stream
+                stream=stream,
+                tools=tools
             )
 
             if stream:
                 return response
             else:
-                # Store conversation in context
-                if conversation_id and user_id:
-                    await self._store_conversation(
-                        user_id, conversation_id, message, response.content
+                # Handle tool execution if Claude requested tools
+                if response.tool_calls and len(response.tool_calls) > 0:
+                    logger.info(f"🔧 Executing {len(response.tool_calls)} tool calls")
+
+                    # Execute all requested tools
+                    tool_results = []
+                    for tool_call in response.tool_calls:
+                        tool_name = tool_call["name"]
+                        tool_input = tool_call["input"]
+                        tool_id = tool_call["id"]
+
+                        logger.info(f"🔧 Executing tool: {tool_name} with input: {tool_input}")
+
+                        try:
+                            # Execute tool via registry
+                            result = await self.tool_registry.execute_tool(
+                                tool_name=tool_name,
+                                user_id=user_id,
+                                parameters=tool_input,
+                                context=user_context
+                            )
+
+                            if result.success:
+                                logger.info(f"✅ Tool {tool_name} executed successfully")
+                                tool_results.append({
+                                    "type": "tool_result",
+                                    "tool_use_id": tool_id,
+                                    "content": json.dumps(result.result)
+                                })
+                            else:
+                                logger.error(f"❌ Tool {tool_name} failed: {result.error}")
+                                tool_results.append({
+                                    "type": "tool_result",
+                                    "tool_use_id": tool_id,
+                                    "content": json.dumps({"error": result.error}),
+                                    "is_error": True
+                                })
+                        except Exception as e:
+                            logger.error(f"❌ Tool {tool_name} execution error: {str(e)}")
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": tool_id,
+                                "content": json.dumps({"error": str(e)}),
+                                "is_error": True
+                            })
+
+                    # Send tool results back to Claude for final response
+                    # Add assistant's tool use message to conversation
+                    messages.append(ClaudeMessage(
+                        role="assistant",
+                        content=[
+                            {"type": "text", "text": response.content} if response.content else None,
+                            *[{"type": "tool_use", "id": tc["id"], "name": tc["name"], "input": tc["input"]}
+                              for tc in response.tool_calls]
+                        ]
+                    ))
+
+                    # Add tool results as user message
+                    messages.append(ClaudeMessage(
+                        role="user",
+                        content=tool_results
+                    ))
+
+                    # Get final response from Claude
+                    logger.info("🔧 Sending tool results to Claude for final response")
+                    final_response = await self.chat_completion(
+                        messages=messages,
+                        user_id=user_id,
+                        user_context=user_context,
+                        stream=False,
+                        tools=tools  # Still pass tools in case Claude wants to use more
                     )
 
-                return response.content
+                    # Store final conversation in context
+                    if conversation_id and user_id:
+                        await self._store_conversation(
+                            user_id, conversation_id, message, final_response.content
+                        )
+
+                    return final_response.content
+                else:
+                    # No tool calls, normal response
+                    if conversation_id and user_id:
+                        await self._store_conversation(
+                            user_id, conversation_id, message, response.content
+                        )
+
+                    return response.content
 
         except Exception as e:
             logger.error(f"Error in Claude send_message: {str(e)}")
