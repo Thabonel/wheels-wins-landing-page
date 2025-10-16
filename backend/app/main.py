@@ -359,6 +359,26 @@ async def lifespan(app: FastAPI):
             logger.error(f"❌ Simple Gemini Service initialization failed: {simple_error}")
             logger.error("🚨 No fallback available for PAM if orchestrator fails")
 
+        # Initialize PAM Tool Registry (CRITICAL for Claude function calling)
+        logger.info("🔧 Initializing PAM Tool Registry...")
+        try:
+            from app.services.pam.tools.tool_registry import initialize_tool_registry
+
+            tool_registry = await initialize_tool_registry()
+
+            if tool_registry.is_initialized:
+                tool_count = len([d for d in tool_registry.tool_definitions.values() if d.enabled])
+                logger.info(f"✅ PAM Tool Registry initialized: {tool_count} tools available")
+
+                # Log available tools
+                tool_names = [name for name, defn in tool_registry.tool_definitions.items() if defn.enabled]
+                logger.info(f"🔧 Available tools: {', '.join(tool_names)}")
+            else:
+                logger.warning("⚠️ Tool Registry initialized but marked as not ready")
+        except Exception as tool_error:
+            logger.error(f"❌ Tool Registry initialization failed: {tool_error}")
+            logger.warning("🚨 PAM will operate without tool calling capabilities")
+
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
 
