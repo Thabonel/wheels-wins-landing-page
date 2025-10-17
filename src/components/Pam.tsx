@@ -523,10 +523,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       logger.debug('✅ Microphone access granted');
 
       // Initialize VAD service with the audio stream
+      // VAD automatically starts processing audio after initialization
       await vadService.initialize(stream);
-      await vadService.start();
 
-      logger.debug('✅ Voice Activity Detection started');
+      logger.debug('✅ Voice Activity Detection initialized and active');
 
       // Initialize Web Speech API for transcription
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -581,11 +581,11 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const stopContinuousVoiceMode = () => {
+  const stopContinuousVoiceMode = async () => {
     logger.debug('🔇 Stopping continuous voice mode');
 
-    // Stop VAD service
-    vadService.stop();
+    // Cleanup VAD service (async method)
+    await vadService.cleanup();
 
     // Stop speech recognition
     if (wakeWordRecognition) {
