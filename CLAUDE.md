@@ -1,10 +1,19 @@
 # Claude Code Instructions for Wheels & Wins
 
-## 🚨 CRITICAL: Read BEFORE Touching Database Queries
+## 🚨 CRITICAL: Read BEFORE Any PAM or Database Work
+
+### Database Queries
 **Before writing ANY database queries, read:**
 - **@docs/DATABASE_SCHEMA_REFERENCE.md** - THE SOURCE OF TRUTH for all table schemas
 - **Rule:** Use ACTUAL column names from this doc, not what you think they should be
 - **Example:** `profiles` table uses `id` NOT `user_id` (if you get this wrong, PAM breaks)
+
+### PAM Context Fields
+**Before sending ANY context data to PAM backend, read:**
+- **@docs/PAM_BACKEND_CONTEXT_REFERENCE.md** - THE SOURCE OF TRUTH for all context fields
+- **Rule:** Use EXACT field names listed in this doc (snake_case, not camelCase)
+- **Example:** Backend expects `user_location` NOT `location` (most common bug)
+- **Why:** We keep hitting location/context mismatches daily. This doc stops the bleeding.
 
 ## Memory-Keeper Protocol (CRITICAL)
 
@@ -82,6 +91,7 @@ TESTING: Verified events now load correctly`,
 When starting a new session, read these files to get up to speed:
 
 - **@docs/DATABASE_SCHEMA_REFERENCE.md** - Database schema (READ BEFORE ANY DB QUERIES)
+- **@docs/PAM_BACKEND_CONTEXT_REFERENCE.md** - PAM context fields (READ BEFORE PAM WORK)
 - **@docs/pam-rebuild-2025/PAM_FINAL_PLAN.md** - Complete 7-day rebuild plan and progress
 - **@docs/pam-rebuild-2025/DAY_4_COMPLETE.md** - Latest completed work
 - **@backend/docs/architecture.md** - System architecture overview
