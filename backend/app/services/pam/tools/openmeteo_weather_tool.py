@@ -84,10 +84,23 @@ class OpenMeteoWeatherTool(BaseTool):
             action = params.get("action", "get_current")
             location = params.get("location")
 
+            # Auto-inject user location from context if not provided
+            if not location and context and context.get("user_location"):
+                user_loc = context["user_location"]
+                if isinstance(user_loc, dict):
+                    # Use city, region if available
+                    if user_loc.get("city") and user_loc.get("region"):
+                        location = f"{user_loc['city']}, {user_loc['region']}"
+                        logger.info(f"📍 Using user location from context: {location}")
+                    # Or use lat/lng
+                    elif user_loc.get("lat") and user_loc.get("lng"):
+                        location = f"{user_loc['lat']},{user_loc['lng']}"
+                        logger.info(f"📍 Using user coordinates from context: {location}")
+
             if not location:
                 return {
                     "success": False,
-                    "error": "Location is required for weather queries",
+                    "error": "Location is required for weather queries. Please provide a location or enable location services.",
                     "data": None
                 }
 
