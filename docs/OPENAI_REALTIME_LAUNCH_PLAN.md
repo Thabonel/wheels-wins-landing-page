@@ -98,236 +98,417 @@ async def track_usage(user_id: UUID, event_type: str, metadata: dict):
 
 ## Phase 2: OpenAI Realtime Integration
 
+### Architecture: Direct Browser Connection (Zero Added Latency)
+
+**Critical Decision:** Browser connects DIRECTLY to OpenAI, not through backend proxy.
+
+**Why:**
+- ❌ Backend proxy adds 200-300ms latency per interaction
+- ✅ Direct connection = 0ms added latency (ChatGPT-quality speed)
+- ✅ Backend only called for tool execution (async, doesn't block voice)
+
+**Architecture:**
+```
+Browser (WebSocket) → OpenAI Realtime API
+                           ↓ (function call needed?)
+Browser → Backend REST API → Execute Tool → Return Result → OpenAI
+```
+
 ### Backend Implementation
 
-**1. New Service: `backend/app/services/pam/openai_realtime_service.py`**
+**1. Session Token Service: `backend/app/api/v1/pam_realtime.py`**
 
 ```python
 """
-OpenAI Realtime API Integration for PAM Voice
-Simple, fast, reliable - ChatGPT quality voice
+OpenAI Realtime Session Management
+Creates ephemeral session tokens for secure browser connections
 """
 
 import os
-import json
-import asyncio
-from typing import Dict, Any, List, Optional
-import websockets
+from typing import Dict, Any
+from fastapi import APIRouter, Depends, HTTPException
 from openai import AsyncOpenAI
 
-class OpenAIRealtimeService:
+from app.api.dependencies.auth import get_current_user
+from app.models.user import User
+from app.services.usage_tracking_service import track_session_start
+
+router = APIRouter(prefix="/pam/realtime", tags=["pam-realtime"])
+
+@router.post("/create-session")
+async def create_openai_session(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
     """
-    PAM Voice powered by OpenAI Realtime API
-    - Native speech-to-speech (no pipeline complexity)
-    - Function calling for our 40+ tools
-    - ChatGPT voice quality
+    Create ephemeral OpenAI Realtime session token
+
+    Returns short-lived token (1 hour) for browser to connect directly to OpenAI.
+    Backend never sees API key in browser - only session tokens.
     """
+    try:
+        client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
-    def __init__(self, user_id: str):
-        self.user_id = user_id
-        self.api_key = os.getenv('OPENAI_API_KEY')
-        self.ws_url = 'wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01'
-        self.ws = None
-        self.tools = self._build_tool_definitions()
+        # Get tool definitions (convert from Claude format)
+        tools = await _get_tool_definitions_openai_format()
 
-    def _build_tool_definitions(self) -> List[Dict]:
-        """
-        Convert our existing 40+ PAM tools to OpenAI format
-        Reuse all existing tool implementations - just change schema format
-        """
-        # Import existing tools
-        from app.services.pam.tools.budget import (
-            create_expense, analyze_budget, track_savings, # ... all 10 budget tools
+        # Create ephemeral session
+        session = await client.realtime.sessions.create(
+            model='gpt-4o-realtime-preview-2024-10-01',
+            voice='alloy',
+            instructions=_get_pam_system_prompt(),
+            modalities=['text', 'audio'],
+            input_audio_format='pcm16',
+            output_audio_format='pcm16',
+            tools=tools,
+            temperature=0.8,
+            max_response_output_tokens=4096
         )
-        from app.services.pam.tools.trip import (
-            plan_trip, find_rv_parks, get_weather_forecast, # ... all 10 trip tools
-        )
-        # ... etc for all tools
 
-        # Convert to OpenAI function calling format
-        tools = []
-        # Each tool becomes:
-        # {
-        #     "type": "function",
-        #     "name": "create_expense",
-        #     "description": "...",
-        #     "parameters": { "type": "object", "properties": {...} }
-        # }
-        return tools
+        # Track session creation
+        await track_session_start(current_user.id)
 
-    async def connect(self):
-        """Establish WebSocket connection with session config"""
-        headers = {
-            'Authorization': f'Bearer {self.api_key}',
-            'OpenAI-Beta': 'realtime=v1'
+        return {
+            'session_token': session.client_secret.value,
+            'expires_at': session.expires_at,
+            'ws_url': 'wss://api.openai.com/v1/realtime',
+            'model': 'gpt-4o-realtime-preview-2024-10-01'
         }
 
-        self.ws = await websockets.connect(self.ws_url, extra_headers=headers)
+    except Exception as e:
+        logger.error(f"❌ Failed to create OpenAI session: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create session")
 
-        # Send session.update with tools
-        await self.ws.send(json.dumps({
-            'type': 'session.update',
-            'session': {
-                'modalities': ['text', 'audio'],
-                'instructions': 'You are PAM, the AI travel companion...',
-                'voice': 'alloy',
-                'input_audio_format': 'pcm16',
-                'output_audio_format': 'pcm16',
-                'tools': self.tools,
-                'temperature': 0.8
-            }
-        }))
 
-    async def handle_audio_input(self, audio_data: bytes):
-        """Send user audio to OpenAI"""
-        # Track usage
-        await track_usage(self.user_id, 'audio_input', {
-            'duration_seconds': len(audio_data) / 16000,  # 16kHz audio
-        })
+def _get_pam_system_prompt() -> str:
+    """PAM personality and instructions"""
+    return """You are PAM (Personal AI Manager), the AI travel companion for Wheels & Wins RV travelers.
 
-        await self.ws.send(json.dumps({
-            'type': 'input_audio_buffer.append',
-            'audio': audio_data.hex()  # Base64 or hex encoding
-        }))
+Your Core Identity:
+- You're a competent, friendly travel partner (not a servant, not a boss - an equal)
+- You help RVers save money, plan trips, manage budgets, and stay connected
+- You take ACTION - you don't just answer questions, you DO things
 
-    async def handle_function_call(self, function_name: str, arguments: dict):
-        """Execute PAM tool and return result to OpenAI"""
-        # Track usage
-        await track_usage(self.user_id, 'tool_call', {
-            'function': function_name,
-            'arguments': arguments
-        })
+Your Personality:
+- Friendly, not cutesy: "I've got you" not "OMG yay!"
+- Confident, not arrogant: "I found 3 campgrounds" not "I'm the best"
+- Helpful, not pushy: "Want directions?" not "You should go now"
+- Brief by default: 1-2 sentences. Expand if user asks "tell me more"
 
-        # Execute the actual tool (reuse existing implementations)
-        result = await self._execute_tool(function_name, arguments)
+You have access to 40+ tools to help users with:
+- Budget tracking and financial management
+- Trip planning and route optimization
+- Finding campgrounds, gas stations, attractions
+- Social features and community
+- Shopping and gear recommendations
+- Profile and settings management
 
-        # Send result back to OpenAI
-        await self.ws.send(json.dumps({
-            'type': 'conversation.item.create',
-            'item': {
-                'type': 'function_call_output',
-                'call_id': function_call_id,
-                'output': json.dumps(result)
-            }
-        }))
+Use tools proactively when users ask for help. Be conversational and natural."""
 
-    async def listen(self):
-        """Listen for OpenAI events"""
-        async for message in self.ws:
-            data = json.loads(message)
-            event_type = data.get('type')
 
-            if event_type == 'response.audio.delta':
-                # Stream audio back to user
-                audio_chunk = bytes.fromhex(data['delta'])
-                yield {'type': 'audio', 'data': audio_chunk}
+async def _get_tool_definitions_openai_format() -> list:
+    """
+    Convert PAM tools from Claude format to OpenAI format
 
-            elif event_type == 'response.function_call_arguments.done':
-                # Execute tool
-                function_name = data['name']
-                arguments = json.loads(data['arguments'])
-                await self.handle_function_call(function_name, arguments)
+    Uses automated converter to transform all 40+ tools
+    """
+    from app.services.pam.tools.tool_registry import get_all_tools
+    from app.services.pam.openai_tool_converter import claude_to_openai_tools
 
-            # ... handle other events
+    claude_tools = get_all_tools()
+    openai_tools = claude_to_openai_tools(claude_tools)
+
+    return openai_tools
 ```
 
-**2. FastAPI WebSocket Endpoint**
+**2. Tool Converter: `backend/app/services/pam/openai_tool_converter.py`**
 
 ```python
-# backend/app/api/v1/pam_realtime.py
+"""
+Automated tool converter: Claude format → OpenAI format
+Converts all 40+ PAM tools in seconds
+"""
 
-@router.websocket("/ws/realtime/{user_id}")
-async def realtime_websocket(websocket: WebSocket, user_id: str):
+from typing import List, Dict, Any
+
+def claude_to_openai_tools(claude_tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    WebSocket endpoint for OpenAI Realtime PAM
-    Browser → This endpoint → OpenAI Realtime API
+    Convert Claude tool definitions to OpenAI function calling format
+
+    Claude format:
+    {
+        "name": "create_expense",
+        "description": "...",
+        "input_schema": { ... }
+    }
+
+    OpenAI format:
+    {
+        "type": "function",
+        "function": {
+            "name": "create_expense",
+            "description": "...",
+            "parameters": { ... }
+        }
+    }
     """
-    await websocket.accept()
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": tool["name"],
+                "description": tool["description"],
+                "parameters": tool["input_schema"]  # Just rename the key!
+            }
+        }
+        for tool in claude_tools
+    ]
+```
 
-    # Create OpenAI Realtime service
-    realtime = OpenAIRealtimeService(user_id)
-    await realtime.connect()
+**3. Tool Execution Endpoints: `backend/app/api/v1/pam_tools.py`**
 
+```python
+"""
+REST API endpoints for tool execution
+Called by browser when OpenAI requests function call
+"""
+
+from fastapi import APIRouter, Depends, HTTPException
+from app.api.dependencies.auth import get_current_user
+from app.models.user import User
+from app.services.pam.tools.tool_registry import execute_tool
+from app.services.usage_tracking_service import track_tool_call
+
+router = APIRouter(prefix="/pam/tools", tags=["pam-tools"])
+
+@router.post("/execute/{tool_name}")
+async def execute_pam_tool(
+    tool_name: str,
+    arguments: dict,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Execute a PAM tool and return result
+
+    Called by browser when OpenAI Realtime requests function call:
+    1. OpenAI tells browser: "call create_expense"
+    2. Browser POSTs to this endpoint with arguments
+    3. We execute the tool (reusing existing implementations)
+    4. Return result to browser
+    5. Browser sends result back to OpenAI
+    """
     try:
-        # Bidirectional streaming
-        async def forward_from_browser():
-            """Browser audio → OpenAI"""
-            async for message in websocket.iter_bytes():
-                await realtime.handle_audio_input(message)
-
-        async def forward_from_openai():
-            """OpenAI audio → Browser"""
-            async for event in realtime.listen():
-                if event['type'] == 'audio':
-                    await websocket.send_bytes(event['data'])
-
-        # Run both directions concurrently
-        await asyncio.gather(
-            forward_from_browser(),
-            forward_from_openai()
+        # Execute tool (all existing tools work as-is!)
+        result = await execute_tool(
+            tool_name=tool_name,
+            user_id=current_user.id,
+            **arguments
         )
 
-    except WebSocketDisconnect:
-        await realtime.disconnect()
+        # Track usage
+        await track_tool_call(
+            user_id=current_user.id,
+            tool_name=tool_name,
+            tokens=None  # OpenAI calculates automatically
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"❌ Tool execution failed: {tool_name}, {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 ```
 
 ### Frontend Implementation
 
-**3. Simple Frontend Client: `src/services/openaiRealtimeService.ts`**
+**4. Direct Browser Client: `src/services/openaiRealtimeService.ts`**
 
 ```typescript
 /**
  * OpenAI Realtime API Client
- * Direct WebSocket to OpenAI (via our backend proxy)
- * No VAD, no speech recognition, no TTS - all handled by OpenAI
+ * DIRECT WebSocket connection to OpenAI (zero added latency!)
+ * No backend proxy, no VAD, no TTS/STT - all handled by OpenAI
  */
+
+import { pamApi } from '@/integrations/supabase/client';
 
 export class OpenAIRealtimeService {
   private ws: WebSocket | null = null;
   private audioContext: AudioContext;
   private mediaStream: MediaStream | null = null;
+  private sessionToken: string | null = null;
 
-  constructor(private userId: string) {
+  constructor(private userId: string, private authToken: string) {
     this.audioContext = new AudioContext({ sampleRate: 24000 });
   }
 
-  async connect(token: string) {
-    const wsUrl = `wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/realtime/${this.userId}?token=${token}`;
-    this.ws = new WebSocket(wsUrl);
+  async connect() {
+    // Step 1: Get ephemeral session token from OUR backend
+    const response = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/api/v1/pam/realtime/create-session`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.authToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
+    const { session_token, ws_url } = await response.json();
+    this.sessionToken = session_token;
+
+    // Step 2: Connect DIRECTLY to OpenAI with session token
+    this.ws = new WebSocket(
+      `${ws_url}?model=gpt-4o-realtime-preview-2024-10-01`,
+      {
+        headers: {
+          'Authorization': `Bearer ${session_token}`,
+          'OpenAI-Beta': 'realtime=v1'
+        }
+      }
+    );
+
+    // Handle incoming events
     this.ws.onmessage = (event) => {
-      // Audio from OpenAI - play it
-      this.playAudio(event.data);
+      const data = JSON.parse(event.data);
+      this.handleOpenAIEvent(data);
+    };
+
+    this.ws.onopen = () => {
+      console.log('✅ Connected directly to OpenAI Realtime API');
     };
   }
 
+  private async handleOpenAIEvent(event: any) {
+    const eventType = event.type;
+
+    // Audio response from OpenAI
+    if (eventType === 'response.audio.delta') {
+      const audioDelta = event.delta;
+      await this.playAudioChunk(audioDelta);
+    }
+
+    // OpenAI requests tool call
+    else if (eventType === 'response.function_call_arguments.done') {
+      await this.executeTool(event.call_id, event.name, JSON.parse(event.arguments));
+    }
+
+    // Session created confirmation
+    else if (eventType === 'session.created') {
+      console.log('✅ OpenAI session ready');
+    }
+  }
+
+  private async executeTool(callId: string, toolName: string, args: any) {
+    try {
+      // Call OUR backend to execute the tool
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/v1/pam/tools/execute/${toolName}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.authToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(args)
+        }
+      );
+
+      const result = await response.json();
+
+      // Send result back to OpenAI
+      this.ws?.send(JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'function_call_output',
+          call_id: callId,
+          output: JSON.stringify(result)
+        }
+      }));
+
+      // Trigger OpenAI to generate response
+      this.ws?.send(JSON.stringify({
+        type: 'response.create'
+      }));
+
+    } catch (error) {
+      console.error(`❌ Tool execution failed: ${toolName}`, error);
+
+      // Send error back to OpenAI
+      this.ws?.send(JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'function_call_output',
+          call_id: callId,
+          output: JSON.stringify({ success: false, error: String(error) })
+        }
+      }));
+    }
+  }
+
   async startVoiceMode() {
-    // Get microphone
+    // Get microphone (16kHz PCM16 format for OpenAI)
     this.mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: { sampleRate: 24000 }
+      audio: {
+        sampleRate: 24000,
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true
+      }
     });
 
-    // Stream audio to OpenAI via WebSocket
+    // Stream audio directly to OpenAI
     const processor = this.audioContext.createScriptProcessor(4096, 1, 1);
     const source = this.audioContext.createMediaStreamSource(this.mediaStream);
 
     processor.onaudioprocess = (e) => {
       const audioData = e.inputBuffer.getChannelData(0);
-      this.ws?.send(audioData.buffer);
+
+      // Convert Float32Array to PCM16
+      const pcm16 = this.floatTo16BitPCM(audioData);
+
+      // Send to OpenAI
+      this.ws?.send(JSON.stringify({
+        type: 'input_audio_buffer.append',
+        audio: this.arrayBufferToBase64(pcm16)
+      }));
     };
 
     source.connect(processor);
     processor.connect(this.audioContext.destination);
   }
 
-  private playAudio(audioData: ArrayBuffer) {
-    // Decode and play audio from OpenAI
-    this.audioContext.decodeAudioData(audioData, (buffer) => {
-      const source = this.audioContext.createBufferSource();
-      source.buffer = buffer;
-      source.connect(this.audioContext.destination);
-      source.start(0);
-    });
+  private floatTo16BitPCM(float32Array: Float32Array): Int16Array {
+    const int16Array = new Int16Array(float32Array.length);
+    for (let i = 0; i < float32Array.length; i++) {
+      const s = Math.max(-1, Math.min(1, float32Array[i]));
+      int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return int16Array;
+  }
+
+  private arrayBufferToBase64(buffer: Int16Array): string {
+    const bytes = new Uint8Array(buffer.buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  }
+
+  private async playAudioChunk(base64Audio: string) {
+    // Decode base64 audio
+    const audioData = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
+
+    // Convert to AudioBuffer and play
+    const audioBuffer = await this.audioContext.decodeAudioData(audioData.buffer);
+    const source = this.audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(this.audioContext.destination);
+    source.start(0);
   }
 
   stopVoiceMode() {
@@ -337,30 +518,47 @@ export class OpenAIRealtimeService {
 }
 ```
 
-**4. Wire to Existing PAM UI**
+**5. Wire to Existing PAM UI: `src/components/Pam.tsx`**
 
 ```typescript
-// src/components/Pam.tsx - MINIMAL changes
+// MINIMAL changes to existing Pam.tsx
 
-// Replace imports
-- import { vadService } from '@/services/voiceActivityDetection';
-- import { pamVoiceService } from '@/lib/voiceService';
-+ import { OpenAIRealtimeService } from '@/services/openaiRealtimeService';
+// Add import
+import { OpenAIRealtimeService } from '@/services/openaiRealtimeService';
+import { useAuth } from '@/hooks/useAuth';
+
+// Add state
+const [realtimeService, setRealtimeService] = useState<OpenAIRealtimeService | null>(null);
+const { user, token } = useAuth();
 
 // Replace voice mode handlers
 const startContinuousVoiceMode = async () => {
-  const realtimeService = new OpenAIRealtimeService(user.id);
-  await realtimeService.connect(token);
-  await realtimeService.startVoiceMode();
-  setIsContinuousMode(true);
+  try {
+    // Create service with direct OpenAI connection
+    const service = new OpenAIRealtimeService(user.id, token);
+    await service.connect();
+    await service.startVoiceMode();
+
+    setRealtimeService(service);
+    setIsContinuousMode(true);
+
+    console.log('✅ PAM voice mode active (ChatGPT quality, zero latency!)');
+  } catch (error) {
+    console.error('❌ Failed to start voice mode:', error);
+    toast.error('Failed to start voice mode');
+  }
 };
 
 const stopContinuousVoiceMode = async () => {
-  realtimeService.stopVoiceMode();
+  realtimeService?.stopVoiceMode();
+  setRealtimeService(null);
   setIsContinuousMode(false);
 };
 
-// That's it! Everything else stays the same
+// Remove old imports (no longer needed!)
+// ❌ import { vadService } from '@/services/voiceActivityDetection';
+// ❌ import { pamVoiceService } from '@/lib/voiceService';
+// ❌ All VAD, TTS, STT complexity removed!
 ```
 
 ---
@@ -519,31 +717,61 @@ THEN:
 
 ---
 
+## Latency Comparison: Direct vs Proxy
+
+### ❌ Backend Proxy Architecture (REJECTED)
+```
+User speaks → Browser → Backend → OpenAI → Backend → Browser → User hears
+Latency: 200-300ms added latency per interaction
+```
+
+### ✅ Direct Browser Connection (IMPLEMENTED)
+```
+User speaks → Browser → OpenAI → Browser → User hears
+                  ↓ (only for tool calls)
+           Backend REST API
+Latency: 0ms added for voice, ~50ms only for tool execution (async)
+```
+
+**Result:** ChatGPT-quality speed with zero compromise!
+
+---
+
 ## Files to Create/Modify
 
-### New Files
+### New Files (Backend)
 ```
-backend/app/services/pam/openai_realtime_service.py
-backend/app/api/v1/pam_realtime.py
-backend/app/models/usage_tracking.py
-backend/app/api/v1/analytics.py
-src/services/openaiRealtimeService.ts
-docs/sql-fixes/usage_tracking.sql
+backend/app/api/v1/pam_realtime.py           # Session token creation endpoint
+backend/app/services/pam/openai_tool_converter.py  # Auto-convert Claude→OpenAI tools
+backend/app/api/v1/pam_tools.py              # Tool execution REST endpoints
+backend/app/models/usage_tracking.py         # ✅ Already created
+backend/app/services/usage_tracking_service.py  # ✅ Already created
+backend/app/api/v1/analytics.py              # ✅ Already created
+```
+
+### New Files (Frontend)
+```
+src/services/openaiRealtimeService.ts        # Direct OpenAI WebSocket client
 ```
 
 ### Modified Files
 ```
-src/components/Pam.tsx (minimal changes - swap voice service)
-backend/app/main.py (register new routes)
-backend/requirements.txt (ensure openai>=1.50.0)
+src/components/Pam.tsx                       # Minimal: swap voice service (20 lines)
+backend/app/main.py                          # Register new routes (3 lines)
+backend/requirements.txt                     # Add openai>=1.50.0 (1 line)
 ```
 
-### Files to Archive (not delete)
+### Files Removed (Complexity Eliminated!)
 ```
-src/services/voiceActivityDetection.ts → KEEP (might need for optimization)
-src/lib/voiceService.ts → KEEP
-backend/app/services/voice/ → KEEP
+❌ No backend proxy needed (direct browser connection)
+❌ No WebSocket proxy service (OpenAI handles it)
+❌ VAD, TTS, STT remain in codebase but unused (kept for future optimization)
 ```
+
+### Total Implementation
+- **Backend**: 3 new files (~400 lines total)
+- **Frontend**: 1 new file (~200 lines), 1 modified file (~20 lines changed)
+- **Time estimate**: 6-8 hours total (not 1-2 weeks!)
 
 ---
 
