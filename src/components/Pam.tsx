@@ -88,6 +88,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [wakeWordRecognition, setWakeWordRecognition] = useState<any | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [voiceActivationMode, setVoiceActivationMode] = useState<'manual' | 'auto' | 'command'>('manual');
   const ttsQueueRef = useRef<TTSQueueManager | null>(null);
   const { startTracking, stopTracking, getCurrentLocation, ...locationState } = useLocationTracking();
@@ -506,14 +507,108 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     setIsWakeWordListening(false);
   };
 
-  const startContinuousVoiceMode = () => {
-    logger.debug('🎙️ Continuous voice mode started');
-    setIsContinuousMode(true);
+  const startContinuousVoiceMode = async () => {
+    try {
+      logger.debug('🎙️ Starting continuous voice mode - requesting microphone access');
+
+      // Request microphone permission
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      logger.debug('✅ Microphone access granted');
+
+      // Initialize VAD service with the audio stream
+      await vadService.initialize(stream);
+      await vadService.start();
+
+      logger.debug('✅ Voice Activity Detection started');
+
+      // Initialize Web Speech API for transcription
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[event.results.length - 1][0].transcript;
+          logger.debug('🎤 Speech recognized:', transcript);
+
+          // Auto-send the transcribed message to PAM
+          if (transcript.trim()) {
+            setInputMessage(transcript);
+            // Trigger send after a brief delay to allow UI update
+            setTimeout(() => {
+              handleSendMessage();
+            }, 100);
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          logger.error('❌ Speech recognition error:', event.error);
+        };
+
+        recognition.start();
+        logger.debug('✅ Speech recognition started');
+
+        // Store recognition instance for cleanup
+        setWakeWordRecognition(recognition);
+      } else {
+        logger.warn('⚠️ Speech Recognition not supported in this browser');
+      }
+
+      setIsContinuousMode(true);
+      setMediaStream(stream);
+
+    } catch (error) {
+      logger.error('❌ Failed to start continuous voice mode:', error);
+
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          alert('Microphone permission denied. Please allow microphone access to use voice mode.');
+        } else if (error.name === 'NotFoundError') {
+          alert('No microphone found. Please connect a microphone to use voice mode.');
+        } else {
+          alert(`Microphone error: ${error.message}`);
+        }
+      }
+    }
   };
 
   const stopContinuousVoiceMode = () => {
-    logger.debug('🔇 Continuous voice mode stopped');
+    logger.debug('🔇 Stopping continuous voice mode');
+
+    // Stop VAD service
+    vadService.stop();
+
+    // Stop speech recognition
+    if (wakeWordRecognition) {
+      try {
+        wakeWordRecognition.stop();
+        logger.debug('🔇 Speech recognition stopped');
+      } catch (error) {
+        logger.warn('⚠️ Error stopping speech recognition:', error);
+      }
+      setWakeWordRecognition(null);
+    }
+
+    // Stop media stream tracks
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => {
+        track.stop();
+        logger.debug('🔇 Stopped audio track:', track.kind);
+      });
+      setMediaStream(null);
+    }
+
     setIsContinuousMode(false);
+    logger.debug('✅ Continuous voice mode stopped');
   };
 
   const speakText = async (text: string) => {
