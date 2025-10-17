@@ -39,8 +39,9 @@ export interface PamApiMessage {
     region?: string;
     current_page?: string;
     session_data?: any;
-    location?: any;
-    userLocation?: any;
+    user_location?: any;  // ✅ Correct field name (matches backend)
+    environment?: string;
+    timestamp?: number;
   };
 }
 
@@ -938,9 +939,7 @@ class PamService {
           ...message,
           context: {
             ...message.context,
-            ...locationData,
-            // Also add as userLocation for backward compatibility
-            userLocation: locationContext,
+            ...locationData,  // Now adds user_location directly (correct field name)
             // Add environment context
             environment: this.getEnvironment(),
             timestamp: Date.now()
