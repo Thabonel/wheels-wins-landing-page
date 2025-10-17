@@ -283,6 +283,9 @@ function inferCountryFromLanguage(language: string): string | undefined {
 
 /**
  * Format location context for PAM backend
+ *
+ * CRITICAL: Backend expects 'user_location' NOT 'location'
+ * See docs/PAM_BACKEND_CONTEXT_REFERENCE.md Section 2
  */
 export function formatLocationForPam(locationContext: LocationContext | null): Record<string, any> {
   if (!locationContext) {
@@ -290,7 +293,7 @@ export function formatLocationForPam(locationContext: LocationContext | null): R
   }
 
   return {
-    location: {
+    user_location: {  // ✅ Changed from 'location' to 'user_location'
       latitude: locationContext.latitude,
       longitude: locationContext.longitude,
       city: locationContext.city,
