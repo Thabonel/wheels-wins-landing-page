@@ -116,15 +116,21 @@ if context.get("userLocation"):
     logger.info(f"User location received: {context['user_location']}")
 ```
 
+**⚠️ CRITICAL FIELD NAMES:**
+Backend weather tool checks for **`lat` and `lng`** (NOT `latitude` and `longitude`!)
+See `openmeteo_weather_tool.py` line 96: `elif user_loc.get("lat") and user_loc.get("lng")`
+
 **Valid Structure:**
 ```json
 {
   "user_location": {
-    "latitude": -33.8688,
-    "longitude": 151.2093,
-    "city": "Sydney",
-    "region": "NSW",
-    "country": "Australia",
+    "lat": -33.8688,           // ⚠️ MUST be 'lat' not 'latitude'
+    "lng": 151.2093,           // ⚠️ MUST be 'lng' not 'longitude'
+    "latitude": -33.8688,      // Optional (backward compatibility)
+    "longitude": 151.2093,     // Optional (backward compatibility)
+    "city": "Sydney",          // Optional (if missing, lat/lng used)
+    "region": "NSW",           // Optional
+    "country": "Australia",    // Optional
     "timezone": "Australia/Sydney",
     "accuracy": 50,
     "timestamp": 1705500000000,
@@ -142,7 +148,7 @@ if not location and context and context.get("user_location"):
         # Use city, region if available
         if user_loc.get("city") and user_loc.get("region"):
             location = f"{user_loc['city']}, {user_loc['region']}"
-        # Or use lat/lng
+        # Or use lat/lng (CRITICAL: checks 'lat' and 'lng' not 'latitude'!)
         elif user_loc.get("lat") and user_loc.get("lng"):
             location = f"{user_loc['lat']},{user_loc['lng']}"
 ```
