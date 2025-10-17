@@ -59,6 +59,7 @@
     "ai:tests": "npm run ai-agents tests",
     "test:validate-integration": "node scripts/validate-integration-tests.js",
     "pam:validate-removal": "node scripts/validate-pam-removal.js",
+    "pam:validate-context": "bash scripts/validate-pam-context.sh",
     "check-main": "bash scripts/check-main.sh",
     "ai:docs": "npm run ai-agents docs",
     "ai:pam": "npm run ai-agents pam",
