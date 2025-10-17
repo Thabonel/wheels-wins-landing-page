@@ -6,8 +6,7 @@ Called by browser when OpenAI requests function call
 import logging
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Body
-from app.api.deps import get_current_user
-from app.models.user import User
+from app.api.deps import get_current_user, CurrentUser
 from app.services.pam.tools.tool_registry import execute_tool
 from app.services.usage_tracking_service import track_tool_call
 
@@ -20,7 +19,7 @@ router = APIRouter(prefix="/pam/tools", tags=["pam-tools"])
 async def execute_pam_tool(
     tool_name: str,
     arguments: Dict[str, Any] = Body(...),
-    current_user: User = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     Execute a PAM tool and return result
@@ -41,18 +40,18 @@ async def execute_pam_tool(
         Tool execution result
     """
     try:
-        logger.info(f"🔧 Executing tool: {tool_name} for user {current_user.id}")
+        logger.info(f"🔧 Executing tool: {tool_name} for user {current_user.user_id}")
 
         # Execute tool (all existing tools work as-is!)
         result = await execute_tool(
             tool_name=tool_name,
-            user_id=current_user.id,
+            user_id=current_user.user_id,
             **arguments
         )
 
         # Track usage
         await track_tool_call(
-            user_id=current_user.id,
+            user_id=current_user.user_id,
             tool_name=tool_name,
             tokens=None  # OpenAI calculates automatically
         )
@@ -74,7 +73,7 @@ async def execute_pam_tool(
 
 @router.get("/list")
 async def list_available_tools(
-    current_user: User = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     List all available PAM tools
