@@ -17,6 +17,7 @@ import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
 import { audioManager } from "@/utils/audioManager";
+import { OpenAIRealtimeService } from "@/services/openaiRealtimeService";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
@@ -90,6 +91,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [voiceActivationMode, setVoiceActivationMode] = useState<'manual' | 'auto' | 'command'>('manual');
+  const [realtimeService, setRealtimeService] = useState<OpenAIRealtimeService | null>(null);
   const ttsQueueRef = useRef<TTSQueueManager | null>(null);
   const { startTracking, stopTracking, getCurrentLocation, ...locationState } = useLocationTracking();
   const [audioLevel, setAudioLevel] = useState(0);
@@ -509,102 +511,48 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const startContinuousVoiceMode = async () => {
     try {
-      logger.debug('🎙️ Starting continuous voice mode - requesting microphone access');
-
-      // Request microphone permission
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-
-      logger.debug('✅ Microphone access granted');
-
-      // Initialize VAD service with the audio stream
-      // VAD automatically starts processing audio after initialization
-      await vadService.initialize(stream);
-
-      logger.debug('✅ Voice Activity Detection initialized and active');
-
-      // Initialize Web Speech API for transcription
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-
-        recognition.onresult = (event: any) => {
-          const transcript = event.results[event.results.length - 1][0].transcript;
-          logger.debug('🎤 Speech recognized:', transcript);
-
-          // Auto-send the transcribed message to PAM
-          if (transcript.trim()) {
-            setInputMessage(transcript);
-            // Trigger send after a brief delay to allow UI update
-            setTimeout(() => {
-              handleSendMessage();
-            }, 100);
-          }
-        };
-
-        recognition.onerror = (event: any) => {
-          logger.error('❌ Speech recognition error:', event.error);
-        };
-
-        recognition.start();
-        logger.debug('✅ Speech recognition started');
-
-        // Store recognition instance for cleanup
-        setWakeWordRecognition(recognition);
-      } else {
-        logger.warn('⚠️ Speech Recognition not supported in this browser');
+      if (!user || !session) {
+        logger.error('❌ User not authenticated');
+        alert('Please log in to use voice mode');
+        return;
       }
 
+      logger.debug('🎙️ Starting OpenAI Realtime voice mode');
+
+      // Get API base URL from environment
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+      // Create OpenAI Realtime service with direct connection
+      const service = new OpenAIRealtimeService(
+        user.id,
+        session.access_token,
+        apiBaseUrl
+      );
+
+      // Connect to OpenAI (gets session token, opens WebSocket)
+      await service.connect();
+
+      // Start voice mode (microphone → OpenAI)
+      await service.startVoiceMode();
+
+      setRealtimeService(service);
       setIsContinuousMode(true);
-      setMediaStream(stream);
+
+      logger.info('✅ PAM voice mode active (ChatGPT quality, zero latency!)');
 
     } catch (error) {
-      logger.error('❌ Failed to start continuous voice mode:', error);
-
-      if (error instanceof DOMException) {
-        if (error.name === 'NotAllowedError') {
-          alert('Microphone permission denied. Please allow microphone access to use voice mode.');
-        } else if (error.name === 'NotFoundError') {
-          alert('No microphone found. Please connect a microphone to use voice mode.');
-        } else {
-          alert(`Microphone error: ${error.message}`);
-        }
-      }
+      logger.error('❌ Failed to start voice mode:', error);
+      alert(`Failed to start voice mode: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const stopContinuousVoiceMode = async () => {
     logger.debug('🔇 Stopping continuous voice mode');
 
-    // Cleanup VAD service (async method)
-    await vadService.cleanup();
-
-    // Stop speech recognition
-    if (wakeWordRecognition) {
-      try {
-        wakeWordRecognition.stop();
-        logger.debug('🔇 Speech recognition stopped');
-      } catch (error) {
-        logger.warn('⚠️ Error stopping speech recognition:', error);
-      }
-      setWakeWordRecognition(null);
-    }
-
-    // Stop media stream tracks
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(track => {
-        track.stop();
-        logger.debug('🔇 Stopped audio track:', track.kind);
-      });
-      setMediaStream(null);
+    // Stop OpenAI Realtime service
+    if (realtimeService) {
+      realtimeService.stopVoiceMode();
+      setRealtimeService(null);
     }
 
     setIsContinuousMode(false);

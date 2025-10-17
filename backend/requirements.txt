@@ -16,7 +16,7 @@ opentelemetry-instrumentation-fastapi>=0.41b0
 
 # AI Providers (Hybrid PAM System)
 google-generativeai>=0.8.0  # Legacy AI provider - Gemini Flash
-openai>=1.50.0  # GPT-4o-mini for simple queries (95% of traffic)
+openai>=1.54.0  # GPT-4o-mini + Realtime API support (gpt-4o-realtime-preview-2024-10-01)
 anthropic>=0.40.0  # Claude Sonnet 4 for complex tasks via Agent SDK (5% of traffic)
 
 # AI Agent Observability (stable versions)

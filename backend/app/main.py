@@ -74,6 +74,8 @@ from app.api.v1 import (
     monitoring,
     receipts,
     pam,
+    pam_realtime,  # OpenAI Realtime session management
+    pam_tools,  # PAM tool execution endpoints
     auth,
     subscription,
     support,
@@ -734,6 +736,11 @@ app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
+
+# OpenAI Realtime API endpoints (direct browser connection)
+app.include_router(pam_realtime.router, prefix="/api/v1", tags=["PAM Realtime"])
+app.include_router(pam_tools.router, prefix="/api/v1", tags=["PAM Tools"])
+
 # PAM 2.0 - Clean, modular implementation (Phase 1 setup)
 # PAM 2.0 - Modular AI Assistant (New Architecture)
 try:
