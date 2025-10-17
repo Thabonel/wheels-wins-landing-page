@@ -6,7 +6,7 @@ Called by browser when OpenAI requests function call
 import logging
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Body
-from app.api.dependencies.auth import get_current_user
+from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.pam.tools.tool_registry import execute_tool
 from app.services.usage_tracking_service import track_tool_call

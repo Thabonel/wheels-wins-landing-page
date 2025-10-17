@@ -9,7 +9,7 @@ from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from openai import AsyncOpenAI
 
-from app.api.dependencies.auth import get_current_user
+from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.usage_tracking_service import track_session_start
 
