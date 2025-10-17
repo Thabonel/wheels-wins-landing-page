@@ -28,11 +28,6 @@ export const AuthDebugPanel: React.FC = () => {
   const [dbTestResult, setDbTestResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Only show in development mode
-  if (import.meta.env.MODE === 'production') {
-    return null;
-  }
-
   const loadDebugInfo = async () => {
     setIsLoading(true);
     try {
@@ -79,7 +74,7 @@ export const AuthDebugPanel: React.FC = () => {
         console.log('🩺 JWT Diagnosis Results:', data);
         setDbTestResult({
           success: true,
-          data: data,
+          data,
           diagnosis: 'JWT diagnosis completed - check console for detailed results',
           transmission: transmissionResult
         });
@@ -193,7 +188,7 @@ export const AuthDebugPanel: React.FC = () => {
           if (fixResult.success) {
             setDbTestResult(prev => ({
               ...prev,
-              diagnosis: prev.diagnosis + ` ✅ Auto-fix successful: ${fixResult.action}`
+              diagnosis: `${prev.diagnosis  } ✅ Auto-fix successful: ${fixResult.action}`
             }));
             // Refresh debug info after fix
             await loadDebugInfo();
@@ -215,6 +210,11 @@ export const AuthDebugPanel: React.FC = () => {
     loadDebugInfo();
     enableAuthDebugLogging();
   }, []);
+
+  // Only show in development mode
+  if (import.meta.env.MODE === 'production') {
+    return null;
+  }
 
   return (
     <Card className="fixed bottom-4 right-4 w-96 max-h-96 overflow-y-auto z-50 bg-white dark:bg-gray-800 shadow-lg border-2 border-yellow-500">

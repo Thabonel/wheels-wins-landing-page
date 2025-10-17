@@ -752,7 +752,7 @@ class PamService {
             const legacyResponse: PamApiResponse = {
               response: content,
               message: content,
-              content: content,
+              content,
               ui_action: response.ui_action,
               metadata: response.metadata
             };

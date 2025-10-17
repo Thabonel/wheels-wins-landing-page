@@ -167,7 +167,7 @@ export class GeminiService {
         const genAI = new GoogleGenerativeAI(this.config.apiKey);
         model = genAI.getGenerativeModel({
           model: this.config.model || getOptimalGeminiModel(),
-          systemInstruction: systemInstruction,
+          systemInstruction,
           generationConfig: {
             temperature: options.temperature || 0.7,
             topP: 0.8,
@@ -207,7 +207,7 @@ export class GeminiService {
       const genAI = new GoogleGenerativeAI(this.config.apiKey);
       const model = genAI.getGenerativeModel({
         model: this.config.model || getOptimalGeminiModel(),
-        systemInstruction: systemInstruction,
+        systemInstruction,
         generationConfig: {
           temperature: options.temperature || 0.7,
           topP: 0.8,
@@ -260,7 +260,7 @@ export class GeminiService {
       const genAI = new GoogleGenerativeAI(this.config.apiKey);
       const model = genAI.getGenerativeModel({
         model: this.config.model || getOptimalGeminiModel(),
-        systemInstruction: systemInstruction,
+        systemInstruction,
         generationConfig: {
           temperature: options.temperature || 0.7,
           topP: 0.8,

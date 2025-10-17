@@ -171,7 +171,7 @@ class SafeCacheManager {
     return {
       totalEntries: this.cache.size,
       maxSize: this.config.maxSize,
-      utilization: (this.cache.size / this.config.maxSize * 100).toFixed(1) + '%',
+      utilization: `${(this.cache.size / this.config.maxSize * 100).toFixed(1)  }%`,
       expiredEntries: entries.filter(entry => this.isExpired(entry)).length,
       averageAge: entries.length > 0
         ? Math.round(entries.reduce((sum, entry) => sum + (now - entry.timestamp), 0) / entries.length)

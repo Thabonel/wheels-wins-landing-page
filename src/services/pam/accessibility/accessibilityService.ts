@@ -317,7 +317,7 @@ export class PAMAccessibilityService {
     const elementLabel = this.getAccessibleName(target.element);
     
     if (target.reason === 'error') {
-      this.announce(`Focus moved to ${elementRole}${elementLabel ? ': ' + elementLabel : ''} due to error`, 'assertive');
+      this.announce(`Focus moved to ${elementRole}${elementLabel ? `: ${  elementLabel}` : ''} due to error`, 'assertive');
     }
   }
 

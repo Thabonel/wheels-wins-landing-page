@@ -280,7 +280,7 @@ async function createExpense(
       user_id: userId,
       amount: request.amount,
       category: request.category,
-      date: date,
+      date,
       description: request.description || null,
     })
     .select()
@@ -334,8 +334,8 @@ async function createExpense(
       budgetStatus = {
         category: request.category,
         spent: totalSpent,
-        limit: limit,
-        remaining: remaining,
+        limit,
+        remaining,
         percentage_used: percentageUsed,
       };
 
@@ -372,7 +372,7 @@ async function createExpense(
   return {
     success: true,
     expense: expense as Expense,
-    message: message,
+    message,
     budget_status: budgetStatus,
   };
 }

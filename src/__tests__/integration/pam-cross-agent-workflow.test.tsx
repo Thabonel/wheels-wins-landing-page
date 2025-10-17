@@ -38,11 +38,11 @@ vi.mock('@/integrations/supabase/client', () => ({
           }))
         }))
       })),
-      rpc: vi.fn(() => Promise.resolve({ data: [], error: null })),
-      functions: {
-        invoke: vi.fn(() => Promise.resolve({ data: null, error: null }))
-      }
-    })
+      rpc: vi.fn(() => Promise.resolve({ data: [], error: null }))
+    })),
+    functions: {
+      invoke: vi.fn(() => Promise.resolve({ data: null, error: null }))
+    }
   }
 }));
 
