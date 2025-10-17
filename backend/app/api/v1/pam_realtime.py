@@ -9,8 +9,7 @@ from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from openai import AsyncOpenAI
 
-from app.api.deps import get_current_user
-from app.models.user import User
+from app.api.deps import get_current_user, CurrentUser
 from app.services.usage_tracking_service import track_session_start
 
 logger = logging.getLogger(__name__)
@@ -20,7 +19,7 @@ router = APIRouter(prefix="/pam/realtime", tags=["pam-realtime"])
 
 @router.post("/create-session")
 async def create_openai_session(
-    current_user: User = Depends(get_current_user)
+    current_user: CurrentUser = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     Create ephemeral OpenAI Realtime session token
@@ -48,9 +47,9 @@ async def create_openai_session(
         )
 
         # Track session creation
-        await track_session_start(current_user.id)
+        await track_session_start(current_user.user_id)
 
-        logger.info(f"✅ Created OpenAI session for user {current_user.id}")
+        logger.info(f"✅ Created OpenAI session for user {current_user.user_id}")
 
         return {
             'session_token': session.client_secret.value,
