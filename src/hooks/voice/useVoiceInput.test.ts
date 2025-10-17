@@ -62,7 +62,7 @@ const createMockResult = (transcript: string, isFinal: boolean, confidence: numb
     0: { transcript, confidence },
     isFinal,
     length: 1,
-    [Symbol.iterator]: function* () {
+    *[Symbol.iterator] () {
       yield this[0];
     }
   }] as any

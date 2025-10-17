@@ -96,7 +96,7 @@ export class CacheIntegration {
         await pamResponseCache.invalidate({
           type: 'data_change',
           resource: endpoint,
-          tags: tags
+          tags
         });
       }
       
@@ -514,11 +514,11 @@ ${performance.apiReductionRate >= 0.3
   // =====================================================
 
   private truncateEndpoint(endpoint: string): string {
-    return endpoint.length > 30 ? endpoint.substring(0, 27) + '...' : endpoint;
+    return endpoint.length > 30 ? `${endpoint.substring(0, 27)  }...` : endpoint;
   }
 
   private truncateKey(key: string): string {
-    return key.length > 50 ? key.substring(0, 47) + '...' : key;
+    return key.length > 50 ? `${key.substring(0, 47)  }...` : key;
   }
 
   /**

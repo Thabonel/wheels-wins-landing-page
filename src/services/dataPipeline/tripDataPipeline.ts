@@ -475,7 +475,7 @@ export class TripDataPipeline {
   // =====================================================
 
   private async updateUserAnalytics(userId: string, tripData: any, action: 'save' | 'load'): Promise<void> {
-    let analytics = this.userAnalytics.get(userId) || {
+    const analytics = this.userAnalytics.get(userId) || {
       user_preferences: {},
       frequently_visited: [],
       trip_patterns: [],

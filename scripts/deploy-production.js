@@ -367,7 +367,7 @@ async function main() {
   const report = generateDeploymentReport(results);
 
   // Final status
-  console.log('\n' + '='.repeat(50));
+  console.log(`\n${  '='.repeat(50)}`);
   if (success) {
     console.log('🎉 DEPLOYMENT VALIDATION PASSED');
     console.log('✅ All checks completed successfully');

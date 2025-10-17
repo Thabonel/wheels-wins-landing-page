@@ -253,7 +253,7 @@ describe('ClaudeService', () => {
       
       // Mock async generator for streaming
       mockStream = {
-        [Symbol.asyncIterator]: async function* () {
+        async *[Symbol.asyncIterator] () {
           yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hello' } };
           yield { type: 'content_block_delta', delta: { type: 'text_delta', text: ' world' } };
           yield { type: 'message_stop' };
@@ -279,7 +279,7 @@ describe('ClaudeService', () => {
 
     it('should handle streaming errors', async () => {
       const errorStream = {
-        [Symbol.asyncIterator]: async function* () {
+        async *[Symbol.asyncIterator] () {
           yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Start' } };
           throw new Error('Stream error');
         }

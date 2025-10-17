@@ -695,15 +695,30 @@ class GeneralProcessor {
     }, {});
   }
   
-  filterData(array, predicate) {
-    // Simple predicate evaluation (unsafe - in production use safer methods)
-    return array.filter(item => {
-      try {
-        return Function(`"use strict"; return (${  predicate  })`)()(item);
-      } catch {
-        return false;
-      }
-    });
+  filterData(array, predicateKey) {
+    // Safe predicate registry (replaces eval-based Function constructor)
+    const safePredicates = {
+      'isPositive': (item) => item > 0,
+      'isNegative': (item) => item < 0,
+      'isZero': (item) => item === 0,
+      'isEven': (item) => item % 2 === 0,
+      'isOdd': (item) => item % 2 !== 0,
+      'isNumber': (item) => typeof item === 'number' && !isNaN(item),
+      'isString': (item) => typeof item === 'string',
+      'isObject': (item) => typeof item === 'object' && item !== null,
+      'isArray': (item) => Array.isArray(item),
+      'isNull': (item) => item === null,
+      'isUndefined': (item) => item === undefined,
+      'isTruthy': (item) => !!item,
+      'isFalsy': (item) => !item
+    };
+
+    const predicate = safePredicates[predicateKey];
+    if (!predicate) {
+      console.warn('Unknown predicate:', predicateKey, 'Available predicates:', Object.keys(safePredicates));
+      return array; // Return unfiltered array instead of throwing
+    }
+    return array.filter(predicate);
   }
   
   normalizeData(array) {
@@ -855,13 +870,13 @@ class GeneralProcessor {
   transformJson(obj, transformer) {
     // Simple JSON transformation based on mapping rules
     const result = {};
-    
+
     for (const [targetKey, sourceKey] of Object.entries(transformer)) {
-      if (obj.hasOwnProperty(sourceKey)) {
+      if (Object.prototype.hasOwnProperty.call(obj, sourceKey)) {
         result[targetKey] = obj[sourceKey];
       }
     }
-    
+
     return result;
   }
 }

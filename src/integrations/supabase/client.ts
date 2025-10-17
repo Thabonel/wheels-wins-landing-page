@@ -109,7 +109,7 @@ if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'staging'
   console.log('🔧 Supabase Client Configuration:', {
     url: SUPABASE_URL,
     hasAnonKey: !!SUPABASE_ANON_KEY,
-    keyPrefix: SUPABASE_ANON_KEY?.substring(0, 10) + '...',
+    keyPrefix: `${SUPABASE_ANON_KEY?.substring(0, 10)  }...`,
     authStorageKey: 'pam-auth-token',
     flowType: 'pkce'
   });

@@ -244,7 +244,7 @@ export function useFreshWaypointManager({
       const isWaypoint = !isStart && !isEnd;
 
       // COLLISION DETECTION: Check if this coordinate is too close to previous waypoints
-      let adjustedCoordinates = [...waypoint.coordinates] as [number, number];
+      const adjustedCoordinates = [...waypoint.coordinates] as [number, number];
       const minDistance = 0.0001; // ~11 meters at equator
 
       for (let i = 0; i < index; i++) {

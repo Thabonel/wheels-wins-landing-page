@@ -18,14 +18,14 @@ const mockSupabaseClient = {
   from: vi.fn(() => ({
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
-        single: vi.fn(() => Promise.resolve({ 
-          data: { 
-            id: 'test-bucket-id', 
+        single: vi.fn(() => Promise.resolve({
+          data: {
+            id: 'test-bucket-id',
             user_id: mockUser.id,
             name: 'PAM Conversations',
-            is_active: true 
-          }, 
-          error: null 
+            is_active: true
+          },
+          error: null
         })),
         order: vi.fn(() => ({
           limit: vi.fn(() => Promise.resolve({ data: [], error: null }))
@@ -45,11 +45,11 @@ const mockSupabaseClient = {
         }))
       }))
     })),
-    rpc: vi.fn(() => Promise.resolve({ data: [], error: null })),
-    functions: {
-      invoke: vi.fn(() => Promise.resolve({ data: null, error: null }))
-    }
-  })
+    rpc: vi.fn(() => Promise.resolve({ data: [], error: null }))
+  })),
+  functions: {
+    invoke: vi.fn(() => Promise.resolve({ data: null, error: null }))
+  }
 };
 
 vi.mock('@/integrations/supabase/client', () => ({

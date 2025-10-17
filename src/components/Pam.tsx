@@ -469,7 +469,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (!user?.id || !sessionToken) {
       addMessage("🤖 Hi! I'm PAM. Please sign in to continue...", "pam");
       logger.warn('⚠️ PAM: Missing user authentication');
-      return;
+      
     }
     // Greeting is handled in isReady effect
   }, [user?.id, sessionToken]);

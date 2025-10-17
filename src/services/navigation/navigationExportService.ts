@@ -689,7 +689,7 @@ export const convertTripToRoute = (tripData: any): RouteExport => {
   return {
     origin: waypoints[0],
     destination: waypoints[waypoints.length - 1],
-    waypoints: waypoints,
+    waypoints,
     metadata: {
       totalDistance: tripData.distance,
       estimatedTime: tripData.duration,

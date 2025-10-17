@@ -102,7 +102,7 @@ async function loadJSON(filePath: string): Promise<any> {
  */
 async function saveJSON(filePath: string, data: any): Promise<void> {
   const content = JSON.stringify(data, null, 2);
-  await fs.writeFile(filePath, content + '\n', 'utf-8');
+  await fs.writeFile(filePath, `${content  }\n`, 'utf-8');
 }
 
 /**

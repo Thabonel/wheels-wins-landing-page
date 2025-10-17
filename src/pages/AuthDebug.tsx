@@ -150,10 +150,10 @@ const AuthDebug: React.FC = () => {
           </p>
           <div className="bg-gray-100 p-4 rounded-lg font-mono text-sm space-y-2">
             <div><code>// Test JWT transmission</code></div>
-            <div><code>import('{window.location.origin}/src/utils/authJWTTest.js').then(m => m.testRealJWTTransmission())</code></div>
+            <div><code>{`import('${window.location.origin}/src/utils/authJWTTest.js').then(m => m.testRealJWTTransmission())`}</code></div>
             <br />
             <div><code>// Quick diagnosis</code></div>
-            <div><code>import('{window.location.origin}/src/utils/authQuickTest.js').then(m => m.runQuickDiagnosis())</code></div>
+            <div><code>{`import('${window.location.origin}/src/utils/authQuickTest.js').then(m => m.runQuickDiagnosis())`}</code></div>
           </div>
         </CardContent>
       </Card>

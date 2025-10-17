@@ -238,10 +238,24 @@ function validateTTSText(text: string): { isValid: boolean; error?: string } {
     return { isValid: false, error: 'Text exceeds maximum length of 5000 characters' };
   }
   
-  // Check for potentially problematic characters - properly escaped
-  // This regex matches control characters that should not be in normal text
-  const invalidChars = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
-  if (invalidChars.test(text)) {
+  // Check for potentially problematic control characters
+  // Use explicit character code checks to avoid regex range issues
+  function hasInvalidControlChars(text: string): boolean {
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i);
+      // Check for control characters: 0-8, 11, 12, 14-31, 127
+      if ((code >= 0 && code <= 8) ||
+          code === 11 ||
+          code === 12 ||
+          (code >= 14 && code <= 31) ||
+          code === 127) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (hasInvalidControlChars(text)) {
     return { isValid: false, error: 'Text contains invalid control characters' };
   }
   

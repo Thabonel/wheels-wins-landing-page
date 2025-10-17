@@ -293,7 +293,7 @@ export function preventIOSZoom() {
   const originalContent = viewport.getAttribute('content') || '';
   
   const handleFocusIn = () => {
-    viewport.setAttribute('content', originalContent + ', user-scalable=no');
+    viewport.setAttribute('content', `${originalContent  }, user-scalable=no`);
   };
   
   const handleFocusOut = () => {

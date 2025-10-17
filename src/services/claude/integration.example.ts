@@ -118,7 +118,7 @@ export async function exampleErrorHandling() {
   try {
     // This should work
     const validResponse = await claudeService.sendMessage('Hello');
-    console.log('Valid response received:', validResponse.substring(0, 50) + '...');
+    console.log('Valid response received:', `${validResponse.substring(0, 50)  }...`);
 
     // Test with empty message (should handle gracefully)
     try {

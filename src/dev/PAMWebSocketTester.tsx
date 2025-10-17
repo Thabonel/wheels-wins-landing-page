@@ -52,8 +52,8 @@ const ConnectionTester: React.FC<{
   onError: (connectionId: number, error: string) => void;
 }> = ({ id, userId, token, onMessage, onStatusChange, onError }) => {
   const websocket = usePamWebSocketUnified({
-    userId: userId,
-    token: token,
+    userId,
+    token,
     onMessage: (message) => onMessage(id, message),
     onStatusChange: (status) => onStatusChange(id, status),
     autoReconnect: true,

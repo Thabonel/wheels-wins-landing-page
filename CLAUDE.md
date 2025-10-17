@@ -2,6 +2,23 @@
 
 ## 🚨 CRITICAL: Read BEFORE Any PAM or Database Work
 
+### PAM System Architecture (START HERE!)
+**Before doing ANYTHING with PAM, read:**
+- **@docs/PAM_SYSTEM_ARCHITECTURE.md** - COMPLETE PAM OVERVIEW (required reading!)
+  - What PAM is and how it works
+  - All 47 tools and their purposes
+  - WebSocket connection architecture
+  - Security, context, and performance details
+  - **READ THIS FIRST** on every new session
+
+**Future PAM Hardening (Post-Launch):**
+- **@docs/PAM_SCAFFOLDING_PLAN.md** - Production hardening roadmap
+  - 3-phase implementation plan (3 weeks)
+  - Circuit breakers, rate limiting, graceful degradation
+  - Observability, monitoring, and alerting
+  - Load testing and chaos engineering
+  - **IMPLEMENT AFTER** core PAM is operational and tested with users
+
 ### Database Queries
 **Before writing ANY database queries, read:**
 - **@docs/DATABASE_SCHEMA_REFERENCE.md** - THE SOURCE OF TRUTH for all table schemas
@@ -13,7 +30,7 @@
 - **@docs/PAM_BACKEND_CONTEXT_REFERENCE.md** - THE SOURCE OF TRUTH for all context fields
 - **Rule:** Use EXACT field names listed in this doc (snake_case, not camelCase)
 - **Example:** Backend expects `user_location` NOT `location` (most common bug)
-- **Why:** We keep hitting location/context mismatches daily. This doc stops the bleeding.
+- **Validation:** Run `npm run pam:validate-context` to check field name mismatches
 
 ## Memory-Keeper Protocol (CRITICAL)
 
