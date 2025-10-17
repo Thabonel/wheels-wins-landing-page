@@ -517,8 +517,58 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   };
 
   const speakText = async (text: string) => {
-    logger.debug('🔊 Speaking text:', text.substring(0, 50));
-    // Placeholder for TTS functionality
+    try {
+      logger.debug('🔊 Speaking text:', text.substring(0, 50));
+
+      // Stop any currently playing audio
+      if (currentAudio && !currentAudio.paused) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+
+      // Generate voice using PAM voice service
+      const voiceResponse = await pamVoiceService.generateVoice({
+        text,
+        voice: voiceSettings.voice,
+        emotion: 'helpful',
+        context: 'general'
+      });
+
+      // Create and play audio
+      const audio = new Audio(voiceResponse.audioUrl);
+      audio.volume = 1.0;
+
+      setCurrentAudio(audio);
+      setIsSpeaking(true);
+      vadService.setPAMSpeaking(true);
+
+      // Play audio
+      await audio.play();
+
+      // Handle audio end
+      audio.onended = () => {
+        logger.debug('🔇 Audio playback completed');
+        setIsSpeaking(false);
+        vadService.setPAMSpeaking(false);
+        setCurrentAudio(null);
+      };
+
+      // Handle audio errors
+      audio.onerror = (error) => {
+        logger.error('🔇 Audio playback error:', error);
+        setIsSpeaking(false);
+        vadService.setPAMSpeaking(false);
+        setCurrentAudio(null);
+      };
+
+    } catch (error) {
+      logger.error('Failed to generate or play voice:', error);
+      setIsSpeaking(false);
+      vadService.setPAMSpeaking(false);
+
+      // Optionally show a toast notification
+      // toast.error('Failed to play voice response');
+    }
   };
 
   const speakMessage = (content: string, priority: string, shouldSpeak: boolean) => {
