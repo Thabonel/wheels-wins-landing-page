@@ -53,19 +53,18 @@ export function SimplePamBubble() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ user_id: user.id }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to create session');
       }
 
-      const { client_secret } = await response.json();
+      const { session_token } = await response.json();
 
       // Connect directly to OpenAI
       const ws = new WebSocket(
-        `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`,
-        ['realtime', `openai-insecure-api-key.${client_secret.value}`]
+        `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01`,
+        ['realtime', `openai-insecure-api-key.${session_token}`]
       );
 
       ws.onopen = () => {
