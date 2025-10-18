@@ -33,21 +33,16 @@ export function PamConnectionProvider({ children }: { children: React.ReactNode 
     pamService.disconnect();
   }, []);
 
-  // Auto-connect when auth is ready
+  // AUTO-CONNECT DISABLED - PAM now uses OpenAI Realtime (voice only)
+  // Keep provider for backward compatibility with usePamConnection hook
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!mounted) return;
-      if (user?.id && session?.access_token) {
-        await connect();
-      } else {
-        pamService.disconnect();
-      }
-    })();
+    // DO NOT auto-connect to Claude WebSocket
+    // Voice mode uses OpenAI Realtime API instead
     return () => {
-      mounted = false;
+      // Cleanup on unmount
+      pamService.disconnect();
     };
-  }, [user?.id, session?.access_token, connect]);
+  }, []);
 
   const sendMessage = useCallback(
     async (message: string, context?: PamApiMessage["context"]) => {
