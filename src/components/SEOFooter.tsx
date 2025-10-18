@@ -5,7 +5,7 @@ const SEOFooter = () => {
     {
       title: 'Trip Planning',
       links: [
-        { path: '/wheels', text: 'RV Trip Planner', description: 'Plan your perfect RV route' },
+        { path: '/wheels', text: 'RV Trip Planner', description: 'Plan your RV route' },
         { path: '/wheels#templates', text: 'Trip Templates', description: 'Pre-made RV itineraries' },
         { path: '/wheels#weather', text: 'Weather Planning', description: 'Real-time weather for RVers' },
         { path: '/wheels#campgrounds', text: 'Campground Finder', description: 'Find RV-friendly campgrounds' }
@@ -32,7 +32,7 @@ const SEOFooter = () => {
     {
       title: 'Resources',
       links: [
-        { path: '/shop', text: 'RV Gear Shop', description: 'Essential RV products' },
+        { path: '/shop', text: 'RV Gear Shop', description: 'RV products and gear' },
         { path: '/safety', text: 'RV Safety Tips', description: 'Stay safe on the road' },
         { path: '/profile', text: 'Your Profile', description: 'Manage your account' },
         { path: '/you', text: 'Calendar & Tasks', description: 'Organize your RV life' }
@@ -76,11 +76,10 @@ const SEOFooter = () => {
         <div className="mt-8 pt-8 border-t border-gray-200">
           <h2 className="sr-only">About Wheels and Wins</h2>
           <p className="text-sm text-gray-600 max-w-4xl">
-            Wheels and Wins is the leading RV trip planning and budget management platform, 
-            trusted by over 50,000 full-time RVers across North America. Our AI assistant PAM 
-            helps you plan perfect routes, find the best campgrounds, track expenses, and connect 
-            with the RV community. Whether you're weekend camping or living the full-time RV life, 
-            we make your journey easier, safer, and more affordable.
+            Wheels and Wins helps RVers plan trips and manage budgets. Our AI assistant PAM
+            plans routes, finds campgrounds, tracks expenses, and connects you with other RVers.
+            Whether you're weekend camping or full-time RVing, we help you save money and skip
+            the headaches.
           </p>
         </div>
 
