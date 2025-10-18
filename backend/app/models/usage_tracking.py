@@ -79,10 +79,10 @@ COST_PER_MILLION_INPUT_TOKENS = Decimal('32.00')  # $32 per million audio input 
 COST_PER_MILLION_OUTPUT_TOKENS = Decimal('64.00')  # $64 per million audio output tokens
 
 # Rough estimates (will refine with real data)
-AUDIO_TOKENS_PER_MINUTE = 10000  # Approximate
+AUDIO_TOKENS_PER_MINUTE = Decimal('10000')  # Approximate
 COST_PER_VOICE_MINUTE = (
-    (AUDIO_TOKENS_PER_MINUTE / 1000000) * COST_PER_MILLION_INPUT_TOKENS +
-    (AUDIO_TOKENS_PER_MINUTE / 1000000) * COST_PER_MILLION_OUTPUT_TOKENS
+    (AUDIO_TOKENS_PER_MINUTE / Decimal('1000000')) * COST_PER_MILLION_INPUT_TOKENS +
+    (AUDIO_TOKENS_PER_MINUTE / Decimal('1000000')) * COST_PER_MILLION_OUTPUT_TOKENS
 )  # ~$0.96 per minute (rough estimate)
 
 
