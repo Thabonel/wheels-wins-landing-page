@@ -318,7 +318,7 @@ export function SimplePamBubble() {
               <button
                 onClick={toggleVoice}
                 disabled={isConnecting}
-                className={`rounded-full p-3 transition-all shadow-lg ${
+                className={`rounded-full p-2 transition-all ${
                   isListening
                     ? 'bg-red-500 hover:bg-red-600 animate-pulse'
                     : isConnecting
@@ -327,7 +327,7 @@ export function SimplePamBubble() {
                 }`}
                 title={isListening ? 'Stop voice mode' : 'Start voice mode'}
               >
-                <Mic className={`w-5 h-5 ${isListening ? 'text-white' : 'text-gray-600'}`} />
+                <Mic className={`w-4 h-4 ${isListening ? 'text-white' : 'text-gray-600'}`} />
               </button>
               <button
                 onClick={handleSendMessage}
