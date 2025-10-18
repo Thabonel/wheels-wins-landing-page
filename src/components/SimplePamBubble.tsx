@@ -91,14 +91,17 @@ export function SimplePamBubble() {
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
-        if (data.type === 'conversation.item.created' && data.item?.role === 'assistant') {
-          // Response started
-        }
-
+        // Handle audio transcript (voice mode)
         if (data.type === 'response.audio_transcript.done' && data.transcript) {
           addMessage('pam', data.transcript);
         }
 
+        // Handle text-only response (text mode)
+        if (data.type === 'response.text.done' && data.text) {
+          addMessage('pam', data.text);
+        }
+
+        // Handle streaming audio chunks (plays through device speakers)
         if (data.type === 'response.audio.delta' && data.delta) {
           playAudioChunk(data.delta);
         }
@@ -192,32 +195,30 @@ export function SimplePamBubble() {
     setInputText('');
     addMessage('user', userMessage);
 
-    // Send to backend (text chat)
+    // Send to OpenAI via WebSocket (same as voice mode)
     if (!user || !session?.access_token) {
       addMessage('pam', 'Please sign in to chat with PAM');
       return;
     }
 
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiBaseUrl}/api/v1/pam/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          user_id: user.id,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send message');
+      // If WebSocket not connected, connect first
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        await connectToVoice();
       }
 
-      const data = await response.json();
-      addMessage('pam', data.response || 'Sorry, I could not process that.');
+      // Send text message to OpenAI
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: userMessage }]
+          }
+        }));
+        wsRef.current.send(JSON.stringify({ type: 'response.create' }));
+      }
     } catch (error) {
       console.error('❌ Chat error:', error);
       addMessage('pam', '❌ Sorry, I encountered an error. Please try again.');
