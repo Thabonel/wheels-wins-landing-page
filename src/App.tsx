@@ -40,7 +40,7 @@ import { AppErrorBoundary } from './components/common/ErrorBoundary';
 import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import { RouteMonitor } from './components/common/RouteMonitor';
 import { LocationConsentManager } from './components/privacy/LocationConsentManager';
-// PamConnectionProvider REMOVED - using OpenAI Realtime direct connection instead
+import { PamConnectionProvider } from '@/contexts/PamConnectionProvider';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
@@ -80,10 +80,11 @@ function App() {
               <OfflineProvider>
                 <ExpensesProvider>
                   <WheelsProvider>
-                    {/* Claude WebSocket PAM REMOVED - OpenAI Realtime only */}
-                    <LocationConsentManager />
-                    <ScrollToTop />
-                    <RouteMonitor />
+                    {/* PamConnectionProvider: Keep for hooks but disable auto-connect */}
+                    <PamConnectionProvider>
+                      <LocationConsentManager />
+                      <ScrollToTop />
+                      <RouteMonitor />
                           <Layout>
                             <div className="route-container">
                               <Suspense fallback={
@@ -135,6 +136,7 @@ function App() {
                             </Suspense>
                           </div>
                           </Layout>
+                    </PamConnectionProvider>
                   </WheelsProvider>
                 </ExpensesProvider>
               </OfflineProvider>
