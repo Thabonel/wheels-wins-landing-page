@@ -7,8 +7,8 @@ const pamEnabled = true;
 // Regular imports
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-// Use WebSocket PAM Service for real-time communication
-import { usePamConnection } from "@/hooks/usePamConnection";
+// Claude WebSocket PAM REMOVED - OpenAI Realtime only
+// import { usePamConnection } from "@/hooks/usePamConnection";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -75,11 +75,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [messages, setMessages] = useState<PamMessage[]>([]);
-  const { status: pamStatus, isReady, sendMessage: sendPamMessage } = usePamConnection();
-  const connectionStatus: "Connected" | "Connecting" | "Disconnected" = pamStatus.isConnected
+  // Claude WebSocket PAM REMOVED - OpenAI Realtime only
+  // const { status: pamStatus, isReady, sendMessage: sendPamMessage } = usePamConnection();
+  const connectionStatus: "Connected" | "Connecting" | "Disconnected" = isContinuousMode
     ? "Connected"
-    : pamStatus.isConnecting
-    ? "Connecting"
     : "Disconnected";
   const [userContext, setUserContext] = useState<any>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
@@ -815,9 +814,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         throw new Error('User authentication required');
       }
 
-      // Use WebSocket PAM Service for real-time communication
-      logger.debug('🤖 Sending message to PAM WebSocket service');
+      // CLAUDE TEXT CHAT DISABLED - Use voice mode (OpenAI Realtime) instead
+      logger.warn('⚠️ Text chat disabled - please use voice mode (click microphone button)');
 
+      addMessage("Text chat is disabled. Please use voice mode by clicking the microphone button to talk to PAM!", "pam", message);
+      return;
+
+      /* COMMENTED OUT - Claude WebSocket text chat removed
       const pamResponse = await sendPamMessage(
         message,
         {
@@ -829,31 +832,25 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           conversation_history: conversationHistory.slice(-3)
         }
       );
+      */
 
-      // Remove thinking indicator and add PAM's response
+      /* DEAD CODE REMOVED - pamResponse no longer exists
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-
-      // Extract response content from various possible response formats
       const responseContent = pamResponse.response || pamResponse.message || pamResponse.content || "I encountered an issue processing your request.";
       addMessage(responseContent, "pam", message);
-
-      // Check if PAM created/updated/deleted a calendar event and trigger refresh
       const calendarKeywords = ['calendar', 'appointment', 'event', 'meeting', 'schedule', 'booked', 'added to your calendar', 'created event'];
       const isCalendarAction = calendarKeywords.some(keyword =>
         responseContent.toLowerCase().includes(keyword) || message.toLowerCase().includes(keyword)
       );
-
       if (isCalendarAction) {
         logger.debug('📅 Calendar action detected, dispatching reload event');
         window.dispatchEvent(new CustomEvent('reload-calendar'));
       }
-
-      // If voice is enabled, speak the response
       if (settings?.pam_preferences?.voice_enabled) {
         await speakText(responseContent);
       }
-
       logger.debug('✅ PAM WebSocket response received successfully');
+      */
 
     } catch (error) {
       logger.error('❌ Failed to send message via PAM WebSocket service:', error);
