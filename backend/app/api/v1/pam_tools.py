@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Body
 from app.api.deps import get_current_user, CurrentUser
-from app.services.pam.tools.tool_registry import execute_tool
+from app.services.pam.tools.tool_registry import get_tool_registry
 from app.services.usage_tracking_service import track_tool_call
 
 logger = logging.getLogger(__name__)
@@ -42,11 +42,12 @@ async def execute_pam_tool(
     try:
         logger.info(f"🔧 Executing tool: {tool_name} for user {current_user.user_id}")
 
-        # Execute tool (all existing tools work as-is!)
-        result = await execute_tool(
+        # Get tool registry and execute tool
+        registry = get_tool_registry()
+        execution_result = await registry.execute_tool(
             tool_name=tool_name,
             user_id=current_user.user_id,
-            **arguments
+            parameters=arguments
         )
 
         # Track usage
@@ -58,7 +59,15 @@ async def execute_pam_tool(
 
         logger.info(f"✅ Tool {tool_name} executed successfully")
 
-        return result
+        # Return the tool result
+        if execution_result.success:
+            return execution_result.result
+        else:
+            return {
+                "success": False,
+                "error": execution_result.error,
+                "tool_name": tool_name
+            }
 
     except Exception as e:
         logger.error(f"❌ Tool execution failed: {tool_name}, {e}")
@@ -81,20 +90,21 @@ async def list_available_tools(
     Useful for debugging and documentation
     """
     try:
-        from app.services.pam.tools.tool_registry import get_all_tools
+        registry = get_tool_registry()
 
-        tools = get_all_tools()
+        # Get OpenAI function definitions (which includes all registered tools)
+        functions = registry.get_openai_functions()
 
         return {
             "success": True,
-            "total_tools": len(tools),
+            "total_tools": len(functions),
             "tools": [
                 {
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "category": tool.get("category", "unknown")
+                    "name": func["name"],
+                    "description": func["description"],
+                    "parameters": func.get("parameters", {})
                 }
-                for tool in tools
+                for func in functions
             ]
         }
 
