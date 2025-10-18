@@ -71,22 +71,49 @@ serve(async (req) => {
       )
     }
 
-    // Text chat mode WITH TOOLS
+    // Text chat mode WITH TOOLS + CAG
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     const backendUrl = Deno.env.get('BACKEND_URL') ?? 'https://wheels-wins-backend-staging.onrender.com'
 
-    // Get available tools from backend
+    // Get available tools from backend (only once - cached in model context via CAG)
     const toolsResponse = await fetch(`${backendUrl}/api/v1/pam/tools/list`, {
       headers: { 'Authorization': authHeader }
     })
     const toolsData = await toolsResponse.json()
     const tools = toolsData.tools || []
 
+    // Get user profile for CAG (contextual grounding) - directly from Supabase
+    const { data: userProfile } = await supabaseClient
+      .from('profiles')
+      .select('full_name, nickname, vehicle_make_model, vehicle_type, fuel_type, region, travel_style, preferred_units')
+      .eq('id', user.id)
+      .single()
+
+    // Build system prompt with user context (CAG - Contextual Attribute Grounding)
+    const systemPrompt = `You are PAM, a helpful AI travel assistant for RV travelers. Be friendly and concise.
+
+USER CONTEXT (use this to personalize responses - Contextual Attribute Grounding):
+- User ID: ${user.id}
+- Email: ${user.email}
+${userProfile ? `
+- Name: ${userProfile.nickname || userProfile.full_name || 'Not set'}
+- Vehicle: ${userProfile.vehicle_make_model || userProfile.vehicle_type || 'Not specified'}
+- Fuel Type: ${userProfile.fuel_type || 'Not specified'}
+- Region: ${userProfile.region || 'Not specified'}
+- Travel Style: ${userProfile.travel_style || 'Not specified'}
+- Preferred Units: ${userProfile.preferred_units || 'metric'}
+` : ''}
+
+You have access to tools that let you take actions for the user. Use the user context above to personalize your responses and tool calls. For example:
+- If they ask about fuel costs, use their vehicle's fuel type
+- If they ask about distances, use their preferred units
+- If they're planning trips, consider their travel style and region`
+
     // Build conversation messages
     const messages = [
       {
         role: 'system',
-        content: 'You are PAM, a helpful AI travel assistant for RV travelers. Be friendly and concise. You have access to tools that let you take actions for the user.'
+        content: systemPrompt
       },
       ...conversation_history,
       {
