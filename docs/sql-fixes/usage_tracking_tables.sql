@@ -121,7 +121,8 @@ BEGIN
     lifetime_cost_estimate = user_activity.lifetime_cost_estimate + COALESCE(NEW.cost_estimate, 0),
     updated_at = NOW();
 
-  RETURN NEW;indexEND;
+  RETURN NEW;
+END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_update_daily_usage_stats
