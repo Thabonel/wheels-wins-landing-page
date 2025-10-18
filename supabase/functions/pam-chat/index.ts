@@ -1,5 +1,5 @@
-// PAM Chat - Simple Supabase Edge Function
-// Just like Barry - ONE file, no complexity, just works
+// PAM Chat - Simple Supabase Edge Function WITH TOOLS
+// Like Barry, but with tool calling capability via backend
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -42,7 +42,7 @@ serve(async (req) => {
     }
 
     // Parse request
-    const { message, mode = 'text' } = await req.json()
+    const { message, mode = 'text', conversation_history = [] } = await req.json()
 
     if (mode === 'realtime') {
       // Create OpenAI Realtime session
@@ -71,9 +71,31 @@ serve(async (req) => {
       )
     }
 
-    // Text chat mode
+    // Text chat mode WITH TOOLS
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
+    const backendUrl = Deno.env.get('BACKEND_URL') ?? 'https://wheels-wins-backend-staging.onrender.com'
 
+    // Get available tools from backend
+    const toolsResponse = await fetch(`${backendUrl}/api/v1/pam/tools/list`, {
+      headers: { 'Authorization': authHeader }
+    })
+    const toolsData = await toolsResponse.json()
+    const tools = toolsData.tools || []
+
+    // Build conversation messages
+    const messages = [
+      {
+        role: 'system',
+        content: 'You are PAM, a helpful AI travel assistant for RV travelers. Be friendly and concise. You have access to tools that let you take actions for the user.'
+      },
+      ...conversation_history,
+      {
+        role: 'user',
+        content: message
+      }
+    ]
+
+    // Call OpenAI with tool definitions
     const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -82,23 +104,85 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are PAM, a helpful AI travel assistant for RV travelers. Be friendly and concise.'
-          },
-          {
-            role: 'user',
-            content: message
+        messages: messages,
+        tools: tools.map(tool => ({
+          type: 'function',
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.parameters
           }
-        ],
+        })),
         temperature: 0.7,
         max_tokens: 500
       })
     })
 
     const chatData = await chatResponse.json()
-    const reply = chatData.choices[0].message.content
+    const assistantMessage = chatData.choices[0].message
+
+    // Check if OpenAI wants to use tools
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      const toolResults = []
+
+      // Execute each tool via backend
+      for (const toolCall of assistantMessage.tool_calls) {
+        const toolName = toolCall.function.name
+        const toolArgs = JSON.parse(toolCall.function.arguments)
+
+        // Call backend tool execution endpoint
+        const toolResponse = await fetch(`${backendUrl}/api/v1/pam/tools/execute/${toolName}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(toolArgs)
+        })
+
+        const toolResult = await toolResponse.json()
+
+        toolResults.push({
+          tool_call_id: toolCall.id,
+          role: 'tool',
+          name: toolName,
+          content: JSON.stringify(toolResult)
+        })
+      }
+
+      // Send tool results back to OpenAI for final response
+      const finalResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            ...messages,
+            assistantMessage,
+            ...toolResults
+          ],
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      })
+
+      const finalData = await finalResponse.json()
+      const finalReply = finalData.choices[0].message.content
+
+      return new Response(
+        JSON.stringify({
+          response: finalReply,
+          tools_used: assistantMessage.tool_calls.map(tc => tc.function.name)
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // No tools needed, just return response
+    const reply = assistantMessage.content
 
     return new Response(
       JSON.stringify({ response: reply }),

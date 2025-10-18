@@ -195,7 +195,7 @@ export function SimplePamBubble() {
     setInputText('');
     addMessage('user', userMessage);
 
-    // Call Supabase Edge Function (simple, like Barry)
+    // Call Supabase Edge Function with conversation history (for tool calling)
     if (!user || !session?.access_token) {
       addMessage('pam', 'Please sign in to chat with PAM');
       return;
@@ -203,13 +203,26 @@ export function SimplePamBubble() {
 
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      // Build conversation history for OpenAI (last 10 messages)
+      const conversationHistory = messages
+        .slice(-10) // Keep last 10 messages
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        }));
+
       const response = await fetch(`${supabaseUrl}/functions/v1/pam-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ message: userMessage, mode: 'text' }),
+        body: JSON.stringify({
+          message: userMessage,
+          mode: 'text',
+          conversation_history: conversationHistory
+        }),
       });
 
       if (!response.ok) {
@@ -217,6 +230,12 @@ export function SimplePamBubble() {
       }
 
       const data = await response.json();
+
+      // Show which tools were used (for debugging)
+      if (data.tools_used && data.tools_used.length > 0) {
+        console.log('🔧 PAM used tools:', data.tools_used.join(', '));
+      }
+
       addMessage('pam', data.response || 'Sorry, I could not process that.');
     } catch (error) {
       console.error('❌ Chat error:', error);
