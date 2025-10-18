@@ -45,14 +45,15 @@ export function SimplePamBubble() {
     setIsConnecting(true);
 
     try {
-      // Get session token from backend
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiBaseUrl}/api/v1/pam/realtime/create-session`, {
+      // Call Supabase Edge Function (simple, like Barry)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/pam-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
+        body: JSON.stringify({ mode: 'realtime' }),
       });
 
       if (!response.ok) {
@@ -194,30 +195,29 @@ export function SimplePamBubble() {
     setInputText('');
     addMessage('user', userMessage);
 
-    // Send to OpenAI via WebSocket (same as voice mode)
+    // Call Supabase Edge Function (simple, like Barry)
     if (!user || !session?.access_token) {
       addMessage('pam', 'Please sign in to chat with PAM');
       return;
     }
 
     try {
-      // If WebSocket not connected, connect first
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-        await connectToVoice();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/pam-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ message: userMessage, mode: 'text' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
       }
 
-      // Send text message to OpenAI
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'conversation.item.create',
-          item: {
-            type: 'message',
-            role: 'user',
-            content: [{ type: 'input_text', text: userMessage }]
-          }
-        }));
-        wsRef.current.send(JSON.stringify({ type: 'response.create' }));
-      }
+      const data = await response.json();
+      addMessage('pam', data.response || 'Sorry, I could not process that.');
     } catch (error) {
       console.error('❌ Chat error:', error);
       addMessage('pam', '❌ Sorry, I encountered an error. Please try again.');
