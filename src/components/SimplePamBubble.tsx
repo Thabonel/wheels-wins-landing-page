@@ -1,30 +1,48 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getPublicAssetUrl } from '@/utils/publicAssets';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, Send, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
+interface Message {
+  id: string;
+  content: string;
+  sender: 'user' | 'pam';
+  timestamp: string;
+}
+
 /**
- * Simple PAM Bubble - Direct ChatGPT voice connection
- * Microphone → OpenAI Realtime API → Voice response
+ * Simple PAM Bubble - Chat interface with voice support
  */
 export function SimplePamBubble() {
   const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      content: "Hi! I'm PAM, your AI travel companion! How can I help you today?",
+      sender: 'pam',
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    }
+  ]);
+  const [inputText, setInputText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [message, setMessage] = useState('');
   const { user, session } = useAuth();
   const wsRef = useRef<WebSocket | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Connect to OpenAI Realtime API via backend
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Connect to OpenAI Realtime API
   const connectToVoice = async () => {
     if (!user || !session?.access_token) {
-      setMessage('Please sign in to use voice mode');
+      addMessage('pam', 'Please sign in to use voice mode');
       return;
     }
 
     setIsConnecting(true);
-    setMessage('Connecting to ChatGPT...');
 
     try {
       // Get session token from backend
@@ -44,7 +62,7 @@ export function SimplePamBubble() {
 
       const { client_secret } = await response.json();
 
-      // Connect directly to OpenAI Realtime API
+      // Connect directly to OpenAI
       const ws = new WebSocket(
         `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`,
         ['realtime', `openai-insecure-api-key.${client_secret.value}`]
@@ -54,7 +72,7 @@ export function SimplePamBubble() {
         console.log('✅ Connected to ChatGPT');
         setIsConnecting(false);
         setIsListening(true);
-        setMessage('Listening... speak now!');
+        addMessage('pam', '🎤 Voice mode active - speak now!');
 
         // Configure session
         ws.send(JSON.stringify({
@@ -65,52 +83,43 @@ export function SimplePamBubble() {
             voice: 'alloy',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
-            input_audio_transcription: { model: 'whisper-1' },
-            turn_detection: {
-              type: 'server_vad',
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 500,
-            },
+            turn_detection: { type: 'server_vad' },
           },
         }));
       };
 
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        console.log('📩 OpenAI:', data.type);
 
-        if (data.type === 'response.audio.delta' && data.delta) {
-          // Play audio response
-          playAudioChunk(data.delta);
+        if (data.type === 'conversation.item.created' && data.item?.role === 'assistant') {
+          // Response started
         }
 
-        if (data.type === 'response.done') {
-          setMessage('Response complete. Speak again anytime!');
+        if (data.type === 'response.audio_transcript.done' && data.transcript) {
+          addMessage('pam', data.transcript);
+        }
+
+        if (data.type === 'response.audio.delta' && data.delta) {
+          playAudioChunk(data.delta);
         }
       };
 
-      ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        setMessage('Connection error. Please try again.');
+      ws.onerror = () => {
+        addMessage('pam', '❌ Connection error. Please try again.');
         setIsListening(false);
         setIsConnecting(false);
       };
 
       ws.onclose = () => {
-        console.log('🔌 Disconnected from ChatGPT');
         setIsListening(false);
         setIsConnecting(false);
-        setMessage('Disconnected');
       };
 
       wsRef.current = ws;
 
-      // Start capturing microphone
+      // Start microphone
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const audioContext = new AudioContext({ sampleRate: 24000 });
-      audioContextRef.current = audioContext;
-
       const source = audioContext.createMediaStreamSource(stream);
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
 
@@ -122,11 +131,7 @@ export function SimplePamBubble() {
             pcm16[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
           }
           const base64 = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
-
-          ws.send(JSON.stringify({
-            type: 'input_audio_buffer.append',
-            audio: base64,
-          }));
+          ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64 }));
         }
       };
 
@@ -134,54 +139,91 @@ export function SimplePamBubble() {
       processor.connect(audioContext.destination);
 
     } catch (error) {
-      console.error('❌ Connection failed:', error);
-      setMessage('Failed to connect. Please try again.');
+      console.error('❌ Voice connection failed:', error);
+      addMessage('pam', '❌ Failed to connect. Please try again.');
       setIsConnecting(false);
     }
   };
 
-  // Disconnect from voice
   const disconnectVoice = () => {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
     setIsListening(false);
-    setMessage('');
+    addMessage('pam', '🔇 Voice mode ended');
   };
 
-  // Play audio chunk from OpenAI
   const playAudioChunk = (base64Audio: string) => {
-    // Decode base64 to PCM16
     const binaryString = atob(base64Audio);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
     const pcm16 = new Int16Array(bytes.buffer);
-
-    // Convert PCM16 to float32
     const float32 = new Float32Array(pcm16.length);
     for (let i = 0; i < pcm16.length; i++) {
       float32[i] = pcm16[i] / 32768;
     }
 
-    // Play audio
     const audioContext = new AudioContext({ sampleRate: 24000 });
     const buffer = audioContext.createBuffer(1, float32.length, 24000);
     buffer.getChannelData(0).set(float32);
-
     const source = audioContext.createBufferSource();
     source.buffer = buffer;
     source.connect(audioContext.destination);
     source.start();
   };
 
-  // Toggle voice mode
+  const addMessage = (sender: 'user' | 'pam', content: string) => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      content,
+      sender,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    };
+    setMessages(prev => [...prev, newMessage]);
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim()) return;
+
+    const userMessage = inputText.trim();
+    setInputText('');
+    addMessage('user', userMessage);
+
+    // Send to backend (text chat)
+    if (!user || !session?.access_token) {
+      addMessage('pam', 'Please sign in to chat with PAM');
+      return;
+    }
+
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiBaseUrl}/api/v1/pam/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          user_id: user.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      const data = await response.json();
+      addMessage('pam', data.response || 'Sorry, I could not process that.');
+    } catch (error) {
+      console.error('❌ Chat error:', error);
+      addMessage('pam', '❌ Sorry, I encountered an error. Please try again.');
+    }
+  };
+
   const toggleVoice = () => {
     if (isListening) {
       disconnectVoice();
@@ -190,103 +232,112 @@ export function SimplePamBubble() {
     }
   };
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      disconnectVoice();
-    };
-  }, []);
-
   return (
     <>
       {/* Floating PAM Bubble */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all z-50"
-        aria-label="Open PAM Assistant"
-        style={{ width: '64px', height: '64px' }}
+        className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-xl transition-all z-50 hover:scale-110"
+        aria-label="Open PAM Chat"
       >
-        <div className="relative w-full h-full flex items-center justify-center">
+        <div className="relative w-12 h-12 flex items-center justify-center">
           <img
             src={getPublicAssetUrl('Pam.webp')}
             alt="PAM"
-            className="w-10 h-10 rounded-full"
+            className="w-full h-full rounded-full object-cover"
           />
-          <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500" />
+          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-white" />
         </div>
       </button>
 
-      {/* Simple Chat Window */}
+      {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 h-[500px] bg-white rounded-lg shadow-2xl border-2 border-gray-200 z-50 flex flex-col">
+        <div className="fixed bottom-24 right-6 w-96 h-[600px] bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b bg-blue-50 rounded-t-lg">
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <div className="flex items-center space-x-3">
               <img
                 src={getPublicAssetUrl('Pam.webp')}
                 alt="PAM"
-                className="w-10 h-10 rounded-full"
+                className="w-10 h-10 rounded-full border-2 border-white"
               />
               <div>
-                <h3 className="font-semibold text-gray-800">PAM Assistant</h3>
-                <p className="text-xs text-gray-500">Ready to help</p>
+                <h3 className="font-semibold">PAM</h3>
+                <p className="text-xs text-blue-100 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                  Agentic AI Reasoning
+                </p>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+              className="text-white hover:bg-white/20 rounded-full p-1 transition-colors"
             >
-              ×
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Body */}
-          <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col items-center justify-center">
-            {/* Voice Button */}
-            <button
-              onClick={toggleVoice}
-              disabled={isConnecting}
-              className={`rounded-full p-8 transition-all shadow-lg ${
-                isListening
-                  ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                  : isConnecting
-                  ? 'bg-yellow-500'
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
-            >
-              {isListening ? (
-                <MicOff className="w-12 h-12 text-white" />
-              ) : (
-                <Mic className="w-12 h-12 text-white" />
-              )}
-            </button>
-
-            {/* Status Message */}
-            <p className="mt-6 text-center text-gray-700 font-medium">
-              {isConnecting && 'Connecting to ChatGPT...'}
-              {isListening && 'Listening... speak now!'}
-              {!isConnecting && !isListening && 'Click to start voice chat'}
-            </p>
-
-            {message && (
-              <p className="mt-2 text-sm text-gray-500 text-center">{message}</p>
-            )}
-
-            {/* Instructions */}
-            {!isListening && !isConnecting && (
-              <div className="mt-8 text-center text-sm text-gray-500 max-w-xs">
-                <p className="mb-2">Direct ChatGPT voice connection</p>
-                <p>Click the microphone, speak naturally, and ChatGPT will respond with voice.</p>
+          {/* Messages */}
+          <div className="flex-1 p-4 overflow-y-auto bg-gray-50 space-y-3">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                    msg.sender === 'user'
+                      ? 'bg-blue-600 text-white rounded-br-sm'
+                      : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'
+                  }`}
+                >
+                  {msg.sender === 'pam' && (
+                    <div className="text-xs text-gray-500 mb-1">🤖</div>
+                  )}
+                  <p className="text-sm leading-relaxed">{msg.content}</p>
+                  <p className={`text-xs mt-1 ${msg.sender === 'user' ? 'text-blue-100' : 'text-gray-400'}`}>
+                    {msg.timestamp}
+                  </p>
+                </div>
               </div>
-            )}
+            ))}
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Footer - Sign In Prompt */}
-          {!user && (
-            <div className="p-4 border-t bg-yellow-50 text-center">
-              <p className="text-sm text-gray-700">Please sign in to use voice mode</p>
+          {/* Input Area */}
+          <div className="p-4 bg-white border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Ask PAM anything..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={toggleVoice}
+                disabled={isConnecting}
+                className={`rounded-full p-3 transition-all shadow-lg ${
+                  isListening
+                    ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                    : isConnecting
+                    ? 'bg-yellow-500'
+                    : 'bg-gray-200 hover:bg-gray-300'
+                }`}
+                title={isListening ? 'Stop voice mode' : 'Start voice mode'}
+              >
+                <Mic className={`w-5 h-5 ${isListening ? 'text-white' : 'text-gray-600'}`} />
+              </button>
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputText.trim()}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-full p-3 transition-colors shadow-lg"
+              >
+                <Send className="w-5 h-5" />
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
     </>
