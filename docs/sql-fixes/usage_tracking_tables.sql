@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS usage_events (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_usage_events_user_date ON usage_events(user_id, DATE(timestamp));
+CREATE INDEX IF NOT EXISTS idx_usage_events_user_timestamp ON usage_events(user_id, timestamp);
 CREATE INDEX IF NOT EXISTS idx_usage_events_type ON usage_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_usage_events_timestamp ON usage_events(timestamp DESC);
 
