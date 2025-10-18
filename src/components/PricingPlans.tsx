@@ -76,9 +76,9 @@ const PricingPlans = () => {
       <section className="py-16 bg-gradient-to-b from-white to-gray-50">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Choose Your Journey — Stay as Long as You Like</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Pick Your Plan</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              Start your adventure with a free 30-day trial — no credit card needed
+              Try it free for 30 days — no credit card needed
             </p>
           </div>
 
@@ -121,7 +121,7 @@ const PricingPlans = () => {
             <Card className="border-2 border-primary/20 flex flex-col">
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-xl">Monthly</CardTitle>
-                <CardDescription className="text-sm">Continue your adventure with Pam</CardDescription>
+                <CardDescription className="text-sm">Keep using Pam after your trial</CardDescription>
               </CardHeader>
               <CardContent className="text-center pb-4 flex-grow">
                 <div className="mb-6">
@@ -131,7 +131,7 @@ const PricingPlans = () => {
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
                     <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Continue your adventure with Pam</span>
+                    <span>Keep all your trips and expenses organized</span>
                   </li>
                 </ul>
               </CardContent>
