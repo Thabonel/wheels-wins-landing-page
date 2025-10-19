@@ -159,14 +159,14 @@ You have access to tools that let you take actions for the user. Use the user co
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: messages,
-        tools: tools.map(tool => ({
+        tools: Array.isArray(tools) && tools.length > 0 ? tools.map(tool => ({
           type: 'function',
           function: {
             name: tool.name,
             description: tool.description,
             parameters: tool.parameters
           }
-        })),
+        })) : undefined,
         temperature: 0.7,
         max_tokens: 500
       })
