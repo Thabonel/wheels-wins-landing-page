@@ -211,16 +211,16 @@ export function SimplePamBubble() {
     setInputText('');
     addMessage('user', userMessage);
 
-    // Call Supabase Edge Function with conversation history (for tool calling)
+    // Call Backend API with full tool support
     if (!user || !session?.access_token) {
       addMessage('pam', 'Please sign in to chat with PAM');
       return;
     }
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
 
-      // Build conversation history for OpenAI (last 10 messages)
+      // Build conversation history for Claude (last 10 messages)
       const conversationHistory = messages
         .slice(-10) // Keep last 10 messages
         .map(msg => ({
@@ -228,7 +228,9 @@ export function SimplePamBubble() {
           content: msg.content
         }));
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/pam-chat`, {
+      console.log('🚀 Calling backend with tool support:', backendUrl);
+
+      const response = await fetch(`${backendUrl}/api/v1/pam-simple/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -236,13 +238,15 @@ export function SimplePamBubble() {
         },
         body: JSON.stringify({
           message: userMessage,
-          mode: 'text',
-          conversation_history: conversationHistory
+          conversation_history: conversationHistory,
+          user_id: user.id
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const errorText = await response.text();
+        console.error('❌ Backend error:', errorText);
+        throw new Error(`Backend returned ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
@@ -252,7 +256,10 @@ export function SimplePamBubble() {
         console.log('🔧 PAM used tools:', data.tools_used.join(', '));
       }
 
-      addMessage('pam', data.response || 'Sorry, I could not process that.');
+      // Backend returns 'content' not 'response'
+      const pamResponse = data.content || data.response || 'Sorry, I could not process that.';
+      console.log('✅ PAM response received:', pamResponse.substring(0, 100));
+      addMessage('pam', pamResponse);
     } catch (error) {
       console.error('❌ Chat error:', error);
       addMessage('pam', '❌ Sorry, I encountered an error. Please try again.');
