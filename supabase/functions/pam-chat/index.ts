@@ -1,8 +1,9 @@
-// PAM Chat - Simple Supabase Edge Function WITH TOOLS
-// Like Barry, but with tool calling capability via backend
+// PAM Chat - Simple Supabase Edge Function WITH TOOLS + CAG
+// Like Barry, but with tool calling + Cache-Augmented Generation
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { cache, cacheKey, CACHE_TTL } from './cache.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,19 +76,28 @@ serve(async (req) => {
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     const backendUrl = Deno.env.get('BACKEND_URL') ?? 'https://wheels-wins-backend-staging.onrender.com'
 
-    // Get available tools from backend (only once - cached in model context via CAG)
-    const toolsResponse = await fetch(`${backendUrl}/api/v1/pam/tools/list`, {
-      headers: { 'Authorization': authHeader }
-    })
-    const toolsData = await toolsResponse.json()
-    const tools = toolsData.tools || []
+    // Get tools from cache or fetch (Cache-Augmented Generation)
+    let tools = cache.get(cacheKey.toolsList())
+    if (!tools) {
+      const toolsResponse = await fetch(`${backendUrl}/api/v1/pam/tools/list`, {
+        headers: { 'Authorization': authHeader }
+      })
+      const toolsData = await toolsResponse.json()
+      tools = toolsData.tools || []
+      cache.set(cacheKey.toolsList(), tools, CACHE_TTL.TOOLS_LIST)
+    }
 
-    // Get user profile for CAG (contextual grounding) - directly from Supabase
-    const { data: userProfile } = await supabaseClient
-      .from('profiles')
-      .select('full_name, nickname, vehicle_make_model, vehicle_type, fuel_type, region, travel_style, preferred_units')
-      .eq('id', user.id)
-      .single()
+    // Get user profile from cache or fetch (Cache-Augmented Generation)
+    let userProfile = cache.get(cacheKey.userProfile(user.id))
+    if (!userProfile) {
+      const { data } = await supabaseClient
+        .from('profiles')
+        .select('full_name, nickname, vehicle_make_model, vehicle_type, fuel_type, region, travel_style, preferred_units')
+        .eq('id', user.id)
+        .single()
+      userProfile = data
+      cache.set(cacheKey.userProfile(user.id), userProfile, CACHE_TTL.USER_PROFILE)
+    }
 
     // Build system prompt with user context (CAG - Contextual Attribute Grounding)
     const systemPrompt = `You are PAM, a helpful AI travel assistant for RV travelers. Be friendly and concise.
