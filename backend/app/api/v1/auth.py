@@ -3,16 +3,21 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 import uuid
+import asyncio
 from datetime import timedelta
 
 from app.core.auth import (
-    verify_password, 
-    get_password_hash, 
-    create_access_token, 
+    verify_password,
+    get_password_hash,
+    create_access_token,
     verify_token,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 from app.services.database import DatabaseService
+from app.services.pam.cache_warming import get_cache_warming_service
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 security = HTTPBearer()
@@ -120,7 +125,11 @@ async def login(user_data: UserLogin):
         data={"sub": user['user_id'], "email": user['email']},
         expires_delta=access_token_expires
     )
-    
+
+    # Warm cache asynchronously (non-blocking)
+    user_id = user['user_id']
+    asyncio.create_task(_warm_cache_async(user_id))
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=User)
@@ -150,3 +159,25 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def logout():
     """Logout user (client should delete token)"""
     return {"message": "Successfully logged out"}
+
+
+async def _warm_cache_async(user_id: str):
+    """
+    Async task to warm user cache after login
+    Runs in background, non-blocking
+    """
+    try:
+        cache_service = await get_cache_warming_service()
+        result = await cache_service.warm_user_cache(user_id)
+
+        if result['success']:
+            logger.info(
+                f"✅ Cache warmed for {user_id}: "
+                f"{len(result['cached_items'])} items, "
+                f"{result['warming_time_ms']}ms"
+            )
+        else:
+            logger.warning(f"⚠️ Cache warming partially failed for {user_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Cache warming error for {user_id}: {e}")

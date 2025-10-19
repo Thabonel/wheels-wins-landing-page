@@ -53,6 +53,7 @@ from app.services.financial_context_service import financial_context_service
 from app.services.stt.manager import get_stt_manager
 from app.core.simple_pam_service import simple_pam_service
 from app.services.stt.base import AudioFormat
+from app.services.pam.cache_warming import get_cache_warming_service
 
 # Optional AI router (dry-run only). This does not affect current behavior.
 try:
