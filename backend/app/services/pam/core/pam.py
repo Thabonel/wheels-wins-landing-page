@@ -1522,8 +1522,8 @@ async def get_pam(user_id: str, user_language: str = "en") -> PAM:
     """
     Get or create a PAM instance for a user with cached context
 
-    This implements a simple singleton pattern - one PAM per user.
-    In production with multiple backend instances, use Redis for shared state.
+    Implements lazy cache warming: if cache is empty, warms it on first PAM interaction.
+    This ensures cache is populated even for users who never log out.
 
     Args:
         user_id: UUID of the user
@@ -1532,29 +1532,61 @@ async def get_pam(user_id: str, user_language: str = "en") -> PAM:
     Returns:
         PAM instance for this user (with cached context injected)
     """
+    logger.info(f"🔍 get_pam() called for user {user_id}")
+
     # Fetch user context from cache (location, preferences, etc.)
     user_context = None
     try:
         from app.services.pam.cache_warming import get_cache_warming_service
         cache_service = await get_cache_warming_service()
+
+        logger.info(f"🔍 Checking cache for user {user_id}...")
         user_context = await cache_service.get_cached_user_context(user_id)
+
         if user_context:
-            logger.info(f"Loaded cached context for user {user_id} (location: {user_context.get('location')})")
+            logger.info(f"✅ Cache HIT for user {user_id} (location: {user_context.get('location')})")
+        else:
+            logger.info(f"❌ Cache MISS for user {user_id}")
+
+            # LAZY CACHE WARMING: If no cache and no existing instance, warm cache now
+            if user_id not in _pam_instances:
+                logger.info(f"🔥 Lazy warming cache for user {user_id}...")
+                warm_result = await cache_service.warm_user_cache(user_id)
+
+                if warm_result['success']:
+                    logger.info(f"✅ Cache warmed: {warm_result['cached_items']} items, {warm_result['warming_time_ms']}ms")
+                    # Try fetching again
+                    user_context = await cache_service.get_cached_user_context(user_id)
+                    if user_context:
+                        logger.info(f"✅ Context retrieved after warming (location: {user_context.get('location')})")
+                else:
+                    logger.warning(f"⚠️ Cache warming partially failed: {warm_result['failed_items']}")
+
     except Exception as e:
-        logger.warning(f"Failed to load cached context for {user_id}: {e}")
+        logger.error(f"❌ Cache service error for {user_id}: {e}", exc_info=True)
 
     if user_id not in _pam_instances:
+        logger.info(f"🆕 Creating new PAM instance for user {user_id}")
         _pam_instances[user_id] = PAM(user_id, user_language, user_context)
-        logger.info(f"Created new PAM instance for user {user_id}, language: {user_language}")
+
+        # Log system prompt preview for debugging
+        system_prompt_preview = _pam_instances[user_id].system_prompt[:300]
+        logger.info(f"🔍 System prompt preview: {system_prompt_preview}...")
+
+        if user_context:
+            logger.info(f"✅ PAM initialized WITH context: location={user_context.get('location')}, units={user_context.get('preferred_units')}")
+        else:
+            logger.warning(f"⚠️ PAM initialized WITHOUT context (will ask for location)")
+
     else:
         # Update language or context if changed
         if _pam_instances[user_id].user_language != user_language or user_context:
             if _pam_instances[user_id].user_language != user_language:
                 _pam_instances[user_id].user_language = user_language
-                logger.info(f"Updated language for user {user_id} to {user_language}")
+                logger.info(f"🔄 Updated language for user {user_id} to {user_language}")
             if user_context:
                 _pam_instances[user_id].user_context = user_context
-                logger.info(f"Updated context for user {user_id}")
+                logger.info(f"🔄 Updated context for user {user_id}")
             # Rebuild system prompt with new context
             _pam_instances[user_id].system_prompt = _pam_instances[user_id]._build_system_prompt()
 
