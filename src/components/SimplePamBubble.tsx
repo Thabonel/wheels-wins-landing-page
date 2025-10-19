@@ -74,7 +74,7 @@ export function SimplePamBubble() {
         setIsListening(true);
         addMessage('pam', '🎤 Voice mode active - speak now!');
 
-        // Configure session
+        // Configure session with transcription support
         ws.send(JSON.stringify({
           type: 'session.update',
           session: {
@@ -84,6 +84,7 @@ export function SimplePamBubble() {
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
             turn_detection: { type: 'server_vad' },
+            input_audio_transcription: { model: 'whisper-1' }  // Enable user speech transcription
           },
         }));
       };
@@ -94,10 +95,33 @@ export function SimplePamBubble() {
           const data = JSON.parse(event.data);
           console.log('📨 Message type:', data.type, 'Data:', data);
 
-          // Handle audio transcript (voice mode)
+          // Handle user speech transcription (what the user said)
+          if (data.type === 'conversation.item.input_audio_transcription.completed') {
+            console.log('🎤 User said:', data.transcript);
+            addMessage('user', data.transcript);
+          }
+
+          // Handle assistant complete response (best way to get full response)
+          if (data.type === 'response.output_item.done') {
+            console.log('🤖 Assistant response complete:', data.item);
+            if (data.item.content) {
+              data.item.content.forEach((content: any) => {
+                if (content.type === 'audio' && content.transcript) {
+                  console.log('✅ Assistant transcript:', content.transcript);
+                  addMessage('pam', content.transcript);
+                }
+                if (content.type === 'text' && content.text) {
+                  console.log('✅ Assistant text:', content.text);
+                  addMessage('pam', content.text);
+                }
+              });
+            }
+          }
+
+          // Handle audio transcript (legacy, still useful for debugging)
           if (data.type === 'response.audio_transcript.done' && data.transcript) {
-            console.log('✅ Audio transcript received:', data.transcript);
-            addMessage('pam', data.transcript);
+            console.log('✅ Audio transcript (legacy):', data.transcript);
+            // Don't add message here, handled by response.output_item.done
           }
 
           // Handle text-only response (text mode)
@@ -113,7 +137,25 @@ export function SimplePamBubble() {
           }
 
           // Log if we receive an unexpected message type
-          if (!['response.audio_transcript.done', 'response.text.done', 'response.audio.delta', 'session.created', 'session.updated', 'input_audio_buffer.committed', 'input_audio_buffer.speech_started', 'input_audio_buffer.speech_stopped', 'conversation.item.created', 'response.created', 'response.done'].includes(data.type)) {
+          const knownTypes = [
+            'response.audio_transcript.done',
+            'response.text.done',
+            'response.audio.delta',
+            'response.output_item.done',
+            'conversation.item.input_audio_transcription.completed',
+            'conversation.item.input_audio_transcription.failed',
+            'session.created',
+            'session.updated',
+            'input_audio_buffer.committed',
+            'input_audio_buffer.speech_started',
+            'input_audio_buffer.speech_stopped',
+            'conversation.item.created',
+            'response.created',
+            'response.done',
+            'response.content_part.done'
+          ];
+
+          if (!knownTypes.includes(data.type)) {
             console.warn('⚠️ Unhandled message type:', data.type);
           }
         } catch (error) {
