@@ -175,9 +175,16 @@ You have access to tools that let you take actions for the user. Use the user co
     // ✅ Check if API call succeeded
     if (!chatResponse.ok) {
       const errorText = await chatResponse.text()
-      console.error('OpenAI API error:', errorText)
+      console.error('❌ OpenAI API error:', {
+        status: chatResponse.status,
+        statusText: chatResponse.statusText,
+        error: errorText
+      })
       return new Response(
-        JSON.stringify({ error: 'Failed to get AI response' }),
+        JSON.stringify({
+          error: 'Failed to get AI response',
+          details: `OpenAI API returned ${chatResponse.status}: ${errorText.substring(0, 200)}`
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -261,9 +268,16 @@ You have access to tools that let you take actions for the user. Use the user co
       // ✅ Check if final API call succeeded
       if (!finalResponse.ok) {
         const errorText = await finalResponse.text()
-        console.error('OpenAI final response error:', errorText)
+        console.error('❌ OpenAI final response error:', {
+          status: finalResponse.status,
+          statusText: finalResponse.statusText,
+          error: errorText
+        })
         return new Response(
-          JSON.stringify({ error: 'Failed to get final AI response' }),
+          JSON.stringify({
+            error: 'Failed to get final AI response',
+            details: `OpenAI API returned ${finalResponse.status}: ${errorText.substring(0, 200)}`
+          }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
