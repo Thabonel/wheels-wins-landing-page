@@ -89,31 +89,47 @@ export function SimplePamBubble() {
       };
 
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+        try {
+          console.log('📨 OpenAI Realtime message received');
+          const data = JSON.parse(event.data);
+          console.log('📨 Message type:', data.type, 'Data:', data);
 
-        // Handle audio transcript (voice mode)
-        if (data.type === 'response.audio_transcript.done' && data.transcript) {
-          addMessage('pam', data.transcript);
-        }
+          // Handle audio transcript (voice mode)
+          if (data.type === 'response.audio_transcript.done' && data.transcript) {
+            console.log('✅ Audio transcript received:', data.transcript);
+            addMessage('pam', data.transcript);
+          }
 
-        // Handle text-only response (text mode)
-        if (data.type === 'response.text.done' && data.text) {
-          addMessage('pam', data.text);
-        }
+          // Handle text-only response (text mode)
+          if (data.type === 'response.text.done' && data.text) {
+            console.log('✅ Text response received:', data.text);
+            addMessage('pam', data.text);
+          }
 
-        // Handle streaming audio chunks (plays through device speakers)
-        if (data.type === 'response.audio.delta' && data.delta) {
-          playAudioChunk(data.delta);
+          // Handle streaming audio chunks (plays through device speakers)
+          if (data.type === 'response.audio.delta' && data.delta) {
+            console.log('🔊 Audio chunk received');
+            playAudioChunk(data.delta);
+          }
+
+          // Log if we receive an unexpected message type
+          if (!['response.audio_transcript.done', 'response.text.done', 'response.audio.delta', 'session.created', 'session.updated', 'input_audio_buffer.committed', 'input_audio_buffer.speech_started', 'input_audio_buffer.speech_stopped', 'conversation.item.created', 'response.created', 'response.done'].includes(data.type)) {
+            console.warn('⚠️ Unhandled message type:', data.type);
+          }
+        } catch (error) {
+          console.error('❌ Error processing WebSocket message:', error, event.data);
         }
       };
 
-      ws.onerror = () => {
+      ws.onerror = (error) => {
+        console.error('❌ WebSocket error:', error);
         addMessage('pam', '❌ Connection error. Please try again.');
         setIsListening(false);
         setIsConnecting(false);
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        console.log('🔌 WebSocket closed:', { code: event.code, reason: event.reason, wasClean: event.wasClean });
         setIsListening(false);
         setIsConnecting(false);
       };
