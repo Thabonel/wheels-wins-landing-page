@@ -7,8 +7,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { cache, cacheKey, CACHE_TTL } from './cache.ts'
 import { gatherAllContext } from './context-gatherers.ts'
+import { buildSystemPrompt, buildMessages } from './prompt-builder.ts'
+import { getTools } from './tool-registry.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,34 +82,8 @@ serve(async (req) => {
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     const backendUrl = Deno.env.get('BACKEND_URL') ?? 'https://wheels-wins-backend-staging.onrender.com'
 
-    // Get tools from cache or fetch (Cache-Augmented Generation)
-    let tools = cache.get(cacheKey.toolsList())
-    if (!tools) {
-      try {
-        const toolsResponse = await fetch(`${backendUrl}/api/v1/pam/tools/list`, {
-          headers: { 'Authorization': authHeader }
-        })
-
-        if (!toolsResponse.ok) {
-          console.error('Tools fetch failed:', await toolsResponse.text())
-          tools = [] // Continue with no tools
-        } else {
-          const toolsData = await toolsResponse.json()
-          tools = Array.isArray(toolsData.tools) ? toolsData.tools : []
-          if (tools.length > 0) {
-            cache.set(cacheKey.toolsList(), tools, CACHE_TTL.TOOLS_LIST)
-          }
-        }
-      } catch (error) {
-        console.error('Tools fetch error:', error)
-        tools = [] // Continue with no tools
-      }
-    }
-
-    // Ensure tools is always an array
-    if (!Array.isArray(tools)) {
-      tools = []
-    }
+    // Get tools using modular tool registry
+    const tools = await getTools(authHeader, backendUrl)
 
     // ============================================================================
     // COMPOSABLE CONTEXT GATHERING (Modular Architecture)
@@ -123,31 +98,11 @@ serve(async (req) => {
       authHeader
     )
 
-    // Build base system prompt (NEVER CHANGES)
-    const basePrompt = `You are PAM, a helpful AI travel assistant for RV travelers. Be friendly and concise.
+    // Build system prompt using modular prompt builder
+    const systemPrompt = buildSystemPrompt(externalContext)
 
-You have access to tools that let you take actions for the user. Use the user context below to personalize your responses and tool calls. For example:
-- If they ask about fuel costs, use their vehicle's fuel type
-- If they ask about distances, use their preferred units
-- If they're planning trips, consider their travel style and region`
-
-    // Compose final system prompt: Base + External Context (SINGLE COMPOSITION)
-    const systemPrompt = [basePrompt, externalContext]
-      .filter(Boolean)
-      .join('\n\n')
-
-    // Build conversation messages
-    const messages = [
-      {
-        role: 'system',
-        content: systemPrompt
-      },
-      ...conversation_history,
-      {
-        role: 'user',
-        content: message
-      }
-    ]
+    // Build conversation messages using prompt builder
+    const messages = buildMessages(systemPrompt, conversation_history, message)
 
     // Call OpenAI with tool definitions
     const chatResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -159,14 +114,7 @@ You have access to tools that let you take actions for the user. Use the user co
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: messages,
-        tools: Array.isArray(tools) && tools.length > 0 ? tools.map(tool => ({
-          type: 'function',
-          function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.parameters
-          }
-        })) : undefined,
+        tools: tools.length > 0 ? tools : undefined, // Already formatted by tool-registry
         temperature: 0.7,
         max_tokens: 500
       })
