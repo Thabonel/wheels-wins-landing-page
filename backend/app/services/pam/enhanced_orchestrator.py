@@ -32,6 +32,7 @@ from app.core.errors import (
 from app.services.pam.intelligent_conversation import AdvancedIntelligentConversation
 from app.services.claude_ai_service import get_claude_ai_service, ClaudeAIService
 from app.services.pam.claude_conversation_adapter import ClaudeConversationAdapter
+from app.services.pam.cache_warming import get_cache_warming_service
 
 # Import domain-specific nodes
 from app.services.pam.nodes.wheels_node import wheels_node
@@ -1238,8 +1239,28 @@ Based on these results, please provide a helpful response to the user's original
         logger.debug(f"📋 Input context: {context}")
         logger.debug(f"📋 Response mode: {response_mode}")
         logger.debug(f"📋 User location: {user_location}")
-        
+
         try:
+            # CACHE WARMING: Load user context from cache/database
+            logger.info(f"🔍 [Orchestrator] Checking cache for user {user_id}...")
+            user_context_from_cache = None
+            try:
+                cache_service_instance = await get_cache_warming_service()
+                user_context_from_cache = await cache_service_instance.get_cached_user_context(user_id)
+
+                if user_context_from_cache:
+                    logger.info(f"✅ [Orchestrator] Cache HIT - location: {user_context_from_cache.get('location')}")
+                else:
+                    logger.info(f"❌ [Orchestrator] Cache MISS - warming cache now...")
+                    warm_result = await cache_service_instance.warm_user_cache(user_id)
+                    if warm_result['success']:
+                        logger.info(f"✅ [Orchestrator] Cache warmed: {warm_result['cached_items']} items in {warm_result['warming_time_ms']}ms")
+                        user_context_from_cache = await cache_service_instance.get_cached_user_context(user_id)
+                        if user_context_from_cache:
+                            logger.info(f"✅ [Orchestrator] Context retrieved after warming (location: {user_context_from_cache.get('location')})")
+            except Exception as cache_error:
+                logger.error(f"❌ [Orchestrator] Cache service error: {cache_error}")
+
             # Build base context directly
             logger.debug("📋 Creating base PamContext...")
             
@@ -1258,7 +1279,36 @@ Based on these results, please provide a helpful response to the user's original
                     current_location_value = None
             elif not isinstance(current_location_value, dict):
                 current_location_value = None
-            
+
+            # INJECT CACHED CONTEXT: Use cached user data if available
+            if user_context_from_cache:
+                # Use cached location if current_location not provided
+                if not current_location_value and user_context_from_cache.get('location'):
+                    current_location_value = {'region': user_context_from_cache['location']}
+                    logger.info(f"✅ [Orchestrator] Injected location from cache: {user_context_from_cache['location']}")
+
+                # Build preferences from cached data
+                cached_preferences = {
+                    'preferred_units': user_context_from_cache.get('preferred_units'),
+                    'fuel_type': user_context_from_cache.get('fuel_type'),
+                    'travel_style': user_context_from_cache.get('travel_style'),
+                    'nickname': user_context_from_cache.get('nickname'),
+                }
+
+                # Build vehicle info from cached data
+                cached_vehicle_info = {}
+                if user_context_from_cache.get('vehicle_make_model'):
+                    cached_vehicle_info['make_model'] = user_context_from_cache['vehicle_make_model']
+                if user_context_from_cache.get('fuel_type'):
+                    cached_vehicle_info['fuel_type'] = user_context_from_cache['fuel_type']
+
+                logger.info(f"✅ [Orchestrator] Injected preferences: {cached_preferences}")
+                logger.info(f"✅ [Orchestrator] Injected vehicle_info: {cached_vehicle_info}")
+            else:
+                cached_preferences = {}
+                cached_vehicle_info = {}
+                logger.warning(f"⚠️ [Orchestrator] No cached context available - PAM may ask for location")
+
             base_context = PamContext(
                 user_id=user_id,
                 timestamp=datetime.utcnow(),  # Add required timestamp field
@@ -1266,8 +1316,8 @@ Based on these results, please provide a helpful response to the user's original
                 recent_expenses=[],
                 budget_status={},
                 travel_plans={},
-                vehicle_info=context.get('vehicle_info', {}) if context else {},
-                preferences=context.get('user_preferences', {}) if context else {},
+                vehicle_info={**(context.get('vehicle_info', {}) if context else {}), **cached_vehicle_info},
+                preferences={**(context.get('user_preferences', {}) if context else {}), **cached_preferences},
                 conversation_history=context.get('conversation_history', []) if context else []
             )
             logger.debug("✅ Base PamContext created")
