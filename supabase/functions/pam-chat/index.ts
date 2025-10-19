@@ -154,7 +154,28 @@ You have access to tools that let you take actions for the user. Use the user co
       })
     })
 
+    // ✅ Check if API call succeeded
+    if (!chatResponse.ok) {
+      const errorText = await chatResponse.text()
+      console.error('OpenAI API error:', errorText)
+      return new Response(
+        JSON.stringify({ error: 'Failed to get AI response' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const chatData = await chatResponse.json()
+    console.log('OpenAI response structure:', Object.keys(chatData))
+
+    // ✅ Check if response has expected structure
+    if (!chatData.choices || chatData.choices.length === 0) {
+      console.error('Invalid OpenAI response:', chatData)
+      return new Response(
+        JSON.stringify({ error: 'Invalid AI response format' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const assistantMessage = chatData.choices[0].message
 
     // Check if OpenAI wants to use tools
@@ -175,6 +196,20 @@ You have access to tools that let you take actions for the user. Use the user co
           },
           body: JSON.stringify(toolArgs)
         })
+
+        // ✅ Check if tool execution succeeded
+        if (!toolResponse.ok) {
+          const errorText = await toolResponse.text()
+          console.error(`Tool ${toolName} execution failed:`, errorText)
+          // Continue with error result instead of crashing
+          toolResults.push({
+            tool_call_id: toolCall.id,
+            role: 'tool',
+            name: toolName,
+            content: JSON.stringify({ error: `Tool execution failed: ${errorText}` })
+          })
+          continue
+        }
 
         const toolResult = await toolResponse.json()
 
@@ -205,7 +240,27 @@ You have access to tools that let you take actions for the user. Use the user co
         })
       })
 
+      // ✅ Check if final API call succeeded
+      if (!finalResponse.ok) {
+        const errorText = await finalResponse.text()
+        console.error('OpenAI final response error:', errorText)
+        return new Response(
+          JSON.stringify({ error: 'Failed to get final AI response' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const finalData = await finalResponse.json()
+
+      // ✅ Check if final response has expected structure
+      if (!finalData.choices || finalData.choices.length === 0) {
+        console.error('Invalid final OpenAI response:', finalData)
+        return new Response(
+          JSON.stringify({ error: 'Invalid final AI response' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
       const finalReply = finalData.choices[0].message.content
 
       return new Response(
