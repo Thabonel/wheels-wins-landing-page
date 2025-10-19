@@ -136,19 +136,21 @@ class PAM:
             logger.info(f"Built tool definitions cache: {len(cls._TOOLS_CACHE)} tools in {elapsed_ms:.1f}ms")
         return cls._TOOLS_CACHE
 
-    def __init__(self, user_id: str, user_language: str = "en"):
+    def __init__(self, user_id: str, user_language: str = "en", user_context: Optional[Dict[str, Any]] = None):
         """
         Initialize PAM for a specific user
 
         Args:
             user_id: UUID of the user this PAM instance serves
             user_language: User's preferred language (en, es, fr)
+            user_context: Optional cached user context (location, preferences, vehicle info)
         """
         import time
         init_start = time.time()
 
         self.user_id = user_id
         self.user_language = user_language
+        self.user_context = user_context or {}
 
         # Initialize Claude client (try both key names for compatibility)
         api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC-WHEELS-KEY")
@@ -239,7 +241,45 @@ You can:
 
 **Current date:** {datetime.now().strftime("%Y-%m-%d")}
 
+{self._build_user_context_section()}
+
 Remember: You're here to help RVers travel smarter and save money. Be helpful, be secure, be awesome."""
+
+    def _build_user_context_section(self) -> str:
+        """
+        Build user context section for system prompt from cached data
+        Enables location-aware responses without asking user
+        """
+        if not self.user_context:
+            return ""
+
+        context_parts = ["\n**User Context:**"]
+
+        # Add location
+        if self.user_context.get('location'):
+            context_parts.append(f"- Location: {self.user_context['location']}")
+
+        # Add preferred units
+        if self.user_context.get('preferred_units'):
+            context_parts.append(f"- Preferred units: {self.user_context['preferred_units']}")
+
+        # Add vehicle info
+        if self.user_context.get('vehicle_make_model'):
+            context_parts.append(f"- Vehicle: {self.user_context['vehicle_make_model']}")
+            if self.user_context.get('fuel_type'):
+                context_parts.append(f"- Fuel type: {self.user_context['fuel_type']}")
+
+        # Add travel style
+        if self.user_context.get('travel_style'):
+            context_parts.append(f"- Travel style: {self.user_context['travel_style']}")
+
+        # Add user name if available
+        if self.user_context.get('nickname'):
+            context_parts.append(f"- User prefers to be called: {self.user_context['nickname']}")
+        elif self.user_context.get('full_name'):
+            context_parts.append(f"- User name: {self.user_context['full_name']}")
+
+        return "\n".join(context_parts) if len(context_parts) > 1 else ""
 
     @staticmethod
     def _build_tools_schema() -> List[Dict[str, Any]]:
@@ -1480,7 +1520,7 @@ _pam_instances: Dict[str, PAM] = {}
 
 async def get_pam(user_id: str, user_language: str = "en") -> PAM:
     """
-    Get or create a PAM instance for a user
+    Get or create a PAM instance for a user with cached context
 
     This implements a simple singleton pattern - one PAM per user.
     In production with multiple backend instances, use Redis for shared state.
@@ -1490,17 +1530,33 @@ async def get_pam(user_id: str, user_language: str = "en") -> PAM:
         user_language: User's preferred language (en, es, fr)
 
     Returns:
-        PAM instance for this user
+        PAM instance for this user (with cached context injected)
     """
+    # Fetch user context from cache (location, preferences, etc.)
+    user_context = None
+    try:
+        from app.services.pam.cache_warming import get_cache_warming_service
+        cache_service = await get_cache_warming_service()
+        user_context = await cache_service.get_cached_user_context(user_id)
+        if user_context:
+            logger.info(f"Loaded cached context for user {user_id} (location: {user_context.get('location')})")
+    except Exception as e:
+        logger.warning(f"Failed to load cached context for {user_id}: {e}")
+
     if user_id not in _pam_instances:
-        _pam_instances[user_id] = PAM(user_id, user_language)
+        _pam_instances[user_id] = PAM(user_id, user_language, user_context)
         logger.info(f"Created new PAM instance for user {user_id}, language: {user_language}")
     else:
-        # Update language if it changed
-        if _pam_instances[user_id].user_language != user_language:
-            _pam_instances[user_id].user_language = user_language
+        # Update language or context if changed
+        if _pam_instances[user_id].user_language != user_language or user_context:
+            if _pam_instances[user_id].user_language != user_language:
+                _pam_instances[user_id].user_language = user_language
+                logger.info(f"Updated language for user {user_id} to {user_language}")
+            if user_context:
+                _pam_instances[user_id].user_context = user_context
+                logger.info(f"Updated context for user {user_id}")
+            # Rebuild system prompt with new context
             _pam_instances[user_id].system_prompt = _pam_instances[user_id]._build_system_prompt()
-            logger.info(f"Updated language for user {user_id} to {user_language}")
 
     return _pam_instances[user_id]
 
