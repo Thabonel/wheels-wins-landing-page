@@ -84,12 +84,30 @@ serve(async (req) => {
     // Get tools from cache or fetch (Cache-Augmented Generation)
     let tools = cache.get(cacheKey.toolsList())
     if (!tools) {
-      const toolsResponse = await fetch(`${backendUrl}/api/v1/pam/tools/list`, {
-        headers: { 'Authorization': authHeader }
-      })
-      const toolsData = await toolsResponse.json()
-      tools = toolsData.tools || []
-      cache.set(cacheKey.toolsList(), tools, CACHE_TTL.TOOLS_LIST)
+      try {
+        const toolsResponse = await fetch(`${backendUrl}/api/v1/pam/tools/list`, {
+          headers: { 'Authorization': authHeader }
+        })
+
+        if (!toolsResponse.ok) {
+          console.error('Tools fetch failed:', await toolsResponse.text())
+          tools = [] // Continue with no tools
+        } else {
+          const toolsData = await toolsResponse.json()
+          tools = Array.isArray(toolsData.tools) ? toolsData.tools : []
+          if (tools.length > 0) {
+            cache.set(cacheKey.toolsList(), tools, CACHE_TTL.TOOLS_LIST)
+          }
+        }
+      } catch (error) {
+        console.error('Tools fetch error:', error)
+        tools = [] // Continue with no tools
+      }
+    }
+
+    // Ensure tools is always an array
+    if (!Array.isArray(tools)) {
+      tools = []
     }
 
     // ============================================================================
