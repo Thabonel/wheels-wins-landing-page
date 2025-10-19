@@ -1,9 +1,14 @@
-// PAM Chat - Simple Supabase Edge Function WITH TOOLS + CAG
-// Like Barry, but with tool calling + Cache-Augmented Generation
+// PAM Chat - Modular Architecture with Context Gatherers
+// Design Principles:
+// 1. Separation of Concerns (Core vs Gatherers)
+// 2. Fail-Safe Design (Isolated gatherers)
+// 3. Composable Context (Easy to extend)
+// 4. Single LLM Call (ONE call with all context)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { cache, cacheKey, CACHE_TTL } from './cache.ts'
+import { gatherAllContext } from './context-gatherers.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -87,37 +92,31 @@ serve(async (req) => {
       cache.set(cacheKey.toolsList(), tools, CACHE_TTL.TOOLS_LIST)
     }
 
-    // Get user profile from cache or fetch (Cache-Augmented Generation)
-    let userProfile = cache.get(cacheKey.userProfile(user.id))
-    if (!userProfile) {
-      const { data } = await supabaseClient
-        .from('profiles')
-        .select('full_name, nickname, vehicle_make_model, vehicle_type, fuel_type, region, travel_style, preferred_units')
-        .eq('id', user.id)
-        .single()
-      userProfile = data
-      cache.set(cacheKey.userProfile(user.id), userProfile, CACHE_TTL.USER_PROFILE)
-    }
+    // ============================================================================
+    // COMPOSABLE CONTEXT GATHERING (Modular Architecture)
+    // ============================================================================
+    // Gather all external context (user profile, RPS, WIS, recent activity, etc.)
+    // Each gatherer is isolated and fail-safe - returns null on error
+    // Easy to add new context sources without changing core logic
+    const externalContext = await gatherAllContext(
+      user.id,
+      user.email,
+      message,
+      authHeader
+    )
 
-    // Build system prompt with user context (CAG - Contextual Attribute Grounding)
-    const systemPrompt = `You are PAM, a helpful AI travel assistant for RV travelers. Be friendly and concise.
+    // Build base system prompt (NEVER CHANGES)
+    const basePrompt = `You are PAM, a helpful AI travel assistant for RV travelers. Be friendly and concise.
 
-USER CONTEXT (use this to personalize responses - Contextual Attribute Grounding):
-- User ID: ${user.id}
-- Email: ${user.email}
-${userProfile ? `
-- Name: ${userProfile.nickname || userProfile.full_name || 'Not set'}
-- Vehicle: ${userProfile.vehicle_make_model || userProfile.vehicle_type || 'Not specified'}
-- Fuel Type: ${userProfile.fuel_type || 'Not specified'}
-- Region: ${userProfile.region || 'Not specified'}
-- Travel Style: ${userProfile.travel_style || 'Not specified'}
-- Preferred Units: ${userProfile.preferred_units || 'metric'}
-` : ''}
-
-You have access to tools that let you take actions for the user. Use the user context above to personalize your responses and tool calls. For example:
+You have access to tools that let you take actions for the user. Use the user context below to personalize your responses and tool calls. For example:
 - If they ask about fuel costs, use their vehicle's fuel type
 - If they ask about distances, use their preferred units
 - If they're planning trips, consider their travel style and region`
+
+    // Compose final system prompt: Base + External Context (SINGLE COMPOSITION)
+    const systemPrompt = [basePrompt, externalContext]
+      .filter(Boolean)
+      .join('\n\n')
 
     // Build conversation messages
     const messages = [
