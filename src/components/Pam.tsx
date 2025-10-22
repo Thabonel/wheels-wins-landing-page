@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
+import { PAMWakeWord } from '@/components/pam/PAMWakeWord';
 
 // Always enable PAM as a core feature
 const pamEnabled = true;
@@ -814,30 +815,42 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         throw new Error('User authentication required');
       }
 
-      // CLAUDE TEXT CHAT DISABLED - Use voice mode (OpenAI Realtime) instead
-      logger.warn('⚠️ Text chat disabled - please use voice mode (click microphone button)');
+      // SIMPLE REST API CHAT (production-ready)
+      logger.info('💬 Sending message via simple REST API');
 
-      addMessage("Text chat is disabled. Please use voice mode by clicking the microphone button to talk to PAM!", "pam", message);
-      return;
+      // Call simple chat endpoint
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      const response = await fetch(`${apiBaseUrl}/api/v1/pam-simple/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          message,
+          user_id: user.id,
+          context: {
+            region: userContext?.region,
+            current_page: 'pam_chat',
+            location: locationObj || undefined,
+            userLocation: locationObj || undefined,
+            conversation_history: conversationHistory.slice(-3)
+          }
+        })
+      });
 
-      /* COMMENTED OUT - Claude WebSocket text chat removed
-      const pamResponse = await sendPamMessage(
-        message,
-        {
-          region: userContext?.region,
-          current_page: 'pam_chat',
-          // Backend tools expect structured location context with latitude/longitude
-          location: locationObj || undefined,
-          userLocation: locationObj || undefined,
-          conversation_history: conversationHistory.slice(-3)
-        }
-      );
-      */
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
 
-      /* DEAD CODE REMOVED - pamResponse no longer exists
+      const pamResponse = await response.json();
+
+      // Remove thinking indicator and add response
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-      const responseContent = pamResponse.response || pamResponse.message || pamResponse.content || "I encountered an issue processing your request.";
+      const responseContent = pamResponse.content || pamResponse.response || pamResponse.message || "I encountered an issue processing your request.";
       addMessage(responseContent, "pam", message);
+
+      // Handle calendar events
       const calendarKeywords = ['calendar', 'appointment', 'event', 'meeting', 'schedule', 'booked', 'added to your calendar', 'created event'];
       const isCalendarAction = calendarKeywords.some(keyword =>
         responseContent.toLowerCase().includes(keyword) || message.toLowerCase().includes(keyword)
@@ -846,11 +859,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         logger.debug('📅 Calendar action detected, dispatching reload event');
         window.dispatchEvent(new CustomEvent('reload-calendar'));
       }
+
+      // Text-to-speech if enabled
       if (settings?.pam_preferences?.voice_enabled) {
         await speakText(responseContent);
       }
-      logger.debug('✅ PAM WebSocket response received successfully');
-      */
+
+      logger.debug('✅ PAM REST API response received successfully');
 
     } catch (error) {
       logger.error('❌ Failed to send message via PAM WebSocket service:', error);
@@ -951,7 +966,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               <h3 className="font-semibold text-gray-800">PAM</h3>
               <div className="text-xs text-gray-500 space-y-0.5">
                 <p>
-                  {connectionStatus === "Connected" ? "🟢 Agentic AI Online" : 
+                  {connectionStatus === "Connected" ? "🟢 Agentic AI Online" :
                    connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
                 </p>
                 {isVADActive && (
@@ -965,6 +980,16 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               </div>
             </div>
           </div>
+
+          {/* Wake Word Component */}
+          <PAMWakeWord
+            apiKey={import.meta.env.VITE_OPENAI_API_KEY || ''}
+            enabled={connectionStatus === "Connected"}
+            onWakeWordDetected={() => {
+              logger.info('[PAM] Wake word detected, starting voice mode');
+              startContinuousVoiceMode();
+            }}
+          />
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.length === 0 ? (
@@ -1123,7 +1148,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 <h3 className="font-semibold text-gray-800">PAM</h3>
                 <div className="text-xs text-gray-500 space-y-0.5">
                   <p>
-                    {connectionStatus === "Connected" ? "🟢 Agentic AI Reasoning" : 
+                    {connectionStatus === "Connected" ? "🟢 Agentic AI Reasoning" :
                      connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
                   </p>
                   {isVADActive && (
@@ -1137,13 +1162,26 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="Close PAM Chat"
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+            <div className="flex items-center gap-2">
+              {/* Wake Word Component */}
+              <PAMWakeWord
+                apiKey={import.meta.env.VITE_OPENAI_API_KEY || ''}
+                enabled={connectionStatus === "Connected"}
+                onWakeWordDetected={() => {
+                  logger.info('[PAM] Wake word detected, starting voice mode');
+                  startContinuousVoiceMode();
+                }}
+              />
+
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close PAM Chat"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
