@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
-import { PAMWakeWord } from '@/components/pam/PAMWakeWord';
 
 // Always enable PAM as a core feature
 const pamEnabled = true;
@@ -980,16 +979,6 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               </div>
             </div>
           </div>
-
-          {/* Wake Word Component */}
-          <PAMWakeWord
-            apiKey={import.meta.env.VITE_OPENAI_API_KEY || ''}
-            enabled={connectionStatus === "Connected"}
-            onWakeWordDetected={() => {
-              logger.info('[PAM] Wake word detected, starting voice mode');
-              startContinuousVoiceMode();
-            }}
-          />
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.length === 0 ? (
@@ -1164,16 +1153,6 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Wake Word Component */}
-              <PAMWakeWord
-                apiKey={import.meta.env.VITE_OPENAI_API_KEY || ''}
-                enabled={connectionStatus === "Connected"}
-                onWakeWordDetected={() => {
-                  logger.info('[PAM] Wake word detected, starting voice mode');
-                  startContinuousVoiceMode();
-                }}
-              />
-
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
