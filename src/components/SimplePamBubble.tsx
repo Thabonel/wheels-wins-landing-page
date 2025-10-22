@@ -45,22 +45,29 @@ export function SimplePamBubble() {
     setIsConnecting(true);
 
     try {
-      // Call Supabase Edge Function (simple, like Barry)
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(`${supabaseUrl}/functions/v1/pam-chat`, {
+      // Call backend to create OpenAI Realtime session
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      const response = await fetch(`${backendUrl}/api/v1/pam/realtime/create-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ mode: 'realtime' }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create session');
+        const errorText = await response.text();
+        console.error('❌ Session creation failed:', errorText);
+        throw new Error(`Failed to create session: ${response.status}`);
       }
 
       const { session_token } = await response.json();
+
+      if (!session_token) {
+        throw new Error('No session token received from backend');
+      }
+
+      console.log('✅ Got session token, connecting to OpenAI...');
 
       // Connect directly to OpenAI
       const ws = new WebSocket(
