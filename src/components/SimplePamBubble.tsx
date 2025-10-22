@@ -272,7 +272,7 @@ export function SimplePamBubble() {
 
       console.log('🚀 Calling backend with tool support:', backendUrl);
 
-      const response = await fetch(`${backendUrl}/api/v1/pam/chat`, {
+      const response = await fetch(`${backendUrl}/api/v1/pam-simple/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
