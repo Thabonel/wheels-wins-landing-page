@@ -10,6 +10,8 @@ class TicketCreate(BaseModel):
     user_id: str
     subject: str
     message: str
+    category: str = "bug"
+    current_page: str = "/"
 
 class TicketStatusUpdate(BaseModel):
     status: str
@@ -25,6 +27,8 @@ async def create_ticket(ticket: TicketCreate):
             "user_id": ticket.user_id,
             "subject": ticket.subject,
             "message": ticket.message,
+            "category": ticket.category,
+            "current_page": ticket.current_page,
             "status": "open",
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
