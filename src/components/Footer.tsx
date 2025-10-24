@@ -1,15 +1,24 @@
 import { Separator } from "@/components/ui/separator";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { SupportTicketDialog } from "@/components/support/SupportTicketDialog";
 
 const Footer = () => {
   const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="py-4 bg-white border-t">
+    <footer className="py-6 bg-white border-t">
       <div className="container max-w-7xl mx-auto px-4">
         <Separator className="mb-4 opacity-20" />
+
+        {/* Support Message */}
+        <div className="flex flex-col md:flex-row justify-center md:justify-between items-center gap-3 mb-4 pb-4 border-b border-gray-100">
+          <p className="text-sm text-muted-foreground text-center md:text-left">
+            If something doesn't work, let me know and I will fix it immediately.
+          </p>
+          <SupportTicketDialog />
+        </div>
 
         <div className="flex flex-col md:flex-row justify-center md:justify-between items-center space-y-2 md:space-y-0 text-sm text-muted-foreground">
           <p>© {currentYear} {t('footer.copyright')}</p>
