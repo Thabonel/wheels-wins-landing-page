@@ -15,14 +15,14 @@ CREATE POLICY "Users can create their own support tickets"
 ON support_tickets
 FOR INSERT
 TO authenticated, anon
-WITH CHECK (auth.uid()::text = user_id);
+WITH CHECK (user_id = auth.uid()::text);
 
 -- Policy: Users can view their own tickets
 CREATE POLICY "Users can view their own support tickets"
 ON support_tickets
 FOR SELECT
 TO authenticated, anon
-USING (auth.uid()::text = user_id);
+USING (user_id = auth.uid()::text);
 
 -- Policy: Admins can view all tickets
 CREATE POLICY "Admins can view all support tickets"
