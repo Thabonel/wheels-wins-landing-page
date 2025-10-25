@@ -53,18 +53,26 @@ export function SupportTicketDialog({ trigger }: SupportTicketDialogProps) {
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('support_tickets')
-        .insert({
+      // Use backend API instead of direct Supabase to bypass RLS issues
+      const backendUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      const response = await fetch(`${backendUrl}/api/v1/support/tickets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           user_id: user.id,
           subject: `${category.charAt(0).toUpperCase() + category.slice(1)}: ${description.slice(0, 50)}${description.length > 50 ? '...' : ''}`,
           message: description,
           category: category,
           current_page: location.pathname,
-          status: 'open',
-        });
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to submit ticket' }));
+        throw new Error(errorData.detail || 'Failed to submit ticket');
+      }
 
       toast.success('Ticket submitted! We\'ll fix it immediately.');
       setDescription('');
