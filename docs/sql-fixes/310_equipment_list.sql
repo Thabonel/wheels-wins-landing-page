@@ -20,9 +20,53 @@ CREATE TABLE IF NOT EXISTS transition_equipment (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_equipment_profile ON transition_equipment(profile_id);
-CREATE INDEX idx_equipment_category ON transition_equipment(profile_id, category);
-CREATE INDEX idx_equipment_purchased ON transition_equipment(profile_id, is_purchased);
+-- Add missing columns if they don't exist (for existing tables)
+DO $$
+BEGIN
+  -- Add is_purchased column
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'transition_equipment'
+    AND column_name = 'is_purchased'
+  ) THEN
+    ALTER TABLE transition_equipment
+    ADD COLUMN is_purchased BOOLEAN NOT NULL DEFAULT FALSE;
+  END IF;
+
+  -- Add purchased_date column
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'transition_equipment'
+    AND column_name = 'purchased_date'
+  ) THEN
+    ALTER TABLE transition_equipment
+    ADD COLUMN purchased_date DATE;
+  END IF;
+
+  -- Add actual_cost column
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'transition_equipment'
+    AND column_name = 'actual_cost'
+  ) THEN
+    ALTER TABLE transition_equipment
+    ADD COLUMN actual_cost DECIMAL(10,2);
+  END IF;
+
+  -- Add purchase_location column
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'transition_equipment'
+    AND column_name = 'purchase_location'
+  ) THEN
+    ALTER TABLE transition_equipment
+    ADD COLUMN purchase_location TEXT;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_equipment_profile ON transition_equipment(profile_id);
+CREATE INDEX IF NOT EXISTS idx_equipment_category ON transition_equipment(profile_id, category);
+CREATE INDEX IF NOT EXISTS idx_equipment_purchased ON transition_equipment(profile_id, is_purchased);
 
 CREATE OR REPLACE FUNCTION get_equipment_stats(p_profile_id UUID)
 RETURNS TABLE (
