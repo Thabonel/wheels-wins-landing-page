@@ -7,6 +7,7 @@ import { TransitionTimeline } from './TransitionTimeline';
 import { FinancialBuckets } from './FinancialBuckets';
 import { VehicleModifications } from './VehicleModifications';
 import { EquipmentManager } from './EquipmentManager';
+import { ShakedownLogger } from './ShakedownLogger';
 import { Button } from '@/components/ui/button';
 import { Settings, Loader2 } from 'lucide-react';
 import type {
@@ -370,6 +371,11 @@ export function TransitionDashboard() {
         {/* Equipment Manager - Full width */}
         <div className="lg:col-span-3">
           <EquipmentManager />
+        </div>
+
+        {/* Shakedown Trip Logger - Full width */}
+        <div className="lg:col-span-3">
+          <ShakedownLogger />
         </div>
 
         {/* Timeline - Full width */}
