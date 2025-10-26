@@ -2,8 +2,9 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTransitionModule } from "@/hooks/useTransitionModule";
 
 interface NavigationLinksProps {
   isVisible: boolean;
@@ -12,6 +13,7 @@ interface NavigationLinksProps {
 const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
   const { isAuthenticated, isDevMode } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { shouldShowInNav: showTransition, daysUntilDeparture } = useTransitionModule();
 
   // Only show navigation when authenticated (or in dev mode) AND isVisible is true
   const shouldShowNav = isVisible && (isAuthenticated || isDevMode);
@@ -23,6 +25,8 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },
     { label: "Shop", path: "/shop" },
+    // Conditionally add Transition link
+    ...(showTransition ? [{ label: "Transition", path: "/transition" }] : []),
   ];
 
   if (!shouldShowNav) return null;
@@ -50,7 +54,15 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
             }
             end
           >
-            {item.label}
+            <span className="flex items-center gap-1.5">
+              {item.label}
+              {item.label === "Transition" && daysUntilDeparture !== null && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                  <Clock className="h-3 w-3" />
+                  {daysUntilDeparture}d
+                </span>
+              )}
+            </span>
           </NavLink>
         ))}
       </nav>
@@ -111,7 +123,15 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
                     }
                     end
                   >
-                    {item.label}
+                    <span className="flex items-center justify-between">
+                      <span>{item.label}</span>
+                      {item.label === "Transition" && daysUntilDeparture !== null && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                          <Clock className="h-3 w-3" />
+                          {daysUntilDeparture}d
+                        </span>
+                      )}
+                    </span>
                   </NavLink>
                 ))}
               </nav>
