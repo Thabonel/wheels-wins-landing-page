@@ -21,6 +21,8 @@ const Onboarding: React.FC = () => {
     ask_email: user?.email || '',
     ask_region: region || '',
     ask_travel_style: '',
+    ask_life_status: '', // NEW: transitioning vs already on road
+    ask_transition_departure_date: '', // NEW: departure date if transitioning
     ask_vehicle_type: '',
     ask_vehicle_make_model_year: '',
     ask_fuel_type: '',
@@ -110,6 +112,8 @@ const Onboarding: React.FC = () => {
           ask_email: user?.email || '',
           ask_region: region || '',
           ask_travel_style: '',
+          ask_life_status: '',
+          ask_transition_departure_date: '',
           ask_vehicle_type: '',
           ask_vehicle_make_model_year: '',
           ask_fuel_type: '',
@@ -285,6 +289,65 @@ const Onboarding: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Life Status Section - NEW */}
+            <div className="space-y-4 pt-4 border-t">
+              <div className="space-y-2">
+                <Label htmlFor="ask_life_status" className="text-lg font-semibold">
+                  What stage are you at?
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  This helps us customize your experience and show relevant features
+                </p>
+                <Select
+                  value={formData.ask_life_status}
+                  onValueChange={(value) => handleSelectChange('ask_life_status', value)}
+                >
+                  <SelectTrigger className="text-base">
+                    <SelectValue placeholder="Select your current stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="transitioning" className="py-3">
+                      <div className="flex flex-col">
+                        <span className="font-medium">I'm planning to hit the road</span>
+                        <span className="text-sm text-muted-foreground">
+                          Get access to our Life Transition Navigator
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="on_road" className="py-3">
+                      <div className="flex flex-col">
+                        <span className="font-medium">I'm already living on the road</span>
+                        <span className="text-sm text-muted-foreground">
+                          Skip straight to trip planning and tracking
+                        </span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Conditional Departure Date - only show if transitioning */}
+              {formData.ask_life_status === 'transitioning' && (
+                <div className="space-y-2 pl-4 border-l-2 border-blue-200 bg-blue-50 p-4 rounded-r">
+                  <Label htmlFor="ask_transition_departure_date">
+                    When are you planning to depart? (Optional)
+                  </Label>
+                  <Input
+                    type="date"
+                    id="ask_transition_departure_date"
+                    name="ask_transition_departure_date"
+                    value={formData.ask_transition_departure_date}
+                    onChange={handleChange}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="bg-white"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    We'll use this to personalize your transition timeline and auto-hide the planner after you've departed
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Vehicle Information */}
