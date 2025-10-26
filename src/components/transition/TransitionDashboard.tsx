@@ -8,6 +8,8 @@ import { FinancialBuckets } from './FinancialBuckets';
 import { VehicleModifications } from './VehicleModifications';
 import { EquipmentManager } from './EquipmentManager';
 import { ShakedownLogger } from './ShakedownLogger';
+import { RealityCheck } from './RealityCheck';
+import { CommunityHub } from './CommunityHub';
 import { Button } from '@/components/ui/button';
 import { Settings, Loader2 } from 'lucide-react';
 import type {
@@ -376,6 +378,16 @@ export function TransitionDashboard() {
         {/* Shakedown Trip Logger - Full width */}
         <div className="lg:col-span-3">
           <ShakedownLogger />
+        </div>
+
+        {/* Reality Check - Full width */}
+        <div className="lg:col-span-3">
+          <RealityCheck />
+        </div>
+
+        {/* Community Hub - Full width */}
+        <div className="lg:col-span-3">
+          <CommunityHub />
         </div>
 
         {/* Timeline - Full width */}
