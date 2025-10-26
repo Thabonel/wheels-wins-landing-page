@@ -10,6 +10,8 @@ import { EquipmentManager } from './EquipmentManager';
 import { ShakedownLogger } from './ShakedownLogger';
 import { RealityCheck } from './RealityCheck';
 import { CommunityHub } from './CommunityHub';
+import { TransitionSupport } from './TransitionSupport';
+import { LaunchWeekPlanner } from './LaunchWeekPlanner';
 import { Button } from '@/components/ui/button';
 import { Settings, Loader2 } from 'lucide-react';
 import type {
@@ -388,6 +390,16 @@ export function TransitionDashboard() {
         {/* Community Hub - Full width */}
         <div className="lg:col-span-3">
           <CommunityHub />
+        </div>
+
+        {/* Psychological Support - Full width */}
+        <div className="lg:col-span-3">
+          <TransitionSupport />
+        </div>
+
+        {/* Launch Week Planner - Full width */}
+        <div className="lg:col-span-3">
+          <LaunchWeekPlanner />
         </div>
 
         {/* Timeline - Full width */}
