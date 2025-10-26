@@ -6,6 +6,7 @@ import { TransitionChecklist } from './TransitionChecklist';
 import { TransitionTimeline } from './TransitionTimeline';
 import { FinancialBuckets } from './FinancialBuckets';
 import { VehicleModifications } from './VehicleModifications';
+import { EquipmentManager } from './EquipmentManager';
 import { Button } from '@/components/ui/button';
 import { Settings, Loader2 } from 'lucide-react';
 import type {
@@ -364,6 +365,11 @@ export function TransitionDashboard() {
         {/* Vehicle Modifications - Full width */}
         <div className="lg:col-span-3">
           <VehicleModifications />
+        </div>
+
+        {/* Equipment Manager - Full width */}
+        <div className="lg:col-span-3">
+          <EquipmentManager />
         </div>
 
         {/* Timeline - Full width */}
