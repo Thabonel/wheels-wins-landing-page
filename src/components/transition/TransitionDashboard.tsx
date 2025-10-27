@@ -12,6 +12,7 @@ import { RealityCheck } from './RealityCheck';
 import { CommunityHub } from './CommunityHub';
 import { TransitionSupport } from './TransitionSupport';
 import { LaunchWeekPlanner } from './LaunchWeekPlanner';
+import { TransitionSettingsDialog } from './TransitionSettingsDialog';
 import { Button } from '@/components/ui/button';
 import { Settings, Loader2 } from 'lucide-react';
 import type {
@@ -34,14 +35,15 @@ export function TransitionDashboard() {
   const [tasks, setTasks] = useState<TransitionTask[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [financialItems, setFinancialItems] = useState<TransitionFinancialItem[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Calculate days until departure
+  // Calculate days until departure (handle null gracefully)
   const daysUntilDeparture = profile?.departure_date
     ? Math.ceil(
         (new Date(profile.departure_date).getTime() - new Date().getTime()) /
           (1000 * 60 * 60 * 24)
       )
-    : 0;
+    : null;
 
   // Fetch transition data
   useEffect(() => {
@@ -290,8 +292,11 @@ export function TransitionDashboard() {
   };
 
   const handleSettings = () => {
-    console.log('Open settings');
-    // TODO: Navigate to settings
+    setSettingsOpen(true);
+  };
+
+  const handleProfileUpdate = (updatedProfile: TransitionProfile) => {
+    setProfile(updatedProfile);
   };
 
   // Loading state
@@ -326,7 +331,9 @@ export function TransitionDashboard() {
         <div>
           <h1 className="text-3xl font-bold mb-2">Life Transition Navigator</h1>
           <p className="text-gray-600">
-            Your journey to {profile.transition_type.replace('_', ' ')} RV living
+            {profile.transition_type
+              ? `Your journey to ${profile.transition_type.replace('_', ' ')} RV living`
+              : 'Plan your transition to RV living'}
           </p>
         </div>
         <Button onClick={handleSettings} variant="outline">
@@ -410,6 +417,16 @@ export function TransitionDashboard() {
           />
         </div>
       </div>
+
+      {/* Settings Dialog */}
+      {profile && (
+        <TransitionSettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          profile={profile}
+          onUpdate={handleProfileUpdate}
+        />
+      )}
     </div>
   );
 }
