@@ -99,6 +99,7 @@ from app.api.v1 import (
     national_parks,
     health_consultation,
     community,  # Community contribution system
+    transition,  # Life Transition Navigator module
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import system_settings as system_settings_api
@@ -850,6 +851,7 @@ app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"]
 app.include_router(openroute.router, prefix="/api/v1/openroute", tags=["OpenRoute Service Proxy"])
 app.include_router(health_consultation.router, prefix="/api/v1", tags=["Health Consultation"])
 app.include_router(community.router, prefix="/api/v1/community", tags=["Community"])
+app.include_router(transition.router, prefix="/api/v1", tags=["Transition"])
 app.include_router(system_settings_api.router)
 app.include_router(ai_structured_api.router)
 app.include_router(ai_ingest_api.router)

@@ -115,6 +115,13 @@ from app.services.pam.tools.create_calendar_event import create_calendar_event
 from app.services.pam.tools.update_calendar_event import update_calendar_event
 from app.services.pam.tools.delete_calendar_event import delete_calendar_event
 
+# Import transition tools (life management)
+from app.services.pam.tools.transition.analyze_room_progress import analyze_room_progress
+from app.services.pam.tools.transition.downsizing_decision_help import downsizing_decision_help
+from app.services.pam.tools.transition.digital_service_reminder import digital_service_reminder
+from app.services.pam.tools.transition.income_stream_analyzer import income_stream_analyzer
+from app.services.pam.tools.transition.suggest_next_room import suggest_next_room
+
 logger = logging.getLogger(__name__)
 
 
@@ -745,6 +752,64 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                         "order_id": {"type": "string", "description": "Optional order UUID"},
                         "order_number": {"type": "string", "description": "Optional order number (e.g., ORD-12345)"}
                     },
+                    "required": []
+                }
+            },
+            # Transition tools (life management for RV transition)
+            {
+                "name": "analyze_room_progress",
+                "description": "Analyze downsizing progress across all rooms. Use when user asks about their downsizing progress or which rooms still need work.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "include_details": {"type": "boolean", "description": "Include room-by-room breakdown (default: true)"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "downsizing_decision_help",
+                "description": "Help make keep/sell/donate decisions for items. Use when user needs help deciding what to do with belongings.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "item_name": {"type": "string", "description": "Name of the item"},
+                        "category": {"type": "string", "description": "Optional category (furniture, electronics, clothing, etc.)"},
+                        "estimated_value": {"type": "number", "description": "Optional estimated resale value in USD"},
+                        "emotional_difficulty": {"type": "integer", "description": "Optional emotional difficulty rating (1=easy to 5=very difficult)"}
+                    },
+                    "required": ["item_name"]
+                }
+            },
+            {
+                "name": "digital_service_reminder",
+                "description": "Get reminders for pending digital life services (cancellations, consolidations, digitization). Use when user asks about services to cancel or digital tasks.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "service_type": {"type": "string", "enum": ["cancellation", "consolidation", "digitization"], "description": "Optional filter by service type"},
+                        "include_completed": {"type": "boolean", "description": "Include completed services (default: false)"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "income_stream_analyzer",
+                "description": "Analyze income stream setup and diversity. Use when user asks about their income streams or readiness for nomadic life.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "include_recommendations": {"type": "boolean", "description": "Include setup recommendations (default: true)"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "suggest_next_room",
+                "description": "Suggest which room to tackle next based on intelligent prioritization. Use when user asks which room to work on or what to focus on.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
                     "required": []
                 }
             },
@@ -1401,7 +1466,13 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             # Calendar tools
             "create_calendar_event": create_calendar_event,
             "update_calendar_event": update_calendar_event,
-            "delete_calendar_event": delete_calendar_event
+            "delete_calendar_event": delete_calendar_event,
+            # Transition tools (life management)
+            "analyze_room_progress": analyze_room_progress,
+            "downsizing_decision_help": downsizing_decision_help,
+            "digital_service_reminder": digital_service_reminder,
+            "income_stream_analyzer": income_stream_analyzer,
+            "suggest_next_room": suggest_next_room
         }
 
         for block in content:
