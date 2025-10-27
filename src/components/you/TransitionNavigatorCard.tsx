@@ -108,8 +108,15 @@ export const TransitionNavigatorCard = () => {
         return;
       }
 
-      // If no profile exists, create one
+      // If no profile exists, create one with user's data
       if (!existingProfile) {
+        // Fetch user's profile to pre-populate transition profile
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
         // Set default departure date to 90 days from now
         const departureDate = new Date();
         departureDate.setDate(departureDate.getDate() + 90);
@@ -121,7 +128,22 @@ export const TransitionNavigatorCard = () => {
             departure_date: departureDate.toISOString().split('T')[0],
             current_phase: 'planning',
             transition_type: 'full_time',
-            is_enabled: true
+            is_enabled: true,
+            // Pre-populate with user profile data if available
+            vehicle_info: userProfile ? {
+              type: userProfile.vehicle_type,
+              make_model: userProfile.vehicle_make_model,
+              fuel_type: userProfile.fuel_type,
+              towing: userProfile.towing,
+              second_vehicle: userProfile.second_vehicle
+            } : null,
+            personal_info: userProfile ? {
+              full_name: userProfile.full_name,
+              nickname: userProfile.nickname,
+              partner_name: userProfile.partner_name,
+              travel_style: userProfile.travel_style,
+              pets: userProfile.pets
+            } : null
           });
 
         if (createError) {
