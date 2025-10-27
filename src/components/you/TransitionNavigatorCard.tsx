@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { useState } from "react";
-import { handlePermissionError } from "@/utils/supabasePermissionHandler";
 
 /**
  * TransitionNavigatorCard - Prominent call-to-action for Life Transition Planning
@@ -76,95 +75,31 @@ export const TransitionNavigatorCard = () => {
     setIsCreating(true);
 
     try {
-      // Check if profile exists (with automatic permission error retry)
-      const { data: existingProfile, error: fetchError } = await handlePermissionError(
-        async () => supabase
-          .from('transition_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle()
-      );
+      // Use upsert to create or enable profile in single operation
+      const defaultDeparture = new Date();
+      defaultDeparture.setDate(defaultDeparture.getDate() + 90);
 
-      if (fetchError) {
-        console.error("Error checking profile:", fetchError);
-        toast.error("Failed to check profile status");
+      const payload = {
+        user_id: user.id,
+        departure_date: defaultDeparture.toISOString().slice(0, 10),
+        is_enabled: true,
+      };
+
+      const { data: upserted, error: upsertErr } = await supabase
+        .from('transition_profiles')
+        .upsert(payload, { onConflict: 'user_id' })
+        .select('*')
+        .single();
+
+      if (upsertErr) {
+        console.error('Failed to set up transition profile:', upsertErr);
+        toast.error('Failed to set up your transition profile');
         setIsCreating(false);
         return;
       }
 
-      // If profile exists but disabled, enable it
-      if (existingProfile && !existingProfile.is_enabled) {
-        const { error: updateError } = await handlePermissionError(
-          async () => supabase
-            .from('transition_profiles')
-            .update({ is_enabled: true })
-            .eq('id', existingProfile.id)
-        );
-
-        if (updateError) {
-          console.error("Error enabling profile:", updateError);
-          toast.error("Failed to enable transition planning");
-          setIsCreating(false);
-          return;
-        }
-
-        toast.success("Transition planning enabled!");
-        navigate("/transition");
-        return;
-      }
-
-      // If no profile exists, create one with user's data
-      if (!existingProfile) {
-        // Fetch user's profile to pre-populate transition profile
-        const { data: userProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        // Set default departure date to 90 days from now
-        const departureDate = new Date();
-        departureDate.setDate(departureDate.getDate() + 90);
-
-        const { error: createError } = await handlePermissionError(
-          async () => supabase
-            .from('transition_profiles')
-            .insert({
-              user_id: user.id,
-              departure_date: departureDate.toISOString().split('T')[0],
-              current_phase: 'planning',
-              transition_type: 'full_time',
-              is_enabled: true,
-              // Pre-populate with user profile data if available
-              vehicle_info: userProfile ? {
-                type: userProfile.vehicle_type,
-                make_model: userProfile.vehicle_make_model,
-                fuel_type: userProfile.fuel_type,
-                towing: userProfile.towing,
-                second_vehicle: userProfile.second_vehicle
-              } : null,
-              personal_info: userProfile ? {
-                full_name: userProfile.full_name,
-                nickname: userProfile.nickname,
-                partner_name: userProfile.partner_name,
-                travel_style: userProfile.travel_style,
-                pets: userProfile.pets
-              } : null
-            })
-        );
-
-        if (createError) {
-          console.error("Error creating profile:", createError);
-          toast.error("Failed to create transition profile");
-          setIsCreating(false);
-          return;
-        }
-
-        toast.success("Let's start planning your transition!");
-      }
-
-      // Navigate to transition page
-      navigate("/transition");
+      toast.success("Let's start planning your transition!");
+      navigate('/transition');
     } catch (error) {
       console.error("Unexpected error:", error);
       toast.error("Something went wrong");
