@@ -82,6 +82,8 @@ export const TransitionNavigatorCard = () => {
       const payload = {
         user_id: user.id,
         departure_date: defaultDeparture.toISOString().slice(0, 10),
+        current_phase: 'planning',
+        transition_type: 'full_time',
         is_enabled: true,
       };
 
