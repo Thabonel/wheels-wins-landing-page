@@ -36,15 +36,15 @@ GRANT ALL ON transition_community TO anon;
 
 -- Step 3: Verify grants were applied successfully
 SELECT
-    tablename,
+    table_name,
     grantee,
     string_agg(privilege_type, ', ' ORDER BY privilege_type) as privileges
 FROM information_schema.table_privileges
 WHERE table_schema = 'public'
-AND tablename LIKE 'transition_%'
+AND table_name LIKE 'transition_%'
 AND grantee IN ('authenticated', 'anon')
-GROUP BY tablename, grantee
-ORDER BY tablename, grantee;
+GROUP BY table_name, grantee
+ORDER BY table_name, grantee;
 
 -- Step 4: Test query (should return empty result, NOT error)
 SELECT COUNT(*) as profile_count FROM transition_profiles;
@@ -54,7 +54,7 @@ SELECT COUNT(*) as profile_count FROM transition_profiles;
 -- ============================================================================
 --
 -- Verification Query Results:
---   tablename                    | grantee       | privileges
+--   table_name                   | grantee       | privileges
 --   ----------------------------+---------------+----------------------------------
 --   transition_community         | anon          | DELETE, INSERT, REFERENCES, ...
 --   transition_community         | authenticated | DELETE, INSERT, REFERENCES, ...
