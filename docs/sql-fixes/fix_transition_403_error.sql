@@ -1,0 +1,81 @@
+-- ============================================================================
+-- FIX: 403 Forbidden Error on transition_profiles Table
+-- ============================================================================
+-- Error Code: 42501 (insufficient_privilege)
+-- Error Message: "permission denied for table transition_profiles"
+--
+-- Root Cause: Table-level GRANT statements missing for authenticated/anon roles
+-- Solution: Grant ALL privileges to authenticated and anon roles
+-- ============================================================================
+
+-- Step 1: Grant table access to authenticated users
+GRANT ALL ON transition_profiles TO authenticated;
+GRANT ALL ON transition_profiles TO anon;
+
+-- Step 2: Grant access to all related transition tables
+GRANT ALL ON transition_tasks TO authenticated;
+GRANT ALL ON transition_tasks TO anon;
+
+GRANT ALL ON transition_timeline TO authenticated;
+GRANT ALL ON transition_timeline TO anon;
+
+GRANT ALL ON transition_financial TO authenticated;
+GRANT ALL ON transition_financial TO anon;
+
+GRANT ALL ON transition_services TO authenticated;
+GRANT ALL ON transition_services TO anon;
+
+GRANT ALL ON transition_equipment TO authenticated;
+GRANT ALL ON transition_equipment TO anon;
+
+GRANT ALL ON transition_shakedown_trips TO authenticated;
+GRANT ALL ON transition_shakedown_trips TO anon;
+
+GRANT ALL ON transition_reality_checks TO authenticated;
+GRANT ALL ON transition_reality_checks TO anon;
+
+GRANT ALL ON transition_support_checks TO authenticated;
+GRANT ALL ON transition_support_checks TO anon;
+
+GRANT ALL ON transition_launch_tasks TO authenticated;
+GRANT ALL ON transition_launch_tasks TO anon;
+
+-- Step 3: Verify grants were applied successfully
+SELECT
+    tablename,
+    grantee,
+    string_agg(privilege_type, ', ' ORDER BY privilege_type) as privileges
+FROM information_schema.table_privileges
+WHERE table_schema = 'public'
+AND tablename LIKE 'transition_%'
+AND grantee IN ('authenticated', 'anon')
+GROUP BY tablename, grantee
+ORDER BY tablename, grantee;
+
+-- Step 4: Test query (should return empty result, NOT error)
+SELECT COUNT(*) as profile_count FROM transition_profiles;
+
+-- ============================================================================
+-- Expected Output After Running This Script:
+-- ============================================================================
+--
+-- Verification Query Results:
+--   tablename                    | grantee       | privileges
+--   ----------------------------+---------------+----------------------------------
+--   transition_equipment         | anon          | DELETE, INSERT, REFERENCES, ...
+--   transition_equipment         | authenticated | DELETE, INSERT, REFERENCES, ...
+--   transition_financial         | anon          | DELETE, INSERT, REFERENCES, ...
+--   transition_financial         | authenticated | DELETE, INSERT, REFERENCES, ...
+--   transition_profiles          | anon          | DELETE, INSERT, REFERENCES, ...
+--   transition_profiles          | authenticated | DELETE, INSERT, REFERENCES, ...
+--   ... (all transition tables)
+--
+-- Test Query Result:
+--   profile_count
+--   -------------
+--   0 (or number of existing profiles)
+--
+-- ============================================================================
+-- If you see these results, the fix worked! ✅
+-- If you see an error, check Supabase logs for details.
+-- ============================================================================
