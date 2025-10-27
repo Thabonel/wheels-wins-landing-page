@@ -57,7 +57,7 @@ Tables included:
 ### Step 4: Verify Fix Worked
 You should see 16 rows showing all 8 transition tables with permissions:
 ```
-tablename                    | grantee       | privileges
+table_name                   | grantee       | privileges
 -----------------------------+---------------+---------------------------
 transition_community         | anon          | DELETE, INSERT, REFERENCES, ...
 transition_community         | authenticated | DELETE, INSERT, REFERENCES, ...
