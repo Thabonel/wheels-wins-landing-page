@@ -58,6 +58,7 @@ const FreshTripPlannerTest = lazy(() => import('./pages/FreshTripPlannerTest'));
 const WheelsSimple = lazy(() => import('./pages/WheelsSimple'));
 const SimplePamTest = lazy(() => import('./pages/SimplePamTest'));
 const PamDirectApiTest = lazy(() => import('./pages/PamDirectApiTest'));
+const Transition = lazy(() => import('./pages/Transition'));
 
 
 const queryClient = new QueryClient();
@@ -100,6 +101,7 @@ function App() {
                                   <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                                   <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
                                   <Route path="/shop" element={<Shop />} />
+                                  <Route path="/transition" element={<ProtectedRoute><Transition /></ProtectedRoute>} />
                                   <Route path="/admin" element={
                                     <AdminProtection>
                                       <AdminDashboard />
