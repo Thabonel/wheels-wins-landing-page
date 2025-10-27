@@ -369,7 +369,7 @@ export function TransitionDashboard() {
             Plan your journey from traditional life to full-time RV living with a
             comprehensive checklist, timeline, and financial planning tools.
           </p>
-          <Button size="lg" onClick={handleGetStarted}>Get Started</Button>
+          <Button size="lg" onClick={handleGetStarted}>Start Planning My Transition</Button>
         </div>
       </div>
     );
