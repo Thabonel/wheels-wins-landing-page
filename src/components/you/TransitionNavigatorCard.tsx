@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { useState } from "react";
+import type { TransitionProfile } from "@/types/transition.types";
 
 /**
  * TransitionNavigatorCard - Prominent call-to-action for Life Transition Planning
@@ -75,29 +76,27 @@ export const TransitionNavigatorCard = () => {
     setIsCreating(true);
 
     try {
-      // Use upsert to create or enable profile in single operation
-      // Only set minimal required fields - users can customize everything later
+      // Use RPC function to create/enable profile (bypasses RLS with SECURITY DEFINER)
+      // Only set minimal required fields - users can customize everything later in Settings
       const defaultDeparture = new Date();
       defaultDeparture.setDate(defaultDeparture.getDate() + 90);
+      const departureDate = defaultDeparture.toISOString().slice(0, 10);
 
-      const payload = {
-        user_id: user.id,
-        is_enabled: true,
-        // Optional sensible defaults (can be changed anytime in Settings)
-        departure_date: defaultDeparture.toISOString().slice(0, 10),
-        current_phase: 'planning',
-        transition_type: 'full_time',
-      };
+      const { data: profileResult, error: rpcError } = await supabase
+        .rpc('start_transition_profile', {
+          p_departure_date: departureDate,
+          p_is_enabled: true,
+        }) as { data: TransitionProfile | null; error: { message: string; code?: string } | null };
 
-      const { data: upserted, error: upsertErr } = await supabase
-        .from('transition_profiles')
-        .upsert(payload, { onConflict: 'user_id' })
-        .select('*')
-        .single();
-
-      if (upsertErr) {
-        console.error('Failed to set up transition profile:', upsertErr);
-        toast.error('Failed to set up your transition profile');
+      if (rpcError || !profileResult) {
+        console.error('Failed to set up transition profile via RPC:', rpcError);
+        if (rpcError?.code === 'P0001') {
+          toast.error('You need to be logged in to start planning');
+        } else if (rpcError?.code === '42501') {
+          toast.error('Still missing permission to create your transition profile');
+        } else {
+          toast.error('Failed to set up your transition profile');
+        }
         setIsCreating(false);
         return;
       }
