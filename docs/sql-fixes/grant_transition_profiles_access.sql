@@ -6,9 +6,7 @@
 GRANT ALL ON transition_profiles TO authenticated;
 GRANT ALL ON transition_profiles TO anon;
 
--- Also grant sequence access (for ID generation)
-GRANT USAGE, SELECT ON SEQUENCE transition_profiles_id_seq TO authenticated;
-GRANT USAGE, SELECT ON SEQUENCE transition_profiles_id_seq TO anon;
+-- Note: No sequence grants needed - table uses UUID with gen_random_uuid()
 
 -- Verify grants
 SELECT
