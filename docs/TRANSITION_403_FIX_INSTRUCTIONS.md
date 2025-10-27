@@ -37,32 +37,17 @@ Copy the contents of this file:
 docs/sql-fixes/fix_transition_403_error.sql
 ```
 
-Or copy this directly:
-```sql
--- Grant table access to authenticated users
-GRANT ALL ON transition_profiles TO authenticated;
-GRANT ALL ON transition_profiles TO anon;
+**Note:** Script updated to only include tables that exist in the database (8 tables total).
 
--- Grant access to all related transition tables
-GRANT ALL ON transition_tasks TO authenticated;
-GRANT ALL ON transition_tasks TO anon;
-GRANT ALL ON transition_timeline TO authenticated;
-GRANT ALL ON transition_timeline TO anon;
-GRANT ALL ON transition_financial TO authenticated;
-GRANT ALL ON transition_financial TO anon;
-GRANT ALL ON transition_services TO authenticated;
-GRANT ALL ON transition_services TO anon;
-GRANT ALL ON transition_equipment TO authenticated;
-GRANT ALL ON transition_equipment TO anon;
-GRANT ALL ON transition_shakedown_trips TO authenticated;
-GRANT ALL ON transition_shakedown_trips TO anon;
-GRANT ALL ON transition_reality_checks TO authenticated;
-GRANT ALL ON transition_reality_checks TO anon;
-GRANT ALL ON transition_support_checks TO authenticated;
-GRANT ALL ON transition_support_checks TO anon;
-GRANT ALL ON transition_launch_tasks TO authenticated;
-GRANT ALL ON transition_launch_tasks TO anon;
-```
+Tables included:
+- transition_profiles
+- transition_tasks
+- transition_timeline
+- transition_financial
+- transition_inventory
+- transition_equipment
+- transition_vehicles
+- transition_community
 
 ### Step 3: Run the Script
 1. Click "Run" button (or press Cmd/Ctrl + Enter)
@@ -70,16 +55,29 @@ GRANT ALL ON transition_launch_tasks TO anon;
 3. Check results at bottom of screen
 
 ### Step 4: Verify Fix Worked
-You should see a table showing:
+You should see 16 rows showing all 8 transition tables with permissions:
 ```
 tablename                    | grantee       | privileges
 -----------------------------+---------------+---------------------------
+transition_community         | anon          | DELETE, INSERT, REFERENCES, ...
+transition_community         | authenticated | DELETE, INSERT, REFERENCES, ...
+transition_equipment         | anon          | DELETE, INSERT, REFERENCES, ...
+transition_equipment         | authenticated | DELETE, INSERT, REFERENCES, ...
+transition_financial         | anon          | DELETE, INSERT, REFERENCES, ...
+transition_financial         | authenticated | DELETE, INSERT, REFERENCES, ...
+transition_inventory         | anon          | DELETE, INSERT, REFERENCES, ...
+transition_inventory         | authenticated | DELETE, INSERT, REFERENCES, ...
 transition_profiles          | anon          | DELETE, INSERT, REFERENCES, ...
 transition_profiles          | authenticated | DELETE, INSERT, REFERENCES, ...
-(more rows for other tables)
+transition_tasks             | anon          | DELETE, INSERT, REFERENCES, ...
+transition_tasks             | authenticated | DELETE, INSERT, REFERENCES, ...
+transition_timeline          | anon          | DELETE, INSERT, REFERENCES, ...
+transition_timeline          | authenticated | DELETE, INSERT, REFERENCES, ...
+transition_vehicles          | anon          | DELETE, INSERT, REFERENCES, ...
+transition_vehicles          | authenticated | DELETE, INSERT, REFERENCES, ...
 ```
 
-**✅ If you see this table, the fix worked!**
+**✅ If you see 16 rows (8 tables × 2 roles), the fix worked!**
 
 ---
 

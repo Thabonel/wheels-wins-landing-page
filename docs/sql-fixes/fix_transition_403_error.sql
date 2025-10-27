@@ -8,11 +8,10 @@
 -- Solution: Grant ALL privileges to authenticated and anon roles
 -- ============================================================================
 
--- Step 1: Grant table access to authenticated users
+-- Step 1: Grant access to core transition tables
 GRANT ALL ON transition_profiles TO authenticated;
 GRANT ALL ON transition_profiles TO anon;
 
--- Step 2: Grant access to all related transition tables
 GRANT ALL ON transition_tasks TO authenticated;
 GRANT ALL ON transition_tasks TO anon;
 
@@ -22,23 +21,18 @@ GRANT ALL ON transition_timeline TO anon;
 GRANT ALL ON transition_financial TO authenticated;
 GRANT ALL ON transition_financial TO anon;
 
-GRANT ALL ON transition_services TO authenticated;
-GRANT ALL ON transition_services TO anon;
+-- Step 2: Grant access to supplementary transition tables
+GRANT ALL ON transition_inventory TO authenticated;
+GRANT ALL ON transition_inventory TO anon;
 
 GRANT ALL ON transition_equipment TO authenticated;
 GRANT ALL ON transition_equipment TO anon;
 
-GRANT ALL ON transition_shakedown_trips TO authenticated;
-GRANT ALL ON transition_shakedown_trips TO anon;
+GRANT ALL ON transition_vehicles TO authenticated;
+GRANT ALL ON transition_vehicles TO anon;
 
-GRANT ALL ON transition_reality_checks TO authenticated;
-GRANT ALL ON transition_reality_checks TO anon;
-
-GRANT ALL ON transition_support_checks TO authenticated;
-GRANT ALL ON transition_support_checks TO anon;
-
-GRANT ALL ON transition_launch_tasks TO authenticated;
-GRANT ALL ON transition_launch_tasks TO anon;
+GRANT ALL ON transition_community TO authenticated;
+GRANT ALL ON transition_community TO anon;
 
 -- Step 3: Verify grants were applied successfully
 SELECT
@@ -62,13 +56,22 @@ SELECT COUNT(*) as profile_count FROM transition_profiles;
 -- Verification Query Results:
 --   tablename                    | grantee       | privileges
 --   ----------------------------+---------------+----------------------------------
+--   transition_community         | anon          | DELETE, INSERT, REFERENCES, ...
+--   transition_community         | authenticated | DELETE, INSERT, REFERENCES, ...
 --   transition_equipment         | anon          | DELETE, INSERT, REFERENCES, ...
 --   transition_equipment         | authenticated | DELETE, INSERT, REFERENCES, ...
 --   transition_financial         | anon          | DELETE, INSERT, REFERENCES, ...
 --   transition_financial         | authenticated | DELETE, INSERT, REFERENCES, ...
+--   transition_inventory         | anon          | DELETE, INSERT, REFERENCES, ...
+--   transition_inventory         | authenticated | DELETE, INSERT, REFERENCES, ...
 --   transition_profiles          | anon          | DELETE, INSERT, REFERENCES, ...
 --   transition_profiles          | authenticated | DELETE, INSERT, REFERENCES, ...
---   ... (all transition tables)
+--   transition_tasks             | anon          | DELETE, INSERT, REFERENCES, ...
+--   transition_tasks             | authenticated | DELETE, INSERT, REFERENCES, ...
+--   transition_timeline          | anon          | DELETE, INSERT, REFERENCES, ...
+--   transition_timeline          | authenticated | DELETE, INSERT, REFERENCES, ...
+--   transition_vehicles          | anon          | DELETE, INSERT, REFERENCES, ...
+--   transition_vehicles          | authenticated | DELETE, INSERT, REFERENCES, ...
 --
 -- Test Query Result:
 --   profile_count
