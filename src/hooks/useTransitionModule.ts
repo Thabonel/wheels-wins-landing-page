@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { TransitionProfile } from '@/types/transition.types';
+import { handlePermissionError, refreshTokenIfExpiring } from '@/utils/supabasePermissionHandler';
 
 interface UseTransitionModuleResult {
   isEnabled: boolean;
@@ -30,11 +31,17 @@ export function useTransitionModule(): UseTransitionModuleResult {
 
     const fetchTransitionProfile = async () => {
       try {
-        const { data, error } = await supabase
-          .from('transition_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        // Proactively refresh token if expiring within 5 minutes
+        await refreshTokenIfExpiring(300);
+
+        // Fetch transition profile with automatic permission error retry
+        const { data, error } = await handlePermissionError(
+          async () => supabase
+            .from('transition_profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle()
+        );
 
         if (error) {
           console.error('Error fetching transition profile:', error);
