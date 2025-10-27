@@ -23,6 +23,7 @@ import { DisplaySettings } from "@/components/settings/DisplaySettings";
 import { LocationSettings } from "@/components/settings/LocationSettings";
 import { AccountSecurity } from "@/components/settings/AccountSecurity";
 import { AccountDeletion } from "@/components/settings/AccountDeletion";
+import { TransitionSettings } from "@/components/settings/TransitionSettings";
 import { syncLocalPhotos } from "@/utils/fileUploadUtils";
 
 const Profile = () => {
@@ -312,6 +313,13 @@ const Profile = () => {
                     </ErrorBoundary>
                   </TabsContent>
                 </Tabs>
+
+                {/* Additional Settings */}
+                <div className="mt-6">
+                  <ErrorBoundary>
+                    <TransitionSettings />
+                  </ErrorBoundary>
+                </div>
               </div>
             </ErrorBoundary>
           </TabsContent>
