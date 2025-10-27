@@ -76,15 +76,17 @@ export const TransitionNavigatorCard = () => {
 
     try {
       // Use upsert to create or enable profile in single operation
+      // Only set minimal required fields - users can customize everything later
       const defaultDeparture = new Date();
       defaultDeparture.setDate(defaultDeparture.getDate() + 90);
 
       const payload = {
         user_id: user.id,
+        is_enabled: true,
+        // Optional sensible defaults (can be changed anytime in Settings)
         departure_date: defaultDeparture.toISOString().slice(0, 10),
         current_phase: 'planning',
         transition_type: 'full_time',
-        is_enabled: true,
       };
 
       const { data: upserted, error: upsertErr } = await supabase
