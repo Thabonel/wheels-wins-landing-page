@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { useState } from "react";
+import { handlePermissionError } from "@/utils/supabasePermissionHandler";
 
 /**
  * TransitionNavigatorCard - Prominent call-to-action for Life Transition Planning
@@ -75,12 +76,14 @@ export const TransitionNavigatorCard = () => {
     setIsCreating(true);
 
     try {
-      // Check if profile exists
-      const { data: existingProfile, error: fetchError } = await supabase
-        .from('transition_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // Check if profile exists (with automatic permission error retry)
+      const { data: existingProfile, error: fetchError } = await handlePermissionError(
+        async () => supabase
+          .from('transition_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+      );
 
       if (fetchError) {
         console.error("Error checking profile:", fetchError);
@@ -91,10 +94,12 @@ export const TransitionNavigatorCard = () => {
 
       // If profile exists but disabled, enable it
       if (existingProfile && !existingProfile.is_enabled) {
-        const { error: updateError } = await supabase
-          .from('transition_profiles')
-          .update({ is_enabled: true })
-          .eq('id', existingProfile.id);
+        const { error: updateError } = await handlePermissionError(
+          async () => supabase
+            .from('transition_profiles')
+            .update({ is_enabled: true })
+            .eq('id', existingProfile.id)
+        );
 
         if (updateError) {
           console.error("Error enabling profile:", updateError);
@@ -121,30 +126,32 @@ export const TransitionNavigatorCard = () => {
         const departureDate = new Date();
         departureDate.setDate(departureDate.getDate() + 90);
 
-        const { error: createError } = await supabase
-          .from('transition_profiles')
-          .insert({
-            user_id: user.id,
-            departure_date: departureDate.toISOString().split('T')[0],
-            current_phase: 'planning',
-            transition_type: 'full_time',
-            is_enabled: true,
-            // Pre-populate with user profile data if available
-            vehicle_info: userProfile ? {
-              type: userProfile.vehicle_type,
-              make_model: userProfile.vehicle_make_model,
-              fuel_type: userProfile.fuel_type,
-              towing: userProfile.towing,
-              second_vehicle: userProfile.second_vehicle
-            } : null,
-            personal_info: userProfile ? {
-              full_name: userProfile.full_name,
-              nickname: userProfile.nickname,
-              partner_name: userProfile.partner_name,
-              travel_style: userProfile.travel_style,
-              pets: userProfile.pets
-            } : null
-          });
+        const { error: createError } = await handlePermissionError(
+          async () => supabase
+            .from('transition_profiles')
+            .insert({
+              user_id: user.id,
+              departure_date: departureDate.toISOString().split('T')[0],
+              current_phase: 'planning',
+              transition_type: 'full_time',
+              is_enabled: true,
+              // Pre-populate with user profile data if available
+              vehicle_info: userProfile ? {
+                type: userProfile.vehicle_type,
+                make_model: userProfile.vehicle_make_model,
+                fuel_type: userProfile.fuel_type,
+                towing: userProfile.towing,
+                second_vehicle: userProfile.second_vehicle
+              } : null,
+              personal_info: userProfile ? {
+                full_name: userProfile.full_name,
+                nickname: userProfile.nickname,
+                partner_name: userProfile.partner_name,
+                travel_style: userProfile.travel_style,
+                pets: userProfile.pets
+              } : null
+            })
+        );
 
         if (createError) {
           console.error("Error creating profile:", createError);
