@@ -6121,6 +6121,26 @@ export type Database = {
         Args: Record<PropertyKey, never> | { user_id: string }
         Returns: undefined
       }
+      start_transition_profile: {
+        Args: { p_departure_date?: string | null; p_is_enabled?: boolean | null }
+        Returns: {
+          id: string
+          user_id: string
+          departure_date: string
+          current_phase: string
+          transition_type: string
+          motivation: string | null
+          concerns: Json
+          is_enabled: boolean
+          auto_hide_after_departure: boolean
+          hide_days_after_departure: number
+          completion_percentage: number
+          last_milestone_reached: string | null
+          created_at: string
+          updated_at: string
+          archived_at: string | null
+        }
+      }
       store_pam_message: {
         Args:
           | Record<PropertyKey, never>

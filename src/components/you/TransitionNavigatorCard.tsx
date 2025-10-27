@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { useState } from "react";
+import type { TransitionProfile } from "@/types/transition.types";
 
 /**
  * TransitionNavigatorCard - Prominent call-to-action for Life Transition Planning
@@ -79,21 +80,23 @@ export const TransitionNavigatorCard = () => {
       const defaultDeparture = new Date();
       defaultDeparture.setDate(defaultDeparture.getDate() + 90);
 
-      const payload = {
-        user_id: user.id,
-        departure_date: defaultDeparture.toISOString().slice(0, 10),
-        is_enabled: true,
-      };
+      const departureDate = defaultDeparture.toISOString().slice(0, 10);
 
-      const { data: upserted, error: upsertErr } = await supabase
-        .from('transition_profiles')
-        .upsert(payload, { onConflict: 'user_id' })
-        .select('*')
-        .single();
+      const { data: profileResult, error: rpcError } = await supabase
+        .rpc('start_transition_profile', {
+          p_departure_date: departureDate,
+          p_is_enabled: true,
+        }) as { data: TransitionProfile | null; error: { message: string; code?: string } | null };
 
-      if (upsertErr) {
-        console.error('Failed to set up transition profile:', upsertErr);
-        toast.error('Failed to set up your transition profile');
+      if (rpcError || !profileResult) {
+        console.error('Failed to set up transition profile via RPC:', rpcError);
+        if (rpcError?.code === 'P0001') {
+          toast.error('You need to be logged in to start planning');
+        } else if (rpcError?.code === '42501') {
+          toast.error('Still missing permission to create your transition profile');
+        } else {
+          toast.error('Failed to set up your transition profile');
+        }
         setIsCreating(false);
         return;
       }
