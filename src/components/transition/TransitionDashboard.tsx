@@ -294,62 +294,6 @@ export function TransitionDashboard() {
     // TODO: Navigate to settings
   };
 
-  // Handle profile creation with user data
-  const handleGetStarted = async () => {
-    if (!user?.id) return;
-
-    setIsLoading(true);
-    try {
-      // Fetch user's profile to pre-populate transition profile
-      const { data: userProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      // Set default departure date to 90 days from now
-      const departureDate = new Date();
-      departureDate.setDate(departureDate.getDate() + 90);
-
-      // Create transition profile with user's data
-      const { data: newProfile, error: createError } = await supabase
-        .from('transition_profiles')
-        .insert({
-          user_id: user.id,
-          departure_date: departureDate.toISOString().split('T')[0],
-          current_phase: 'planning',
-          transition_type: 'full_time',
-          is_enabled: true,
-          // Pre-populate with user profile data if available
-          vehicle_info: userProfile ? {
-            type: userProfile.vehicle_type,
-            make_model: userProfile.vehicle_make_model,
-            fuel_type: userProfile.fuel_type,
-            towing: userProfile.towing,
-            second_vehicle: userProfile.second_vehicle
-          } : null,
-          personal_info: userProfile ? {
-            full_name: userProfile.full_name,
-            nickname: userProfile.nickname,
-            partner_name: userProfile.partner_name,
-            travel_style: userProfile.travel_style,
-            pets: userProfile.pets
-          } : null
-        })
-        .select()
-        .single();
-
-      if (createError) throw createError;
-
-      // Set the profile and it will trigger the dashboard to show
-      setProfile(newProfile);
-    } catch (error) {
-      console.error('Error creating profile:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Loading state
   if (isLoading) {
     return (
@@ -369,7 +313,6 @@ export function TransitionDashboard() {
             Plan your journey from traditional life to full-time RV living with a
             comprehensive checklist, timeline, and financial planning tools.
           </p>
-          <Button size="lg" onClick={handleGetStarted}>Start Planning My Transition</Button>
         </div>
       </div>
     );
