@@ -54,17 +54,22 @@ export function TransitionDashboard() {
     const fetchTransitionData = async () => {
       setIsLoading(true);
       try {
-        // Fetch profile
+        // Fetch profile using RPC function (bypasses RLS)
         const { data: profileData, error: profileError } = await supabase
-          .from('transition_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
+          .rpc('get_transition_profile') as { data: TransitionProfile | null; error: { message: string; code?: string } | null };
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          // If error is "no profile found", that's OK - show welcome screen
+          if (profileError.code === 'P0001') {
+            setProfile(null);
+            setIsLoading(false);
+            return;
+          }
+          throw profileError;
+        }
 
         if (!profileData) {
-          // No profile exists yet - show onboarding
+          // No profile exists yet - show welcome screen
           setProfile(null);
           setIsLoading(false);
           return;
