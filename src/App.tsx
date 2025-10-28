@@ -41,6 +41,7 @@ import { PAMErrorBoundary } from './components/common/PAMErrorBoundary';
 import { RouteMonitor } from './components/common/RouteMonitor';
 import { LocationConsentManager } from './components/privacy/LocationConsentManager';
 import { PamConnectionProvider } from '@/contexts/PamConnectionProvider';
+import { PhotoSyncHandler } from './components/PhotoSyncHandler';
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
@@ -77,6 +78,7 @@ function App() {
         <StagingBanner />
         <Router>
           <AuthProvider>
+            <PhotoSyncHandler />
             <RegionProvider>
               <OfflineProvider>
                 <ExpensesProvider>
