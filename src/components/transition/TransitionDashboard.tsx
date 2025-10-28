@@ -54,21 +54,60 @@ export function TransitionDashboard() {
     const fetchTransitionData = async () => {
       setIsLoading(true);
       try {
-        // Fetch profile directly (RLS policy should allow this)
+        // Fetch profile using RPC function (bypasses RLS)
         const { data: profileData, error: profileError } = await supabase
-          .from('transition_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
+          .rpc('get_transition_profile') as { data: TransitionProfile | null; error: { message: string; code?: string } | null };
 
         if (profileError) {
-          console.error('Error fetching profile:', profileError);
+          // If error is "no profile found", create an empty profile
+          if (profileError.code === 'P0001') {
+            // Create empty profile to enable onboarding flow
+            const { data: newProfile, error: createError } = await supabase
+              .from('transition_profiles')
+              .insert({
+                id: user.id,
+                user_id: user.id,
+                full_name: user.user_metadata?.full_name || '',
+                email: user.email || '',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('Error creating profile:', createError);
+              throw createError;
+            }
+
+            setProfile(newProfile);
+            setIsLoading(false);
+            return;
+          }
           throw profileError;
         }
 
         if (!profileData) {
-          // No profile exists yet - show welcome screen
-          setProfile(null);
+          // No profile exists yet - create one
+          const { data: newProfile, error: createError } = await supabase
+            .from('transition_profiles')
+            .insert({
+              id: user.id,
+              user_id: user.id,
+              full_name: user.user_metadata?.full_name || '',
+              email: user.email || '',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Error creating profile:', createError);
+            throw createError;
+          }
+
+          setProfile(newProfile);
           setIsLoading(false);
           return;
         }
@@ -369,26 +408,16 @@ export function TransitionDashboard() {
     );
   }
 
-  // No profile exists yet - show welcome message
-  // (This should not happen after clicking "Start Planning" button, which creates the profile)
+  // If no profile (shouldn't happen after useEffect creates one), show loading
   if (!profile) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto text-center space-y-6">
-          <h1 className="text-3xl font-bold">Welcome to Life Transition Navigator</h1>
-          <p className="text-gray-600">
-            Plan your journey from traditional life to full-time RV living with a
-            comprehensive checklist, timeline, and financial planning tools.
-          </p>
-          <p className="text-sm text-gray-500">
-            Click "Start Planning My Transition" on the You page to begin.
-          </p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
-  // Profile exists - ALWAYS show onboarding first if not completed
+  // ALWAYS show onboarding first if not completed
   // Onboarding is considered complete when transition_type AND current_phase are set
   const needsOnboarding = !profile.transition_type || !profile.current_phase;
 
