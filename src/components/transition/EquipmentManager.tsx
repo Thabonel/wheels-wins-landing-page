@@ -92,7 +92,7 @@ export const EquipmentManager: React.FC = () => {
       const { data: profile } = await supabase
         .from('transition_profiles')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single();
 
       if (!profile) return;
@@ -128,7 +128,7 @@ export const EquipmentManager: React.FC = () => {
       const { data: profile } = await supabase
         .from('transition_profiles')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single();
 
       if (!profile) return;

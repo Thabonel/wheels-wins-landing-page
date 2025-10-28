@@ -61,7 +61,7 @@ export function RealityCheck() {
         const { data: profileData, error: profileError } = await supabase
           .from('transition_profiles')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .maybeSingle();
 
         if (profileError) throw profileError;
