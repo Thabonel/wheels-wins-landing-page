@@ -366,7 +366,8 @@ export function TransitionDashboard() {
     );
   }
 
-  // No profile - show welcome message (shouldn't happen after button click)
+  // No profile exists yet - show welcome message
+  // (This should not happen after clicking "Start Planning" button, which creates the profile)
   if (!profile) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -384,8 +385,11 @@ export function TransitionDashboard() {
     );
   }
 
-  // Profile exists but needs onboarding (transition_type is null)
-  if (!profile.transition_type) {
+  // Profile exists - ALWAYS show onboarding first if not completed
+  // Onboarding is considered complete when transition_type AND current_phase are set
+  const needsOnboarding = !profile.transition_type || !profile.current_phase;
+
+  if (needsOnboarding) {
     return (
       <TransitionOnboarding
         onComplete={handleOnboardingComplete}
