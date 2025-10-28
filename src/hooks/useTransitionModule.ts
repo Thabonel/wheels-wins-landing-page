@@ -39,7 +39,7 @@ export function useTransitionModule(): UseTransitionModuleResult {
           async () => supabase
             .from('transition_profiles')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('id', user.id)
             .maybeSingle()
         );
 
