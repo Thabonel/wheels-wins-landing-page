@@ -54,36 +54,15 @@ export function TransitionDashboard() {
     const fetchTransitionData = async () => {
       setIsLoading(true);
       try {
-        // Fetch profile using RPC function (bypasses RLS)
+        // Fetch profile directly (RLS policies handle access control)
         const { data: profileData, error: profileError } = await supabase
-          .rpc('get_transition_profile') as { data: TransitionProfile | null; error: { message: string; code?: string } | null };
+          .from('transition_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
 
         if (profileError) {
-          // If error is "no profile found", create an empty profile
-          if (profileError.code === 'P0001') {
-            // Create empty profile to enable onboarding flow
-            const { data: newProfile, error: createError } = await supabase
-              .from('transition_profiles')
-              .insert({
-                id: user.id,
-                user_id: user.id,
-                full_name: user.user_metadata?.full_name || '',
-                email: user.email || '',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
-              .select()
-              .single();
-
-            if (createError) {
-              console.error('Error creating profile:', createError);
-              throw createError;
-            }
-
-            setProfile(newProfile);
-            setIsLoading(false);
-            return;
-          }
+          console.error('Error fetching profile:', profileError);
           throw profileError;
         }
 
