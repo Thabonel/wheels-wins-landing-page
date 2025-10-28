@@ -13,8 +13,10 @@ import { CommunityHub } from './CommunityHub';
 import { TransitionSupport } from './TransitionSupport';
 import { LaunchWeekPlanner } from './LaunchWeekPlanner';
 import { TransitionSettingsDialog } from './TransitionSettingsDialog';
+import { TransitionOnboarding, type OnboardingData } from './TransitionOnboarding';
 import { Button } from '@/components/ui/button';
 import { Settings, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import type {
   TransitionProfile,
   TransitionTask,
@@ -299,6 +301,62 @@ export function TransitionDashboard() {
     setProfile(updatedProfile);
   };
 
+  // Handle onboarding completion
+  const handleOnboardingComplete = async (data: OnboardingData) => {
+    if (!profile || !user?.id) return;
+
+    try {
+      const { data: updatedProfile, error } = await supabase
+        .from('transition_profiles')
+        .update({
+          departure_date: data.departure_date.toISOString().split('T')[0],
+          transition_type: data.transition_type,
+          current_phase: 'planning',
+          motivation: data.motivation || null,
+          concerns: data.concerns || [],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setProfile(updatedProfile);
+      toast.success('Your transition plan is ready!');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      toast.error('Failed to save your information. Please try again.');
+    }
+  };
+
+  // Handle onboarding skip
+  const handleOnboardingSkip = async () => {
+    if (!profile) return;
+
+    try {
+      // Set minimal defaults so dashboard can load
+      const { data: updatedProfile, error } = await supabase
+        .from('transition_profiles')
+        .update({
+          transition_type: 'exploring',
+          current_phase: 'planning',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setProfile(updatedProfile);
+      toast.info('You can complete your profile anytime in Settings');
+    } catch (error) {
+      console.error('Error skipping onboarding:', error);
+      toast.error('Failed to skip onboarding. Please try again.');
+    }
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -308,7 +366,7 @@ export function TransitionDashboard() {
     );
   }
 
-  // No profile - show onboarding
+  // No profile - show welcome message (shouldn't happen after button click)
   if (!profile) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -318,8 +376,24 @@ export function TransitionDashboard() {
             Plan your journey from traditional life to full-time RV living with a
             comprehensive checklist, timeline, and financial planning tools.
           </p>
+          <p className="text-sm text-gray-500">
+            Click "Start Planning My Transition" on the You page to begin.
+          </p>
         </div>
       </div>
+    );
+  }
+
+  // Profile exists but needs onboarding (transition_type is null)
+  if (!profile.transition_type) {
+    return (
+      <TransitionOnboarding
+        onComplete={handleOnboardingComplete}
+        onSkip={handleOnboardingSkip}
+        initialDepartureDate={
+          profile.departure_date ? new Date(profile.departure_date) : undefined
+        }
+      />
     );
   }
 
