@@ -312,22 +312,53 @@ export function TransitionDashboard() {
 
       // If no profile exists yet, create one with required fields
       if (!resultProfile) {
-        const { data: created, error: createError } = await supabase
-          .from('transition_profiles')
-          .insert({
-            user_id: user.id,
-            departure_date: data.departure_date.toISOString().split('T')[0],
-            transition_type: data.transition_type,
-            current_phase: 'planning',
-            motivation: data.motivation || null,
-            concerns: data.concerns || [],
-            updated_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
+        let created = null;
+        let createError: any = null;
+        try {
+          const res = await supabase
+            .from('transition_profiles')
+            .insert({
+              user_id: user.id,
+              departure_date: data.departure_date.toISOString().split('T')[0],
+              transition_type: data.transition_type,
+              current_phase: 'planning',
+              motivation: data.motivation || null,
+              concerns: data.concerns || [],
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+          created = res.data;
+          createError = res.error;
+        } catch (e) {
+          createError = e;
+        }
 
-        if (createError) throw createError;
-        resultProfile = created;
+        // Fallback: use RPC helper if RLS blocks direct insert (403)
+        if (createError) {
+          try {
+            const { data: rpcProfile, error: rpcError } = await supabase.rpc(
+              'start_transition_profile',
+              {
+                p_departure_date: data.departure_date
+                  .toISOString()
+                  .split('T')[0],
+                p_is_enabled: true,
+              }
+            );
+
+            if (rpcError) throw rpcError;
+            // RPC returns a row or an array depending on PostgREST config; normalize
+            resultProfile = Array.isArray(rpcProfile)
+              ? rpcProfile[0]
+              : rpcProfile;
+          } catch (rpcErr) {
+            console.error('RPC start_transition_profile failed:', rpcErr);
+            throw createError;
+          }
+        } else {
+          resultProfile = created;
+        }
       } else {
         // Update existing profile
         const { data: updatedProfile, error } = await supabase
