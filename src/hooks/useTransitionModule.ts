@@ -36,11 +36,12 @@ export function useTransitionModule(): UseTransitionModuleResult {
 
         // Fetch transition profile with automatic permission error retry
         const { data, error } = await handlePermissionError(
-          async () => supabase
-            .from('transition_profiles')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle()
+          async () =>
+            supabase
+              .from('transition_profiles')
+              .select('*')
+              .eq('user_id', user.id)
+              .maybeSingle()
         );
 
         if (error) {

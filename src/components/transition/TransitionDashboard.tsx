@@ -54,11 +54,11 @@ export function TransitionDashboard() {
     const fetchTransitionData = async () => {
       setIsLoading(true);
       try {
-        // Fetch profile directly (RLS policies handle access control)
+        // Fetch profile by user_id (schema uses separate user_id column)
         const { data: profileData, error: profileError } = await supabase
           .from('transition_profiles')
           .select('*')
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .maybeSingle();
 
         if (profileError) {
@@ -67,27 +67,8 @@ export function TransitionDashboard() {
         }
 
         if (!profileData) {
-          // No profile exists yet - create one
-          const { data: newProfile, error: createError } = await supabase
-            .from('transition_profiles')
-            .insert({
-              id: user.id,
-              user_id: user.id,
-              full_name: user.user_metadata?.full_name || '',
-              email: user.email || '',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Error creating profile:', createError);
-            throw createError;
-          }
-
-          setProfile(newProfile);
-          setIsLoading(false);
+          // No profile yet — let onboarding create it
+          setProfile(null);
           return;
         }
 
@@ -324,26 +305,50 @@ export function TransitionDashboard() {
 
   // Handle onboarding completion
   const handleOnboardingComplete = async (data: OnboardingData) => {
-    if (!profile || !user?.id) return;
+    if (!user?.id) return;
 
     try {
-      const { data: updatedProfile, error } = await supabase
-        .from('transition_profiles')
-        .update({
-          departure_date: data.departure_date.toISOString().split('T')[0],
-          transition_type: data.transition_type,
-          current_phase: 'planning',
-          motivation: data.motivation || null,
-          concerns: data.concerns || [],
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', profile.id)
-        .select()
-        .single();
+      let resultProfile = profile;
 
-      if (error) throw error;
+      // If no profile exists yet, create one with required fields
+      if (!resultProfile) {
+        const { data: created, error: createError } = await supabase
+          .from('transition_profiles')
+          .insert({
+            user_id: user.id,
+            departure_date: data.departure_date.toISOString().split('T')[0],
+            transition_type: data.transition_type,
+            current_phase: 'planning',
+            motivation: data.motivation || null,
+            concerns: data.concerns || [],
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
 
-      setProfile(updatedProfile);
+        if (createError) throw createError;
+        resultProfile = created;
+      } else {
+        // Update existing profile
+        const { data: updatedProfile, error } = await supabase
+          .from('transition_profiles')
+          .update({
+            departure_date: data.departure_date.toISOString().split('T')[0],
+            transition_type: data.transition_type,
+            current_phase: 'planning',
+            motivation: data.motivation || null,
+            concerns: data.concerns || [],
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', resultProfile.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        resultProfile = updatedProfile;
+      }
+
+      setProfile(resultProfile);
       toast.success('Your transition plan is ready!');
     } catch (error) {
       console.error('Error completing onboarding:', error);
@@ -387,12 +392,14 @@ export function TransitionDashboard() {
     );
   }
 
-  // If no profile (shouldn't happen after useEffect creates one), show loading
+  // If no profile yet, show onboarding flow to create it
   if (!profile) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
+      <TransitionOnboarding
+        onComplete={handleOnboardingComplete}
+        onSkip={handleOnboardingSkip}
+        initialDepartureDate={undefined}
+      />
     );
   }
 

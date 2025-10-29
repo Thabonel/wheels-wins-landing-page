@@ -134,7 +134,7 @@ export function ShakedownLogger() {
       const { data, error } = await supabase
         .from('transition_profiles')
         .select('id')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single();
 
       if (error) {
