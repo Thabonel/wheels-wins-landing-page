@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 import uuid
 import asyncio
@@ -12,6 +12,14 @@ from app.core.auth import (
     create_access_token,
     verify_token,
     ACCESS_TOKEN_EXPIRE_MINUTES
+)
+from app.core.validation import (
+    validate_password_strength,
+    sanitize_email,
+    sanitize_name,
+    InputValidationError,
+    PasswordValidationError,
+    get_password_requirements
 )
 from app.services.database import DatabaseService
 from app.services.pam.cache_warming import get_cache_warming_service
@@ -27,6 +35,37 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     full_name: Optional[str] = None
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        """Validate password strength"""
+        is_valid, errors = validate_password_strength(v)
+        if not is_valid:
+            # Create detailed error message
+            error_msg = "Password does not meet requirements:\n" + "\n".join(f"- {err}" for err in errors)
+            raise ValueError(error_msg)
+        return v
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        """Sanitize and validate email"""
+        try:
+            return sanitize_email(v)
+        except InputValidationError as e:
+            raise ValueError(str(e))
+
+    @field_validator('full_name')
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        """Sanitize full name if provided"""
+        if v is None:
+            return None
+        try:
+            return sanitize_name(v)
+        except InputValidationError as e:
+            raise ValueError(str(e))
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -159,6 +198,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def logout():
     """Logout user (client should delete token)"""
     return {"message": "Successfully logged out"}
+
+@router.get("/password-requirements")
+async def get_password_requirements_endpoint():
+    """Get password strength requirements for frontend display"""
+    return {
+        "requirements": get_password_requirements(),
+        "min_length": 8,
+        "max_length": 128
+    }
 
 
 async def _warm_cache_async(user_id: str):
