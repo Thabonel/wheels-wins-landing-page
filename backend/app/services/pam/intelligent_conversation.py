@@ -20,7 +20,9 @@ from app.core.ai_models_config import (
     OpenAIModels, ModelPurpose,
     get_latest_model, get_model_with_fallbacks
 )
-from app.services.pam.tools import LoadUserProfileTool, LoadRecentMemoryTool, ThinkTool
+from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+from app.services.pam.tools.load_recent_memory import LoadRecentMemoryTool
+from app.services.pam.tools.think import ThinkTool
 from app.services.pam.context_engineering.enhanced_context_engine import EnhancedContextEngine
 from app.observability import observe_llm_call, observe_agent
 from app.observability.monitor import global_monitor
