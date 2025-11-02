@@ -142,3 +142,7 @@ e2e/reports/*.json
 
 # MCP Server Configuration (contains service role keys - DO NOT COMMIT)
 .mcp.json
+
+# MCP configuration with secrets
+.claude.json
+scripts/import-mcp-servers.sh

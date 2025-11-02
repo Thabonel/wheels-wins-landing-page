@@ -1,0 +1,75 @@
+// Render with: dot -Tsvg docs/pam/pam_dependency_graph.dot -o docs/pam/pam_dependency_graph.svg
+digraph PAMDependencies {
+  rankdir=LR;
+  node [shape=box, fontsize=10];
+
+  subgraph cluster_frontend {
+    label="Frontend";
+    f_pamService [label="src/services/pamService.ts\nWebSocket client"]; 
+    f_pamApiService [label="src/services/pamApiService.ts\nREST client"]; 
+    f_types [label="src/types/pamContext.ts\ncontext/types+validator"]; 
+    f_voice [label="src/services/pamVoiceService.ts\nvoice glue"]; 
+    f_openai_rt [label="src/services/openaiRealtimeService.ts\nOpenAI Realtime helper"]; 
+  }
+
+  subgraph cluster_backend_api {
+    label="Backend API (FastAPI)";
+    b_pam_main [label="backend/app/api/v1/pam_main.py\nWS + REST + TTS + security"];
+    b_pam_tools [label="backend/app/api/v1/pam_tools.py\nTool exec endpoints"]; 
+    b_pam_realtime [label="backend/app/api/v1/pam_realtime.py\nRealtime helpers"]; 
+    b_main [label="backend/app/main.py\nFastAPI app + routers"];
+  }
+
+  subgraph cluster_backend_services {
+    label="Backend Services";
+    s_core_pam [label="services/pam/core/pam.py\nClaude brain + tools loop"];
+    s_router [label="services/pam/intelligent_router.py\nmodel selection + tracking"];
+    s_prefilter [label="services/pam/tools/tool_prefilter.py\nreduce tool set"];
+    s_security [label="services/pam/security/safety_layer.py\n2-stage safety"];
+    s_db_unified [label="services/pam/database/unified_database_service.py\nDB access"];
+    s_cache [label="services/pam/cache_warming.py\nuser context cache"];
+    s_ai_claude [label="services/ai/claude_service.py\nAnthropic wrapper"];
+    s_ai_openai [label="services/ai/openai_provider.py\nOpenAI provider"];
+    s_tools [label="services/pam/tools/*\naction tools (budget/trip/etc.)"];
+    s_orchestrator [label="services/pam/enhanced_orchestrator.py\norchestrator/agentic path"];
+  }
+
+  subgraph cluster_edge {
+    label="Edge Functions";
+    e_supabase [label="supabase/functions/pam-chat/index.ts\nOpenAI + backend tools bridge"];
+    e_netlify [label="netlify/functions/pam-chat.ts\nVercel AI SDK (mock tools)"];
+  }
+
+  // Frontend → Backend
+  f_pamService -> b_pam_main [label="WS /api/v1/pam/ws/{user_id}"];
+  f_pamApiService -> b_pam_main [label="POST /api/v1/pam/chat"];
+  f_types -> f_pamService;
+  f_types -> f_pamApiService;
+
+  // Backend API wiring
+  b_main -> b_pam_main [label="include_router /api/v1/pam"];
+  b_main -> b_pam_tools [label="include_router /api/v1/pam/tools"];
+  b_main -> b_pam_realtime;
+
+  // Backend API → Services
+  b_pam_main -> s_orchestrator [label="agentic flow (feature flag)"];
+  b_pam_main -> s_core_pam [label="direct brain path"];
+  b_pam_main -> s_security;
+  b_pam_main -> s_db_unified;
+  b_pam_main -> s_cache;
+
+  // Core PAM brain dependencies
+  s_core_pam -> s_ai_claude [label="Anthropic messages.create"];
+  s_core_pam -> s_router [label="model selection"];
+  s_core_pam -> s_prefilter [label="tool filtering"];
+  s_core_pam -> s_tools [label="execute tools"];
+  s_core_pam -> s_security [label="safety checks"];
+  s_core_pam -> s_db_unified [label="persist conv/memory"];
+
+  // Edge functions
+  e_supabase -> s_ai_openai [label="OpenAI chat.completions", style=dashed];
+  e_supabase -> b_pam_tools [label="POST /api/v1/pam/tools/execute/{tool}", style=dashed];
+  e_netlify -> s_ai_openai [label="Vercel AI SDK", style=dashed];
+  e_netlify -> s_ai_claude [label="Vercel AI SDK", style=dashed];
+}
+
