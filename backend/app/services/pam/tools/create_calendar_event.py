@@ -10,10 +10,12 @@ Example usage:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 from uuid import UUID
 
-from supabase import Client
+# Import Client only for type checking to avoid runtime import failures
+if TYPE_CHECKING:
+    from supabase import Client
 
 from .base_tool import BaseTool, ToolResult, ToolCapability
 
@@ -56,7 +58,7 @@ async def create_calendar_event(
     try:
         # Get Supabase service client (bypasses RLS for authorized PAM operations)
         # PAM is already authenticated via WebSocket/JWT, so using service_role is safe
-        supabase: Client = get_supabase_service()
+        supabase = get_supabase_service()  # Type: Client (imported only for type checking)
 
         # Validate event_type - must match frontend CalendarEvent types
         # Frontend only supports: reminder, trip, booking, maintenance, inspection
