@@ -67,7 +67,6 @@ from app.core.import_guard import safe_import_router
 # Import API routers
 from app.api.v1 import (
     health,
-    chat,
     wins,
     wheels,
     social,
@@ -731,7 +730,6 @@ app.include_router(
     health.router, prefix="", tags=["Health"]
 )  # No prefix for /health endpoint
 app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
-app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(wins.router, prefix="/api", tags=["Wins"])
 app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
