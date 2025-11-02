@@ -435,10 +435,13 @@ async def initialize_tool_registry() -> ToolRegistry:
 
 async def _register_all_tools(registry: ToolRegistry):
     """Register all available PAM tools with graceful error handling"""
-    logger.info("📋 Registering PAM tools...")
-    
+    logger.info("=" * 60)
+    logger.info("📋 STARTING PAM TOOL REGISTRATION")
+    logger.info("=" * 60)
+
     registered_count = 0
     failed_count = 0
+    tool_attempt_count = 0
     
     # Financial Tools - Core expense and budget management using WinsNode
     try:
@@ -845,10 +848,17 @@ async def _register_all_tools(registry: ToolRegistry):
     # Registration summary
     total_attempted = registered_count + failed_count
     success_rate = (registered_count / total_attempted * 100) if total_attempted > 0 else 0
-    
-    logger.info(f"✅ PAM tool registration completed: {registered_count}/{total_attempted} tools registered ({success_rate:.1f}% success rate)")
-    
+
+    logger.info("=" * 60)
+    logger.info("📊 PAM TOOL REGISTRATION SUMMARY")
+    logger.info("=" * 60)
+    logger.info(f"✅ Successfully registered: {registered_count} tools")
+    logger.info(f"❌ Failed to register: {failed_count} tools")
+    logger.info(f"📈 Success rate: {success_rate:.1f}%")
+    logger.info(f"🎯 Total tools attempted: {total_attempted}")
+    logger.info("=" * 60)
+
     if failed_count > 0:
         logger.warning(f"⚠️ {failed_count} tools failed to register - PAM will function with reduced capabilities")
-    
+
     return registered_count, failed_count
