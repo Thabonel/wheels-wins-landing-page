@@ -61,7 +61,9 @@ export function TransitionOnboarding({
   existingProfile,
   onSaveStep
 }: TransitionOnboardingProps) {
-  const [step, setStep] = useState(1);
+  // Determine starting step: if Step 1 data exists, start at Step 2
+  const hasStep1Data = existingProfile?.departure_date && existingProfile?.transition_type;
+  const [step, setStep] = useState(hasStep1Data ? 2 : 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form state - Pre-populate from existing profile if available
@@ -78,11 +80,12 @@ export function TransitionOnboarding({
     existingProfile?.concerns?.join('\n') || ''
   );
 
-  // Pre-populate form when existingProfile changes
+  // Pre-populate form when existingProfile changes OR on initial render
   useEffect(() => {
     if (existingProfile) {
       if (existingProfile.departure_date) {
-        setDepartureDate(new Date(existingProfile.departure_date));
+        const date = new Date(existingProfile.departure_date);
+        setDepartureDate(date);
       }
       if (existingProfile.transition_type) {
         setTransitionType(existingProfile.transition_type);
@@ -92,6 +95,11 @@ export function TransitionOnboarding({
       }
       if (existingProfile.concerns && existingProfile.concerns.length > 0) {
         setConcernsText(existingProfile.concerns.join('\n'));
+      }
+
+      // If Step 1 data exists, ensure we're on Step 2
+      if (existingProfile.departure_date && existingProfile.transition_type) {
+        setStep(2);
       }
     }
   }, [existingProfile]);
@@ -121,6 +129,15 @@ export function TransitionOnboarding({
 
   const handleSubmit = async () => {
     if (!departureDate || !transitionType) return;
+
+    // Require at least one field in Step 2 (motivation or concerns)
+    const hasConcerns = concernsText.trim().length > 0;
+    const hasMotivation = motivation.trim().length > 0;
+
+    if (!hasMotivation && !hasConcerns) {
+      // At least one field must be filled in Step 2
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -249,10 +266,14 @@ export function TransitionOnboarding({
 
           {step === 2 && (
             <>
-              {/* Step 2: Motivation and Concerns (Optional) */}
+              {/* Step 2: Motivation and Concerns */}
               <div className="space-y-6">
+                <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                  Please fill in at least one of the fields below to help PAM understand your journey better.
+                </p>
+
                 <div className="space-y-2">
-                  <Label htmlFor="motivation">What's motivating this transition? (Optional)</Label>
+                  <Label htmlFor="motivation">What's motivating this transition?</Label>
                   <Textarea
                     id="motivation"
                     placeholder="e.g., Seeking freedom, downsizing, adventure, early retirement, etc."
@@ -266,7 +287,7 @@ export function TransitionOnboarding({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="concerns">Any concerns or questions? (Optional)</Label>
+                  <Label htmlFor="concerns">Any concerns or questions?</Label>
                   <Textarea
                     id="concerns"
                     placeholder="One concern per line, e.g.:&#10;Finding reliable internet&#10;Managing healthcare on the road&#10;Dealing with mail forwarding"
@@ -288,7 +309,10 @@ export function TransitionOnboarding({
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Button>
-                <Button onClick={handleSubmit} disabled={isSubmitting}>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || (!motivation.trim() && !concernsText.trim())}
+                >
                   {isSubmitting ? 'Saving...' : 'Complete Setup'}
                 </Button>
               </div>

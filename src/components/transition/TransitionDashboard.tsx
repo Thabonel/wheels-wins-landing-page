@@ -586,8 +586,12 @@ export function TransitionDashboard() {
   }
 
   // ALWAYS show onboarding first if not completed
-  // Onboarding is considered complete when transition_type AND current_phase are set
-  const needsOnboarding = !profile.transition_type || !profile.current_phase;
+  // Onboarding is considered complete when we have Step 1 AND Step 2 data
+  // Step 1: transition_type
+  // Step 2: At least one of motivation or concerns must exist (both are optional, but user must complete Step 2)
+  const hasStep1 = !!profile.transition_type;
+  const hasStep2 = !!(profile.motivation || (profile.concerns && profile.concerns.length > 0));
+  const needsOnboarding = !hasStep1 || !hasStep2;
 
   if (needsOnboarding) {
     return (
