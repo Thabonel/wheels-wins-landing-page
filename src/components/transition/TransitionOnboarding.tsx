@@ -83,13 +83,22 @@ export function TransitionOnboarding({
   // Pre-populate form when existingProfile changes OR on initial render
   useEffect(() => {
     if (existingProfile) {
+      console.log('🔍 Loading existing profile:', existingProfile);
+
       if (existingProfile.departure_date) {
         const date = new Date(existingProfile.departure_date);
+        console.log('📅 Setting departure date:', date);
         setDepartureDate(date);
       }
+
       if (existingProfile.transition_type) {
+        console.log('🎯 Setting transition type:', existingProfile.transition_type);
+        console.log('🎯 Type matches:', TRANSITION_TYPES.find(t => t.value === existingProfile.transition_type));
         setTransitionType(existingProfile.transition_type);
+      } else {
+        console.log('⚠️ No transition_type in existing profile');
       }
+
       if (existingProfile.motivation) {
         setMotivation(existingProfile.motivation);
       }
@@ -99,6 +108,7 @@ export function TransitionOnboarding({
 
       // If Step 1 data exists, ensure we're on Step 2
       if (existingProfile.departure_date && existingProfile.transition_type) {
+        console.log('✅ Step 1 complete, advancing to Step 2');
         setStep(2);
       }
     }
@@ -159,6 +169,14 @@ export function TransitionOnboarding({
   };
 
   const canProceedFromStep1 = !!departureDate && !!transitionType;
+
+  // Debug: Log current state on every render
+  console.log('🎨 Render state:', {
+    step,
+    departureDate,
+    transitionType,
+    canProceedFromStep1
+  });
 
   return (
     <div className="max-w-2xl mx-auto p-6">
