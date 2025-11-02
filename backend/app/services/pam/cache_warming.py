@@ -129,27 +129,33 @@ class CacheWarmingService:
             return results
 
     async def _cache_user_profile(self, user_id: str) -> Dict[str, Any]:
-        """Fetch and cache user profile"""
+        """Fetch and cache user profile (ENRICHED format for PAM compatibility)"""
         try:
-            supabase = self.database_service.client
+            # CRITICAL FIX: Use LoadUserProfileTool to get ENRICHED profile
+            # This ensures cached format matches what PAM expects (vehicle_info, travel_preferences, etc.)
+            from app.services.pam.tools.load_user_profile import LoadUserProfileTool
 
-            # Fetch profile from database
-            profile_result = supabase.table('profiles').select('*').eq('id', user_id).single().execute()
+            profile_tool = LoadUserProfileTool()
+            profile_result = await profile_tool.execute(user_id)
 
-            if not profile_result.data:
+            if not profile_result.get("success") or not profile_result.get("result", {}).get("profile_exists"):
+                logger.warning(f"No profile found for user {user_id} during cache warming")
                 return {'success': False, 'size_bytes': 0}
 
-            profile = profile_result.data
+            # Get the ENRICHED profile (with nested vehicle_info, travel_preferences, etc.)
+            enriched_profile = profile_result["result"]
 
-            # Store in Redis
+            # Store ENRICHED profile in Redis (not raw Supabase data)
             cache_key = f"user_profile:{user_id}"
-            profile_json = json.dumps(profile)
+            profile_json = json.dumps(enriched_profile)
 
             await self.redis_client.setex(
                 cache_key,
                 self.ttl_config['profile'],
                 profile_json
             )
+
+            logger.info(f"✅ Cached ENRICHED profile for user {user_id} (vehicle: {enriched_profile.get('vehicle_info', {}).get('type', 'unknown')})")
 
             return {
                 'success': True,
