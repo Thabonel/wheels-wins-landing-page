@@ -66,7 +66,6 @@ except Exception:
 # LangGraph Agent Integration
 from app.core.feature_flags import feature_flags, is_feature_enabled
 from app.agents.orchestrator import PAMAgentOrchestrator
-from app.agents.orchestrator_enhanced import create_enhanced_orchestrator
 import os
 
 # Initialize LangGraph orchestrator if feature is enabled
