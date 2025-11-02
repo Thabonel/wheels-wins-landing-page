@@ -1182,6 +1182,20 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 context["travel_preferences"] = user_profile.get("travel_preferences", {})
                 context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
             else:
+                # Cache miss - trigger full cache warming for this user
+                logger.info(f"🔥 [CACHE WARMING] Profile cache miss - triggering full cache warming for user {user_id}")
+                try:
+                    from app.services.pam.cache_warming import get_cache_warming_service
+                    cache_service = await get_cache_warming_service()
+
+                    # Warm cache asynchronously (don't block message)
+                    import asyncio
+                    asyncio.create_task(cache_service.warm_user_cache(user_id))
+                    logger.info(f"🔥 [CACHE WARMING] Triggered for user {user_id} (async)")
+                except Exception as e:
+                    logger.error(f"❌ [CACHE WARMING] Failed to trigger: {e}")
+                    # Continue with database fallback
+
                 # Cache miss - load from database
                 from app.services.pam.tools.load_user_profile import LoadUserProfileTool
                 profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
