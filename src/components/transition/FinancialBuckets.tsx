@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type {
-  TransitionFinancialItem,
+  TransitionFinancial as TransitionFinancialItem,
   FinancialBucketType,
 } from '@/types/transition.types';
 
@@ -108,6 +108,7 @@ export function FinancialBuckets({
   const [formData, setFormData] = useState({
     category: '',
     customCategory: '',
+    subcategory: '',
     estimated_amount: '',
     current_amount: '',
   });
@@ -153,6 +154,7 @@ export function FinancialBuckets({
     setFormData({
       category: '',
       customCategory: '',
+      subcategory: '',
       estimated_amount: '',
       current_amount: '0',
     });
@@ -171,6 +173,7 @@ export function FinancialBuckets({
     setFormData({
       category: isDefaultCategory ? item.category : 'Other',
       customCategory: isDefaultCategory ? '' : item.category,
+      subcategory: item.subcategory || '',
       estimated_amount: item.estimated_amount.toString(),
       current_amount: item.current_amount.toString(),
     });
@@ -183,15 +186,19 @@ export function FinancialBuckets({
       ? formData.customCategory
       : formData.category;
 
-    if (!category || !formData.estimated_amount) {
-      return; // Basic validation
+    if (!category || !formData.estimated_amount || !formData.subcategory.trim()) {
+      return; // Basic validation - category, amount, and item description required
     }
 
     const itemData = {
       bucket_type: selectedBucket,
       category,
+      subcategory: formData.subcategory.trim() || null,
       estimated_amount: parseFloat(formData.estimated_amount),
       current_amount: parseFloat(formData.current_amount || '0'),
+      priority: 'medium' as const,
+      notes: null,
+      due_date: null,
     };
 
     if (editingItem) {
@@ -269,7 +276,14 @@ export function FinancialBuckets({
                       >
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-sm">{item.category}</span>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm">
+                                {item.subcategory || item.category}
+                              </span>
+                              {item.subcategory && (
+                                <span className="text-xs text-gray-500">{item.category}</span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2">
                               <span className="text-sm text-gray-600">
                                 {formatCurrency(Number(item.current_amount))} /{' '}
@@ -381,6 +395,24 @@ export function FinancialBuckets({
                 />
               </div>
             )}
+
+            {/* Item Description - appears for ALL categories */}
+            <div className="space-y-2">
+              <Label htmlFor="subcategory">
+                Item Description <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="subcategory"
+                value={formData.subcategory}
+                onChange={(e) =>
+                  setFormData({ ...formData, subcategory: e.target.value })
+                }
+                placeholder="e.g., Solar panels, New tires, Awning installation"
+              />
+              <p className="text-xs text-gray-500">
+                Describe exactly what this cost item is for
+              </p>
+            </div>
 
             {/* Estimated Amount */}
             <div className="space-y-2">
