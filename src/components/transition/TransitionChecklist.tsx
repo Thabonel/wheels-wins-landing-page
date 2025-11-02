@@ -33,7 +33,7 @@ export function TransitionChecklist({
       acc[task.category] = [];
     }
     acc[task.category].push(task);
-    return {};
+    return acc;
   }, {} as Record<TaskCategory, TransitionTask[]>);
 
   // Calculate category progress

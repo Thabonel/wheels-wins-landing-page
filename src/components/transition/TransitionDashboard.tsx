@@ -13,7 +13,9 @@ import { CommunityHub } from './CommunityHub';
 import { TransitionSupport } from './TransitionSupport';
 import { LaunchWeekPlanner } from './LaunchWeekPlanner';
 import { TransitionSettingsDialog } from './TransitionSettingsDialog';
-import { TransitionOnboarding, type OnboardingData } from './TransitionOnboarding';
+import { TransitionOnboarding } from './TransitionOnboarding';
+import type { OnboardingData } from './TransitionOnboarding';
+import { AddTaskDialog } from './AddTaskDialog';
 import { Button } from '@/components/ui/button';
 import { Settings, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -22,6 +24,9 @@ import type {
   TransitionTask,
   TransitionTimeline as TimelineEvent,
   TransitionFinancialItem,
+  TaskCategory,
+  TaskPriority,
+  ChecklistItem,
 } from '@/types/transition.types';
 
 /**
@@ -38,6 +43,7 @@ export function TransitionDashboard() {
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [financialItems, setFinancialItems] = useState<TransitionFinancialItem[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
 
   // Calculate days until departure (handle null gracefully)
   const daysUntilDeparture = profile?.departure_date
@@ -284,10 +290,60 @@ export function TransitionDashboard() {
     }
   };
 
-  // Placeholder handlers
-  const handleAddTask = () => {
-    console.log('Add task');
-    // TODO: Open task creation modal
+  // Handle adding a new task
+  const handleAddTask = async (taskData: {
+    title: string;
+    description?: string;
+    category: TaskCategory;
+    priority?: TaskPriority;
+    milestone?: string;
+    days_before_departure?: number;
+    checklist_items?: Omit<ChecklistItem, 'id'>[];
+  }) => {
+    if (!profile || !user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('transition_tasks')
+        .insert({
+          profile_id: profile.id,
+          user_id: user.id,
+          title: taskData.title,
+          description: taskData.description || null,
+          category: taskData.category,
+          priority: taskData.priority || 'medium',
+          milestone: taskData.milestone || null,
+          days_before_departure: taskData.days_before_departure || null,
+          checklist_items: taskData.checklist_items
+            ? taskData.checklist_items.map((item) => ({
+                id: crypto.randomUUID(),
+                text: item.text,
+                is_completed: item.is_completed,
+              }))
+            : [],
+          is_system_task: false,
+          is_completed: false,
+          depends_on_task_ids: [],
+          blocks_task_ids: [],
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Add to local state
+      setTasks((prev) => [...prev, data]);
+      toast.success('Task added successfully!');
+    } catch (error) {
+      console.error('Error adding task:', error);
+      toast.error('Failed to add task. Please try again.');
+      throw error;
+    }
+  };
+
+  // Open the add task dialog
+  const handleOpenAddTask = () => {
+    setAddTaskOpen(true);
   };
 
   const handleAddMilestone = () => {
@@ -414,6 +470,99 @@ export function TransitionDashboard() {
     }
   };
 
+  // Handle incremental save during onboarding (saves after each step)
+  const handleSaveOnboardingStep = async (stepData: Partial<OnboardingData>) => {
+    if (!user?.id) return;
+
+    try {
+      let resultProfile = profile;
+
+      // If no profile exists yet, create one
+      if (!resultProfile) {
+        let created = null;
+        let createError: any = null;
+
+        try {
+          const res = await supabase
+            .from('transition_profiles')
+            .insert({
+              user_id: user.id,
+              departure_date: stepData.departure_date
+                ? stepData.departure_date.toISOString().split('T')[0]
+                : null,
+              transition_type: stepData.transition_type || null,
+              current_phase: 'planning',
+              motivation: stepData.motivation || null,
+              concerns: stepData.concerns || [],
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+          created = res.data;
+          createError = res.error;
+        } catch (e) {
+          createError = e;
+        }
+
+        // Fallback: use RPC helper if RLS blocks direct insert (403)
+        if (createError) {
+          try {
+            const { data: rpcProfile, error: rpcError } = await supabase.rpc(
+              'start_transition_profile',
+              {
+                p_departure_date: stepData.departure_date
+                  ? stepData.departure_date.toISOString().split('T')[0]
+                  : null,
+                p_is_enabled: true,
+              }
+            );
+
+            if (rpcError) throw rpcError;
+            resultProfile = Array.isArray(rpcProfile) ? rpcProfile[0] : rpcProfile;
+          } catch (rpcErr) {
+            console.error('RPC start_transition_profile failed:', rpcErr);
+            throw createError;
+          }
+        } else {
+          resultProfile = created;
+        }
+      } else {
+        // Update existing profile with partial data
+        const updateData: any = {
+          updated_at: new Date().toISOString(),
+        };
+
+        if (stepData.departure_date) {
+          updateData.departure_date = stepData.departure_date.toISOString().split('T')[0];
+        }
+        if (stepData.transition_type) {
+          updateData.transition_type = stepData.transition_type;
+        }
+        if (stepData.motivation !== undefined) {
+          updateData.motivation = stepData.motivation || null;
+        }
+        if (stepData.concerns !== undefined) {
+          updateData.concerns = stepData.concerns || [];
+        }
+
+        const { data: updatedProfile, error } = await supabase
+          .from('transition_profiles')
+          .update(updateData)
+          .eq('id', resultProfile.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        resultProfile = updatedProfile;
+      }
+
+      setProfile(resultProfile);
+    } catch (error) {
+      console.error('Error saving onboarding step:', error);
+      throw error; // Re-throw so the onboarding component can show an error
+    }
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -429,7 +578,9 @@ export function TransitionDashboard() {
       <TransitionOnboarding
         onComplete={handleOnboardingComplete}
         onSkip={handleOnboardingSkip}
+        onSaveStep={handleSaveOnboardingStep}
         initialDepartureDate={undefined}
+        existingProfile={null}
       />
     );
   }
@@ -443,9 +594,11 @@ export function TransitionDashboard() {
       <TransitionOnboarding
         onComplete={handleOnboardingComplete}
         onSkip={handleOnboardingSkip}
+        onSaveStep={handleSaveOnboardingStep}
         initialDepartureDate={
           profile.departure_date ? new Date(profile.departure_date) : undefined
         }
+        existingProfile={profile}
       />
     );
   }
@@ -486,7 +639,7 @@ export function TransitionDashboard() {
             tasks={tasks}
             onToggleTask={handleToggleTask}
             onToggleSubTask={handleToggleSubTask}
-            onAddTask={handleAddTask}
+            onAddTask={handleOpenAddTask}
           />
         </div>
 
@@ -554,6 +707,13 @@ export function TransitionDashboard() {
           onUpdate={handleProfileUpdate}
         />
       )}
+
+      {/* Add Task Dialog */}
+      <AddTaskDialog
+        open={addTaskOpen}
+        onOpenChange={setAddTaskOpen}
+        onAddTask={handleAddTask}
+      />
     </div>
   );
 }
