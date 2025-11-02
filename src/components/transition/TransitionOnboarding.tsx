@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -9,12 +9,15 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { CalendarIcon, ArrowRight, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { TransitionType } from '@/types/transition.types';
+import { toast } from 'sonner';
+import type { TransitionType, TransitionProfile } from '@/types/transition.types';
 
 interface TransitionOnboardingProps {
   onComplete: (data: OnboardingData) => Promise<void>;
   onSkip?: () => void;
   initialDepartureDate?: Date;
+  existingProfile?: TransitionProfile | null;
+  onSaveStep?: (data: Partial<OnboardingData>) => Promise<void>;
 }
 
 export interface OnboardingData {
@@ -54,18 +57,67 @@ const TRANSITION_TYPES: { value: TransitionType; label: string; description: str
 export function TransitionOnboarding({
   onComplete,
   onSkip,
-  initialDepartureDate
+  initialDepartureDate,
+  existingProfile,
+  onSaveStep
 }: TransitionOnboardingProps) {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form state
+  // Form state - Pre-populate from existing profile if available
   const [departureDate, setDepartureDate] = useState<Date | undefined>(
-    initialDepartureDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days from now
+    existingProfile?.departure_date
+      ? new Date(existingProfile.departure_date)
+      : initialDepartureDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // 90 days from now
   );
-  const [transitionType, setTransitionType] = useState<TransitionType | undefined>();
-  const [motivation, setMotivation] = useState('');
-  const [concernsText, setConcernsText] = useState('');
+  const [transitionType, setTransitionType] = useState<TransitionType | undefined>(
+    existingProfile?.transition_type || undefined
+  );
+  const [motivation, setMotivation] = useState(existingProfile?.motivation || '');
+  const [concernsText, setConcernsText] = useState(
+    existingProfile?.concerns?.join('\n') || ''
+  );
+
+  // Pre-populate form when existingProfile changes
+  useEffect(() => {
+    if (existingProfile) {
+      if (existingProfile.departure_date) {
+        setDepartureDate(new Date(existingProfile.departure_date));
+      }
+      if (existingProfile.transition_type) {
+        setTransitionType(existingProfile.transition_type);
+      }
+      if (existingProfile.motivation) {
+        setMotivation(existingProfile.motivation);
+      }
+      if (existingProfile.concerns && existingProfile.concerns.length > 0) {
+        setConcernsText(existingProfile.concerns.join('\n'));
+      }
+    }
+  }, [existingProfile]);
+
+  // Save step 1 data before proceeding to step 2
+  const handleNextStep = async () => {
+    if (!departureDate || !transitionType) return;
+
+    setIsSubmitting(true);
+    try {
+      // Save step 1 data incrementally
+      if (onSaveStep) {
+        await onSaveStep({
+          departure_date: departureDate,
+          transition_type: transitionType,
+        });
+        toast.success('Progress saved!');
+      }
+      setStep(2);
+    } catch (error) {
+      console.error('Error saving step 1:', error);
+      toast.error('Failed to save progress. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!departureDate || !transitionType) return;
@@ -186,10 +238,10 @@ export function TransitionOnboarding({
                   Skip for now
                 </Button>
                 <Button
-                  onClick={() => setStep(2)}
-                  disabled={!canProceedFromStep1}
+                  onClick={handleNextStep}
+                  disabled={!canProceedFromStep1 || isSubmitting}
                 >
-                  Next <ArrowRight className="ml-2 h-4 w-4" />
+                  {isSubmitting ? 'Saving...' : 'Next'} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </>
