@@ -38,6 +38,11 @@ class ToolCapability(Enum):
     CALCULATION = "calculation"
     EXTERNAL_API = "external_api"
 
+    # Tool Actions
+    ACTION = "action"  # Tools that perform actions (create, update, delete)
+    WRITE = "write"    # Tools that write/modify data
+    READ = "read"      # Tools that read data
+
 
 # Compatibility mapping for migration
 CAPABILITY_ALIASES = {
