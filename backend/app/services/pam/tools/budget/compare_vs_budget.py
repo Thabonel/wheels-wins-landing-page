@@ -5,18 +5,25 @@ Compares actual spending vs budgeted amounts
 Example usage:
 - "How am I doing vs my budget?"
 - "Am I on track with my budget?"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+from pydantic import ValidationError
+
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.budget import CompareVsBudgetInput
 
 logger = logging.getLogger(__name__)
 
 
 async def compare_vs_budget(
     user_id: str,
+    category: Optional[str] = None,
+    period: str = "monthly",
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -24,21 +31,50 @@ async def compare_vs_budget(
 
     Args:
         user_id: UUID of the user
+        category: Optional specific category to compare
+        period: Budget period (default: monthly)
 
     Returns:
         Dict with comparison data
     """
     try:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = CompareVsBudgetInput(
+                user_id=user_id,
+                category=category,
+                period=period
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "error": f"Invalid input: {error_msg}"
+            }
+
         supabase = get_supabase_client()
 
         # Get current month
         month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        # Get expenses for current month
-        expenses = supabase.table("expenses").select("category, amount").eq("user_id", user_id).gte("date", month_start.isoformat()).execute()
+        # Get expenses for current month using validated user_id
+        expense_query = supabase.table("expenses").select("category, amount").eq("user_id", validated.user_id).gte("date", month_start.isoformat())
 
-        # Get budgets
-        budgets = supabase.table("budgets").select("*").eq("user_id", user_id).execute()
+        # Filter by category if specified
+        if validated.category:
+            expense_query = expense_query.eq("category", validated.category.lower())
+
+        expenses = expense_query.execute()
+
+        # Get budgets using validated user_id
+        budget_query = supabase.table("budgets").select("*").eq("user_id", validated.user_id)
+
+        # Filter by category if specified
+        if validated.category:
+            budget_query = budget_query.eq("category", validated.category.lower())
+
+        budgets = budget_query.execute()
 
         # Calculate spending by category
         spending = {}
@@ -66,6 +102,8 @@ async def compare_vs_budget(
 
         return {
             "success": True,
+            "period": validated.period,
+            "category_filter": validated.category,
             "comparisons": comparisons
         }
 
