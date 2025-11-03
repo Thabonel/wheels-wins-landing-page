@@ -5,12 +5,17 @@ AI-powered suggestions for saving money
 Example usage:
 - "Where can I save money?"
 - "Find ways to cut my spending"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict
+from pydantic import ValidationError
+
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.budget import FindSavingsOpportunitiesInput
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +34,24 @@ async def find_savings_opportunities(
         Dict with savings suggestions
     """
     try:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = FindSavingsOpportunitiesInput(
+                user_id=user_id
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "error": f"Invalid input: {error_msg}"
+            }
+
         supabase = get_supabase_client()
 
-        # Get last 60 days of expenses
+        # Get last 60 days of expenses using validated user_id
         start_date = datetime.now() - timedelta(days=60)
-        expenses = supabase.table("expenses").select("*").eq("user_id", user_id).gte("date", start_date.isoformat()).execute()
+        expenses = supabase.table("expenses").select("*").eq("user_id", validated.user_id).gte("date", start_date.isoformat()).execute()
 
         # Analyze spending patterns
         spending_by_category = {}

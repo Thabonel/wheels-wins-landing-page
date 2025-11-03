@@ -6,12 +6,17 @@ Example usage:
 - "How's my budget looking?"
 - "Analyze my spending this month"
 - "Am I over budget anywhere?"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict
+from pydantic import ValidationError
+
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.budget import AnalyzeBudgetInput
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +35,29 @@ async def analyze_budget(
         Dict with budget analysis
     """
     try:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = AnalyzeBudgetInput(
+                user_id=user_id
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "error": f"Invalid input: {error_msg}"
+            }
+
         supabase = get_supabase_client()
 
         # Get current month start
         month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        # Get all expenses for current month
-        expenses_response = supabase.table("expenses").select("*").eq("user_id", user_id).gte("date", month_start.isoformat()).execute()
+        # Get all expenses for current month using validated user_id
+        expenses_response = supabase.table("expenses").select("*").eq("user_id", validated.user_id).gte("date", month_start.isoformat()).execute()
 
-        # Get user's budgets
-        budgets_response = supabase.table("budgets").select("*").eq("user_id", user_id).execute()
+        # Get user's budgets using validated user_id
+        budgets_response = supabase.table("budgets").select("*").eq("user_id", validated.user_id).execute()
 
         expenses = expenses_response.data if expenses_response.data else []
         budgets = budgets_response.data if budgets_response.data else []
