@@ -5,11 +5,16 @@ Auto-categorize expenses based on description
 Example usage:
 - "Categorize my Shell station purchase"
 - "What category is this expense?"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+from pydantic import ValidationError
+
+from app.services.pam.schemas.budget import CategorizeTransactionInput
 
 logger = logging.getLogger(__name__)
 
@@ -30,22 +35,42 @@ CATEGORY_PATTERNS = {
 
 
 async def categorize_transaction(
+    user_id: str,
     description: str,
-    amount: float = None,
+    amount: Optional[float] = None,
+    merchant: Optional[str] = None,
     **kwargs
 ) -> Dict[str, Any]:
     """
     Auto-categorize a transaction based on description
 
     Args:
+        user_id: UUID of the user (not used in categorization logic)
         description: Transaction description
         amount: Optional amount (for context)
+        merchant: Optional merchant name
 
     Returns:
         Dict with suggested category
     """
     try:
-        description_lower = description.lower()
+        # Validate inputs using Pydantic schema
+        try:
+            validated = CategorizeTransactionInput(
+                user_id=user_id,
+                description=description,
+                amount=amount,
+                merchant=merchant
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "error": f"Invalid input: {error_msg}"
+            }
+
+        description_lower = validated.description.lower()
 
         # Check each category pattern
         for category, pattern in CATEGORY_PATTERNS.items():
@@ -54,7 +79,9 @@ async def categorize_transaction(
                     "success": True,
                     "category": category,
                     "confidence": "high",
-                    "description": description
+                    "description": validated.description,
+                    "amount": validated.amount,
+                    "merchant": validated.merchant
                 }
 
         # Default to "other" if no match
@@ -62,7 +89,9 @@ async def categorize_transaction(
             "success": True,
             "category": "other",
             "confidence": "low",
-            "description": description
+            "description": validated.description,
+            "amount": validated.amount,
+            "merchant": validated.merchant
         }
 
     except Exception as e:
