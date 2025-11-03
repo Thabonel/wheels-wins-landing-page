@@ -339,6 +339,34 @@ async def chat_with_claude(
     import time
     start_time = time.time()
 
+    # Build enhanced system prompt with user context
+    system_prompt = PAM_SYSTEM_PROMPT
+
+    if user_context:
+        context_info = []
+
+        # Add location if available
+        if user_loc := user_context.get("user_location"):
+            city = user_loc.get("city", "Unknown")
+            country = user_loc.get("country", "Unknown")
+            lat = user_loc.get("lat")
+            lng = user_loc.get("lng")
+            timezone = user_loc.get("timezone", "Unknown")
+            context_info.append(f"User Location: {city}, {country} (coordinates: {lat}, {lng}, timezone: {timezone})")
+
+        # Add vehicle info if available
+        if vehicle := user_context.get("vehicle_info"):
+            vehicle_type = vehicle.get("type", "RV")
+            make_model = vehicle.get("make_model", "")
+            if make_model:
+                context_info.append(f"Vehicle: {vehicle_type} ({make_model})")
+            else:
+                context_info.append(f"Vehicle: {vehicle_type}")
+
+        if context_info:
+            system_prompt += "\n\nUser Context:\n" + "\n".join(context_info)
+            logger.info(f"✅ Enhanced system prompt with user context: {', '.join(context_info)}")
+
     try:
         # Fast pre-filter (Barry's trick)
         prefilter_start = time.time()
@@ -354,7 +382,7 @@ async def chat_with_claude(
                 anthropic_client.messages.create(
                     model=CLAUDE_MODEL,
                     max_tokens=MAX_TOKENS,
-                    system=PAM_SYSTEM_PROMPT,
+                    system=system_prompt,
                     messages=[{"role": "user", "content": message}]
                 ),
                 timeout=CLAUDE_TIMEOUT_SECONDS
@@ -385,7 +413,7 @@ async def chat_with_claude(
             anthropic_client.messages.create(
                 model=CLAUDE_MODEL,
                 max_tokens=MAX_TOKENS,
-                system=PAM_SYSTEM_PROMPT,
+                system=system_prompt,
                 messages=messages,
                 tools=tools
             ),
@@ -580,10 +608,14 @@ async def pam_simple_chat_rest(request: Dict[str, Any]):
     try:
         message = request.get("message", "")
         user_id = request.get("user_id", "test-user")
+        context = request.get("context", {})  # ✅ Extract user context
+
+        logger.info(f"📍 Context received: user_location={bool(context.get('user_location'))}, keys={list(context.keys())}")
 
         response = await chat_with_claude(
             message=message,
-            user_id=user_id
+            user_id=user_id,
+            user_context=context  # ✅ Pass context to Claude
         )
 
         return {
