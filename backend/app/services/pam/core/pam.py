@@ -91,12 +91,7 @@ from app.services.pam.tools.social.share_location import share_location
 from app.services.pam.tools.social.find_nearby_rvers import find_nearby_rvers
 from app.services.pam.tools.social.create_event import create_event
 
-# Import shop tools
-from app.services.pam.tools.shop.search_products import search_products
-from app.services.pam.tools.shop.add_to_cart import add_to_cart
-from app.services.pam.tools.shop.get_cart import get_cart
-from app.services.pam.tools.shop.checkout import checkout
-from app.services.pam.tools.shop.track_order import track_order
+# Shop tools (AMENDMENT #3): Archived to backend/archive/shop_tools/ for Phase 2
 
 # Import profile tools
 from app.services.pam.tools.profile.update_profile import update_profile
@@ -115,12 +110,7 @@ from app.services.pam.tools.create_calendar_event import create_calendar_event
 from app.services.pam.tools.update_calendar_event import update_calendar_event
 from app.services.pam.tools.delete_calendar_event import delete_calendar_event
 
-# Import transition tools (life management)
-from app.services.pam.tools.transition.analyze_room_progress import analyze_room_progress
-from app.services.pam.tools.transition.downsizing_decision_help import downsizing_decision_help
-from app.services.pam.tools.transition.digital_service_reminder import digital_service_reminder
-from app.services.pam.tools.transition.income_stream_analyzer import income_stream_analyzer
-from app.services.pam.tools.transition.suggest_next_room import suggest_next_room
+# Transition tools (AMENDMENT #5): Archived to backend/archive/transition_tools/ (not in official architecture)
 
 logger = logging.getLogger(__name__)
 
@@ -694,125 +684,8 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     "required": ["title", "description", "event_date", "location"]
                 }
             },
-            # Shop tools
-            {
-                "name": "search_products",
-                "description": "Search for RV parts and gear in the shop. Use when user wants to find products.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "Search query"},
-                        "category": {"type": "string", "description": "Optional category filter"},
-                        "max_price": {"type": "number", "description": "Optional max price filter"},
-                        "min_rating": {"type": "number", "description": "Optional min rating (1-5)"},
-                        "limit": {"type": "integer", "description": "Max results (default: 20)"}
-                    },
-                    "required": ["query"]
-                }
-            },
-            {
-                "name": "add_to_cart",
-                "description": "Add product to shopping cart. Use when user wants to purchase items.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "product_id": {"type": "string", "description": "UUID of the product"},
-                        "quantity": {"type": "integer", "description": "Quantity to add (default: 1)"}
-                    },
-                    "required": ["product_id"]
-                }
-            },
-            {
-                "name": "get_cart",
-                "description": "View shopping cart contents. Use when user wants to see their cart.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            },
-            {
-                "name": "checkout",
-                "description": "Complete purchase from cart. Use when user wants to checkout.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "payment_method_id": {"type": "string", "description": "Optional payment method ID"},
-                        "shipping_address_id": {"type": "string", "description": "Optional shipping address ID"}
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "track_order",
-                "description": "Track order status and shipping. Use when user wants to check order status.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "order_id": {"type": "string", "description": "Optional order UUID"},
-                        "order_number": {"type": "string", "description": "Optional order number (e.g., ORD-12345)"}
-                    },
-                    "required": []
-                }
-            },
-            # Transition tools (life management for RV transition)
-            {
-                "name": "analyze_room_progress",
-                "description": "Analyze downsizing progress across all rooms. Use when user asks about their downsizing progress or which rooms still need work.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "include_details": {"type": "boolean", "description": "Include room-by-room breakdown (default: true)"}
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "downsizing_decision_help",
-                "description": "Help make keep/sell/donate decisions for items. Use when user needs help deciding what to do with belongings.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "item_name": {"type": "string", "description": "Name of the item"},
-                        "category": {"type": "string", "description": "Optional category (furniture, electronics, clothing, etc.)"},
-                        "estimated_value": {"type": "number", "description": "Optional estimated resale value in USD"},
-                        "emotional_difficulty": {"type": "integer", "description": "Optional emotional difficulty rating (1=easy to 5=very difficult)"}
-                    },
-                    "required": ["item_name"]
-                }
-            },
-            {
-                "name": "digital_service_reminder",
-                "description": "Get reminders for pending digital life services (cancellations, consolidations, digitization). Use when user asks about services to cancel or digital tasks.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "service_type": {"type": "string", "enum": ["cancellation", "consolidation", "digitization"], "description": "Optional filter by service type"},
-                        "include_completed": {"type": "boolean", "description": "Include completed services (default: false)"}
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "income_stream_analyzer",
-                "description": "Analyze income stream setup and diversity. Use when user asks about their income streams or readiness for nomadic life.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "include_recommendations": {"type": "boolean", "description": "Include setup recommendations (default: true)"}
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "suggest_next_room",
-                "description": "Suggest which room to tackle next based on intelligent prioritization. Use when user asks which room to work on or what to focus on.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            },
+            # Shop tools (AMENDMENT #3): 5 tools archived to backend/archive/shop_tools/ for Phase 2
+            # Transition tools (AMENDMENT #5): 5 tools archived to backend/archive/transition_tools/
             # Profile tools
             {
                 "name": "update_profile",
@@ -1447,12 +1320,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             "share_location": share_location,
             "find_nearby_rvers": find_nearby_rvers,
             "create_event": create_event,
-            # Shop tools
-            "search_products": search_products,
-            "add_to_cart": add_to_cart,
-            "get_cart": get_cart,
-            "checkout": checkout,
-            "track_order": track_order,
+            # Shop tools (AMENDMENT #3): Archived for Phase 2
             # Profile tools
             "update_profile": update_profile,
             "update_settings": update_settings,
@@ -1466,13 +1334,8 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             # Calendar tools
             "create_calendar_event": create_calendar_event,
             "update_calendar_event": update_calendar_event,
-            "delete_calendar_event": delete_calendar_event,
-            # Transition tools (life management)
-            "analyze_room_progress": analyze_room_progress,
-            "downsizing_decision_help": downsizing_decision_help,
-            "digital_service_reminder": digital_service_reminder,
-            "income_stream_analyzer": income_stream_analyzer,
-            "suggest_next_room": suggest_next_room
+            "delete_calendar_event": delete_calendar_event
+            # Transition tools (AMENDMENT #5): Archived (not in official architecture)
         }
 
         for block in content:
