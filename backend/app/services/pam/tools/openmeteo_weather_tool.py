@@ -15,8 +15,8 @@ from datetime import datetime
 from app.services.pam.tools.base_tool import BaseTool
 from app.services.pam.tools.tool_capabilities import ToolCapability
 
-# Import the working OpenMeteo functions from pam_2
-from app.services.pam_2.tools.weather import get_weather, get_weather_forecast
+# Import the working OpenMeteo functions (AMENDMENT #3: Restored from backup, now in PAM tools)
+from app.services.pam.tools.weather import get_weather, get_weather_forecast
 
 logger = logging.getLogger(__name__)
 
