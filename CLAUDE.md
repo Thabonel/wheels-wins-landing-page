@@ -12,12 +12,14 @@
   - **READ THIS FIRST** on every new session
 
 **Future PAM Hardening (Post-Launch):**
-- **@docs/PAM_SCAFFOLDING_PLAN.md** - Production hardening roadmap
-  - 3-phase implementation plan (3 weeks)
-  - Circuit breakers, rate limiting, graceful degradation
-  - Observability, monitoring, and alerting
-  - Load testing and chaos engineering
-  - **IMPLEMENT AFTER** core PAM is operational and tested with users
+When implementing production hardening, read `docs/PAM_SCAFFOLDING_PLAN.md`
+
+**Quick Summary (full plan: 48k chars, 3-week timeline):**
+- **Phase 1** (Week 1): WebSocket resilience, circuit breakers, DB pooling
+- **Phase 2** (Week 2): External API caching, security hardening, audit logging
+- **Phase 3** (Week 3): Observability dashboard, chaos testing, auto-scaling
+- **Full details**: Includes code examples, implementation checklists, success metrics
+- **READ ONLY WHEN IMPLEMENTING** (not loaded by default to save context)
 
 ### Database Queries
 **Before writing ANY database queries, read:**
