@@ -1,25 +1,39 @@
-# PAM Tools Fix Plan - Complete Action Plan
+# PAM Tools Fix Plan - Complete Action Plan (AMENDED)
 
 **Generated:** November 4, 2025
+**Amended:** November 4, 2025 (resolved contradictions)
 **Purpose:** Master plan to get all PAM tools working
-**Status:** Analysis Complete - Ready for Execution
+**Status:** ✅ APPROVED WITH AMENDMENTS - Ready for Execution
+
+**SEE ALSO:** `PAM_FIX_AMENDMENTS_CHECKLIST.md` for detailed PR checklists
 
 ---
 
 ## Executive Summary
 
-**Current State:**
+**Current State (AMENDED):**
 - **Total Tools Found:** 77 tools across 3 separate systems
-- **Official Architecture:** 47 tools should exist
-- **Production Ready:** 29/47 tools (62%)
-- **Needs Work:** 18/47 tools (38%)
-- **Dead Code:** ~3,900 lines available for deletion
+- **MVP Scope (AMENDED):** 42 tools (removed shop=5, transition=10 archived)
+- **Code Complete:** 29/42 tools (69%)
+- **Needs Work:** 13/42 tools (31%)
+- **Dead Code:** ~3,900 lines available for deletion (40% reduction)
+- **Test Coverage:** 0% → Target 80%
+
+**Critical Amendments Applied:**
+1. ✅ **Weather:** OpenMeteo only (NOT OpenWeather)
+2. ✅ **Mapbox:** Use existing abstraction (NOT bespoke HTTP)
+3. ✅ **Shop:** Remove from MVP (0% ready, DECISION: disable)
+4. ✅ **Status:** "Code Complete" NOT "Production Ready" (tests required)
+5. ✅ **Transition Tools:** Archived (NOT in MVP scope)
+6. ✅ **Registry:** Single source of truth (NO import skew)
+7. ✅ **Middlewares:** Centralized utilities (NO per-tool duplication)
+8. ✅ **Tests:** Week 3 gate BLOCKS beta launch
 
 **Recommended Approach:**
-1. **Delete first** (3 deprecated systems)
-2. **Fix critical gaps** (external API integrations)
-3. **Test thoroughly** (add 80%+ coverage)
-4. **Deploy incrementally** (beta → production)
+1. **Delete first** (3 deprecated systems → 40% code reduction)
+2. **Fix critical gaps** (Mapbox abstraction, OpenMeteo wiring)
+3. **Test thoroughly** (Week 3: 80%+ coverage REQUIRED)
+4. **Deploy incrementally** (beta blocked until tests pass)
 
 ---
 
@@ -41,30 +55,33 @@
 
 **Quality Score:** 9/10
 **Code:** 6,792 lines
-**Status:** Launch ready
+**Status:** Code Complete (Tests Required - Week 3)
 
 ---
 
-#### 🟡 Trip Tools (12 tools) - 42% Production Ready
+#### 🟡 Trip Tools (12 tools) - 50% Code Complete
+
 1. plan_trip - ✅ Full database integration
 2. save_favorite_spot - ✅ Complete implementation
 3. calculate_gas_cost - ✅ Working calculations
 4. estimate_travel_time - ✅ Functional
 5. get_elevation - ✅ Structurally complete (mock data)
-6. get_weather_forecast - ❌ **API key exists but not integrated**
+6. get_weather_forecast - ✅ **USES OPENMETEO (free, working)**
 7. find_rv_parks - ❌ Mock data (needs API)
 8. find_cheap_gas - ❌ Mock data (needs GasBuddy)
-9. optimize_route - ❌ **Mapbox key exists but not integrated**
+9. optimize_route - 🟡 **Needs mapbox_navigator wiring (2 hours)**
 10. get_road_conditions - ❌ Mock data (needs DOT APIs)
 11. find_attractions - ❌ Mock data (needs Google Places)
 12. find_dump_stations - ❌ Mock data (needs database)
 
-**Quality Score:** 6/10
-**Critical Issues:**
-- OpenWeather API key exists, not integrated (2 hours to fix)
-- Mapbox API key exists, not integrated (4 hours to fix)
+**Quality Score:** 7/10 (improved from 6/10 after weather fix)
 
-**Status:** 🔴 HIGH PRIORITY - Core feature gaps
+**Critical Issues (AMENDED):**
+- ✅ ~~OpenWeather API~~ → Already using OpenMeteo (FREE, no key needed)
+- 🟡 Mapbox abstraction exists → Need to wire trip tools to use it (2 hours)
+- ❌ RV park API integration needed (GasBuddy, etc.)
+
+**Status:** 🟡 MEDIUM PRIORITY - Core feature mostly working (weather ✅, Mapbox wiring needed)
 
 ---
 
@@ -86,27 +103,28 @@
 - Image upload (S3/Cloudinary)
 - Real-time messaging (WebSocket)
 
-**Status:** Launch ready
+**Status:** Code Complete (Tests Required - Week 3)
 
 ---
 
-#### ❌ Shop Tools (5 tools) - 0% Production Ready
-1. search_products - ❌ Mock data only
-2. add_to_cart - ❌ Mock data only
-3. get_cart - ❌ Mock data only
-4. checkout - ❌ Mock data only
-5. track_order - ❌ Mock data only
+#### ❌ Shop Tools (5 tools) - **REMOVED FROM MVP SCOPE**
 
-**Quality Score:** 0/10
-**Database:** No tables exist
-**External APIs:** No Stripe integration
+**DECISION (AMENDMENT #3):** Disable shop tools for MVP
+- 0% implementation (100% mock data)
+- No database tables
+- No Stripe integration
+- Building full e-commerce: 3 weeks + ongoing maintenance
+- NOT CRITICAL for MVP (focus: Budget + Trip + Social)
 
-**Status:** 🔴 DECISION NEEDED
-- **Option A:** Build full e-commerce (3 weeks)
-- **Option B:** Remove from tool registry (1 hour)
-- **Option C:** Affiliate links to existing stores (1 week)
+**Action Taken:**
+1. ✅ Archive shop tools to `/archive/shop_tools/`
+2. ✅ Comment out registrations in pam.py
+3. ✅ Add "coming soon" message in UI
+4. ✅ Update tool count: ~~47~~ → **42 tools** (removed 5 shop tools)
 
-**Recommendation:** Option B or C - Not MVP critical
+**Alternative:** Phase 2 may add affiliate links to partner RV stores
+
+**Status:** ✅ RESOLVED - Not in MVP scope
 
 ---
 
