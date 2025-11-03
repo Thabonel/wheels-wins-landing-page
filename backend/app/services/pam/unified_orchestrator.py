@@ -19,7 +19,7 @@ from app.services.claude_ai_service import get_claude_ai_service
 from app.services.pam.context_manager import ContextManager
 from app.core.intelligent_conversation import IntelligentConversationHandler
 from app.services.pam.rag_integration_mixin import RAGIntegrationMixin
-from app.services.pam.tools.weather_tool import WeatherTool
+from app.services.pam.tools.openmeteo_weather_tool import OpenMeteoWeatherTool
 
 logger = get_logger(__name__)
 
@@ -102,8 +102,8 @@ class UnifiedPamOrchestrator(RAGIntegrationMixin):
             # Initialize database service
             self.database_service = get_database_service()
             
-            # Initialize weather tool
-            self.weather_tool = WeatherTool()
+            # Initialize weather tool (OpenMeteo - free, no API key required)
+            self.weather_tool = OpenMeteoWeatherTool()
             await self.weather_tool.initialize()
             
             # Register weather tool with AI service if it has a tool registry
