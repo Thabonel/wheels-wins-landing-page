@@ -1,8 +1,8 @@
 # PAM - Complete System Architecture
 
-**Version:** 2.0 (Claude Sonnet 4.5)
-**Last Updated:** January 17, 2025
-**Status:** ✅ Fully Operational (47 Tools)
+**Version:** 2.1 (Claude Sonnet 4.5 - Amended)
+**Last Updated:** November 4, 2025
+**Status:** ✅ Code Complete (42 Tools in MVP - Tests Required)
 **Purpose:** Single source of truth for PAM implementation
 
 ---
@@ -17,7 +17,7 @@ PAM is a voice-first AI assistant that:
 - Tracks savings to prove ROI (goal: pay for herself at $10/month)
 - Powered by Claude Sonnet 4.5 (state-of-the-art AI from Anthropic)
 
-**Key Principle:** ONE AI brain, NO routing complexity, 47 action tools
+**Key Principle:** ONE AI brain, NO routing complexity, 42 action tools (MVP - shop tools coming Phase 2)
 
 ---
 
@@ -50,7 +50,7 @@ PAM is a voice-first AI assistant that:
 │        │                      │                             │
 │  ┌─────▼──────┐      ┌───────▼────────┐                   │
 │  │TOOL EXECUTOR│      │CONTEXT MANAGER │                   │
-│  │47 tools     │      │• User location │                   │
+│  │42 tools     │      │• User location │                   │
 │  │available    │      │• Financial data│                   │
 │  └─────┬──────┘      │• Travel prefs  │                   │
 │        │              └────────────────┘                   │
@@ -59,9 +59,9 @@ PAM is a voice-first AI assistant that:
          │ Calls as needed
          │
 ┌────────▼──────────────────────────────────────────────────┐
-│                   47 ACTION TOOLS                          │
-│  Budget (10) | Trip (12) | Social (10) | Shop (5)         │
-│  Profile (6) | Community (2) | Admin (2)                   │
+│                   42 ACTION TOOLS (MVP)                    │
+│  Budget (10) | Trip (12) | Social (10) | Profile (6)      │
+│  Community (2) | Admin (2) | Shop (Coming Soon)           │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -98,7 +98,7 @@ PAM is a voice-first AI assistant that:
        "user_location": { "lat": 33.4484, "lng": -112.0740 },
        "user_id": "abc123"
      },
-     "available_tools": [47 tool definitions]
+     "available_tools": [42 tool definitions]
    }
 
    Claude thinks:
@@ -157,7 +157,7 @@ PAM is a voice-first AI assistant that:
 
 ---
 
-## 🛠️ Tool Inventory (47 Total)
+## 🛠️ Tool Inventory (42 Total - MVP Scope)
 
 ### 💰 Budget Tools (10)
 | Tool | Purpose | Example Use |
@@ -203,14 +203,19 @@ PAM is a voice-first AI assistant that:
 | `find_nearby_rvers` | Discover local community | "Who's camping nearby?" |
 | `create_event` | Plan meetups | "Create meetup event for Saturday" |
 
-### 🛒 Shop Tools (5)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `search_products` | Find RV parts/gear | "Search for water filters" |
-| `add_to_cart` | Add items to cart | "Add to cart" |
-| `get_cart` | View cart contents | "Show my cart" |
-| `checkout` | Complete purchase | "Checkout" |
-| `track_order` | Check order status | "Track my order" |
+### 🛒 Shop Tools (5) - 🚧 COMING SOON (Phase 2)
+**Status:** Archived for MVP, planned for Phase 2 implementation
+**Reason:** Shop database schema and integration require additional development time
+
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `search_products` | Find RV parts/gear | "Search for water filters" | 🚧 Coming Soon |
+| `add_to_cart` | Add items to cart | "Add to cart" | 🚧 Coming Soon |
+| `get_cart` | View cart contents | "Show my cart" | 🚧 Coming Soon |
+| `checkout` | Complete purchase | "Checkout" | 🚧 Coming Soon |
+| `track_order` | Check order status | "Track my order" | 🚧 Coming Soon |
+
+**Note:** Shop tools are implemented but not included in MVP. They will be activated in Phase 2 once database schema and payment integration are complete.
 
 ### 👤 Profile Tools (6)
 | Tool | Purpose | Example Use |
@@ -378,7 +383,7 @@ wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jw
 **Key Files:**
 - `backend/app/services/pam/core/pam.py` - PAM AI brain (1,090 lines)
 - `backend/app/api/v1/pam_main.py` - WebSocket endpoint
-- `backend/app/services/pam/tools/` - 47 tool implementations
+- `backend/app/services/pam/tools/` - 42 tool implementations (MVP), 5 archived (shop)
 - `backend/app/core/websocket_manager.py` - Connection management
 
 ### External APIs
@@ -596,18 +601,22 @@ Result:
 
 ## 🚀 Current Status & Roadmap
 
-### ✅ Complete (Operational Now)
+### ✅ Complete (Operational Now - Code Complete, Tests Required)
 - PAM AI brain (Claude Sonnet 4.5 integrated)
 - WebSocket real-time communication
-- 47 action tools across 7 categories
+- 42 action tools across 6 categories (MVP scope)
 - Location awareness (GPS, IP, browser)
-- Budget tracking and analysis
-- Trip planning and route optimization
-- Social features (posts, messages, feed)
-- Shop integration (search, cart, checkout)
+- Budget tracking and analysis (10 tools)
+- Trip planning and route optimization (12 tools)
+- Social features (posts, messages, feed) (10 tools)
+- Profile management (6 tools)
+- Community features (2 tools)
+- Admin tools (2 tools)
 - Security (7-layer protection)
 - Context validation system
 - Field name mismatch prevention
+
+**Note:** Shop tools (5) are implemented but archived for Phase 2. Test coverage at 0%, targeting 80%+ before beta launch (Week 3 milestone).
 
 ### 🚧 In Progress
 - Voice wake word ("Hey PAM")
@@ -644,7 +653,8 @@ Result:
 | `backend/app/services/pam/core/pam.py` | PAM AI brain, tool orchestration | 1,090 |
 | `backend/app/api/v1/pam_main.py` | WebSocket endpoint | 2,000+ |
 | `backend/app/core/websocket_manager.py` | Connection management | 200+ |
-| `backend/app/services/pam/tools/` | 47 tool implementations | ~5,000 |
+| `backend/app/services/pam/tools/` | 42 tool implementations (MVP) | ~4,500 |
+| `backend/archive/shop_tools/` | 5 shop tools (Phase 2) | ~500 |
 
 ### Documentation
 | File | Purpose |
@@ -722,8 +732,8 @@ Before touching PAM code, read these documents in order:
 
 | Metric | Value |
 |--------|-------|
-| **Total Tools** | 47 |
-| **Tool Categories** | 7 |
+| **Total Tools (MVP)** | 42 (5 shop tools in Phase 2) |
+| **Tool Categories** | 6 (Budget, Trip, Social, Profile, Community, Admin) |
 | **AI Model** | Claude Sonnet 4.5 |
 | **Context Window** | 200K tokens |
 | **Backend Language** | Python 3.11+ |
@@ -733,14 +743,21 @@ Before touching PAM code, read these documents in order:
 | **WebSocket Latency** | ~50ms |
 | **Success Rate** | 90%+ |
 | **Cost per Conversation** | $0.003-0.015 |
-| **Status** | ✅ Fully Operational |
+| **Test Coverage** | 0% → Target 80% (Week 3) |
+| **Status** | ✅ Code Complete (Tests Required) |
 
 ---
 
-**Last Updated:** January 17, 2025
-**Version:** 2.0 (Claude Sonnet 4.5)
+**Last Updated:** November 4, 2025 (Amended to reflect MVP scope)
+**Version:** 2.1 (Claude Sonnet 4.5 - Amended)
 **Maintainer:** Development Team
-**Next Review:** When adding new tools or major architecture changes
+**Next Review:** After Week 3 test suite completion or when adding new tools
+
+**Amendment Notes:**
+- Updated tool count from 47 to 42 (shop tools moved to Phase 2)
+- Added test coverage targets (0% → 80%)
+- Updated status from "Fully Operational" to "Code Complete (Tests Required)"
+- Clarified shop tools are archived for MVP, planned for Phase 2
 
 ---
 
