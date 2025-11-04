@@ -5,13 +5,17 @@ React to community posts
 Example usage:
 - "Like John's post about Yellowstone"
 - "Unlike that post"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.social import LikePostInput
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +38,18 @@ async def like_post(
         Dict with like status
     """
     try:
-        if not post_id:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = LikePostInput(
+                user_id=user_id,
+                post_id=post_id
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Post ID is required"
+                "error": f"Invalid input: {error_msg}"
             }
 
         supabase = get_supabase_client()
@@ -45,14 +57,14 @@ async def like_post(
         if unlike:
             # Remove like
             response = supabase.table("post_likes").delete().match({
-                "user_id": user_id,
-                "post_id": post_id
+                "user_id": validated.user_id,
+                "post_id": validated.post_id
             }).execute()
 
             # Decrement post likes count
-            supabase.rpc("decrement_post_likes", {"post_id": post_id}).execute()
+            supabase.rpc("decrement_post_likes", {"post_id": validated.post_id}).execute()
 
-            logger.info(f"User {user_id} unliked post {post_id}")
+            logger.info(f"User {validated.user_id} unliked post {validated.post_id}")
 
             return {
                 "success": True,
@@ -62,17 +74,17 @@ async def like_post(
         else:
             # Add like
             like_data = {
-                "user_id": user_id,
-                "post_id": post_id,
+                "user_id": validated.user_id,
+                "post_id": validated.post_id,
                 "created_at": datetime.now().isoformat()
             }
 
             response = supabase.table("post_likes").insert(like_data).execute()
 
             # Increment post likes count
-            supabase.rpc("increment_post_likes", {"post_id": post_id}).execute()
+            supabase.rpc("increment_post_likes", {"post_id": validated.post_id}).execute()
 
-            logger.info(f"User {user_id} liked post {post_id}")
+            logger.info(f"User {validated.user_id} liked post {validated.post_id}")
 
             return {
                 "success": True,
