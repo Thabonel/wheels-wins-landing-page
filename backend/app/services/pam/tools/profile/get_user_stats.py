@@ -5,13 +5,17 @@ View usage statistics and activity summary
 Example usage:
 - "Show me my stats"
 - "How much have I saved this year?"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict
 from datetime import datetime, timedelta
+from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.profile import GetUserStatsInput
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,21 @@ async def get_user_stats(
         Dict with user statistics
     """
     try:
+        # Validate inputs using Pydantic schema
+        try:
+            period = kwargs.get("period", "all_time")
+            validated = GetUserStatsInput(
+                user_id=user_id,
+                period=period
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "error": f"Invalid input: {error_msg}"
+            }
+
         supabase = get_supabase_client()
 
         # Get various stats
@@ -38,7 +57,7 @@ async def get_user_stats(
         # Budget stats
         budget_response = supabase.table("expenses").select(
             "amount"
-        ).eq("user_id", user_id).execute()
+        ).eq("user_id", validated.user_id).execute()
 
         total_expenses = sum(
             expense["amount"] for expense in (budget_response.data or [])
@@ -53,7 +72,7 @@ async def get_user_stats(
 
         # Trip stats (schema uses user_trips, not trips)
         trip_response = supabase.table("user_trips").select("*").eq(
-            "user_id", user_id
+            "user_id", validated.user_id
         ).execute()
 
         trip_count = len(trip_response.data or [])
@@ -69,7 +88,7 @@ async def get_user_stats(
 
         # Social stats
         posts_response = supabase.table("posts").select("*").eq(
-            "user_id", user_id
+            "user_id", validated.user_id
         ).execute()
 
         post_count = len(posts_response.data or [])
@@ -86,7 +105,7 @@ async def get_user_stats(
         # Account stats
         profile_response = supabase.table("profiles").select(
             "created_at"
-        ).eq("id", user_id).execute()
+        ).eq("id", validated.user_id).execute()
 
         if profile_response.data:
             created_at = datetime.fromisoformat(profile_response.data[0]["created_at"].replace("Z", "+00:00"))
@@ -97,7 +116,7 @@ async def get_user_stats(
                 "days_as_member": days_member
             }
 
-        logger.info(f"Retrieved stats for user {user_id}")
+        logger.info(f"Retrieved stats for user {validated.user_id}")
 
         return {
             "success": True,
