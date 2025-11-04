@@ -1,11 +1,12 @@
 """
 Pydantic validation schemas for Profile tools
 
-Amendment #4: Input validation for all 6 profile tools
+Amendment #4: Input validation for all 6 profile tools + calendar
 """
 
 from pydantic import Field, validator
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
 from enum import Enum
 
 from app.services.pam.schemas.base import BaseToolInput
@@ -43,6 +44,78 @@ class ExportFormat(str, Enum):
     JSON = "json"
     CSV = "csv"
     PDF = "pdf"
+
+
+class EventType(str, Enum):
+    """Valid calendar event types - must match frontend CalendarEvent types"""
+    REMINDER = "reminder"
+    TRIP = "trip"
+    BOOKING = "booking"
+    MAINTENANCE = "maintenance"
+    INSPECTION = "inspection"
+
+
+class CreateCalendarEventInput(BaseToolInput):
+    """
+    Validation for create_calendar_event tool
+
+    Schema aligned with calendar_events database table:
+    - start_date: TIMESTAMPTZ NOT NULL
+    - end_date: TIMESTAMPTZ NOT NULL
+    - all_day: BOOLEAN NOT NULL DEFAULT FALSE
+    - event_type: TEXT NOT NULL DEFAULT 'personal'
+    - location_name: TEXT
+    - reminder_minutes: INTEGER[] DEFAULT ARRAY[15]
+    - color: TEXT NOT NULL DEFAULT '#3b82f6'
+    - is_private: BOOLEAN NOT NULL DEFAULT TRUE
+    """
+
+    title: str = Field(..., min_length=1, max_length=200, description="Event title (required)")
+    start_date: str = Field(..., description="Start date/time in ISO format (required)")
+    end_date: Optional[str] = Field(None, description="End date/time in ISO format (optional, defaults to 1 hour after start)")
+    description: Optional[str] = Field(None, max_length=2000, description="Event description (optional)")
+    event_type: EventType = Field(EventType.REMINDER, description="Type of event (default: reminder)")
+    all_day: bool = Field(False, description="All-day event flag (default: false)")
+    location_name: Optional[str] = Field(None, max_length=200, description="Location name (optional)")
+    reminder_minutes: Optional[List[int]] = Field(None, description="Reminder times in minutes before event (e.g., [15, 60, 1440])")
+    color: str = Field("#3b82f6", pattern="^#[0-9a-fA-F]{6}$", description="Color hex code (default: #3b82f6)")
+    is_private: bool = Field(True, description="Private event flag (default: true)")
+
+    @validator("title")
+    def validate_title(cls, v):
+        """Clean up title"""
+        v = v.strip()
+        if not v:
+            raise ValueError("Event title cannot be empty")
+        return v
+
+    @validator("start_date", "end_date")
+    def validate_date_format(cls, v):
+        """Validate ISO date format"""
+        if v:
+            try:
+                # Parse ISO format, handle 'Z' timezone
+                datetime.fromisoformat(v.replace('Z', '+00:00'))
+                return v
+            except (ValueError, AttributeError):
+                raise ValueError("Date must be in ISO format (e.g., '2025-01-15T10:00:00Z')")
+        return v
+
+    @validator("reminder_minutes")
+    def validate_reminders(cls, v):
+        """Validate reminder minutes array"""
+        if v is not None:
+            if not isinstance(v, list):
+                # Convert single value to list
+                v = [v]
+            # Ensure all values are positive integers
+            for reminder in v:
+                if not isinstance(reminder, int) or reminder < 0:
+                    raise ValueError("Reminder minutes must be positive integers")
+            # Limit to 5 reminders max
+            if len(v) > 5:
+                raise ValueError("Maximum 5 reminders allowed")
+        return v
 
 
 class UpdateProfileInput(BaseToolInput):

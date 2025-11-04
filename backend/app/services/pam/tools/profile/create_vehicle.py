@@ -86,8 +86,8 @@ async def create_vehicle(
             "user_id": validated.user_id,
             "name": validated.name,
             "is_primary": validated.set_as_primary,
-            "vehicle_type": validated.vehicle_type,
-            "fuel_type": validated.fuel_type,
+            "vehicle_type": validated.vehicle_type.value,  # ✅ Extract enum value
+            "fuel_type": validated.fuel_type.value,        # ✅ Extract enum value
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }

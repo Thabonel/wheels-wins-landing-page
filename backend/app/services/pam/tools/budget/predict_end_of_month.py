@@ -72,7 +72,7 @@ async def predict_end_of_month(
 
         # Filter by category if specified
         if validated.category:
-            expense_query = expense_query.eq("category", validated.category.lower())
+            expense_query = expense_query.eq("category", validated.category.value)  # ✅ Extract enum value
 
         expenses = expense_query.execute()
 

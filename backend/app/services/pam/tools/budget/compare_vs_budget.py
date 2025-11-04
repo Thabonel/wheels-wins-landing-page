@@ -63,7 +63,7 @@ async def compare_vs_budget(
 
         # Filter by category if specified
         if validated.category:
-            expense_query = expense_query.eq("category", validated.category.lower())
+            expense_query = expense_query.eq("category", validated.category.value)  # ✅ Extract enum value
 
         expenses = expense_query.execute()
 
@@ -72,7 +72,7 @@ async def compare_vs_budget(
 
         # Filter by category if specified
         if validated.category:
-            budget_query = budget_query.eq("category", validated.category.lower())
+            budget_query = budget_query.eq("category", validated.category.value)  # ✅ Extract enum value
 
         budgets = budget_query.execute()
 
