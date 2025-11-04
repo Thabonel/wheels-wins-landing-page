@@ -7,10 +7,14 @@ Example usage:
 - "Show weather along my route to Portland"
 
 AMENDMENT #3: Uses OpenMeteo (free, no API key required)
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
+from pydantic import ValidationError
+
+from app.services.pam.schemas.trip import GetWeatherForecastInput
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +37,20 @@ async def get_weather_forecast(
         Dict with weather forecast data from OpenMeteo
     """
     try:
-        if not location:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = GetWeatherForecastInput(
+                user_id=user_id,
+                location=location,
+                days=days
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Location is required"
+                "error": f"Invalid input: {error_msg}"
             }
-
-        # Validate days (OpenMeteo free tier supports up to 7 days)
-        days = max(1, min(days, 7))
 
         # Import OpenMeteo tool (lazy import to avoid circular dependencies)
         from app.services.pam.tools.openmeteo_weather_tool import OpenMeteoWeatherTool
@@ -49,7 +59,7 @@ async def get_weather_forecast(
         weather_tool = OpenMeteoWeatherTool()
 
         # Call OpenMeteo API (FREE - no API key required!)
-        result = await weather_tool._arun(location=location, days=days)
+        result = await weather_tool._arun(location=validated.location, days=validated.days)
 
         # Return OpenMeteo result
         return result

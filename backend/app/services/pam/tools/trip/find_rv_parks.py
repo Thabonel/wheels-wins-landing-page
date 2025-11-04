@@ -5,11 +5,16 @@ Search for campgrounds and RV parks near a route or location
 Example usage:
 - "Find RV parks near Yosemite"
 - "Show me campgrounds along my route to Denver"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional, List
+from pydantic import ValidationError
+
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.trip import FindRVParksInput
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +41,21 @@ async def find_rv_parks(
         Dict with RV park listings
     """
     try:
-        if not location:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = FindRVParksInput(
+                user_id=user_id,
+                location=location,
+                radius_miles=radius_miles,
+                amenities=amenities,
+                max_price=max_price
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Location is required"
+                "error": f"Invalid input: {error_msg}"
             }
 
         supabase = get_supabase_client()
@@ -49,29 +65,29 @@ async def find_rv_parks(
         query = supabase.table("campgrounds").select("*")
 
         # Apply filters if provided
-        if max_price:
-            query = query.lte("price_per_night", max_price)
+        if validated.max_price:
+            query = query.lte("price_per_night", validated.max_price)
 
         response = query.limit(20).execute()
 
         campgrounds = response.data if response.data else []
 
         # Filter by amenities if specified
-        if amenities and campgrounds:
+        if validated.amenities and campgrounds:
             campgrounds = [
                 park for park in campgrounds
-                if all(amenity in park.get("amenities", []) for amenity in amenities)
+                if all(amenity in park.get("amenities", []) for amenity in validated.amenities)
             ]
 
-        logger.info(f"Found {len(campgrounds)} RV parks near {location} for user {user_id}")
+        logger.info(f"Found {len(campgrounds)} RV parks near {validated.location} for user {validated.user_id}")
 
         return {
             "success": True,
-            "location": location,
-            "radius_miles": radius_miles,
+            "location": validated.location,
+            "radius_miles": validated.radius_miles,
             "parks_found": len(campgrounds),
             "parks": campgrounds[:10],  # Return top 10
-            "message": f"Found {len(campgrounds)} RV parks within {radius_miles} miles of {location}"
+            "message": f"Found {len(campgrounds)} RV parks within {validated.radius_miles} miles of {validated.location}"
         }
 
     except Exception as e:
