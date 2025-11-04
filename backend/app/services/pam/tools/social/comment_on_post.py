@@ -5,13 +5,17 @@ Engage with community posts
 Example usage:
 - "Comment on John's post about Yellowstone"
 - "Reply to the post about RV maintenance"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.social import CommentOnPostInput
 
 logger = logging.getLogger(__name__)
 
@@ -34,25 +38,28 @@ async def comment_on_post(
         Dict with comment details
     """
     try:
-        if not comment or len(comment.strip()) == 0:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = CommentOnPostInput(
+                user_id=user_id,
+                post_id=post_id,
+                comment=comment
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Comment content is required"
-            }
-
-        if not post_id:
-            return {
-                "success": False,
-                "error": "Post ID is required"
+                "error": f"Invalid input: {error_msg}"
             }
 
         supabase = get_supabase_client()
 
         # Build comment data
         comment_data = {
-            "user_id": user_id,
-            "post_id": post_id,
-            "comment": comment.strip(),
+            "user_id": validated.user_id,
+            "post_id": validated.post_id,
+            "comment": validated.comment,
             "created_at": datetime.now().isoformat()
         }
 
@@ -63,9 +70,9 @@ async def comment_on_post(
             comment_obj = response.data[0]
 
             # Increment post comments count
-            supabase.rpc("increment_post_comments", {"post_id": post_id}).execute()
+            supabase.rpc("increment_post_comments", {"post_id": validated.post_id}).execute()
 
-            logger.info(f"Added comment to post {post_id} by user {user_id}")
+            logger.info(f"Added comment to post {validated.post_id} by user {validated.user_id}")
 
             return {
                 "success": True,

@@ -5,13 +5,17 @@ Share current location or favorite spots with the community
 Example usage:
 - "Share my current location"
 - "Share this campground with friends"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.social import ShareLocationInput
 
 logger = logging.getLogger(__name__)
 
@@ -40,28 +44,40 @@ async def share_location(
         Dict with shared location details
     """
     try:
-        if not location_name:
-            return {
-                "success": False,
-                "error": "Location name is required"
-            }
+        # Validate inputs using Pydantic schema
+        try:
+            # Map is_public to share_with enum
+            share_with = "public" if is_public else "friends"
+            share_duration_hours = kwargs.get("share_duration_hours", 24)
 
-        if latitude is None or longitude is None:
+            validated = ShareLocationInput(
+                user_id=user_id,
+                location_name=location_name,
+                latitude=latitude,
+                longitude=longitude,
+                share_duration_hours=share_duration_hours,
+                share_with=share_with
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Latitude and longitude are required"
+                "error": f"Invalid input: {error_msg}"
             }
 
         supabase = get_supabase_client()
 
         # Build location share data
         location_data = {
-            "user_id": user_id,
-            "location_name": location_name,
-            "latitude": latitude,
-            "longitude": longitude,
+            "user_id": validated.user_id,
+            "location_name": validated.location_name,
+            "latitude": validated.latitude,
+            "longitude": validated.longitude,
             "description": description,
             "is_public": is_public,
+            "share_with": validated.share_with,
+            "share_duration_hours": validated.share_duration_hours,
             "created_at": datetime.now().isoformat()
         }
 
@@ -70,12 +86,12 @@ async def share_location(
 
         if response.data:
             shared_location = response.data[0]
-            logger.info(f"User {user_id} shared location: {location_name}")
+            logger.info(f"User {validated.user_id} shared location: {validated.location_name}")
 
             return {
                 "success": True,
                 "location": shared_location,
-                "message": f"Shared location '{location_name}'" +
+                "message": f"Shared location '{validated.location_name}'" +
                           (" publicly" if is_public else " privately")
             }
         else:

@@ -5,13 +5,17 @@ Send direct messages to other users
 Example usage:
 - "Send a message to John asking about his RV setup"
 - "DM Sarah about the campground recommendation"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.social import MessageFriendInput
 
 logger = logging.getLogger(__name__)
 
@@ -34,25 +38,28 @@ async def message_friend(
         Dict with message details
     """
     try:
-        if not message or len(message.strip()) == 0:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = MessageFriendInput(
+                user_id=user_id,
+                recipient_id=recipient_id,
+                message=message
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Message content is required"
-            }
-
-        if not recipient_id:
-            return {
-                "success": False,
-                "error": "Recipient ID is required"
+                "error": f"Invalid input: {error_msg}"
             }
 
         supabase = get_supabase_client()
 
         # Build message data
         message_data = {
-            "sender_id": user_id,
-            "recipient_id": recipient_id,
-            "message": message.strip(),
+            "sender_id": validated.user_id,
+            "recipient_id": validated.recipient_id,
+            "message": validated.message,
             "created_at": datetime.now().isoformat(),
             "read": False
         }
@@ -62,7 +69,7 @@ async def message_friend(
 
         if response.data:
             msg = response.data[0]
-            logger.info(f"Sent message from {user_id} to {recipient_id}")
+            logger.info(f"Sent message from {validated.user_id} to {validated.recipient_id}")
 
             return {
                 "success": True,
