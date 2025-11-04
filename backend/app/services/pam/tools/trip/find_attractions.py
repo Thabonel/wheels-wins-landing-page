@@ -5,10 +5,15 @@ Discover points of interest, landmarks, and attractions near a location
 Example usage:
 - "What attractions are near Yellowstone?"
 - "Find things to do in Denver"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional, List
+from pydantic import ValidationError
+
+from app.services.pam.schemas.trip import FindAttractionsInput
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +38,20 @@ async def find_attractions(
         Dict with attraction listings
     """
     try:
-        if not location:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = FindAttractionsInput(
+                user_id=user_id,
+                location=location,
+                radius_miles=radius_miles,
+                attraction_types=categories  # Map categories to attraction_types
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Location is required"
+                "error": f"Invalid input: {error_msg}"
             }
 
         # In production, integrate with:
@@ -73,10 +88,10 @@ async def find_attractions(
         ]
 
         # Filter by categories if provided
-        if categories:
+        if validated.attraction_types:
             attractions = [
                 a for a in all_attractions
-                if a["category"] in categories
+                if a["category"] in validated.attraction_types
             ]
         else:
             attractions = all_attractions
@@ -84,16 +99,16 @@ async def find_attractions(
         # Sort by rating
         attractions = sorted(attractions, key=lambda x: x["rating"], reverse=True)
 
-        logger.info(f"Found {len(attractions)} attractions near {location} for user {user_id}")
+        logger.info(f"Found {len(attractions)} attractions near {validated.location} for user {validated.user_id}")
 
         return {
             "success": True,
-            "location": location,
-            "radius_miles": radius_miles,
-            "categories": categories or ["all"],
+            "location": validated.location,
+            "radius_miles": validated.radius_miles,
+            "categories": validated.attraction_types or ["all"],
             "attractions_found": len(attractions),
             "attractions": attractions[:15],  # Top 15
-            "message": f"Found {len(attractions)} attractions within {radius_miles} miles of {location}"
+            "message": f"Found {len(attractions)} attractions within {validated.radius_miles} miles of {validated.location}"
         }
 
     except Exception as e:
