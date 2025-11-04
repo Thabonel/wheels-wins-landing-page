@@ -3,15 +3,19 @@ Admin Knowledge Management Tool - Search Knowledge
 Searches PAM's admin knowledge base for relevant information
 
 SECURITY: Retrieved knowledge is sanitized before being used in responses
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.core.database import get_supabase_client
 from app.core.logging import get_logger
+from app.services.pam.schemas.admin import SearchKnowledgeInput
 
 logger = get_logger(__name__)
 
@@ -87,7 +91,28 @@ async def search_knowledge(
         Returns: "May to August is the best time to travel in Port Headland vicinity"
     """
     try:
-        logger.info(f"Searching admin knowledge: query='{query}', category={category}, type={knowledge_type}")
+        # Validate inputs using Pydantic schema
+        try:
+            validated = SearchKnowledgeInput(
+                user_id=user_id,
+                query=query,
+                category=category,
+                knowledge_type=knowledge_type,
+                location_context=location_context,
+                tags=tags,
+                min_priority=min_priority,
+                limit=limit
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "error": f"Invalid input: {error_msg}",
+                "knowledge": []
+            }
+
+        logger.info(f"Searching admin knowledge: query='{validated.query}', category={validated.category}, type={validated.knowledge_type}")
 
         supabase = get_supabase_client()
 
@@ -95,35 +120,35 @@ async def search_knowledge(
         query_builder = supabase.table("pam_admin_knowledge").select("*").eq("is_active", True)
 
         # Apply filters
-        if category:
-            query_builder = query_builder.eq("category", category)
+        if validated.category:
+            query_builder = query_builder.eq("category", validated.category.value)
 
-        if knowledge_type:
-            query_builder = query_builder.eq("knowledge_type", knowledge_type)
+        if validated.knowledge_type:
+            query_builder = query_builder.eq("knowledge_type", validated.knowledge_type.value)
 
-        if location_context:
+        if validated.location_context:
             # Case-insensitive partial match for location
-            query_builder = query_builder.ilike("location_context", f"%{location_context}%")
+            query_builder = query_builder.ilike("location_context", f"%{validated.location_context}%")
 
-        if min_priority > 1:
-            query_builder = query_builder.gte("priority", min_priority)
+        if validated.min_priority > 1:
+            query_builder = query_builder.gte("priority", validated.min_priority)
 
         # Tag filtering (matches ANY tag in the list)
-        if tags:
-            query_builder = query_builder.overlaps("tags", tags)
+        if validated.tags:
+            query_builder = query_builder.overlaps("tags", validated.tags)
 
         # Text search in title and content
-        if query:
+        if validated.query:
             # Note: Supabase text search syntax
             query_builder = query_builder.or_(
-                f"title.ilike.%{query}%,content.ilike.%{query}%"
+                f"title.ilike.%{validated.query}%,content.ilike.%{validated.query}%"
             )
 
         # Order by priority (high to low) and recency
         query_builder = query_builder.order("priority", desc=True).order("created_at", desc=True)
 
         # Apply limit
-        query_builder = query_builder.limit(limit)
+        query_builder = query_builder.limit(validated.limit)
 
         # Execute query
         result = query_builder.execute()
@@ -157,8 +182,8 @@ async def search_knowledge(
                 try:
                     supabase.table("pam_knowledge_usage_log").insert({
                         "knowledge_id": item["id"],
-                        "user_id": user_id,
-                        "conversation_context": query or "search",
+                        "user_id": validated.user_id,
+                        "conversation_context": validated.query or "search",
                         "used_at": datetime.utcnow().isoformat()
                     }).execute()
                 except Exception as log_error:
