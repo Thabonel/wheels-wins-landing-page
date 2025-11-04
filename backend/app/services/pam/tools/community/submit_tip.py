@@ -4,14 +4,22 @@ Community Tips - Submission Tool
 Enables users to share tips with the community.
 Tips become part of PAM's knowledge base.
 
+Amendment #4: Input validation with Pydantic models
+
 Created: January 12, 2025
 """
 
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.services.database import DatabaseService
+from app.services.pam.schemas.community import (
+    SubmitCommunityTipInput,
+    GetUserTipsInput
+)
+from app.services.pam.schemas.base import BaseToolInput
 
 logger = logging.getLogger(__name__)
 
@@ -46,46 +54,54 @@ async def submit_community_tip(
         - message: Status message
     """
     try:
-        # Validate category
-        valid_categories = [
-            'camping', 'gas_savings', 'route_planning', 'maintenance',
-            'safety', 'cooking', 'weather', 'attractions', 'budget', 'general'
-        ]
-
-        if category not in valid_categories:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = SubmitCommunityTipInput(
+                user_id=user_id,
+                title=title,
+                content=content,
+                category=category,
+                location_name=location_name,
+                location_lat=location_lat,
+                location_lng=location_lng,
+                tags=tags
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": f"Invalid category. Must be one of: {', '.join(valid_categories)}"
+                "error": f"Invalid input: {error_msg}"
             }
 
         db = DatabaseService()
 
         # Insert tip
         tip_data = {
-            'user_id': user_id,
-            'title': title.strip(),
-            'content': content.strip(),
-            'category': category,
+            'user_id': validated.user_id,
+            'title': validated.title,
+            'content': validated.content,
+            'category': validated.category.value,
             'status': 'active'
         }
 
         # Add optional fields
-        if location_name:
-            tip_data['location_name'] = location_name
-        if location_lat is not None:
-            tip_data['location_lat'] = location_lat
-        if location_lng is not None:
-            tip_data['location_lng'] = location_lng
-        if tags:
-            tip_data['tags'] = tags
+        if validated.location_name:
+            tip_data['location_name'] = validated.location_name
+        if validated.location_lat is not None:
+            tip_data['location_lat'] = validated.location_lat
+        if validated.location_lng is not None:
+            tip_data['location_lng'] = validated.location_lng
+        if validated.tags:
+            tip_data['tags'] = validated.tags
 
         result = db.client.table('community_tips').insert(tip_data).execute()
 
         if result.data:
             tip = result.data[0]
             logger.info(
-                f"User {user_id} submitted tip: {tip['id']} "
-                f"(category: {category})"
+                f"User {validated.user_id} submitted tip: {tip['id']} "
+                f"(category: {validated.category})"
             )
 
             return {
@@ -129,14 +145,31 @@ async def get_user_tips(
         Dict with list of user's tips and their impact stats
     """
     try:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = GetUserTipsInput(
+                user_id=user_id,
+                limit=limit,
+                status=status
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "tips": [],
+                "count": 0,
+                "error": f"Invalid input: {error_msg}"
+            }
+
         db = DatabaseService()
 
-        query = db.client.table('community_tips').select('*').eq('user_id', user_id)
+        query = db.client.table('community_tips').select('*').eq('user_id', validated.user_id)
 
-        if status:
-            query = query.eq('status', status)
+        if validated.status:
+            query = query.eq('status', validated.status.value)
 
-        result = query.order('created_at', desc=True).limit(limit).execute()
+        result = query.order('created_at', desc=True).limit(validated.limit).execute()
 
         tips = []
         if result.data:
@@ -187,11 +220,29 @@ async def get_user_contribution_stats(user_id: str) -> Dict[str, Any]:
         - badges: List of earned badges
     """
     try:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = BaseToolInput(user_id=user_id)
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "stats": {
+                    "tips_shared": 0,
+                    "people_helped": 0,
+                    "total_tip_uses": 0,
+                    "reputation_level": 1,
+                    "badges": []
+                },
+                "error": f"Invalid input: {error_msg}"
+            }
+
         db = DatabaseService()
 
         result = db.client.rpc(
             'get_user_contribution_stats',
-            {'p_user_id': user_id}
+            {'p_user_id': validated.user_id}
         ).execute()
 
         if result.data and len(result.data) > 0:

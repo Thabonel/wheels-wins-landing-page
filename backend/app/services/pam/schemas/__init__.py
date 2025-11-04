@@ -46,6 +46,17 @@ from app.services.pam.schemas.profile import (
     ExportDataInput,
     CreateVehicleInput,
 )
+from app.services.pam.schemas.admin import (
+    AddKnowledgeInput,
+    SearchKnowledgeInput,
+)
+from app.services.pam.schemas.community import (
+    SearchCommunityTipsInput,
+    LogTipUsageInput,
+    GetTipByIdInput,
+    SubmitCommunityTipInput,
+    GetUserTipsInput,
+)
 
 __all__ = [
     "BaseToolInput",
@@ -80,4 +91,13 @@ __all__ = [
     "GetUserStatsInput",
     "ExportDataInput",
     "CreateVehicleInput",
+    # Admin schemas
+    "AddKnowledgeInput",
+    "SearchKnowledgeInput",
+    # Community schemas
+    "SearchCommunityTipsInput",
+    "LogTipUsageInput",
+    "GetTipByIdInput",
+    "SubmitCommunityTipInput",
+    "GetUserTipsInput",
 ]
