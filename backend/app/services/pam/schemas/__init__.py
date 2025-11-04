@@ -45,6 +45,8 @@ from app.services.pam.schemas.profile import (
     GetUserStatsInput,
     ExportDataInput,
     CreateVehicleInput,
+    CreateCalendarEventInput,
+    EventType,
 )
 from app.services.pam.schemas.admin import (
     AddKnowledgeInput,
@@ -91,6 +93,8 @@ __all__ = [
     "GetUserStatsInput",
     "ExportDataInput",
     "CreateVehicleInput",
+    "CreateCalendarEventInput",
+    "EventType",
     # Admin schemas
     "AddKnowledgeInput",
     "SearchKnowledgeInput",

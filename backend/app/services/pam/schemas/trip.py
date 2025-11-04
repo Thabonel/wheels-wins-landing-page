@@ -7,6 +7,7 @@ Amendment #4: Input validation for all 10 trip tools
 from pydantic import Field, validator
 from typing import Optional, List
 from enum import Enum
+from decimal import Decimal
 
 from app.services.pam.schemas.base import BaseToolInput, LocationInput, AmountInput, DateInput
 
@@ -29,7 +30,7 @@ class PlanTripInput(BaseToolInput, DateInput):
 
     origin: str = Field(..., min_length=1, max_length=500, description="Starting location")
     destination: str = Field(..., min_length=1, max_length=500, description="End location")
-    budget: Optional[float] = Field(None, gt=0, description="Trip budget (optional)")
+    budget: Optional[Decimal] = Field(None, gt=0, max_digits=10, decimal_places=2, description="Trip budget (optional)")
     stops: Optional[List[str]] = Field(None, description="Intermediate stops")
     start_date: Optional[str] = Field(None, description="Trip start date (ISO format)")
 
@@ -64,14 +65,14 @@ class FindRVParksInput(BaseToolInput, LocationInput):
 
     radius_miles: int = Field(50, gt=0, le=500, description="Search radius in miles")
     amenities: Optional[List[str]] = Field(None, description="Required amenities")
-    max_price: Optional[float] = Field(None, gt=0, description="Maximum price per night")
+    max_price: Optional[Decimal] = Field(None, gt=0, max_digits=7, decimal_places=2, description="Maximum price per night")
 
     @validator("max_price")
     def validate_price(cls, v):
         """Ensure reasonable price"""
-        if v and v > 1000:
+        if v and v > Decimal('1000.00'):
             raise ValueError("max_price must be less than $1,000/night")
-        return round(v, 2) if v else None
+        return v  # Decimal already has precision
 
     @validator("amenities")
     def validate_amenities(cls, v):
@@ -99,7 +100,7 @@ class CalculateGasCostInput(BaseToolInput):
 
     distance_miles: float = Field(..., gt=0, description="Trip distance in miles")
     mpg: float = Field(..., gt=0, le=50, description="Vehicle MPG")
-    gas_price: Optional[float] = Field(None, gt=0, description="Gas price per gallon (optional, uses current price)")
+    gas_price: Optional[Decimal] = Field(None, gt=0, max_digits=5, decimal_places=2, description="Gas price per gallon (optional, uses current price)")
 
     @validator("distance_miles")
     def validate_distance(cls, v):
@@ -121,12 +122,11 @@ class CalculateGasCostInput(BaseToolInput):
     def validate_gas_price(cls, v):
         """Ensure reasonable gas price"""
         if v:
-            if v > 20:
+            if v > Decimal('20.00'):
                 raise ValueError("gas_price must be less than $20/gallon")
-            if v < 0.5:
+            if v < Decimal('0.50'):
                 raise ValueError("gas_price must be at least $0.50/gallon")
-            return round(v, 2)
-        return v
+        return v  # Decimal already has precision
 
 
 class FindCheapGasInput(BaseToolInput):

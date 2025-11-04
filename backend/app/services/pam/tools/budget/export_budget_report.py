@@ -78,7 +78,7 @@ async def export_budget_report(
         report = {
             "user_id": validated.user_id,
             "period": {
-                "period_type": validated.period,
+                "period_type": validated.period.value,  # ✅ Extract enum value
                 "start": validated.start_date or month_start.isoformat(),
                 "end": validated.end_date or datetime.now().isoformat(),
                 "month": month_start.strftime("%B %Y")
@@ -100,7 +100,7 @@ async def export_budget_report(
         return {
             "success": True,
             "report": report,
-            "format": validated.format
+            "format": validated.format.value  # ✅ Extract enum value
         }
 
     except Exception as e:

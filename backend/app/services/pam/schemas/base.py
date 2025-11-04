@@ -4,9 +4,10 @@ Base Pydantic models for PAM tool inputs
 Amendment #4: Input validation framework
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, condecimal
 from typing import Optional
 from datetime import datetime
+from decimal import Decimal
 import uuid
 
 
@@ -34,15 +35,15 @@ class BaseToolInput(BaseModel):
 class AmountInput(BaseModel):
     """Validation for monetary amounts"""
 
-    amount: float = Field(..., gt=0, description="Amount must be positive")
+    amount: Decimal = Field(..., gt=0, max_digits=10, decimal_places=2, description="Amount must be positive")
 
     @validator("amount")
     def validate_amount(cls, v):
         """Ensure reasonable amount (< $1M)"""
-        if v > 1_000_000:
+        if v > Decimal('1000000.00'):
             raise ValueError("Amount must be less than $1,000,000")
-        # Round to 2 decimal places
-        return round(v, 2)
+        # Decimal already has precision, no need to round
+        return v
 
 
 class DateInput(BaseModel):

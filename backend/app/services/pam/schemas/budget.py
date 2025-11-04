@@ -7,6 +7,7 @@ Amendment #4: Input validation for all 10 budget tools
 from pydantic import Field, validator
 from typing import Optional, List
 from enum import Enum
+from decimal import Decimal
 
 from app.services.pam.schemas.base import BaseToolInput, AmountInput, DateInput
 
@@ -65,15 +66,15 @@ class UpdateBudgetInput(BaseToolInput):
     """Validation for update_budget tool"""
 
     category: ExpenseCategory = Field(..., description="Budget category to update")
-    amount: float = Field(..., gt=0, description="New budget amount (must be positive)")
+    amount: Decimal = Field(..., gt=0, max_digits=10, decimal_places=2, description="New budget amount (must be positive)")
     period: BudgetPeriod = Field(BudgetPeriod.MONTHLY, description="Budget period")
 
     @validator("amount")
     def validate_budget_amount(cls, v):
         """Ensure reasonable budget amount"""
-        if v > 100_000:
+        if v > Decimal('100000.00'):
             raise ValueError("Budget amount must be less than $100,000 per period")
-        return round(v, 2)
+        return v
 
 
 class GetSpendingSummaryInput(BaseToolInput):
@@ -114,15 +115,15 @@ class PredictEndOfMonthInput(BaseToolInput):
 class FindSavingsOpportunitiesInput(BaseToolInput):
     """Validation for find_savings_opportunities tool"""
 
-    min_savings: float = Field(10.0, gt=0, description="Minimum savings to recommend ($)")
+    min_savings: Decimal = Field(Decimal('10.0'), gt=0, max_digits=7, decimal_places=2, description="Minimum savings to recommend ($)")
     categories: Optional[List[ExpenseCategory]] = Field(None, description="Focus on specific categories")
 
     @validator("min_savings")
     def validate_min_savings(cls, v):
         """Ensure reasonable minimum"""
-        if v > 1000:
+        if v > Decimal('1000.00'):
             raise ValueError("min_savings must be less than $1,000")
-        return round(v, 2)
+        return v
 
 
 class CategorizeTransactionInput(BaseToolInput, AmountInput):

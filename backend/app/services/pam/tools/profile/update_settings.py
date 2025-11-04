@@ -77,7 +77,7 @@ async def update_settings(
         if validated.push_notifications is not None:
             update_data["push_notifications"] = validated.push_notifications
         if validated.theme is not None:
-            update_data["theme"] = validated.theme
+            update_data["theme"] = validated.theme.value  # ✅ Extract enum value
         if validated.language is not None:
             update_data["language"] = validated.language
         if validated.budget_alerts is not None:
