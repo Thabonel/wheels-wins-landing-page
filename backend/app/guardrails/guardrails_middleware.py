@@ -8,11 +8,13 @@ from fastapi import Request
 from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.services.pam.mcp.controllers.pauter_router import PauterRouter
+# NOTE: PauterRouter removed during PAM simplification (Day 1 cleanup)
+# Keeping guardrails for profanity, PII, and rate limiting
+# Tool access validation temporarily disabled until reimplemented
 
 
 class GuardrailsLLM:
-    """Simple guardrails wrapper for PauterRouter."""
+    """Simple guardrails wrapper with profanity, PII, and rate limit checks."""
 
     def __init__(self, config_path: Path):
         with open(config_path, "r") as f:
@@ -24,7 +26,7 @@ class GuardrailsLLM:
         self.limit = rl.get("limit", 3)
         self.window = rl.get("window_sec", 1)
         self.user_history = defaultdict(deque)
-        self.router = PauterRouter()
+        # Router removed - tool access check disabled for now
 
     def _check_rate(self, user_id: str) -> bool:
         now = time.time()
@@ -52,10 +54,9 @@ class GuardrailsLLM:
             raise ValueError("Profanity detected")
         if self._contains_pii(text):
             raise ValueError("PII detected")
-        result = await self.router.ainvoke(text)
-        if result.get("target_node") not in self.allowed_tools:
-            raise ValueError("Tool access denied")
-        return result
+        # Tool access validation disabled - PauterRouter removed during simplification
+        # All checks passed, return success
+        return {"status": "approved", "message": text}
 
 
 class GuardrailsMiddleware(BaseHTTPMiddleware):
