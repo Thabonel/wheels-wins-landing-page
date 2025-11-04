@@ -5,13 +5,17 @@ Multi-stop route planning with budget constraints
 Example usage:
 - "Plan a trip from Phoenix to Seattle under $2000"
 - "Create a route from LA to New York with 3 stops"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional, List
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.trip import PlanTripInput
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +27,7 @@ async def plan_trip(
     budget: Optional[float] = None,
     stops: Optional[List[str]] = None,
     start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -35,24 +40,37 @@ async def plan_trip(
         budget: Optional budget limit in USD
         stops: Optional list of intermediate stops
         start_date: Optional start date in ISO format
+        end_date: Optional end date in ISO format
 
     Returns:
         Dict with trip plan details
     """
     try:
-        # Validate inputs
-        if not origin or not destination:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = PlanTripInput(
+                user_id=user_id,
+                origin=origin,
+                destination=destination,
+                budget=budget,
+                stops=stops,
+                start_date=start_date,
+                end_date=end_date
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Both origin and destination are required"
+                "error": f"Invalid input: {error_msg}"
             }
 
         supabase = get_supabase_client()
 
         # Parse start date or use today
-        if start_date:
+        if validated.start_date:
             try:
-                trip_start = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                trip_start = datetime.fromisoformat(validated.start_date.replace('Z', '+00:00'))
             except ValueError:
                 trip_start = datetime.now()
         else:
@@ -73,9 +91,9 @@ async def plan_trip(
         # Fallback to simplified estimates if no route data provided
         if not route_data:
             # Simplified estimate: ~100 miles per stop
-            estimated_distance = 100.0 * (len(stops) + 1) if stops else 300.0
-            estimated_gas = 150.00 * (len(stops) + 1) if stops else 150.00
-            estimated_lodging = 100.00 * (len(stops) + 2) if stops else 200.00
+            estimated_distance = 100.0 * (len(validated.stops) + 1) if validated.stops else 300.0
+            estimated_gas = 150.00 * (len(validated.stops) + 1) if validated.stops else 150.00
+            estimated_lodging = 100.00 * (len(validated.stops) + 2) if validated.stops else 200.00
         else:
             # Use mapbox_navigator data
             estimated_distance = distance_miles
@@ -89,17 +107,17 @@ async def plan_trip(
         # Build trip plan data for user_trips table
         # Schema: user_trips has total_budget, not budget
         trip_data = {
-            "user_id": user_id,
-            "title": f"Trip from {origin} to {destination}",
-            "description": f"Planned trip with {len(stops) if stops else 0} stops",
+            "user_id": validated.user_id,
+            "title": f"Trip from {validated.origin} to {validated.destination}",
+            "description": f"Planned trip with {len(validated.stops) if validated.stops else 0} stops",
             "start_date": trip_start.date().isoformat(),
-            "total_budget": float(budget) if budget else None,
+            "total_budget": float(validated.budget) if validated.budget else None,
             "status": "planning",
             "trip_type": "road_trip",
             "metadata": {
-                "origin": origin,
-                "destination": destination,
-                "stops": stops or [],
+                "origin": validated.origin,
+                "destination": validated.destination,
+                "stops": validated.stops or [],
                 "distance_miles": estimated_distance,
                 "duration_hours": duration_hours,
                 "fuel_gallons": fuel_gallons,
@@ -114,9 +132,9 @@ async def plan_trip(
         if response.data:
             trip = response.data[0]
 
-            budget_status = "within_budget" if not budget or estimated_total <= budget else "over_budget"
+            budget_status = "within_budget" if not validated.budget or estimated_total <= validated.budget else "over_budget"
 
-            logger.info(f"Created trip plan: {trip['id']} for user {user_id} (route source: {trip_data['metadata']['route_source']})")
+            logger.info(f"Created trip plan: {trip['id']} for user {validated.user_id} (route source: {trip_data['metadata']['route_source']})")
 
             return {
                 "success": True,
@@ -129,8 +147,8 @@ async def plan_trip(
                     "distance_miles": estimated_distance,
                     "duration_hours": duration_hours
                 },
-                "message": f"Planned trip from {origin} to {destination}" +
-                          (f" with {len(stops)} stops" if stops else "") +
+                "message": f"Planned trip from {validated.origin} to {validated.destination}" +
+                          (f" with {len(validated.stops)} stops" if validated.stops else "") +
                           (f" (${estimated_total:.2f} estimated, {estimated_distance:.0f} miles)" if estimated_distance else "")
             }
         else:
