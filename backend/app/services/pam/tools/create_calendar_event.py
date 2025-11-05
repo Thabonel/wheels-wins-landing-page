@@ -114,7 +114,7 @@ async def create_calendar_event(
             "start_date": start_dt.isoformat(),  # TIMESTAMP WITH TIME ZONE
             "end_date": end_dt.isoformat(),  # TIMESTAMP WITH TIME ZONE
             "all_day": validated.all_day,
-            "event_type": validated.event_type.value,  # ✅ CRITICAL: Extract enum value
+            "event_type": str(validated.event_type),  # ✅ Convert enum/str to string
             "location_name": validated.location_name,  # TEXT column for location name
             "reminder_minutes": reminder_list,  # Array of integers
             "color": validated.color,
