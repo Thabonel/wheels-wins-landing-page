@@ -103,6 +103,13 @@ async def create_calendar_event(
         else:
             end_dt = datetime.fromisoformat(validated.end_date.replace('Z', '+00:00'))
 
+            # Validate end_date is after start_date
+            if end_dt <= start_dt:
+                return {
+                    "success": False,
+                    "error": "Invalid input: end date must be after start date"
+                }
+
         # Default reminders: [15] minutes before (array of integers)
         reminder_list = validated.reminder_minutes if validated.reminder_minutes else [15]
 

@@ -12,6 +12,7 @@ Amendment #4: Input validation with Pydantic models
 import logging
 from typing import Any, Dict, Optional
 import os
+from decimal import Decimal, ROUND_HALF_UP
 from pydantic import ValidationError
 from supabase import create_client, Client
 from .unit_conversion import (
@@ -160,14 +161,18 @@ async def calculate_gas_cost(
         else:
             gas_price = validated.gas_price
 
-        # Calculate gallons needed
-        gallons_needed = distance_miles / mpg
+        # Calculate gallons needed (convert to Decimal for precision)
+        distance_decimal = Decimal(str(distance_miles))
+        mpg_decimal = Decimal(str(mpg))
+        gas_price_decimal = Decimal(str(gas_price))
+
+        gallons_needed = distance_decimal / mpg_decimal
 
         # Calculate total cost
-        total_cost = gallons_needed * gas_price
+        total_cost = gallons_needed * gas_price_decimal
 
         # Calculate cost per mile
-        cost_per_mile = total_cost / distance_miles
+        cost_per_mile = total_cost / distance_decimal
 
         logger.info(f"Calculated gas cost: ${total_cost:.2f} for {distance_miles} miles for user {validated.user_id}")
 
@@ -184,14 +189,23 @@ async def calculate_gas_cost(
             gas_price=gas_price
         )
 
+        # Calculate final values with proper rounding
+        total_cost_rounded = float(total_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        gas_price_rounded = float(gas_price_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        gallons_rounded = float(gallons_needed.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        cost_per_mile_rounded = float(cost_per_mile.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+
         return {
             "success": True,
             "distance_miles": distance_miles,
             "mpg": mpg,
-            "gas_price_per_gallon": gas_price,
-            "gallons_needed": round(gallons_needed, 2),
-            "total_cost": round(total_cost, 2),
-            "cost_per_mile": round(cost_per_mile, 2),
+            # Include both old and new field names for backwards compatibility
+            "gas_price_per_gallon": gas_price_rounded,
+            "price_per_gallon": gas_price_rounded,  # Test expects this name
+            "gallons_needed": gallons_rounded,
+            "total_cost": total_cost_rounded,
+            "cost_estimate": total_cost_rounded,  # Test expects this name
+            "cost_per_mile": cost_per_mile_rounded,
             "message": message
         }
 

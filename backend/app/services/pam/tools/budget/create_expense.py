@@ -77,8 +77,8 @@ async def create_expense(
         expense_data = {
             "user_id": validated.user_id,
             "amount": float(validated.amount),  # Already validated as positive
-            "category": validated.category.value,  # ✅ Extract enum value
-            "description": validated.description or f"{validated.category.value} expense",
+            "category": validated.category,  # Already a string due to use_enum_values=True
+            "description": validated.description or f"{validated.category} expense",
             "date": expense_date.isoformat(),
             "created_at": datetime.now().isoformat()
         }
@@ -93,7 +93,7 @@ async def create_expense(
             return {
                 "success": True,
                 "expense": expense,
-                "message": f"Added ${validated.amount:.2f} {validated.category.value} expense"
+                "message": f"Added ${validated.amount:.2f} {validated.category} expense"
             }
         else:
             logger.error(f"Failed to create expense: {response}")
