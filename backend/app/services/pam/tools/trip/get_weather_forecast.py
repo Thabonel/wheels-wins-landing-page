@@ -52,17 +52,27 @@ async def get_weather_forecast(
                 "error": f"Invalid input: {error_msg}"
             }
 
-        # Import OpenMeteo tool (lazy import to avoid circular dependencies)
-        from app.services.pam.tools.openmeteo_weather_tool import OpenMeteoWeatherTool
+        # Import the actual working weather API function
+        from app.services.pam.tools.weather import get_weather_forecast as weather_api_call
 
-        # Create OpenMeteo tool instance
-        weather_tool = OpenMeteoWeatherTool()
+        # Call the working OpenMeteo API function directly (FREE - no API key required!)
+        result = await weather_api_call(location=validated.location, days=validated.days)
 
-        # Call OpenMeteo API (FREE - no API key required!)
-        result = await weather_tool._arun(location=validated.location, days=validated.days)
-
-        # Return OpenMeteo result
-        return result
+        # Transform result to standard PAM tool format
+        if "error" in result:
+            # Error case from weather API
+            return {
+                "success": False,
+                "error": result.get("error"),
+                "location": result.get("location"),
+                "suggestion": result.get("suggestion", "")
+            }
+        else:
+            # Success case - add success field to existing data
+            return {
+                "success": True,
+                **result  # Spread operator to include all weather data
+            }
 
     except Exception as e:
         logger.error(f"Error getting weather forecast from OpenMeteo: {e}", exc_info=True)
