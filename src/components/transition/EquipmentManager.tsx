@@ -76,7 +76,7 @@ export const EquipmentManager: React.FC = () => {
   // Filters
   const [travelStyle, setTravelStyle] = useState<string>('mixed');
   const [climate, setClimate] = useState<string>('varied');
-  const [budget, setBudget] = useState<string>('moderate');
+  const [budget, setBudget] = useState<string>('comfortable'); // Changed from 'moderate' to match existing template
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
@@ -146,13 +146,22 @@ export const EquipmentManager: React.FC = () => {
   };
 
   const loadTemplate = async () => {
+    if (!profileId) {
+      toast({
+        title: 'Profile Required',
+        description: 'Please complete your transition profile first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const templateKey = `${travelStyle}_${climate}_${budget}` as keyof typeof equipmentTemplates.templates;
     const template = equipmentTemplates.templates[templateKey];
 
-    if (!template || !profileId) {
+    if (!template) {
       toast({
         title: 'Template Not Found',
-        description: 'No template matches your selected filters',
+        description: `No template matches the combination: ${travelStyle} + ${climate} + ${budget}. Try different filter settings.`,
         variant: 'destructive',
       });
       return;
