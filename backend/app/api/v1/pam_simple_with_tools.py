@@ -81,7 +81,7 @@ anthropic_client = AsyncAnthropic(api_key=ANTHROPIC_KEY)
 
 # Constants (from Barry's proven config)
 CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
-CLAUDE_TIMEOUT_SECONDS = 5  # Like Barry's 250ms DB timeout
+CLAUDE_TIMEOUT_SECONDS = 25  # Allow time for Claude thinking + tool execution (frontend timeout is 30s)
 MAX_TOKENS = 1024
 MAX_CONVERSATION_MESSAGES = 8  # Send last 8 messages to Claude
 
