@@ -21,16 +21,16 @@ import { toast } from 'sonner';
 interface SavedTrip {
   id: string;
   user_id: string;
-  title: string;
-  description?: string;
+  origin: string;
+  destination: string;
   start_date?: string;
   end_date?: string;
-  status?: string;
-  trip_type?: string;
-  total_budget?: number;
-  spent_budget?: number;
-  privacy_level?: string;
-  metadata?: any;
+  distance_miles?: number;
+  estimated_cost?: number;
+  actual_cost?: number;
+  status?: string; // 'planned', 'active', 'completed'
+  notes?: string;
+  route_data?: any;
   created_at: string;
   updated_at: string;
 }
@@ -51,9 +51,9 @@ export default function SavedTrips() {
     try {
       setLoading(true);
       
-      // Query trips from user_trips table (user's personal saved trips)
+      // Query trips from trips table (user's personal saved trips)
       const { data: trips, error } = await supabase
-        .from('user_trips')
+        .from('trips')
         .select('*')
         .eq('user_id', user?.id)
         .order('updated_at', { ascending: false });
@@ -103,14 +103,14 @@ export default function SavedTrips() {
     // Store trip data in sessionStorage for the trip planner to load
     const tripData = {
       id: trip.id,
-      title: trip.title,
-      description: trip.description,
-      route_data: trip.metadata?.route_data || null,
+      title: `${trip.origin} to ${trip.destination}`,
+      description: trip.notes,
+      route_data: trip.route_data || null,
       status: trip.status
     };
-    
+
     sessionStorage.setItem('loadTripData', JSON.stringify(tripData));
-    
+
     // Navigate to Trip Planner
     navigate(`/wheels?tab=trip-planner&trip=${trip.id}`);
   };
@@ -164,18 +164,19 @@ export default function SavedTrips() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {trips.map((trip) => {
-        const metadata = typeof trip.metadata === 'string' 
-          ? JSON.parse(trip.metadata) 
-          : trip.metadata || {};
-        
+        const tripTitle = `${trip.origin} to ${trip.destination}`;
+        const routeData = typeof trip.route_data === 'string'
+          ? JSON.parse(trip.route_data)
+          : trip.route_data || {};
+
         return (
           <Card key={trip.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg">{trip.title}</CardTitle>
-                  {trip.description && (
-                    <p className="text-sm text-gray-600 mt-1">{trip.description}</p>
+                  <CardTitle className="text-lg">{tripTitle}</CardTitle>
+                  {trip.notes && (
+                    <p className="text-sm text-gray-600 mt-1">{trip.notes}</p>
                   )}
                 </div>
                 {trip.status && (
@@ -198,26 +199,25 @@ export default function SavedTrips() {
                 </div>
               )}
               
-              {trip.total_budget && (
+              {trip.estimated_cost && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <DollarSign className="w-4 h-4" />
-                  <span>Budget: ${trip.total_budget.toLocaleString()}</span>
-                  {trip.spent_budget > 0 && <span>• Spent: ${trip.spent_budget.toLocaleString()}</span>}
+                  <span>Budget: ${trip.estimated_cost.toLocaleString()}</span>
+                  {trip.actual_cost && trip.actual_cost > 0 && <span>• Spent: ${trip.actual_cost.toLocaleString()}</span>}
                 </div>
               )}
 
-              {metadata.distance && (
+              {trip.distance_miles && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <MapPin className="w-4 h-4" />
-                  <span>Distance: {Math.round(metadata.distance / 1000)} km</span>
-                  {metadata.waypoint_count && <span>• {metadata.waypoint_count} stops</span>}
+                  <span>Distance: {Math.round(trip.distance_miles)} miles</span>
                 </div>
               )}
 
-              {metadata.duration && (
+              {routeData.duration && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Clock className="w-4 h-4" />
-                  <span>Duration: {Math.round(metadata.duration / 3600)}h {Math.round((metadata.duration % 3600) / 60)}m</span>
+                  <span>Duration: {Math.round(routeData.duration / 3600)}h {Math.round((routeData.duration % 3600) / 60)}m</span>
                 </div>
               )}
 

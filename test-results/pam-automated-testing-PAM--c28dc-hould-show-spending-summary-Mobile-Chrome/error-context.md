@@ -1,0 +1,78 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - link "Wheels & Wins - RV Trip Planning and Budget Management App Logo" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img "Wheels & Wins - RV Trip Planning and Budget Management App Logo" [ref=e8]
+        - generic [ref=e9]:
+          - button [ref=e10] [cursor=pointer]:
+            - img
+          - link "Sign In" [ref=e11] [cursor=pointer]:
+            - /url: /login
+            - button "Sign In" [ref=e12]
+    - main [ref=e13]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - heading "Welcome Back" [level=3] [ref=e19]
+          - paragraph [ref=e20]: Log in to access your account
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - text: Email
+            - textbox "Email" [ref=e25]:
+              - /placeholder: email@example.com
+              - text: pam-test@wheelsandwins.com
+          - generic [ref=e26]:
+            - generic [ref=e27]:
+              - generic [ref=e28]: Password
+              - link "Forgot password?" [ref=e29] [cursor=pointer]:
+                - /url: /reset-password
+            - generic [ref=e31]:
+              - textbox "Password" [ref=e32]:
+                - /placeholder: ""
+                - text: Test1234!
+              - button [ref=e33] [cursor=pointer]:
+                - img [ref=e34]
+          - alert [ref=e37]:
+            - img [ref=e38]
+            - generic [ref=e40]: Invalid email or password. Please check your credentials and try again.
+          - button "Login" [ref=e41] [cursor=pointer]
+        - generic [ref=e42]:
+          - generic [ref=e47]: or continue with
+          - generic [ref=e48]:
+            - button "Continue with Google" [ref=e49] [cursor=pointer]:
+              - img
+              - text: Continue with Google
+            - button "Continue with Facebook" [ref=e50] [cursor=pointer]:
+              - img
+              - text: Continue with Facebook
+          - generic [ref=e51]:
+            - text: Don't have an account?
+            - link "Sign up" [ref=e52] [cursor=pointer]:
+              - /url: /signup
+    - button "Open PAM Chat" [ref=e53] [cursor=pointer]:
+      - img "PAM" [ref=e55]
+    - contentinfo [ref=e57]:
+      - contentinfo [ref=e58]:
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - paragraph [ref=e61]: If something doesn't work, let me know and I will fix it immediately.
+            - button "Report Issue" [ref=e62] [cursor=pointer]:
+              - img
+              - text: Report Issue
+          - generic [ref=e63]:
+            - paragraph [ref=e64]: © 2025 Wheels and Wins. All rights reserved.
+            - generic [ref=e65]:
+              - link "Terms of Service" [ref=e66] [cursor=pointer]:
+                - /url: /terms
+              - generic [ref=e67]: "|"
+              - link "Privacy Policy" [ref=e68] [cursor=pointer]:
+                - /url: /privacy
+              - generic [ref=e69]: "|"
+              - link "Cookie Policy" [ref=e70] [cursor=pointer]:
+                - /url: /cookies
+```
