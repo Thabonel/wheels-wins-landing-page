@@ -9,6 +9,8 @@
  * Solution: Automatically reload the page once to get fresh HTML with correct chunk references
  */
 
+import React from 'react';
+
 const RETRY_KEY = 'chunk_load_retry';
 const MAX_RETRIES = 1;
 
