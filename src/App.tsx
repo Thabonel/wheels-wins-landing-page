@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { RegionProvider } from './context/RegionContext';
@@ -7,27 +7,28 @@ import { ExpensesProvider } from './context/ExpensesContext';
 import { WheelsProvider } from './context/WheelsContext';
 import Layout from './components/Layout';
 import './i18n';
-// Lazy load all page components for optimal bundle splitting
-const Index = lazy(() => import('./pages/Index'));
-const Wheels = lazy(() => import('./pages/Wheels'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Login = lazy(() => import('./pages/Login'));
-const Signup = lazy(() => import('./pages/Signup'));
-const Onboarding = lazy(() => import('./pages/Onboarding'));
-const You = lazy(() => import('./pages/You'));
-const Wins = lazy(() => import('./pages/Wins'));
-const Social = lazy(() => import('./pages/Social'));
-const Shop = lazy(() => import('./pages/Shop'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+import { lazyWithRetry } from './utils/lazyWithRetry';
+// Lazy load all page components for optimal bundle splitting with auto-retry on chunk errors
+const Index = lazyWithRetry(() => import('./pages/Index'));
+const Wheels = lazyWithRetry(() => import('./pages/Wheels'));
+const Profile = lazyWithRetry(() => import('./pages/Profile'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const Signup = lazyWithRetry(() => import('./pages/Signup'));
+const Onboarding = lazyWithRetry(() => import('./pages/Onboarding'));
+const You = lazyWithRetry(() => import('./pages/You'));
+const Wins = lazyWithRetry(() => import('./pages/Wins'));
+const Social = lazyWithRetry(() => import('./pages/Social'));
+const Shop = lazyWithRetry(() => import('./pages/Shop'));
+const AdminDashboard = lazyWithRetry(() => import('./pages/AdminDashboard'));
 import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
-const PaymentSuccess = lazy(() => import("@/pages/PaymentSuccess"));
-const PaymentCanceled = lazy(() => import("@/pages/PaymentCanceled"));
-const CancelTrial = lazy(() => import("@/pages/CancelTrial"));
-const PasswordResetRequest = lazy(() => import("@/pages/PasswordResetRequest"));
-const UpdatePassword = lazy(() => import("@/pages/UpdatePassword"));
-const ThankYouDigistore24 = lazy(() => import("@/pages/ThankYouDigistore24"));
+const PaymentSuccess = lazyWithRetry(() => import("@/pages/PaymentSuccess"));
+const PaymentCanceled = lazyWithRetry(() => import("@/pages/PaymentCanceled"));
+const CancelTrial = lazyWithRetry(() => import("@/pages/CancelTrial"));
+const PasswordResetRequest = lazyWithRetry(() => import("@/pages/PasswordResetRequest"));
+const UpdatePassword = lazyWithRetry(() => import("@/pages/UpdatePassword"));
+const ThankYouDigistore24 = lazyWithRetry(() => import("@/pages/ThankYouDigistore24"));
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminProtection from './components/admin/AdminProtection';
 // OLD PAM IMPORTS - COMMENTED OUT FOR REMOVAL
@@ -42,24 +43,24 @@ import { RouteMonitor } from './components/common/RouteMonitor';
 import { LocationConsentManager } from './components/privacy/LocationConsentManager';
 import { PamConnectionProvider } from '@/contexts/PamConnectionProvider';
 import { PhotoSyncHandler } from './components/PhotoSyncHandler';
-const TermsOfService = lazy(() => import('./pages/TermsOfService'));
-const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
-const CookiePolicy = lazy(() => import('./pages/CookiePolicy'));
-const AuthTest = lazy(() => import('./pages/AuthTest'));
+const TermsOfService = lazyWithRetry(() => import('./pages/TermsOfService'));
+const PrivacyPolicy = lazyWithRetry(() => import('./pages/PrivacyPolicy'));
+const CookiePolicy = lazyWithRetry(() => import('./pages/CookiePolicy'));
+const AuthTest = lazyWithRetry(() => import('./pages/AuthTest'));
 // Temporarily disabled - AI SDK not configured
-// const PamAiSdkTest = lazy(() => import('./pages/PamAiSdkTest'));
-const PamVoiceTest = lazy(() => import('./pages/PamVoiceTest'));
-// const PamWebSocketTest = lazy(() => import('./pages/PamWebSocketTest')); // Disabled - using unified PAM service
-const PAMTestingPage = lazy(() => import('./pages/PAMTestingPage'));
-const PAMDevTestPage = lazy(() => import('./pages/PAMDevTestPage'));
-const PAMFallbackTestPage = lazy(() => import('./dev/PAMFallbackTestPage'));
-const PerformanceTestPage = lazy(() => import('./dev/PerformanceTestPage'));
-const SiteQALog = lazy(() => import('./pages/SiteQALog'));
-const FreshTripPlannerTest = lazy(() => import('./pages/FreshTripPlannerTest'));
-const WheelsSimple = lazy(() => import('./pages/WheelsSimple'));
-const SimplePamTest = lazy(() => import('./pages/SimplePamTest'));
-const PamDirectApiTest = lazy(() => import('./pages/PamDirectApiTest'));
-const Transition = lazy(() => import('./pages/Transition'));
+// const PamAiSdkTest = lazyWithRetry(() => import('./pages/PamAiSdkTest'));
+const PamVoiceTest = lazyWithRetry(() => import('./pages/PamVoiceTest'));
+// const PamWebSocketTest = lazyWithRetry(() => import('./pages/PamWebSocketTest')); // Disabled - using unified PAM service
+const PAMTestingPage = lazyWithRetry(() => import('./pages/PAMTestingPage'));
+const PAMDevTestPage = lazyWithRetry(() => import('./pages/PAMDevTestPage'));
+const PAMFallbackTestPage = lazyWithRetry(() => import('./dev/PAMFallbackTestPage'));
+const PerformanceTestPage = lazyWithRetry(() => import('./dev/PerformanceTestPage'));
+const SiteQALog = lazyWithRetry(() => import('./pages/SiteQALog'));
+const FreshTripPlannerTest = lazyWithRetry(() => import('./pages/FreshTripPlannerTest'));
+const WheelsSimple = lazyWithRetry(() => import('./pages/WheelsSimple'));
+const SimplePamTest = lazyWithRetry(() => import('./pages/SimplePamTest'));
+const PamDirectApiTest = lazyWithRetry(() => import('./pages/PamDirectApiTest'));
+const Transition = lazyWithRetry(() => import('./pages/Transition'));
 
 
 const queryClient = new QueryClient();
