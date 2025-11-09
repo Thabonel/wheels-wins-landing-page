@@ -50,7 +50,7 @@ export function safeLog(message: string, data?: any) {
     return; // No logging in production
   }
 
-  let safeMessage = message;
+  const safeMessage = message;
   let safeData = data;
 
   if (typeof data === 'object' && data !== null) {

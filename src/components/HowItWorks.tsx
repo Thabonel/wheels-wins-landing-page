@@ -10,13 +10,13 @@ const HowItWorks = () => {
     },
     {
       icon: <DollarSign className="w-12 h-12 text-primary" />,
-      title: "Confidence in Every Dollar",
-      description: "Let Pam track your expenses, find savings, and keep your adventures sustainable."
+      title: "See Where Your Money Goes",
+      description: "Pam tracks expenses, spots where you're overspending, and helps you save on gas and camping."
     },
     {
       icon: <Map className="w-12 h-12 text-primary" />,
-      title: "Smarter Route Planning",
-      description: "Avoid mistakes, plan scenic routes, and find hidden gems tailored to your travel style."
+      title: "Routes That Actually Work",
+      description: "Skip the problems. Find scenic routes and great spots that fit your RV and travel style."
     },
   ];
 

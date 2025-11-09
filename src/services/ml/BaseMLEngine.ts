@@ -214,7 +214,7 @@ export abstract class BaseMLEngine {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = not found

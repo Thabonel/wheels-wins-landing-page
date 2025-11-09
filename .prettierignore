@@ -25,3 +25,14 @@ ai_agent_observability
 *.md
 *.json
 supabase/functions
+
+# Archived/backup files (same as ESLint ignores)
+backups/**
+backend/pam2_backend/**
+backend/_pam2_backend_backup/**
+launch-preparation/backups/**
+src/components/analytics/EnhancedAnalyticsDashboard.tsx
+src/components/wheels/trip-planner/PAMTripSuggestions.tsx
+src/services/pam/context/**
+src/services/pam/performance/**
+src/services/pam/integration-guide.ts

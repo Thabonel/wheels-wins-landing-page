@@ -134,7 +134,7 @@ async function getWeatherFromOpenWeatherMap(
     const params = new URLSearchParams({
       q: location,
       appid: apiKey,
-      units: units
+      units
     });
 
     const response = await fetch(`${baseUrl}?${params}`);

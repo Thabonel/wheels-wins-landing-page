@@ -23,6 +23,7 @@ import { DisplaySettings } from "@/components/settings/DisplaySettings";
 import { LocationSettings } from "@/components/settings/LocationSettings";
 import { AccountSecurity } from "@/components/settings/AccountSecurity";
 import { AccountDeletion } from "@/components/settings/AccountDeletion";
+import { TransitionSettings } from "@/components/settings/TransitionSettings";
 import { syncLocalPhotos } from "@/utils/fileUploadUtils";
 
 const Profile = () => {
@@ -81,7 +82,7 @@ const Profile = () => {
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ [updateField]: url })
-        .eq('user_id', user.id);
+        .eq('id', user.id);
         
       if (updateError) {
         console.error('Profile update error:', updateError);
@@ -129,7 +130,7 @@ const Profile = () => {
       const { error } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('user_id', user.id);
+        .eq('id', user.id);
         
       if (error) {
         throw new Error(error.message || 'Failed to update profile');
@@ -312,6 +313,13 @@ const Profile = () => {
                     </ErrorBoundary>
                   </TabsContent>
                 </Tabs>
+
+                {/* Additional Settings */}
+                <div className="mt-6">
+                  <ErrorBoundary>
+                    <TransitionSettings />
+                  </ErrorBoundary>
+                </div>
               </div>
             </ErrorBoundary>
           </TabsContent>

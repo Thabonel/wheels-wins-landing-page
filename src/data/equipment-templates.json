@@ -1,0 +1,410 @@
+{
+  "templates": {
+    "boondocking_cold_minimal": {
+      "name": "Boondocking - Cold Climate - Minimal Budget",
+      "filters": {
+        "travel_style": "boondocking",
+        "climate": "cold",
+        "budget": "minimal"
+      },
+      "items": [
+        {
+          "id": "recovery_maxtrax",
+          "category": "recovery",
+          "name": "MaxTrax Recovery Boards",
+          "description": "Essential for getting unstuck from sand, mud, or snow",
+          "priority": "essential",
+          "estimated_cost": 350,
+          "weight_lbs": 20,
+          "space_requirement": "medium",
+          "vendor_links": [
+            {"name": "Amazon", "url": "https://amazon.com/maxtrax"},
+            {"name": "4WP", "url": "https://4wheelparts.com"}
+          ],
+          "community_tips": "Worth every penny. Get the full-size version, not mini."
+        },
+        {
+          "id": "climate_heater",
+          "category": "climate",
+          "name": "Diesel Heater (Chinese Clone)",
+          "description": "Affordable diesel heating for cold nights",
+          "priority": "essential",
+          "estimated_cost": 200,
+          "weight_lbs": 15,
+          "space_requirement": "medium",
+          "vendor_links": [
+            {"name": "Amazon", "url": "https://amazon.com/diesel-heater"},
+            {"name": "eBay", "url": "https://ebay.com"}
+          ],
+          "community_tips": "Chinese clones work well. Install outside air intake properly!"
+        },
+        {
+          "id": "power_solar_100w",
+          "category": "power",
+          "name": "100W Solar Panel",
+          "description": "Basic solar for charging batteries",
+          "priority": "essential",
+          "estimated_cost": 150,
+          "weight_lbs": 20,
+          "space_requirement": "large",
+          "vendor_links": [
+            {"name": "Renogy", "url": "https://renogy.com"},
+            {"name": "Amazon", "url": "https://amazon.com/solar"}
+          ],
+          "community_tips": "Start small, you can always add more panels later."
+        },
+        {
+          "id": "kitchen_propane",
+          "category": "kitchen",
+          "name": "Propane Stove (2-Burner)",
+          "description": "Camp stove for cooking",
+          "priority": "essential",
+          "estimated_cost": 80,
+          "weight_lbs": 10,
+          "space_requirement": "small",
+          "vendor_links": [
+            {"name": "REI", "url": "https://rei.com"},
+            {"name": "Walmart", "url": "https://walmart.com"}
+          ],
+          "community_tips": "Coleman classic is reliable and parts are easy to find."
+        },
+        {
+          "id": "safety_fire_extinguisher",
+          "category": "safety",
+          "name": "Fire Extinguisher (ABC)",
+          "description": "Mount near kitchen and battery bank",
+          "priority": "essential",
+          "estimated_cost": 40,
+          "weight_lbs": 5,
+          "space_requirement": "small",
+          "vendor_links": [
+            {"name": "Home Depot", "url": "https://homedepot.com"},
+            {"name": "Amazon", "url": "https://amazon.com/fire-extinguisher"}
+          ],
+          "community_tips": "Get at least 5lb ABC rated. Check pressure monthly."
+        },
+        {
+          "id": "comfort_sleeping_bag",
+          "category": "comfort",
+          "name": "Winter Sleeping Bag (0°F rated)",
+          "description": "Backup heat source for extreme cold",
+          "priority": "essential",
+          "estimated_cost": 120,
+          "weight_lbs": 5,
+          "space_requirement": "medium",
+          "vendor_links": [
+            {"name": "REI", "url": "https://rei.com/sleeping-bags"},
+            {"name": "Amazon", "url": "https://amazon.com"}
+          ],
+          "community_tips": "Buy one rated 10°F lower than you expect to camp in."
+        }
+      ],
+      "total_cost": 940,
+      "total_weight": 75,
+      "timeline_weeks": 4
+    },
+    "campgrounds_hot_moderate": {
+      "name": "Campgrounds - Hot Climate - Moderate Budget",
+      "filters": {
+        "travel_style": "campgrounds",
+        "climate": "hot",
+        "budget": "moderate"
+      },
+      "items": [
+        {
+          "id": "climate_maxxfan",
+          "category": "climate",
+          "name": "MaxxAir Fan",
+          "description": "Best RV ventilation fan with rain cover",
+          "priority": "essential",
+          "estimated_cost": 350,
+          "weight_lbs": 15,
+          "space_requirement": "medium",
+          "vendor_links": [
+            {"name": "Amazon", "url": "https://amazon.com/maxxair"},
+            {"name": "Camping World", "url": "https://campingworld.com"}
+          ],
+          "community_tips": "Get the Deluxe model with remote. Install with butyl tape, not sealant."
+        },
+        {
+          "id": "power_solar_400w",
+          "category": "power",
+          "name": "400W Solar System",
+          "description": "Sufficient for A/C pre-cooling and daily needs",
+          "priority": "essential",
+          "estimated_cost": 1200,
+          "weight_lbs": 80,
+          "space_requirement": "large",
+          "vendor_links": [
+            {"name": "Renogy", "url": "https://renogy.com/400w-kit"},
+            {"name": "Battleborn", "url": "https://battlebornbatteries.com"}
+          ],
+          "community_tips": "Go lithium batteries. AGM can't handle hot climates well."
+        },
+        {
+          "id": "climate_ac_portable",
+          "category": "climate",
+          "name": "Portable A/C Unit (8000 BTU)",
+          "description": "For those hot afternoons",
+          "priority": "nice-to-have",
+          "estimated_cost": 400,
+          "weight_lbs": 50,
+          "space_requirement": "large",
+          "vendor_links": [
+            {"name": "Home Depot", "url": "https://homedepot.com"},
+            {"name": "Costco", "url": "https://costco.com"}
+          ],
+          "community_tips": "Only works if you have shore power or big solar + batteries."
+        },
+        {
+          "id": "kitchen_fridge_12v",
+          "category": "kitchen",
+          "name": "12V Compressor Fridge (65L)",
+          "description": "Efficient refrigeration without propane",
+          "priority": "essential",
+          "estimated_cost": 800,
+          "weight_lbs": 60,
+          "space_requirement": "large",
+          "vendor_links": [
+            {"name": "Amazon", "url": "https://amazon.com/12v-fridge"},
+            {"name": "Dometic", "url": "https://dometic.com"}
+          ],
+          "community_tips": "ARB and Dometic are brands that last. Cheap Chinese ones fail."
+        },
+        {
+          "id": "comfort_awning",
+          "category": "comfort",
+          "name": "Awning (12ft)",
+          "description": "Shade for hot days",
+          "priority": "nice-to-have",
+          "estimated_cost": 600,
+          "weight_lbs": 40,
+          "space_requirement": "large",
+          "vendor_links": [
+            {"name": "etrailer", "url": "https://etrailer.com"},
+            {"name": "Camping World", "url": "https://campingworld.com"}
+          ],
+          "community_tips": "Manual is fine. Electric awnings break and cost 3x more."
+        },
+        {
+          "id": "safety_first_aid",
+          "category": "safety",
+          "name": "Comprehensive First Aid Kit",
+          "description": "Beyond basic band-aids",
+          "priority": "essential",
+          "estimated_cost": 120,
+          "weight_lbs": 5,
+          "space_requirement": "small",
+          "vendor_links": [
+            {"name": "REI", "url": "https://rei.com/first-aid"},
+            {"name": "Amazon", "url": "https://amazon.com"}
+          ],
+          "community_tips": "Add prescription meds, EpiPens, snake bite kit for remote areas."
+        }
+      ],
+      "total_cost": 3470,
+      "total_weight": 250,
+      "timeline_weeks": 8
+    },
+    "mixed_varied_comfortable": {
+      "name": "Mixed Travel - Varied Climate - Comfortable Budget",
+      "filters": {
+        "travel_style": "mixed",
+        "climate": "varied",
+        "budget": "comfortable"
+      },
+      "items": [
+        {
+          "id": "power_solar_800w",
+          "category": "power",
+          "name": "800W Solar + 400Ah Lithium",
+          "description": "Full off-grid power system",
+          "priority": "essential",
+          "estimated_cost": 4500,
+          "weight_lbs": 200,
+          "space_requirement": "large",
+          "vendor_links": [
+            {"name": "Battleborn", "url": "https://battlebornbatteries.com"},
+            {"name": "Victron", "url": "https://victronenergy.com"}
+          ],
+          "community_tips": "Victron system with BMV-712 monitor. Best investment ever."
+        },
+        {
+          "id": "climate_diesel_heater_webasto",
+          "category": "climate",
+          "name": "Webasto Diesel Heater",
+          "description": "Premium diesel heating system",
+          "priority": "essential",
+          "estimated_cost": 1200,
+          "weight_lbs": 20,
+          "space_requirement": "medium",
+          "vendor_links": [
+            {"name": "Webasto", "url": "https://webasto.com"},
+            {"name": "Amazon", "url": "https://amazon.com/webasto"}
+          ],
+          "community_tips": "Worth the upgrade over Chinese clone. Silent and reliable."
+        },
+        {
+          "id": "climate_ac_roof",
+          "category": "climate",
+          "name": "Roof-Mounted A/C (15000 BTU)",
+          "description": "Cools entire RV",
+          "priority": "nice-to-have",
+          "estimated_cost": 1800,
+          "weight_lbs": 100,
+          "space_requirement": "large",
+          "vendor_links": [
+            {"name": "Dometic", "url": "https://dometic.com/ac"},
+            {"name": "Camping World", "url": "https://campingworld.com"}
+          ],
+          "community_tips": "Get the low-profile model. Better aerodynamics on highway."
+        },
+        {
+          "id": "recovery_winch",
+          "category": "recovery",
+          "name": "Electric Winch (12000 lb)",
+          "description": "Self-recovery from tough spots",
+          "priority": "essential",
+          "estimated_cost": 600,
+          "weight_lbs": 80,
+          "space_requirement": "medium",
+          "vendor_links": [
+            {"name": "Warn", "url": "https://warn.com"},
+            {"name": "4WP", "url": "https://4wheelparts.com"}
+          ],
+          "community_tips": "Warn or Smittybilt. Practice using it BEFORE you need it."
+        },
+        {
+          "id": "recovery_snatch_straps",
+          "category": "recovery",
+          "name": "Recovery Kit (Straps, Shackles, Gloves)",
+          "description": "Complete recovery gear set",
+          "priority": "essential",
+          "estimated_cost": 250,
+          "weight_lbs": 30,
+          "space_requirement": "medium",
+          "vendor_links": [
+            {"name": "ARB", "url": "https://arbusa.com"},
+            {"name": "Amazon", "url": "https://amazon.com/recovery"}
+          ],
+          "community_tips": "Get rated shackles, not Harbor Freight knockoffs. Your life depends on it."
+        },
+        {
+          "id": "kitchen_induction",
+          "category": "kitchen",
+          "name": "Induction Cooktop (2-Burner)",
+          "description": "No propane, efficient cooking",
+          "priority": "nice-to-have",
+          "estimated_cost": 200,
+          "weight_lbs": 10,
+          "space_requirement": "small",
+          "vendor_links": [
+            {"name": "Amazon", "url": "https://amazon.com/induction"},
+            {"name": "Costco", "url": "https://costco.com"}
+          ],
+          "community_tips": "Needs big solar/battery system. But so much safer than propane."
+        },
+        {
+          "id": "kitchen_water_filter",
+          "category": "kitchen",
+          "name": "Water Filtration System",
+          "description": "Safe drinking water anywhere",
+          "priority": "essential",
+          "estimated_cost": 400,
+          "weight_lbs": 15,
+          "space_requirement": "medium",
+          "vendor_links": [
+            {"name": "Berkey", "url": "https://berkeyfilters.com"},
+            {"name": "Amazon", "url": "https://amazon.com/water-filter"}
+          ],
+          "community_tips": "Berkey is expensive but filters everything. Lasts years."
+        },
+        {
+          "id": "comfort_mattress",
+          "category": "comfort",
+          "name": "Custom RV Mattress (Memory Foam)",
+          "description": "Good sleep is essential",
+          "priority": "nice-to-have",
+          "estimated_cost": 800,
+          "weight_lbs": 60,
+          "space_requirement": "large",
+          "vendor_links": [
+            {"name": "Purple", "url": "https://purple.com"},
+            {"name": "Amazon", "url": "https://amazon.com/rv-mattress"}
+          ],
+          "community_tips": "Measure twice. RV bed sizes are weird (not standard)."
+        },
+        {
+          "id": "safety_camera_system",
+          "category": "safety",
+          "name": "360° Camera System",
+          "description": "See all around your rig",
+          "priority": "nice-to-have",
+          "estimated_cost": 600,
+          "weight_lbs": 10,
+          "space_requirement": "small",
+          "vendor_links": [
+            {"name": "Furrion", "url": "https://furrion.com"},
+            {"name": "Haloview", "url": "https://haloviewtech.com"}
+          ],
+          "community_tips": "Wireless systems fail. Run cables. Pain now, peace later."
+        },
+        {
+          "id": "comfort_starlink",
+          "category": "comfort",
+          "name": "Starlink Internet",
+          "description": "Work from anywhere",
+          "priority": "nice-to-have",
+          "estimated_cost": 600,
+          "weight_lbs": 10,
+          "space_requirement": "medium",
+          "vendor_links": [
+            {"name": "Starlink", "url": "https://starlink.com"}
+          ],
+          "community_tips": "RV plan is $150/month. Worth it for remote work."
+        }
+      ],
+      "total_cost": 10950,
+      "total_weight": 535,
+      "timeline_weeks": 16
+    }
+  },
+  "categories": [
+    {
+      "id": "recovery",
+      "name": "Recovery & Off-Road",
+      "icon": "🚜",
+      "description": "Getting unstuck and handling rough terrain"
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen & Food",
+      "icon": "🍳",
+      "description": "Cooking and food storage"
+    },
+    {
+      "id": "power",
+      "name": "Power & Electrical",
+      "icon": "⚡",
+      "description": "Solar, batteries, and electrical systems"
+    },
+    {
+      "id": "climate",
+      "name": "Climate Control",
+      "icon": "🌡️",
+      "description": "Heating, cooling, and ventilation"
+    },
+    {
+      "id": "safety",
+      "name": "Safety & Security",
+      "icon": "🛡️",
+      "description": "Emergency equipment and safety gear"
+    },
+    {
+      "id": "comfort",
+      "name": "Comfort & Convenience",
+      "icon": "🛋️",
+      "description": "Quality of life improvements"
+    }
+  ]
+}

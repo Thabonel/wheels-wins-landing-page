@@ -1,5 +1,6 @@
 import React from "react";
 import Pam from "@/components/Pam"; // Original beautiful PAM interface with Direct Claude API integration
+import { SimplePamBubble } from "@/components/SimplePamBubble"; // Simple fallback bubble
 import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
 import Header from "@/components/header/Header";
@@ -36,8 +37,8 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </main>
       
-      {/* PAM - Original beautiful interface with Direct Claude API integration */}
-      {!hidePam && <Pam mode="floating" />}
+      {/* PAM - Simple bubble (always visible for testing) */}
+      {!hidePam && <SimplePamBubble />}
       
       <footer className="bg-white text-gray-600 py-4 border-t">
         <Footer />

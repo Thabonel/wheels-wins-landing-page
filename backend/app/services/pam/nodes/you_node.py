@@ -182,12 +182,14 @@ class YouNode:
                 "user_id": user_id,
                 "title": title,
                 "description": description,
-                "date": start_dt.date().isoformat(),
-                "start_time": start_dt.strftime("%H:%M:%S"),
-                "end_time": end_dt.strftime("%H:%M:%S"),
-                "timezone": event_data.get("timezone", "UTC"),
-                "location": location,
-                "type": event_type,
+                "start_date": start_dt.isoformat(),
+                "end_date": end_dt.isoformat(),
+                "all_day": event_data.get("all_day", False),
+                "event_type": event_type,
+                "location_name": location,
+                "reminder_minutes": [15],
+                "color": "#3b82f6",
+                "is_private": True,
             }
 
             insert_result = (

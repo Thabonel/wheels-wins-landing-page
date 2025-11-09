@@ -120,7 +120,7 @@ export function useTextToSpeech(initialOptions: TextToSpeechOptions = {}) {
         const truncated = match[1].trim();
         if (truncated.length > 50) { // Ensure we keep meaningful content
           logger.debug('TTS: Truncated text from', text.length, 'to', truncated.length, 'characters');
-          return truncated + '...';
+          return `${truncated  }...`;
         }
       }
     }
@@ -128,7 +128,7 @@ export function useTextToSpeech(initialOptions: TextToSpeechOptions = {}) {
     // Fallback: simple truncation
     const truncated = text.substring(0, MAX_TEXT_LENGTH - 3).trim();
     logger.debug('TTS: Fallback truncation from', text.length, 'to', truncated.length, 'characters');
-    return truncated + '...';
+    return `${truncated  }...`;
   }, []);
 
   // Create utterance with proper configuration
@@ -171,7 +171,7 @@ export function useTextToSpeech(initialOptions: TextToSpeechOptions = {}) {
 
     // Set up event handlers
     utterance.onstart = () => {
-      logger.debug('TTS: Started speaking:', truncatedText.substring(0, 50) + '...');
+      logger.debug('TTS: Started speaking:', `${truncatedText.substring(0, 50)  }...`);
       setState(prev => ({ ...prev, isSpeaking: true, isPaused: false }));
     };
 
@@ -250,7 +250,7 @@ export function useTextToSpeech(initialOptions: TextToSpeechOptions = {}) {
       queueLength: speechQueue.current.length
     }));
 
-    logger.debug('TTS: Added to queue:', text.substring(0, 50) + '...');
+    logger.debug('TTS: Added to queue:', `${text.substring(0, 50)  }...`);
     
     // Start processing if not already
     processQueue();

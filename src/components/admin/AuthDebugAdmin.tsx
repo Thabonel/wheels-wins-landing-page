@@ -103,7 +103,7 @@ const AuthDebugAdmin: React.FC = () => {
         success: diagnosis.filter(d => d.startsWith('❌')).length === 0,
         type: 'investigation',
         data: report,
-        diagnosis: diagnosis,
+        diagnosis,
         timestamp: new Date().toISOString()
       });
     } catch (error) {

@@ -101,7 +101,7 @@ export async function testRealJWTTransmission(): Promise<{
           }
         } else {
           findings.authUidWorks = false;
-          recommendations.push('Database error (not auth related): ' + profileError.message);
+          recommendations.push(`Database error (not auth related): ${  profileError.message}`);
           findings.specificError = profileError.message;
         }
       } else if (profileData) {
@@ -144,13 +144,13 @@ export async function testRealJWTTransmission(): Promise<{
 
     } catch (dbError) {
       findings.databaseReceivesJWT = false;
-      recommendations.push('Cannot connect to database: ' + dbError.message);
+      recommendations.push(`Cannot connect to database: ${  dbError.message}`);
       findings.specificError = dbError.message;
     }
 
   } catch (error) {
     findings.specificError = error.message;
-    recommendations.push('Test failed: ' + error.message);
+    recommendations.push(`Test failed: ${  error.message}`);
   }
 
   const success = findings.hasSession && findings.hasToken && findings.tokenValid && findings.databaseReceivesJWT;

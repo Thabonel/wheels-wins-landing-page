@@ -99,7 +99,7 @@ export class WheelsAgent extends DomainAgent {
               highlights: baseTemplate.highlights
             } : null,
             optimizedRoute: rvOptimizedRoute,
-            recommendations: recommendations,
+            recommendations,
             realTimeFactors: {
               weatherOptimized: true,
               trafficOptimized: true,
@@ -888,7 +888,7 @@ export class WheelsAgent extends DomainAgent {
       campgrounds: [
         {
           name: 'Scenic View RV Park',
-          location: 'Near ' + params.destination,
+          location: `Near ${  params.destination}`,
           rating: 4.2,
           priceRange: '$35-45/night',
           amenities: ['full_hookup', 'wifi', 'pool']

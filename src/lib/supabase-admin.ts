@@ -90,7 +90,7 @@ export async function validateAdminUser(userToken: string): Promise<{ userId: st
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('role, status')
-      .eq('user_id', user.id)
+      .eq('id', user.id)
       .single();
 
     if (profileError || !profile) {
@@ -284,7 +284,7 @@ export class AdminUserService {
         const { error: profileError } = await supabaseAdmin
           .from('profiles')
           .update(profileUpdates)
-          .eq('user_id', userId);
+          .eq('id', userId);
 
         if (profileError) {
           throw new Error(`Failed to update profile: ${profileError.message}`);
@@ -312,7 +312,7 @@ export class AdminUserService {
     try {
       // Delete related records first to maintain referential integrity
       const deleteOperations = [
-        supabaseAdmin.from('profiles').delete().eq('user_id', userId),
+        supabaseAdmin.from('profiles').delete().eq('id', userId),
         supabaseAdmin.from('expenses').delete().eq('user_id', userId),
         supabaseAdmin.from('fuel_log').delete().eq('user_id', userId),
         supabaseAdmin.from('calendar_events').delete().eq('user_id', userId),

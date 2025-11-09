@@ -87,7 +87,7 @@ async def investigate_database_permissions():
         print("\n👤 Testing profile operations...")
         try:
             # First try to read profiles
-            result = regular_client.table("profiles").select("*").eq("user_id", test_user_id).execute()
+            result = regular_client.table("profiles").select("*").eq("id", test_user_id).execute()
             print(f"📖 Profile read: {len(result.data or [])} profiles found")
             
             # Try to insert/update profile
@@ -107,7 +107,7 @@ async def investigate_database_permissions():
             else:
                 print(f"✅ Profile upsert successful")
                 # Clean up
-                regular_client.table("profiles").delete().eq("user_id", test_user_id).execute()
+                regular_client.table("profiles").delete().eq("id", test_user_id).execute()
                 
         except Exception as e:
             print(f"❌ Profile operation exception: {e}")

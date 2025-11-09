@@ -190,7 +190,7 @@ class SafeErrorTracker {
       }
 
       // Check Supabase auth
-      const supabaseAuth = localStorage.getItem('sb-' + process.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token');
+      const supabaseAuth = localStorage.getItem(`sb-${  process.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0]  }-auth-token`);
       if (supabaseAuth) {
         const auth = JSON.parse(supabaseAuth);
         return auth.user?.id;

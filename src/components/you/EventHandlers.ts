@@ -20,20 +20,21 @@ const getSupabaseClient = () => {
 
 // Helper function to convert database event to local CalendarEvent format
 const convertDbEventToLocal = (dbEvent: any): CalendarEvent => {
-  const eventDate = new Date(dbEvent.date);
-  const startTime = dbEvent.start_time?.substring(0, 5) || "09:00";
-  const endTime = dbEvent.end_time?.substring(0, 5) || "10:00";
-  
+  const startDate = new Date(dbEvent.start_date);
+  const endDate = new Date(dbEvent.end_date);
+  const startTime = startDate.toTimeString().substring(0, 5);
+  const endTime = endDate.toTimeString().substring(0, 5);
+
   return {
     id: dbEvent.id,
     title: dbEvent.title,
     description: dbEvent.description || undefined,
-    date: eventDate,
+    date: startDate,
     time: startTime,
     startTime,
     endTime,
-    type: (dbEvent.type as "reminder" | "trip" | "booking" | "maintenance" | "inspection") || "reminder",
-    location: dbEvent.location || undefined,
+    type: (dbEvent.event_type as "reminder" | "trip" | "booking" | "maintenance" | "inspection") || "reminder",
+    location: dbEvent.location_name || undefined,
   };
 };
 
@@ -78,13 +79,19 @@ export const handleEventMove = async (
     if (!user) return;
     
     const client = getSupabaseClient();
+    const startDateTime = new Date(updatedEvent.date);
+    const [startHour, startMinute] = updatedEvent.startTime.split(":").map(Number);
+    startDateTime.setHours(startHour, startMinute, 0);
+
+    const endDateTime = new Date(updatedEvent.date);
+    const [endHour, endMinute] = updatedEvent.endTime.split(":").map(Number);
+    endDateTime.setHours(endHour, endMinute, 0);
+
     const { error } = await client
       .from("calendar_events")
       .update({
-        date: updatedEvent.date.toISOString().split("T")[0],
-        start_time: `${updatedEvent.startTime}:00`,
-        end_time: `${updatedEvent.endTime}:00`,
-        time: `${updatedEvent.startTime}:00`
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString()
       })
       .eq("id", event.id)
       .eq("user_id", user.id);
@@ -136,12 +143,20 @@ export const handleEventResize = async (
     if (!user) return;
     
     const client = getSupabaseClient();
+
+    const startDateTime = new Date(event.date);
+    const [startHour, startMinute] = updatedEvent.startTime.split(":").map(Number);
+    startDateTime.setHours(startHour, startMinute, 0);
+
+    const endDateTime = new Date(event.date);
+    const [endHour, endMinute] = updatedEvent.endTime.split(":").map(Number);
+    endDateTime.setHours(endHour, endMinute, 0);
+
     const { error } = await client
       .from("calendar_events")
       .update({
-        start_time: `${updatedEvent.startTime}:00`,
-        end_time: `${updatedEvent.endTime}:00`,
-        time: `${updatedEvent.startTime}:00`
+        start_date: startDateTime.toISOString(),
+        end_date: endDateTime.toISOString()
       })
       .eq("id", event.id)
       .eq("user_id", user.id);
@@ -240,16 +255,25 @@ export const handleEventSubmit = async (
       return;
     }
 
+    const startDateTime = new Date(data.date);
+    const [startHour, startMinute] = data.startTime.split(":").map(Number);
+    startDateTime.setHours(startHour, startMinute, 0);
+
+    const endDateTime = new Date(data.date);
+    const [endHour, endMinute] = data.endTime.split(":").map(Number);
+    endDateTime.setHours(endHour, endMinute, 0);
+
     const payload = {
       title: data.title,
       description: data.description || "",
-      date: data.date.toISOString().split("T")[0],
-      time: `${data.startTime}:00`,
-      start_time: `${data.startTime}:00`,
-      end_time: `${data.endTime}:00`,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      type: data.type,
-      location: data.location || "",
+      start_date: startDateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
+      all_day: false,
+      event_type: data.type,
+      location_name: data.location || "",
+      reminder_minutes: [15],
+      color: "#3b82f6",
+      is_private: true,
     };
 
     if (eventToUpdate.id) {
@@ -313,17 +337,26 @@ export const handleEventSubmit = async (
     setEvents((prev) => [...prev, tempEvent]);
 
     // Prepare payload for database
+    const startDateTime = new Date(data.date);
+    const [startHour, startMinute] = data.startTime.split(":").map(Number);
+    startDateTime.setHours(startHour, startMinute, 0);
+
+    const endDateTime = new Date(data.date);
+    const [endHour, endMinute] = data.endTime.split(":").map(Number);
+    endDateTime.setHours(endHour, endMinute, 0);
+
     const payload = {
       title: data.title,
       description: data.description || "",
-      date: data.date.toISOString().split("T")[0],
-      time: `${data.startTime}:00`,
-      start_time: `${data.startTime}:00`,
-      end_time: `${data.endTime}:00`,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      type: data.type,
+      start_date: startDateTime.toISOString(),
+      end_date: endDateTime.toISOString(),
+      all_day: false,
+      event_type: data.type,
+      location_name: data.location || "",
+      reminder_minutes: [15],
+      color: "#3b82f6",
+      is_private: true,
       user_id: user.id,
-      location: data.location || "",
     };
 
     const client = getSupabaseClient();

@@ -3,16 +3,20 @@ Admin Knowledge Management Tool - Add Knowledge
 Allows admins to teach PAM new information that will be recalled in future conversations
 
 SECURITY: All knowledge content is validated to prevent prompt injection attacks
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.core.database import get_supabase_client
 from app.core.logging import get_logger
 from app.services.pam.security import check_message_safety
+from app.services.pam.schemas.admin import AddKnowledgeInput
 
 logger = get_logger(__name__)
 
@@ -61,17 +65,38 @@ async def add_knowledge(
         )
     """
     try:
-        logger.info(f"Admin adding knowledge: '{title}' (type: {knowledge_type}, category: {category})")
+        # Validate inputs using Pydantic schema
+        try:
+            validated = AddKnowledgeInput(
+                user_id=user_id,
+                title=title,
+                content=content,
+                knowledge_type=knowledge_type,
+                category=category,
+                location_context=location_context,
+                date_context=date_context,
+                priority=priority,
+                tags=tags
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "error": f"Invalid input: {error_msg}"
+            }
+
+        logger.info(f"Admin adding knowledge: '{validated.title}' (type: {validated.knowledge_type}, category: {validated.category})")
 
         # SECURITY: Validate knowledge content for prompt injection
         safety_result = await check_message_safety(
-            f"{title}\n{content}",
-            context={"user_id": user_id, "action": "add_knowledge"}
+            f"{validated.title}\n{validated.content}",
+            context={"user_id": validated.user_id, "action": "add_knowledge"}
         )
 
         if safety_result.is_malicious:
             logger.warning(
-                f"BLOCKED malicious knowledge submission from {user_id}: "
+                f"BLOCKED malicious knowledge submission from {validated.user_id}: "
                 f"{safety_result.reason} (confidence: {safety_result.confidence})"
             )
             return {
@@ -90,7 +115,7 @@ async def add_knowledge(
             r"\[SYSTEM\]",  # Bracket-style injection
         ]
 
-        content_lower = content.lower()
+        content_lower = validated.content.lower()
         for pattern in suspicious_patterns:
             if re.search(pattern, content_lower, re.IGNORECASE):
                 logger.warning(f"BLOCKED knowledge with suspicious pattern: {pattern}")
@@ -99,31 +124,8 @@ async def add_knowledge(
                     "error": "Knowledge content contains suspicious patterns. Please use plain language only.",
                 }
 
-        # SECURITY: Length limits to prevent abuse
-        MAX_TITLE_LENGTH = 200
-        MAX_CONTENT_LENGTH = 5000
-        MAX_TAGS = 20
-
-        if len(title) > MAX_TITLE_LENGTH:
-            return {
-                "success": False,
-                "error": f"Title too long (max {MAX_TITLE_LENGTH} characters)"
-            }
-
-        if len(content) > MAX_CONTENT_LENGTH:
-            return {
-                "success": False,
-                "error": f"Content too long (max {MAX_CONTENT_LENGTH} characters)"
-            }
-
-        if tags and len(tags) > MAX_TAGS:
-            return {
-                "success": False,
-                "error": f"Too many tags (max {MAX_TAGS})"
-            }
-
         # SECURITY: Sanitize HTML/script tags if present
-        if "<script" in content.lower() or "<iframe" in content.lower():
+        if "<script" in validated.content.lower() or "<iframe" in validated.content.lower():
             logger.warning(f"BLOCKED knowledge with script/iframe tags")
             return {
                 "success": False,
@@ -133,10 +135,10 @@ async def add_knowledge(
         # SECURITY: Check if user has admin privileges
         supabase = get_supabase_client()
         try:
-            profile_response = supabase.table("profiles").select("role").eq("id", user_id).execute()
+            profile_response = supabase.table("profiles").select("role").eq("id", validated.user_id).execute()
 
             if not profile_response.data or len(profile_response.data) == 0:
-                logger.warning(f"User {user_id} profile not found while attempting to add knowledge")
+                logger.warning(f"User {validated.user_id} profile not found while attempting to add knowledge")
                 return {
                     "success": False,
                     "error": "User profile not found"
@@ -144,64 +146,41 @@ async def add_knowledge(
 
             user_role = profile_response.data[0].get("role")
             if user_role != "admin":
-                logger.warning(f"Non-admin user {user_id} (role: {user_role}) attempted to add knowledge")
+                logger.warning(f"Non-admin user {validated.user_id} (role: {user_role}) attempted to add knowledge")
                 return {
                     "success": False,
                     "error": "Admin privileges required to add knowledge"
                 }
         except Exception as auth_error:
-            logger.error(f"Error checking admin privileges for {user_id}: {auth_error}")
+            logger.error(f"Error checking admin privileges for {validated.user_id}: {auth_error}")
             return {
                 "success": False,
                 "error": "Failed to verify admin privileges"
             }
 
-        # Validate knowledge_type
-        valid_types = ['location_tip', 'travel_rule', 'seasonal_advice', 'general_knowledge', 'policy', 'warning']
-        if knowledge_type not in valid_types:
-            return {
-                "success": False,
-                "error": f"Invalid knowledge_type. Must be one of: {', '.join(valid_types)}"
-            }
-
-        # Validate category
-        valid_categories = ['travel', 'budget', 'social', 'shop', 'general']
-        if category not in valid_categories:
-            return {
-                "success": False,
-                "error": f"Invalid category. Must be one of: {', '.join(valid_categories)}"
-            }
-
-        # Validate priority
-        if not (1 <= priority <= 10):
-            return {
-                "success": False,
-                "error": "Priority must be between 1 and 10"
-            }
-
         # Insert into database (supabase client already initialized above)
 
         knowledge_data = {
-            "admin_user_id": user_id,
-            "title": title,
-            "content": content,
-            "knowledge_type": knowledge_type,
-            "category": category,
-            "priority": priority,
+            "admin_user_id": validated.user_id,
+            "title": validated.title,
+            "content": validated.content,
+            "knowledge_type": validated.knowledge_type.value,
+            "category": validated.category.value,
+            "priority": validated.priority,
             "is_active": True,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
 
         # Add optional fields
-        if location_context:
-            knowledge_data["location_context"] = location_context
+        if validated.location_context:
+            knowledge_data["location_context"] = validated.location_context
 
-        if date_context:
-            knowledge_data["date_context"] = date_context
+        if validated.date_context:
+            knowledge_data["date_context"] = validated.date_context
 
-        if tags:
-            knowledge_data["tags"] = tags
+        if validated.tags:
+            knowledge_data["tags"] = validated.tags
 
         result = supabase.table("pam_admin_knowledge").insert(knowledge_data).execute()
 
@@ -212,15 +191,15 @@ async def add_knowledge(
             return {
                 "success": True,
                 "knowledge_id": knowledge_id,
-                "message": f"I've learned: '{title}'. I'll remember this and use it when helping users.",
+                "message": f"I've learned: '{validated.title}'. I'll remember this and use it when helping users.",
                 "data": {
-                    "title": title,
-                    "type": knowledge_type,
-                    "category": category,
-                    "priority": priority,
-                    "location": location_context,
-                    "date_context": date_context,
-                    "tags": tags
+                    "title": validated.title,
+                    "type": validated.knowledge_type.value,
+                    "category": validated.category.value,
+                    "priority": validated.priority,
+                    "location": validated.location_context,
+                    "date_context": validated.date_context,
+                    "tags": validated.tags
                 }
             }
         else:

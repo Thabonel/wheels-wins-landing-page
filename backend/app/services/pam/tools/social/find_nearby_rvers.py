@@ -5,12 +5,16 @@ Discover local RV community members
 Example usage:
 - "Find RVers near me"
 - "Who's camping near Yellowstone?"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
+from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.social import FindNearbyRVersInput
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +41,21 @@ async def find_nearby_rvers(
         Dict with nearby RVers
     """
     try:
-        if latitude is None or longitude is None:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = FindNearbyRVersInput(
+                user_id=user_id,
+                latitude=latitude,
+                longitude=longitude,
+                radius_miles=radius_miles,
+                limit=limit
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Latitude and longitude are required"
+                "error": f"Invalid input: {error_msg}"
             }
 
         supabase = get_supabase_client()
@@ -50,11 +65,11 @@ async def find_nearby_rvers(
         response = supabase.rpc(
             "find_nearby_users",
             {
-                "p_user_id": user_id,
-                "p_latitude": latitude,
-                "p_longitude": longitude,
-                "p_radius_miles": radius_miles,
-                "p_limit": limit
+                "p_user_id": validated.user_id,
+                "p_latitude": validated.latitude,
+                "p_longitude": validated.longitude,
+                "p_radius_miles": validated.radius_miles,
+                "p_limit": validated.limit
             }
         ).execute()
 
@@ -81,14 +96,14 @@ async def find_nearby_rvers(
                 }
             ]
 
-        logger.info(f"Found {len(nearby_rvers)} nearby RVers for user {user_id}")
+        logger.info(f"Found {len(nearby_rvers)} nearby RVers for user {validated.user_id}")
 
         return {
             "success": True,
             "rvers_found": len(nearby_rvers),
             "rvers": nearby_rvers,
-            "radius_miles": radius_miles,
-            "message": f"Found {len(nearby_rvers)} RVers within {radius_miles} miles"
+            "radius_miles": validated.radius_miles,
+            "message": f"Found {len(nearby_rvers)} RVers within {validated.radius_miles} miles"
         }
 
     except Exception as e:

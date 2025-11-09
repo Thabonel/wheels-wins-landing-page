@@ -108,7 +108,7 @@ export async function testJWTTransmission(): Promise<{ success: boolean; details
         tokenInfo: {
           hasToken: !!session.access_token,
           tokenLength: session.access_token.length,
-          tokenPrefix: session.access_token.substring(0, 20) + '...'
+          tokenPrefix: `${session.access_token.substring(0, 20)  }...`
         }
       }
     };
@@ -137,7 +137,7 @@ export async function testDatabaseAccess() {
   console.log('🔑 JWT Token Debug:', {
     hasAccessToken: !!session?.access_token,
     tokenLength: session?.access_token?.length,
-    tokenPrefix: session?.access_token?.substring(0, 20) + '...',
+    tokenPrefix: `${session?.access_token?.substring(0, 20)  }...`,
     expiresAt: session?.expires_at,
     isExpired: session?.expires_at ? session.expires_at < Date.now() / 1000 : null
   });
@@ -310,7 +310,7 @@ export async function quickAuthDiagnosis() {
   console.log(`   Authenticated: ${authInfo.isAuthenticated ? '✅' : '❌'}`);
   console.log(`   User ID: ${authInfo.userId || '❌ Missing'}`);
   console.log(`   Email: ${authInfo.userEmail || '❌ Missing'}`);
-  console.log(`   Token Valid: ${validity.isValid ? '✅' : '❌ ' + validity.reason}`);
+  console.log(`   Token Valid: ${validity.isValid ? '✅' : `❌ ${  validity.reason}`}`);
 
   if (!authInfo.isAuthenticated) {
     console.log('');
@@ -411,7 +411,7 @@ export async function recoverAuthentication(): Promise<{ success: boolean; strat
     console.log('🔄 Strategy 3: Storage cleanup...');
 
     // Clear all auth-related storage
-    localStorage.removeItem('sb-' + new URL(supabase.supabaseUrl).hostname.replace(/\./g, '-') + '-auth-token');
+    localStorage.removeItem(`sb-${  new URL(supabase.supabaseUrl).hostname.replace(/\./g, '-')  }-auth-token`);
     localStorage.removeItem('pam-auth-token');
     sessionStorage.clear();
 
@@ -485,7 +485,7 @@ export async function createEmergencyAccess(userId: string): Promise<{ success: 
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('id, user_id, email')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single();
 
     if (error) {

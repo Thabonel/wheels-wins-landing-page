@@ -5,13 +5,17 @@ Control data sharing and privacy settings
 Example usage:
 - "Make my profile private"
 - "Hide my location from other users"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.profile import ManagePrivacyInput
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +44,24 @@ async def manage_privacy(
         Dict with updated privacy settings
     """
     try:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = ManagePrivacyInput(
+                user_id=user_id,
+                profile_visibility=profile_visibility,
+                location_sharing=location_sharing,
+                show_activity=show_activity,
+                allow_messages=allow_messages,
+                data_collection=data_collection
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "error": f"Invalid input: {error_msg}"
+            }
+
         supabase = get_supabase_client()
 
         # Build update data (only include provided fields)
@@ -47,40 +69,30 @@ async def manage_privacy(
             "updated_at": datetime.now().isoformat()
         }
 
-        if profile_visibility is not None:
-            if profile_visibility not in ["public", "friends", "private"]:
-                return {
-                    "success": False,
-                    "error": "Invalid profile_visibility. Must be: public, friends, or private"
-                }
-            update_data["profile_visibility"] = profile_visibility
+        if validated.profile_visibility is not None:
+            update_data["profile_visibility"] = validated.profile_visibility
 
-        if location_sharing is not None:
-            update_data["location_sharing"] = location_sharing
+        if validated.location_sharing is not None:
+            update_data["location_sharing"] = validated.location_sharing
 
-        if show_activity is not None:
-            update_data["show_activity"] = show_activity
+        if validated.show_activity is not None:
+            update_data["show_activity"] = validated.show_activity
 
-        if allow_messages is not None:
-            if allow_messages not in ["everyone", "friends", "none"]:
-                return {
-                    "success": False,
-                    "error": "Invalid allow_messages. Must be: everyone, friends, or none"
-                }
-            update_data["allow_messages"] = allow_messages
+        if validated.allow_messages is not None:
+            update_data["allow_messages"] = validated.allow_messages
 
-        if data_collection is not None:
-            update_data["data_collection"] = data_collection
+        if validated.data_collection is not None:
+            update_data["data_collection"] = validated.data_collection
 
         # Update or insert privacy settings
         response = supabase.table("privacy_settings").upsert({
-            "user_id": user_id,
+            "user_id": validated.user_id,
             **update_data
         }).execute()
 
         if response.data:
             privacy_settings = response.data[0]
-            logger.info(f"Updated privacy settings for user {user_id}")
+            logger.info(f"Updated privacy settings for user {validated.user_id}")
 
             return {
                 "success": True,

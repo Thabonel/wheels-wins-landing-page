@@ -352,7 +352,7 @@ export class UserBehaviorAnalytics {
   // =====================================================
 
   trackUserJourney(userId: string, journeyType: UserJourney['journey_type'], stepName: string): void {
-    let journeys = this.userJourneys.get(userId) || [];
+    const journeys = this.userJourneys.get(userId) || [];
     let currentJourney = journeys.find(j => j.journey_type === journeyType && !j.steps.find(s => s.step_name === 'completed'));
 
     if (!currentJourney) {
@@ -473,7 +473,7 @@ export class UserBehaviorAnalytics {
   private async analyzeFeatureAdoption(): Promise<BehaviorPattern | null> {
     // This would analyze feature usage trends
     return {
-      pattern_id: 'feature_adoption_' + Date.now(),
+      pattern_id: `feature_adoption_${  Date.now()}`,
       pattern_type: 'feature_adoption',
       description: 'Increased adoption of trip planning features',
       frequency: 0.85,
@@ -490,7 +490,7 @@ export class UserBehaviorAnalytics {
   private async analyzeChurnRisk(): Promise<BehaviorPattern | null> {
     // Identify users at risk of churning
     return {
-      pattern_id: 'churn_risk_' + Date.now(),
+      pattern_id: `churn_risk_${  Date.now()}`,
       pattern_type: 'churn_risk',
       description: 'Users showing decreased engagement',
       frequency: 0.15,
@@ -507,7 +507,7 @@ export class UserBehaviorAnalytics {
   private async analyzePowerUsers(): Promise<BehaviorPattern | null> {
     // Identify power users with high engagement
     return {
-      pattern_id: 'power_users_' + Date.now(),
+      pattern_id: `power_users_${  Date.now()}`,
       pattern_type: 'power_user',
       description: 'Highly engaged users driving feature adoption',
       frequency: 0.05,
@@ -524,7 +524,7 @@ export class UserBehaviorAnalytics {
   private async analyzeUsageSpikes(): Promise<BehaviorPattern | null> {
     // Analyze traffic and usage spikes
     return {
-      pattern_id: 'usage_spike_' + Date.now(),
+      pattern_id: `usage_spike_${  Date.now()}`,
       pattern_type: 'usage_spike',
       description: 'Increased activity during weekend planning',
       frequency: 0.7,
@@ -674,7 +674,7 @@ export class UserBehaviorAnalytics {
   }
 
   private generateSessionId(): string {
-    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    return `session_${  Date.now()  }_${  Math.random().toString(36).substr(2, 9)}`;
   }
 
   private getCurrentSessionId(): string {

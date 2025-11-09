@@ -132,3 +132,17 @@ ONGOING_MONITORING_*.md
 PAM_AI_*.md
 # E2E test reports (generated)
 e2e/reports/*.json
+
+# Beads Issue Tracker (local only)
+.beads/*.db
+.beads/*.db-journal
+.beads/*.db-wal
+.beads/*.db-shm
+.beads/*.jsonl
+
+# MCP Server Configuration (contains service role keys - DO NOT COMMIT)
+.mcp.json
+
+# MCP configuration with secrets
+.claude.json
+scripts/import-mcp-servers.sh

@@ -42,11 +42,13 @@ export const useProfile = () => {
       }
 
       try {
-        // Use Supabase directly to fetch profile
+        // CRITICAL: profiles table uses 'id' NOT 'user_id'
+        // If you change this, PAM breaks. Don't touch it.
+        // See: docs/DATABASE_SCHEMA_REFERENCE.md
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('id', user.id)  // id, not user_id!
           .single();
         
         if (error) {
@@ -72,11 +74,12 @@ export const useProfile = () => {
     
     setLoading(true);
     try {
-      // Use Supabase directly to refresh profile
+      // CRITICAL: profiles table uses 'id' NOT 'user_id'
+      // See: docs/DATABASE_SCHEMA_REFERENCE.md
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('id', user.id)  // id, not user_id!
         .single();
       
       if (error) {

@@ -27,22 +27,13 @@ import { getPamLocationContext, formatLocationForPam } from '@/utils/pamLocation
 import { logger } from '@/lib/logger';
 import type { Pam2ChatRequest, Pam2ChatResponse, Pam2HealthResponse } from '@/types/pamTypes';
 import { MessageQueue, type QueuedMessage } from '@/utils/messageQueue';
+import { type PamContext, type PamApiMessage, validatePamContext } from '@/types/pamContext';
 
 // =====================================================
 // TYPES & INTERFACES
 // =====================================================
 
-export interface PamApiMessage {
-  message: string;
-  user_id: string;
-  context?: {
-    region?: string;
-    current_page?: string;
-    session_data?: any;
-    location?: any;
-    userLocation?: any;
-  };
-}
+// Note: PamApiMessage now imported from @/types/pamContext (single source of truth)
 
 export interface PamApiResponse {
   response?: string;
@@ -761,7 +752,7 @@ class PamService {
             const legacyResponse: PamApiResponse = {
               response: content,
               message: content,
-              content: content,
+              content,
               ui_action: response.ui_action,
               metadata: response.metadata
             };
@@ -934,17 +925,30 @@ class PamService {
         const locationData = formatLocationForPam(locationContext);
         console.log(`📍 Adding location to PAM: ${locationContext.city}, ${locationContext.country} (${locationContext.source})`);
 
+        const enhancedContext = {
+          ...message.context,
+          ...locationData,  // Now adds user_location directly (correct field name)
+          // Add environment context
+          environment: this.getEnvironment(),
+          timestamp: Date.now()
+        };
+
+        // Validate context before sending (development/staging only)
+        if (this.getEnvironment() !== 'production') {
+          const validation = validatePamContext(enhancedContext);
+          if (validation.warnings.length > 0) {
+            console.warn('⚠️ PAM Context Validation Warnings:');
+            validation.warnings.forEach(w => console.warn(w));
+          }
+          if (validation.errors.length > 0) {
+            console.error('❌ PAM Context Validation Errors:');
+            validation.errors.forEach(e => console.error(e));
+          }
+        }
+
         return {
           ...message,
-          context: {
-            ...message.context,
-            ...locationData,
-            // Also add as userLocation for backward compatibility
-            userLocation: locationContext,
-            // Add environment context
-            environment: this.getEnvironment(),
-            timestamp: Date.now()
-          }
+          context: enhancedContext
         };
       } else {
         console.log('🌍 No location context available for PAM');

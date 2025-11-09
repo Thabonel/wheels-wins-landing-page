@@ -227,7 +227,7 @@ export function saveTestReport(report: PAMTestReport): void {
  * Print test summary to console
  */
 export function printTestSummary(report: PAMTestReport): void {
-  console.log('\n' + '='.repeat(60));
+  console.log(`\n${  '='.repeat(60)}`);
   console.log('PAM AUTOMATED TEST SUMMARY');
   console.log('='.repeat(60));
   console.log(`Total Tests: ${report.totalTests}`);

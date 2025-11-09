@@ -91,12 +91,7 @@ from app.services.pam.tools.social.share_location import share_location
 from app.services.pam.tools.social.find_nearby_rvers import find_nearby_rvers
 from app.services.pam.tools.social.create_event import create_event
 
-# Import shop tools
-from app.services.pam.tools.shop.search_products import search_products
-from app.services.pam.tools.shop.add_to_cart import add_to_cart
-from app.services.pam.tools.shop.get_cart import get_cart
-from app.services.pam.tools.shop.checkout import checkout
-from app.services.pam.tools.shop.track_order import track_order
+# Shop tools (AMENDMENT #3): Archived to backend/archive/shop_tools/ for Phase 2
 
 # Import profile tools
 from app.services.pam.tools.profile.update_profile import update_profile
@@ -110,8 +105,12 @@ from app.services.pam.tools.profile.create_vehicle import create_vehicle
 from app.services.pam.tools.admin.add_knowledge import add_knowledge
 from app.services.pam.tools.admin.search_knowledge import search_knowledge
 
-# Import calendar tool
+# Import calendar tools
 from app.services.pam.tools.create_calendar_event import create_calendar_event
+from app.services.pam.tools.update_calendar_event import update_calendar_event
+from app.services.pam.tools.delete_calendar_event import delete_calendar_event
+
+# Transition tools (AMENDMENT #5): Archived to backend/archive/transition_tools/ (not in official architecture)
 
 logger = logging.getLogger(__name__)
 
@@ -134,19 +133,21 @@ class PAM:
             logger.info(f"Built tool definitions cache: {len(cls._TOOLS_CACHE)} tools in {elapsed_ms:.1f}ms")
         return cls._TOOLS_CACHE
 
-    def __init__(self, user_id: str, user_language: str = "en"):
+    def __init__(self, user_id: str, user_language: str = "en", user_context: Optional[Dict[str, Any]] = None):
         """
         Initialize PAM for a specific user
 
         Args:
             user_id: UUID of the user this PAM instance serves
             user_language: User's preferred language (en, es, fr)
+            user_context: Optional cached user context (location, preferences, vehicle info)
         """
         import time
         init_start = time.time()
 
         self.user_id = user_id
         self.user_language = user_language
+        self.user_context = user_context or {}
 
         # Initialize Claude client (try both key names for compatibility)
         api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC-WHEELS-KEY")
@@ -154,7 +155,20 @@ class PAM:
             raise ValueError("ANTHROPIC_API_KEY or ANTHROPIC-WHEELS-KEY environment variable not set")
 
         self.client = AsyncAnthropic(api_key=api_key)
-        self.model = "claude-sonnet-4-5-20250929"
+
+        # Use dynamic model configuration (hot-swappable via environment)
+        from app.config.model_config import get_model_config
+        model_config = get_model_config()
+        primary_model = model_config.get_primary_model()
+        self.model = primary_model.model_id
+
+        # Enable intelligent routing (chooses best model per query)
+        self.use_intelligent_routing = os.getenv("PAM_INTELLIGENT_ROUTING", "true").lower() == "true"
+
+        logger.info(
+            f"PAM using model: {primary_model.name} ({self.model}), "
+            f"Intelligent routing: {'enabled' if self.use_intelligent_routing else 'disabled'}"
+        )
 
         # Conversation context (in-memory for now, will add persistence later)
         self.conversation_history: List[Dict[str, Any]] = []
@@ -224,7 +238,45 @@ You can:
 
 **Current date:** {datetime.now().strftime("%Y-%m-%d")}
 
+{self._build_user_context_section()}
+
 Remember: You're here to help RVers travel smarter and save money. Be helpful, be secure, be awesome."""
+
+    def _build_user_context_section(self) -> str:
+        """
+        Build user context section for system prompt from cached data
+        Enables location-aware responses without asking user
+        """
+        if not self.user_context:
+            return ""
+
+        context_parts = ["\n**User Context:**"]
+
+        # Add location
+        if self.user_context.get('location'):
+            context_parts.append(f"- Location: {self.user_context['location']}")
+
+        # Add preferred units
+        if self.user_context.get('preferred_units'):
+            context_parts.append(f"- Preferred units: {self.user_context['preferred_units']}")
+
+        # Add vehicle info
+        if self.user_context.get('vehicle_make_model'):
+            context_parts.append(f"- Vehicle: {self.user_context['vehicle_make_model']}")
+            if self.user_context.get('fuel_type'):
+                context_parts.append(f"- Fuel type: {self.user_context['fuel_type']}")
+
+        # Add travel style
+        if self.user_context.get('travel_style'):
+            context_parts.append(f"- Travel style: {self.user_context['travel_style']}")
+
+        # Add user name if available
+        if self.user_context.get('nickname'):
+            context_parts.append(f"- User prefers to be called: {self.user_context['nickname']}")
+        elif self.user_context.get('full_name'):
+            context_parts.append(f"- User name: {self.user_context['full_name']}")
+
+        return "\n".join(context_parts) if len(context_parts) > 1 else ""
 
     @staticmethod
     def _build_tools_schema() -> List[Dict[str, Any]]:
@@ -632,67 +684,8 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     "required": ["title", "description", "event_date", "location"]
                 }
             },
-            # Shop tools
-            {
-                "name": "search_products",
-                "description": "Search for RV parts and gear in the shop. Use when user wants to find products.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "Search query"},
-                        "category": {"type": "string", "description": "Optional category filter"},
-                        "max_price": {"type": "number", "description": "Optional max price filter"},
-                        "min_rating": {"type": "number", "description": "Optional min rating (1-5)"},
-                        "limit": {"type": "integer", "description": "Max results (default: 20)"}
-                    },
-                    "required": ["query"]
-                }
-            },
-            {
-                "name": "add_to_cart",
-                "description": "Add product to shopping cart. Use when user wants to purchase items.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "product_id": {"type": "string", "description": "UUID of the product"},
-                        "quantity": {"type": "integer", "description": "Quantity to add (default: 1)"}
-                    },
-                    "required": ["product_id"]
-                }
-            },
-            {
-                "name": "get_cart",
-                "description": "View shopping cart contents. Use when user wants to see their cart.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            },
-            {
-                "name": "checkout",
-                "description": "Complete purchase from cart. Use when user wants to checkout.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "payment_method_id": {"type": "string", "description": "Optional payment method ID"},
-                        "shipping_address_id": {"type": "string", "description": "Optional shipping address ID"}
-                    },
-                    "required": []
-                }
-            },
-            {
-                "name": "track_order",
-                "description": "Track order status and shipping. Use when user wants to check order status.",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "order_id": {"type": "string", "description": "Optional order UUID"},
-                        "order_number": {"type": "string", "description": "Optional order number (e.g., ORD-12345)"}
-                    },
-                    "required": []
-                }
-            },
+            # Shop tools (AMENDMENT #3): 5 tools archived to backend/archive/shop_tools/ for Phase 2
+            # Transition tools (AMENDMENT #5): 5 tools archived to backend/archive/transition_tools/
             # Profile tools
             {
                 "name": "update_profile",
@@ -845,6 +838,36 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     },
                     "required": ["title", "start_date"]
                 }
+            },
+            {
+                "name": "update_calendar_event",
+                "description": "Update an existing calendar event. Use this when user asks to move, reschedule, change, or modify an appointment. You must first find the event_id using context or by asking the user.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "event_id": {"type": "string", "description": "UUID of the event to update (required)"},
+                        "title": {"type": "string", "description": "New title or name of the event (optional)"},
+                        "start_date": {"type": "string", "description": "New start date and time in ISO format (optional)"},
+                        "end_date": {"type": "string", "description": "New end date and time in ISO format (optional)"},
+                        "description": {"type": "string", "description": "New event description (optional)"},
+                        "event_type": {"type": "string", "description": "New event type (optional)"},
+                        "all_day": {"type": "boolean", "description": "Whether this is an all-day event (optional)"},
+                        "location_name": {"type": "string", "description": "New location (optional)"},
+                        "reminder_minutes": {"type": "integer", "description": "New reminder time in minutes (optional)"}
+                    },
+                    "required": ["event_id"]
+                }
+            },
+            {
+                "name": "delete_calendar_event",
+                "description": "Delete a calendar event. Use this when user asks to remove, cancel, or delete an appointment. You must first find the event_id using context or by asking the user.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "event_id": {"type": "string", "description": "UUID of the event to delete"}
+                    },
+                    "required": ["event_id"]
+                }
             }
         ]
 
@@ -944,6 +967,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
         If we have incomplete tool execution in history, we must clean it to prevent API errors.
         """
         messages = []
+        filtered_tool_use_ids = set()
 
         for i, msg in enumerate(self.conversation_history):
             # Only include user and assistant messages (skip system context)
@@ -981,6 +1005,12 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                             f"Found tool_use without tool_result at message {i}, "
                             f"filtering tool_use blocks to prevent API error"
                         )
+                        # Track IDs of filtered tool_use blocks
+                        for block in content:
+                            if isinstance(block, dict) and block.get("type") == "tool_use":
+                                if "id" in block:
+                                    filtered_tool_use_ids.add(block["id"])
+
                         # Keep only text blocks, remove tool_use blocks
                         filtered_content = [
                             block for block in content
@@ -993,6 +1023,37 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                             continue
 
                         content = filtered_content
+
+            # Filter out orphaned tool_result blocks from user messages
+            if msg["role"] == "user" and isinstance(content, list) and filtered_tool_use_ids:
+                filtered_content = [
+                    block for block in content
+                    if not (isinstance(block, dict) and
+                           block.get("type") == "tool_result" and
+                           block.get("tool_use_id") in filtered_tool_use_ids)
+                ]
+                if filtered_content != content:
+                    logger.warning(f"Filtered orphaned tool_result blocks from message {i}")
+                    content = filtered_content
+
+            # Skip empty user messages after filtering
+            if msg["role"] == "user" and isinstance(content, list) and not content:
+                logger.warning(f"Skipping message {i} - only contained orphaned tool_result blocks")
+                continue
+
+            # CRITICAL: Validate content is never empty (string, list, or any type)
+            # Claude API requires all messages to have non-empty content
+            is_empty = False
+            if isinstance(content, str) and not content.strip():
+                is_empty = True
+            elif isinstance(content, list) and not content:
+                is_empty = True
+            elif content is None:
+                is_empty = True
+
+            if is_empty:
+                logger.warning(f"Skipping message {i} - empty content after filtering (role={msg['role']})")
+                continue
 
             messages.append({
                 "role": msg["role"],
@@ -1010,33 +1071,93 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
         2. If Claude wants to use a tool, execute it
         3. Send tool result back to Claude
         4. Get final response
+
+        Includes automatic failover to backup models if primary fails.
         """
         import time
+        from app.config.model_config import get_model_config
+        from app.services.pam.intelligent_router import get_intelligent_router
+
         try:
             # Use filtered tools if provided, otherwise use all tools
             tools_to_use = filtered_tools if filtered_tools is not None else self.tools
 
-            # Call Claude with tools and prompt caching
-            # Cache the system prompt and tools (they don't change per request)
-            claude_start = time.time()
-            logger.info(f"🧠 Calling Claude API with {len(tools_to_use)} tools...")
+            # Intelligent model selection (chooses best model for this query)
+            model_config = get_model_config()
+            current_model = self.model
 
-            response = await self.client.messages.create(
-                model=self.model,
-                max_tokens=2048,
-                system=[
-                    {
-                        "type": "text",
-                        "text": self.system_prompt,
-                        "cache_control": {"type": "ephemeral"}
-                    }
-                ],
-                messages=messages,
-                tools=tools_to_use
-            )
+            if self.use_intelligent_routing:
+                router = get_intelligent_router()
+                # Get last user message for complexity detection
+                last_message = next(
+                    (msg["content"] for msg in reversed(messages) if msg["role"] == "user"),
+                    ""
+                )
+                if isinstance(last_message, list):
+                    last_message = " ".join(
+                        block.get("text", "") for block in last_message
+                        if isinstance(block, dict) and block.get("type") == "text"
+                    )
 
-            claude_elapsed_ms = (time.time() - claude_start) * 1000
-            logger.info(f"✅ Claude API response received in {claude_elapsed_ms:.1f}ms")
+                selection = await router.select_model(
+                    message=str(last_message),
+                    context={}
+                )
+                current_model = selection.model.model_id
+                logger.info(f"🎯 Intelligent routing: {selection.reasoning}")
+
+            max_retries = 3  # Try selected + 2 fallbacks max
+
+            for attempt in range(max_retries):
+                try:
+                    # Call Claude with tools and prompt caching
+                    # Cache the system prompt and tools (they don't change per request)
+                    claude_start = time.time()
+                    logger.info(f"🧠 [Attempt {attempt + 1}/{max_retries}] Calling Claude API ({current_model}) with {len(tools_to_use)} tools...")
+
+                    response = await self.client.messages.create(
+                        model=current_model,
+                        max_tokens=2048,
+                        system=[
+                            {
+                                "type": "text",
+                                "text": self.system_prompt,
+                                "cache_control": {"type": "ephemeral"}
+                            }
+                        ],
+                        messages=messages,
+                        tools=tools_to_use
+                    )
+
+                    claude_elapsed_ms = (time.time() - claude_start) * 1000
+                    logger.info(f"✅ Claude API response received from {current_model} in {claude_elapsed_ms:.1f}ms")
+
+                    # Success! Return to normal flow
+                    break
+
+                except Exception as api_error:
+                    logger.warning(f"⚠️ Model {current_model} failed on attempt {attempt + 1}: {api_error}")
+
+                    # Mark model as unhealthy temporarily
+                    model_config.mark_model_unhealthy(current_model, duration_minutes=5)
+
+                    # Try next model in fallback chain
+                    if attempt < max_retries - 1:
+                        next_model_config = model_config.get_next_model(current_model)
+                        if next_model_config:
+                            current_model = next_model_config.model_id
+                            logger.info(f"🔄 Failing over to {next_model_config.name} ({current_model})")
+                        else:
+                            logger.error("❌ No fallback models available, using last attempted model")
+                            raise api_error
+                    else:
+                        # Last attempt failed
+                        raise api_error
+
+            # Update instance model if we switched
+            if current_model != self.model:
+                logger.info(f"💾 Updating PAM instance model from {self.model} to {current_model}")
+                self.model = current_model
 
             # Check if Claude wants to use tools
             if response.stop_reason == "tool_use":
@@ -1060,12 +1181,15 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     "timestamp": datetime.now().isoformat()
                 })
 
+                # Add tool results to conversation history (CRITICAL: must be saved for next turn)
+                self.conversation_history.append({
+                    "role": "user",
+                    "content": tool_results,
+                    "timestamp": datetime.now().isoformat()
+                })
+
                 # Build new messages with tool results
                 messages_with_tools = self._build_claude_messages()
-                messages_with_tools.append({
-                    "role": "user",
-                    "content": tool_results
-                })
 
                 # Call Claude again with tool results (with caching)
                 final_response = await self.client.messages.create(
@@ -1095,6 +1219,17 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     "timestamp": datetime.now().isoformat()
                 })
 
+                # Track performance for intelligent routing
+                if self.use_intelligent_routing and 'selection' in locals():
+                    router = get_intelligent_router()
+                    router.track_performance(
+                        model_id=current_model,
+                        complexity=selection.complexity,
+                        latency_ms=claude_elapsed_ms,
+                        success=True,
+                        cost=selection.estimated_cost
+                    )
+
                 logger.info(f"PAM response with tools ({len(assistant_message)} chars)")
                 return assistant_message
 
@@ -1117,6 +1252,17 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     "content": assistant_message,
                     "timestamp": datetime.now().isoformat()
                 })
+
+                # Track performance for intelligent routing
+                if self.use_intelligent_routing and 'selection' in locals():
+                    router = get_intelligent_router()
+                    router.track_performance(
+                        model_id=current_model,
+                        complexity=selection.complexity,
+                        latency_ms=claude_elapsed_ms,
+                        success=True,
+                        cost=selection.estimated_cost
+                    )
 
                 logger.info(f"PAM response without tools ({len(assistant_message)} chars)")
                 logger.info(f"🔍 Full assistant message: {assistant_message}")
@@ -1174,12 +1320,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             "share_location": share_location,
             "find_nearby_rvers": find_nearby_rvers,
             "create_event": create_event,
-            # Shop tools
-            "search_products": search_products,
-            "add_to_cart": add_to_cart,
-            "get_cart": get_cart,
-            "checkout": checkout,
-            "track_order": track_order,
+            # Shop tools (AMENDMENT #3): Archived for Phase 2
             # Profile tools
             "update_profile": update_profile,
             "update_settings": update_settings,
@@ -1191,7 +1332,10 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             "add_knowledge": add_knowledge,
             "search_knowledge": search_knowledge,
             # Calendar tools
-            "create_calendar_event": create_calendar_event
+            "create_calendar_event": create_calendar_event,
+            "update_calendar_event": update_calendar_event,
+            "delete_calendar_event": delete_calendar_event
+            # Transition tools (AMENDMENT #5): Archived (not in official architecture)
         }
 
         for block in content:
@@ -1310,27 +1454,75 @@ _pam_instances: Dict[str, PAM] = {}
 
 async def get_pam(user_id: str, user_language: str = "en") -> PAM:
     """
-    Get or create a PAM instance for a user
+    Get or create a PAM instance for a user with cached context
 
-    This implements a simple singleton pattern - one PAM per user.
-    In production with multiple backend instances, use Redis for shared state.
+    Implements lazy cache warming: if cache is empty, warms it on first PAM interaction.
+    This ensures cache is populated even for users who never log out.
 
     Args:
         user_id: UUID of the user
         user_language: User's preferred language (en, es, fr)
 
     Returns:
-        PAM instance for this user
+        PAM instance for this user (with cached context injected)
     """
+    logger.info(f"🔍 get_pam() called for user {user_id}")
+
+    # Fetch user context from cache (location, preferences, etc.)
+    user_context = None
+    try:
+        from app.services.pam.cache_warming import get_cache_warming_service
+        cache_service = await get_cache_warming_service()
+
+        logger.info(f"🔍 Checking cache for user {user_id}...")
+        user_context = await cache_service.get_cached_user_context(user_id)
+
+        if user_context:
+            logger.info(f"✅ Cache HIT for user {user_id} (location: {user_context.get('location')})")
+        else:
+            logger.info(f"❌ Cache MISS for user {user_id}")
+
+            # LAZY CACHE WARMING: If no cache and no existing instance, warm cache now
+            if user_id not in _pam_instances:
+                logger.info(f"🔥 Lazy warming cache for user {user_id}...")
+                warm_result = await cache_service.warm_user_cache(user_id)
+
+                if warm_result['success']:
+                    logger.info(f"✅ Cache warmed: {warm_result['cached_items']} items, {warm_result['warming_time_ms']}ms")
+                    # Try fetching again
+                    user_context = await cache_service.get_cached_user_context(user_id)
+                    if user_context:
+                        logger.info(f"✅ Context retrieved after warming (location: {user_context.get('location')})")
+                else:
+                    logger.warning(f"⚠️ Cache warming partially failed: {warm_result['failed_items']}")
+
+    except Exception as e:
+        logger.error(f"❌ Cache service error for {user_id}: {e}", exc_info=True)
+
     if user_id not in _pam_instances:
-        _pam_instances[user_id] = PAM(user_id, user_language)
-        logger.info(f"Created new PAM instance for user {user_id}, language: {user_language}")
+        logger.info(f"🆕 Creating new PAM instance for user {user_id}")
+        _pam_instances[user_id] = PAM(user_id, user_language, user_context)
+
+        # Log system prompt preview for debugging
+        system_prompt_preview = _pam_instances[user_id].system_prompt[:300]
+        logger.info(f"🔍 System prompt preview: {system_prompt_preview}...")
+
+        if user_context:
+            logger.info(f"✅ PAM initialized WITH context: location={user_context.get('location')}, units={user_context.get('preferred_units')}")
+        else:
+            logger.warning(f"⚠️ PAM initialized WITHOUT context (will ask for location)")
+
     else:
-        # Update language if it changed
-        if _pam_instances[user_id].user_language != user_language:
-            _pam_instances[user_id].user_language = user_language
+        # Update language or context if changed
+        if _pam_instances[user_id].user_language != user_language or user_context:
+            if _pam_instances[user_id].user_language != user_language:
+                _pam_instances[user_id].user_language = user_language
+                logger.info(f"🔄 Updated language for user {user_id} to {user_language}")
+            if user_context:
+                _pam_instances[user_id].user_context = user_context
+                logger.info(f"🔄 Updated context for user {user_id}")
+            # Rebuild system prompt with new context
             _pam_instances[user_id].system_prompt = _pam_instances[user_id]._build_system_prompt()
-            logger.info(f"Updated language for user {user_id} to {user_language}")
 
     return _pam_instances[user_id]
 
