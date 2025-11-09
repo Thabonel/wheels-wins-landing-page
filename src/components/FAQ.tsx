@@ -15,7 +15,7 @@ const FAQ = () => {
     },
     {
       question: "What happens after my free trial ends?",
-      answer: "You'll get an email reminder 3 days before your trial ends. You can choose to subscribe for A$10/month or let it expire—no automatic charges. All your saved data stays private and can be downloaded anytime.",
+      answer: "You'll get an email reminder 3 days before your trial ends. You can choose to subscribe for A$10/month or let it expire, no automatic charges. All your saved data stays private and can be downloaded anytime.",
       category: "pricing"
     },
     {
@@ -25,7 +25,7 @@ const FAQ = () => {
     },
     {
       question: "Do you offer refunds?",
-      answer: "Absolutely. If you're not happy within the first 30 days of a paid subscription, we'll refund 100%—no questions asked. Just email support@wheelsandwins.com with your request.",
+      answer: "Absolutely. If you're not happy within the first 30 days of a paid subscription, we'll refund 100%, no questions asked. Just email support@wheelsandwins.com with your request.",
       category: "pricing"
     },
 
@@ -37,7 +37,7 @@ const FAQ = () => {
     },
     {
       question: "Who can see my location and travel plans?",
-      answer: "Only you, unless you explicitly choose to share. All location data is private by default. You control exactly what appears on the social feed—share as much or as little as you want.",
+      answer: "Only you, unless you explicitly choose to share. All location data is private by default. You control exactly what appears on the social feed, share as much or as little as you want.",
       category: "security"
     },
     {
@@ -71,7 +71,7 @@ const FAQ = () => {
     },
     {
       question: "What if PAM gives me wrong directions or bad advice?",
-      answer: "PAM uses real-time data from Mapbox, OpenWeather, and government road services—the same sources as Google Maps. Always verify critical decisions (weather, road closures) with official sources. We're a planning tool, not a replacement for common sense.",
+      answer: "PAM uses real-time data from Mapbox, OpenWeather, and government road services, the same sources as Google Maps. Always verify critical decisions (weather, road closures) with official sources. We're a planning tool, not a replacement for common sense.",
       category: "product"
     }
   ];
