@@ -16,15 +16,10 @@ const Hero = () => {
         <p className="text-xl md:text-2xl text-white/90 mb-10 max-w-3xl mx-auto">
           AI-powered route planning + expense tracking for full-time RVers who want more travel, less stress.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+        <div className="flex justify-center items-center">
           <Link to="/signup">
             <Button size="lg" className="text-xl font-semibold px-10 py-7 bg-accent text-accent-foreground hover:bg-accent/90">
               Start Free for 30 Days
-            </Button>
-          </Link>
-          <Link to="/demo">
-            <Button size="lg" variant="outline" className="text-xl font-semibold px-10 py-7 bg-white/10 text-white border-white/30 hover:bg-white/20">
-              Watch How It Works
             </Button>
           </Link>
         </div>
