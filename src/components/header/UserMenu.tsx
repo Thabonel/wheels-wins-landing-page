@@ -16,7 +16,6 @@ const UserMenu = () => {
   useEffect(() => {
     // Use profile from the hook first
     if (profile?.profile_image_url) {
-      console.log('Using profile image from hook:', profile.profile_image_url);
       setProfileImageUrl(profile.profile_image_url);
       return;
     }
@@ -25,22 +24,19 @@ const UserMenu = () => {
     const fetchProfileImage = async () => {
       if (!user || !isAuthenticated) return;
 
-      console.log('Fetching profile image for user:', user.id);
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('profile_image_url')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .maybeSingle();
 
-      console.log('Profile data:', data);
-      console.log('Profile fetch error:', error);
+      if (error) {
+        console.error('Error fetching profile image:', error.message);
+        return;
+      }
 
       if (data?.profile_image_url) {
-        console.log('Setting profile image URL:', data.profile_image_url);
         setProfileImageUrl(data.profile_image_url);
-      } else {
-        console.log('No profile image URL found');
       }
     };
 
@@ -62,18 +58,13 @@ const UserMenu = () => {
       >
         <Avatar>
           {profileImageUrl && (
-            <>
-              {console.log('Rendering avatar with URL:', profileImageUrl)}
-              <AvatarImage 
-                src={profileImageUrl} 
-                alt="User profile picture - Wheels & Wins RV trip planner account"
-                onError={(e) => {
-                  console.error('Avatar image failed to load:', e);
-                  console.error('Failed URL was:', profileImageUrl);
-                }}
-                onLoad={() => console.log('Avatar image loaded successfully')}
-              />
-            </>
+            <AvatarImage
+              src={profileImageUrl}
+              alt="User profile picture - Wheels & Wins RV trip planner account"
+              onError={() => {
+                // Silently fall back to initials
+              }}
+            />
           )}
           <AvatarFallback className="bg-primary text-primary-foreground">
             {user?.email?.[0]?.toUpperCase() || "U"}

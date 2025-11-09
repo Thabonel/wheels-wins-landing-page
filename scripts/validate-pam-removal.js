@@ -143,8 +143,8 @@ async function validatePamRemoval() {
       
       issue.patterns.forEach(pattern => {
         const status = pattern.lines.some(l => !l.line.startsWith('//') && !l.line.includes('// ')) 
-          ? COLORS.RED + '❌ ACTIVE' 
-          : COLORS.GREEN + '✅ COMMENTED';
+          ? `${COLORS.RED  }❌ ACTIVE` 
+          : `${COLORS.GREEN  }✅ COMMENTED`;
           
         log(COLORS.YELLOW, `   ${pattern.pattern}: ${pattern.matches} matches ${status}${COLORS.RESET}`);
         

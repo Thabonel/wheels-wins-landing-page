@@ -31,10 +31,10 @@ async function globalSetup(config: FullConfig) {
     // If login failed, try to create the account
     await page.goto(`${baseURL}/signup`);
 
-    // Fill signup form
-    await page.fill('input[type="email"]', testEmail);
-    await page.fill('input[name="password"]', testPassword);
-    await page.fill('input[name="confirmPassword"]', testPassword);
+    // Fill signup form - use ID selectors to match actual form structure
+    await page.fill('input#email', testEmail);
+    await page.fill('input#password', testPassword);
+    await page.fill('input#confirmPassword', testPassword);
 
     // Fill any required name fields
     const nameFields = await page.locator('input[name*="name"], input[placeholder*="name"]').all();

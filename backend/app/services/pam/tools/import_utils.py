@@ -61,10 +61,10 @@ class LazyImporter:
             return imported_item
             
         except ImportError as e:
-            logger.debug(f"📦 Import not available: {cache_key} - {e}")
+            logger.warning(f"📦 Import not available: {cache_key} - {e}")
             return fallback
         except Exception as e:
-            logger.warning(f"❌ Import failed: {cache_key} - {e}")
+            logger.error(f"❌ Import failed: {cache_key} - {e}")
             return fallback
         finally:
             # Always remove from import stack

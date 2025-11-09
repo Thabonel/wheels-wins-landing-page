@@ -5,10 +5,15 @@ Find the most cost-effective and time-efficient route
 Example usage:
 - "Optimize my route to save money"
 - "Find the fastest way to Seattle"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional, List
+from pydantic import ValidationError
+
+from app.services.pam.schemas.trip import OptimizeRouteInput
 
 logger = logging.getLogger(__name__)
 
@@ -35,16 +40,22 @@ async def optimize_route(
         Dict with optimized route details
     """
     try:
-        if not origin or not destination:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = OptimizeRouteInput(
+                user_id=user_id,
+                origin=origin,
+                destination=destination,
+                stops=stops,
+                optimization_type=optimization_type
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Both origin and destination are required"
+                "error": f"Invalid input: {error_msg}"
             }
-
-        # Validate optimization type
-        valid_types = ["cost", "time", "balanced"]
-        if optimization_type not in valid_types:
-            optimization_type = "balanced"
 
         # In production, this would use Mapbox Optimization API
         # with real-time traffic and gas price data
@@ -68,18 +79,18 @@ async def optimize_route(
         }
 
         # Adjust based on optimization type
-        if optimization_type == "cost":
+        if validated.optimization_type == "cost":
             optimized_route["savings"]["gas_cost"] = 25.00
-        elif optimization_type == "time":
+        elif validated.optimization_type == "time":
             optimized_route["savings"]["time_hours"] = 1.5
 
-        logger.info(f"Optimized route from {origin} to {destination} for user {user_id}")
+        logger.info(f"Optimized route from {validated.origin} to {validated.destination} for user {validated.user_id}")
 
         return {
             "success": True,
-            "origin": origin,
-            "destination": destination,
-            "optimization_type": optimization_type,
+            "origin": validated.origin,
+            "destination": validated.destination,
+            "optimization_type": validated.optimization_type,
             "original_route": original_route,
             "optimized_route": optimized_route,
             "message": f"Optimized route saves ${optimized_route['savings']['gas_cost']:.2f} " +

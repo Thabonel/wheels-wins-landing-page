@@ -575,21 +575,21 @@ export class ProductionMonitoringService {
 
   private getCurrentUserId(): string {
     // In production, get from auth context
-    return 'user_' + Math.random().toString(36).substr(2, 9);
+    return `user_${  Math.random().toString(36).substr(2, 9)}`;
   }
 
   private getSessionId(): string {
     // Get or create session ID
     let sessionId = sessionStorage.getItem('pam_session_id');
     if (!sessionId) {
-      sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      sessionId = `session_${  Date.now()  }_${  Math.random().toString(36).substr(2, 9)}`;
       sessionStorage.setItem('pam_session_id', sessionId);
     }
     return sessionId;
   }
 
   private generateId(): string {
-    return Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    return `${Date.now()  }_${  Math.random().toString(36).substr(2, 9)}`;
   }
 }
 

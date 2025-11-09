@@ -35,9 +35,9 @@ export default function UpgradeModal({ open, onOpenChange, isExpired = false }: 
   };
 
   const testimonials = [
-    { name: "Sarah M.", text: "PAM has saved me hundreds of dollars on my road trips!" },
-    { name: "Mike R.", text: "The annual plan with video course is incredible value." },
-    { name: "Lisa K.", text: "Best investment for my RV lifestyle." }
+    { name: "Sarah M.", text: "PAM's saved me hundreds on gas and campgrounds. Pays for itself." },
+    { name: "Mike R.", text: "Annual plan is a no-brainer. The video course alone is worth it." },
+    { name: "Lisa K.", text: "Worth every penny. Wish I'd signed up sooner." }
   ];
 
   return (
@@ -57,7 +57,7 @@ export default function UpgradeModal({ open, onOpenChange, isExpired = false }: 
           <Card className="border-2 border-muted">
             <CardHeader className="text-center">
               <CardTitle className="text-xl">Monthly Membership</CardTitle>
-              <CardDescription>Full access to platform and community</CardDescription>
+              <CardDescription>Everything included</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <div className="mb-6">
@@ -67,15 +67,15 @@ export default function UpgradeModal({ open, onOpenChange, isExpired = false }: 
               <ul className="space-y-3 text-left">
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Full access to our platform and community</span>
+                  <span>Access to everything (PAM, community, all features)</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Unlimited trip planning with PAM</span>
+                  <span>Keep all your trips organized in one place</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Priority customer support</span>
+                  <span>We actually answer when you need help</span>
                 </li>
               </ul>
             </CardContent>
@@ -113,15 +113,15 @@ export default function UpgradeModal({ open, onOpenChange, isExpired = false }: 
               <ul className="space-y-3 text-left">
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Full access to our platform and community</span>
+                  <span>Access to everything (PAM, community, all features)</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Unlimited trip planning with PAM</span>
+                  <span>Keep all your trips organized in one place</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
-                  <span>Priority customer support</span>
+                  <span>We actually answer when you need help</span>
                 </li>
                 <li className="flex items-start">
                   <Star className="h-5 w-5 mr-2 text-purple-600 flex-shrink-0 mt-0.5" />

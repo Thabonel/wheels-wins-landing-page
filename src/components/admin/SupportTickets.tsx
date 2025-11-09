@@ -14,6 +14,8 @@ interface Ticket {
   subject: string;
   message: string;
   status: string;
+  category?: string;
+  current_page?: string;
   created_at: string;
 }
 
@@ -99,6 +101,8 @@ const SupportTickets = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Subject</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Page</TableHead>
                     <TableHead>User</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
@@ -113,6 +117,24 @@ const SupportTickets = () => {
                           <p className="font-medium">{t.subject}</p>
                           <p className="text-sm text-gray-500 truncate max-w-xs">{t.message}</p>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {t.category && (
+                          <Badge
+                            variant={
+                              t.category === 'bug' ? 'destructive' :
+                              t.category === 'feature_request' ? 'default' :
+                              'secondary'
+                            }
+                          >
+                            {t.category === 'bug' ? 'Bug' :
+                             t.category === 'feature_request' ? 'Feature' :
+                             'Question'}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {t.current_page || '-'}
                       </TableCell>
                       <TableCell className="font-mono text-sm">{t.user_id.slice(0, 8)}...</TableCell>
                       <TableCell>

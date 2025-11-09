@@ -418,7 +418,7 @@ export class PAMResponseCache {
       if (size > this.config.maxSize * 0.1) { // Max 10% of total cache
         logger.warn('Entry too large for cache', { 
           key: this.truncateKey(key), 
-          size: Math.round(size / 1024) + 'KB' 
+          size: `${Math.round(size / 1024)  }KB` 
         });
         return false;
       }
@@ -465,8 +465,8 @@ export class PAMResponseCache {
       if (this.config.enableLogging) {
         logger.debug('💾 Cache set', { 
           key: this.truncateKey(key),
-          size: Math.round(size / 1024) + 'KB',
-          ttl: Math.round(ttl / 1000) + 's',
+          size: `${Math.round(size / 1024)  }KB`,
+          ttl: `${Math.round(ttl / 1000)  }s`,
           userSpecific,
           tags: tags.length > 0 ? tags : undefined
         });
@@ -644,7 +644,7 @@ export class PAMResponseCache {
     if (evicted > 0 && this.config.enableLogging) {
       logger.debug('⚡ Size-based eviction', { 
         evicted, 
-        freedSize: Math.round(freedSize / 1024) + 'KB' 
+        freedSize: `${Math.round(freedSize / 1024)  }KB` 
       });
     }
 
@@ -958,7 +958,7 @@ export class PAMResponseCache {
   }
 
   private truncateKey(key: string): string {
-    return key.length > 50 ? key.substring(0, 47) + '...' : key;
+    return key.length > 50 ? `${key.substring(0, 47)  }...` : key;
   }
 
   private initializeStats(): CacheStats {

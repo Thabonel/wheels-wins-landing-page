@@ -11,7 +11,9 @@ import { PamSavingsSummaryCard } from "@/components/pam/PamSavingsSummaryCard";
 import { MedicalDashboard } from "@/components/you/medical/MedicalDashboard";
 import { MedicalProvider } from "@/contexts/MedicalContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Heart } from "lucide-react";
+import { Calendar, Heart, Clock } from "lucide-react";
+import { TransitionNavigatorCard } from "@/components/you/TransitionNavigatorCard";
+import { TransitionDashboard } from "@/components/transition/TransitionDashboard";
 
 const You = () => {
 
@@ -37,9 +39,9 @@ const You = () => {
           <PamSavingsSummaryCard />
         </div>
 
-        {/* Tabs for Calendar and Medical */}
+        {/* Tabs for Calendar, Medical, and Transition */}
         <Tabs defaultValue="calendar" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-2xl grid-cols-3">
             <TabsTrigger value="calendar" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               Calendar
@@ -47,6 +49,10 @@ const You = () => {
             <TabsTrigger value="medical" className="flex items-center gap-2">
               <Heart className="h-4 w-4" />
               Medical Records
+            </TabsTrigger>
+            <TabsTrigger value="transition" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Life Transition
             </TabsTrigger>
           </TabsList>
 
@@ -69,6 +75,14 @@ const You = () => {
 
           <TabsContent value="medical" className="space-y-0">
             <MedicalDashboard />
+          </TabsContent>
+
+          <TabsContent value="transition" className="space-y-6">
+            {/* Transition Navigator CTA or Dashboard */}
+            <TransitionNavigatorCard />
+
+            {/* Full Transition Dashboard */}
+            <TransitionDashboard />
           </TabsContent>
         </Tabs>
       </main>

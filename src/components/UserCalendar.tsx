@@ -19,6 +19,7 @@ import {
 } from "@/components/you/EventHandlers";
 
 const UserCalendar = () => {
+  console.log("🎯 UserCalendar component mounting");
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
   const { events, setEvents, loading, reloadEvents } = useCalendarEvents();

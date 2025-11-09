@@ -5,13 +5,17 @@ Modify user profile information
 Example usage:
 - "Update my bio to..."
 - "Change my profile photo"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.schemas.profile import UpdateProfileInput
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,25 @@ async def update_profile(
         Dict with updated profile
     """
     try:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = UpdateProfileInput(
+                user_id=user_id,
+                username=username,
+                bio=bio,
+                avatar_url=avatar_url,
+                location=location,
+                rv_type=rv_type,
+                rv_year=rv_year
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
+            return {
+                "success": False,
+                "error": f"Invalid input: {error_msg}"
+            }
+
         supabase = get_supabase_client()
 
         # Build update data (only include provided fields)
@@ -49,27 +72,27 @@ async def update_profile(
             "updated_at": datetime.now().isoformat()
         }
 
-        if username is not None:
-            update_data["username"] = username
-        if bio is not None:
-            update_data["bio"] = bio
-        if avatar_url is not None:
-            update_data["avatar_url"] = avatar_url
-        if location is not None:
-            update_data["location"] = location
-        if rv_type is not None:
-            update_data["rv_type"] = rv_type
-        if rv_year is not None:
-            update_data["rv_year"] = rv_year
+        if validated.username is not None:
+            update_data["username"] = validated.username
+        if validated.bio is not None:
+            update_data["bio"] = validated.bio
+        if validated.avatar_url is not None:
+            update_data["avatar_url"] = validated.avatar_url
+        if validated.location is not None:
+            update_data["location"] = validated.location
+        if validated.rv_type is not None:
+            update_data["rv_type"] = validated.rv_type
+        if validated.rv_year is not None:
+            update_data["rv_year"] = validated.rv_year
 
         # Update profile
         response = supabase.table("profiles").update(
             update_data
-        ).eq("id", user_id).execute()
+        ).eq("id", validated.user_id).execute()
 
         if response.data:
             profile = response.data[0]
-            logger.info(f"Updated profile for user {user_id}")
+            logger.info(f"Updated profile for user {validated.user_id}")
 
             return {
                 "success": True,

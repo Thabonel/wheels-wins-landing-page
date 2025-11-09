@@ -3,16 +3,22 @@ import { Card, CardContent } from "@/components/ui/card";
 const Testimonials = () => {
   const testimonials = [{
     name: "Margaret R.",
-    location: "Retired Nomad, 68",
-    quote: "Pam helped us keep travelling longer without money stress — and we've made real friends along the way."
+    credentials: "Full-time RVer, 3 years",
+    location: "Queensland, Australia",
+    quote: "Saved $400 in my first month just by following PAM's fuel suggestions. The route planner found campgrounds I never would've discovered on my own.",
+    initials: "MR"
   }, {
-    name: "Robert & Linda",
-    location: "Canada",
-    quote: "I used to worry about costs. Now Pam tracks it all, and we've met other Snowbirds through the app."
+    name: "Robert & Linda H.",
+    credentials: "Grey Nomads, 5 years on the road",
+    location: "Victoria, Australia",
+    quote: "We used to overspend every month and had no idea where the money went. PAM's expense tracking showed us we were wasting $200/month on convenience stops. Now we're saving that instead.",
+    initials: "RH"
   }, {
     name: "James T.",
-    location: "Full-time RVer, 72",
-    quote: "Feels like travelling with a team — Pam for planning, and a community that always waves back."
+    credentials: "Weekend warrior, Class C motorhome",
+    location: "New South Wales, Australia",
+    quote: "The weather alerts saved us from driving into a storm in the Blue Mountains. PAM rerouted us automatically and we found an amazing free camp instead. Worth every cent.",
+    initials: "JT"
   }];
 
   return <section className="py-20 bg-transparent">
@@ -28,9 +34,17 @@ const Testimonials = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => <Card key={index} className="bg-muted/20 border-primary/10 shadow-md">
               <CardContent className="pt-6">
-                <p className="text-lg mb-6 italic">"{testimonial.quote}"</p>
-                <p className="font-semibold">{testimonial.name}</p>
-                <p className="text-muted-foreground">{testimonial.location}</p>
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold">
+                    {testimonial.initials}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-lg">{testimonial.name}</p>
+                    <p className="text-sm text-muted-foreground">{testimonial.credentials}</p>
+                    <p className="text-sm text-muted-foreground">{testimonial.location}</p>
+                  </div>
+                </div>
+                <p className="text-base leading-relaxed italic text-gray-700">"{testimonial.quote}"</p>
               </CardContent>
             </Card>)}
         </div>

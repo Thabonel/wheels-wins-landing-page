@@ -117,7 +117,7 @@ export async function quickAuthTest(): Promise<{
       const { data, error } = await supabase
         .from('profiles')
         .select('id, user_id')
-        .eq('user_id', session.user.id)
+        .eq('id', session.user.id)
         .limit(1);
 
       results.push({

@@ -7,8 +7,8 @@ const pamEnabled = true;
 // Regular imports
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-// Use WebSocket PAM Service for real-time communication
-import { usePamConnection } from "@/hooks/usePamConnection";
+// Claude WebSocket PAM REMOVED - OpenAI Realtime only
+// import { usePamConnection } from "@/hooks/usePamConnection";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -17,6 +17,7 @@ import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
 import { audioManager } from "@/utils/audioManager";
+import { OpenAIRealtimeService } from "@/services/openaiRealtimeService";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
@@ -74,11 +75,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [messages, setMessages] = useState<PamMessage[]>([]);
-  const { status: pamStatus, isReady, sendMessage: sendPamMessage } = usePamConnection();
-  const connectionStatus: "Connected" | "Connecting" | "Disconnected" = pamStatus.isConnected
+  // Claude WebSocket PAM REMOVED - OpenAI Realtime only
+  // const { status: pamStatus, isReady, sendMessage: sendPamMessage } = usePamConnection();
+  const connectionStatus: "Connected" | "Connecting" | "Disconnected" = isContinuousMode
     ? "Connected"
-    : pamStatus.isConnecting
-    ? "Connecting"
     : "Disconnected";
   const [userContext, setUserContext] = useState<any>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
@@ -88,7 +88,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [wakeWordRecognition, setWakeWordRecognition] = useState<any | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [voiceActivationMode, setVoiceActivationMode] = useState<'manual' | 'auto' | 'command'>('manual');
+  const [realtimeService, setRealtimeService] = useState<OpenAIRealtimeService | null>(null);
   const ttsQueueRef = useRef<TTSQueueManager | null>(null);
   const { startTracking, stopTracking, getCurrentLocation, ...locationState } = useLocationTracking();
   const [audioLevel, setAudioLevel] = useState(0);
@@ -469,7 +471,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (!user?.id || !sessionToken) {
       addMessage("🤖 Hi! I'm PAM. Please sign in to continue...", "pam");
       logger.warn('⚠️ PAM: Missing user authentication');
-      return;
+      
     }
     // Greeting is handled in isReady effect
   }, [user?.id, sessionToken]);
@@ -506,19 +508,109 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     setIsWakeWordListening(false);
   };
 
-  const startContinuousVoiceMode = () => {
-    logger.debug('🎙️ Continuous voice mode started');
-    setIsContinuousMode(true);
+  const startContinuousVoiceMode = async () => {
+    try {
+      if (!user || !session) {
+        logger.error('❌ User not authenticated');
+        alert('Please log in to use voice mode');
+        return;
+      }
+
+      logger.debug('🎙️ Starting OpenAI Realtime voice mode');
+
+      // Get API base URL from environment
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+      // Create OpenAI Realtime service with direct connection
+      const service = new OpenAIRealtimeService(
+        user.id,
+        session.access_token,
+        apiBaseUrl
+      );
+
+      // Connect to OpenAI (gets session token, opens WebSocket)
+      await service.connect();
+
+      // Start voice mode (microphone → OpenAI)
+      await service.startVoiceMode();
+
+      setRealtimeService(service);
+      setIsContinuousMode(true);
+
+      logger.info('✅ PAM voice mode active (ChatGPT quality, zero latency!)');
+
+    } catch (error) {
+      logger.error('❌ Failed to start voice mode:', error);
+      alert(`Failed to start voice mode: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
-  const stopContinuousVoiceMode = () => {
-    logger.debug('🔇 Continuous voice mode stopped');
+  const stopContinuousVoiceMode = async () => {
+    logger.debug('🔇 Stopping continuous voice mode');
+
+    // Stop OpenAI Realtime service
+    if (realtimeService) {
+      realtimeService.stopVoiceMode();
+      setRealtimeService(null);
+    }
+
     setIsContinuousMode(false);
+    logger.debug('✅ Continuous voice mode stopped');
   };
 
   const speakText = async (text: string) => {
-    logger.debug('🔊 Speaking text:', text.substring(0, 50));
-    // Placeholder for TTS functionality
+    try {
+      logger.debug('🔊 Speaking text:', text.substring(0, 50));
+
+      // Stop any currently playing audio
+      if (currentAudio && !currentAudio.paused) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+
+      // Generate voice using PAM voice service
+      const voiceResponse = await pamVoiceService.generateVoice({
+        text,
+        voice: voiceSettings.voice,
+        emotion: 'helpful',
+        context: 'general'
+      });
+
+      // Create and play audio
+      const audio = new Audio(voiceResponse.audioUrl);
+      audio.volume = 1.0;
+
+      setCurrentAudio(audio);
+      setIsSpeaking(true);
+      vadService.setPAMSpeaking(true);
+
+      // Play audio
+      await audio.play();
+
+      // Handle audio end
+      audio.onended = () => {
+        logger.debug('🔇 Audio playback completed');
+        setIsSpeaking(false);
+        vadService.setPAMSpeaking(false);
+        setCurrentAudio(null);
+      };
+
+      // Handle audio errors
+      audio.onerror = (error) => {
+        logger.error('🔇 Audio playback error:', error);
+        setIsSpeaking(false);
+        vadService.setPAMSpeaking(false);
+        setCurrentAudio(null);
+      };
+
+    } catch (error) {
+      logger.error('Failed to generate or play voice:', error);
+      setIsSpeaking(false);
+      vadService.setPAMSpeaking(false);
+
+      // Optionally show a toast notification
+      // toast.error('Failed to play voice response');
+    }
   };
 
   const speakMessage = (content: string, priority: string, shouldSpeak: boolean) => {
@@ -722,34 +814,57 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         throw new Error('User authentication required');
       }
 
-      // Use WebSocket PAM Service for real-time communication
-      logger.debug('🤖 Sending message to PAM WebSocket service');
+      // SIMPLE REST API CHAT (production-ready)
+      logger.info('💬 Sending message via simple REST API');
 
-      const pamResponse = await sendPamMessage(
-        message,
-        {
-          region: userContext?.region,
-          current_page: 'pam_chat',
-          // Backend tools expect structured location context with latitude/longitude
-          location: locationObj || undefined,
-          userLocation: locationObj || undefined,
-          conversation_history: conversationHistory.slice(-3)
-        }
-      );
+      // Call simple chat endpoint
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      const response = await fetch(`${apiBaseUrl}/api/v1/pam-simple/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          message,
+          user_id: user.id,
+          context: {
+            region: userContext?.region,
+            current_page: 'pam_chat',
+            location: locationObj || undefined,
+            userLocation: locationObj || undefined,
+            conversation_history: conversationHistory.slice(-3)
+          }
+        })
+      });
 
-      // Remove thinking indicator and add PAM's response
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const pamResponse = await response.json();
+
+      // Remove thinking indicator and add response
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
-
-      // Extract response content from various possible response formats
-      const responseContent = pamResponse.response || pamResponse.message || pamResponse.content || "I encountered an issue processing your request.";
+      const responseContent = pamResponse.content || pamResponse.response || pamResponse.message || "I encountered an issue processing your request.";
       addMessage(responseContent, "pam", message);
 
-      // If voice is enabled, speak the response
+      // Handle calendar events
+      const calendarKeywords = ['calendar', 'appointment', 'event', 'meeting', 'schedule', 'booked', 'added to your calendar', 'created event'];
+      const isCalendarAction = calendarKeywords.some(keyword =>
+        responseContent.toLowerCase().includes(keyword) || message.toLowerCase().includes(keyword)
+      );
+      if (isCalendarAction) {
+        logger.debug('📅 Calendar action detected, dispatching reload event');
+        window.dispatchEvent(new CustomEvent('reload-calendar'));
+      }
+
+      // Text-to-speech if enabled
       if (settings?.pam_preferences?.voice_enabled) {
         await speakText(responseContent);
       }
 
-      logger.debug('✅ PAM WebSocket response received successfully');
+      logger.debug('✅ PAM REST API response received successfully');
 
     } catch (error) {
       logger.error('❌ Failed to send message via PAM WebSocket service:', error);
@@ -850,7 +965,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               <h3 className="font-semibold text-gray-800">PAM</h3>
               <div className="text-xs text-gray-500 space-y-0.5">
                 <p>
-                  {connectionStatus === "Connected" ? "🟢 Agentic AI Online" : 
+                  {connectionStatus === "Connected" ? "🟢 Agentic AI Online" :
                    connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
                 </p>
                 {isVADActive && (
@@ -1022,7 +1137,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 <h3 className="font-semibold text-gray-800">PAM</h3>
                 <div className="text-xs text-gray-500 space-y-0.5">
                   <p>
-                    {connectionStatus === "Connected" ? "🟢 Agentic AI Reasoning" : 
+                    {connectionStatus === "Connected" ? "🟢 Agentic AI Reasoning" :
                      connectionStatus === "Connecting" ? "🟡 Connecting..." : "🔴 Offline"}
                   </p>
                   {isVADActive && (
@@ -1036,13 +1151,16 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="Close PAM Chat"
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close PAM Chat"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">

@@ -1,16 +1,20 @@
 """Get Weather Forecast Tool for PAM
 
-Get weather conditions along a route or at a location
+Get weather conditions along a route or at a location using FREE OpenMeteo API
 
 Example usage:
 - "What's the weather in Denver next week?"
 - "Show weather along my route to Portland"
+
+AMENDMENT #3: Uses OpenMeteo (free, no API key required)
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
-from datetime import datetime, timedelta
-import os
+from pydantic import ValidationError
+
+from app.services.pam.schemas.trip import GetWeatherForecastInput
 
 logger = logging.getLogger(__name__)
 
@@ -22,48 +26,58 @@ async def get_weather_forecast(
     **kwargs
 ) -> Dict[str, Any]:
     """
-    Get weather forecast for a location
+    Get weather forecast for a location using FREE OpenMeteo API
 
     Args:
         user_id: UUID of the user
         location: Location for weather forecast
-        days: Number of days to forecast (default: 7)
+        days: Number of days to forecast (default: 7, max: 7 for free tier)
 
     Returns:
-        Dict with weather forecast data
+        Dict with weather forecast data from OpenMeteo
     """
     try:
-        if not location:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = GetWeatherForecastInput(
+                user_id=user_id,
+                location=location,
+                days=days
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Location is required"
+                "error": f"Invalid input: {error_msg}"
             }
 
-        # Validate days
-        days = max(1, min(days, 14))  # Limit to 1-14 days
+        # Import the actual working weather API function
+        from app.services.pam.tools.weather import get_weather_forecast as weather_api_call
 
-        # Check for API key
-        api_key = os.getenv("OPENWEATHER_API_KEY")
+        # Call the working OpenMeteo API function directly (FREE - no API key required!)
+        result = await weather_api_call(location=validated.location, days=validated.days)
 
-        if not api_key:
-            logger.warning("OpenWeather API key not configured")
+        # Transform result to standard PAM tool format
+        if "error" in result:
+            # Error case from weather API
             return {
                 "success": False,
-                "error": "Weather service temporarily unavailable",
-                "message": "I don't have access to weather data right now. The weather service needs to be configured."
+                "error": result.get("error"),
+                "location": result.get("location"),
+                "suggestion": result.get("suggestion", "")
             }
-
-        # TODO: Implement actual OpenWeather API call
-        # For now, return error indicating service not fully implemented
-        return {
-            "success": False,
-            "error": "Weather service not fully implemented",
-            "message": "Weather forecasting is coming soon! The API integration is still in development."
-        }
+        else:
+            # Success case - add success field to existing data
+            return {
+                "success": True,
+                **result  # Spread operator to include all weather data
+            }
 
     except Exception as e:
-        logger.error(f"Error getting weather forecast: {e}", exc_info=True)
+        logger.error(f"Error getting weather forecast from OpenMeteo: {e}", exc_info=True)
         return {
             "success": False,
-            "error": str(e)
+            "error": str(e),
+            "message": "Unable to fetch weather data. Please try again."
         }

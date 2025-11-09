@@ -5,10 +5,15 @@ Check road conditions, closures, and traffic along a route
 Example usage:
 - "What are the road conditions to Yellowstone?"
 - "Check for road closures on I-80"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
+from pydantic import ValidationError
+
+from app.services.pam.schemas.trip import GetRoadConditionsInput
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +36,20 @@ async def get_road_conditions(
         Dict with road condition data
     """
     try:
-        if not location:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = GetRoadConditionsInput(
+                user_id=user_id,
+                route=location,  # Map location parameter to route field
+                start_location=kwargs.get('start_location'),
+                end_location=kwargs.get('end_location')
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Location is required"
+                "error": f"Invalid input: {error_msg}"
             }
 
         # In production, integrate with:
@@ -64,15 +79,16 @@ async def get_road_conditions(
 
         alert_count = len(conditions["alerts"])
 
-        logger.info(f"Retrieved road conditions for {location} for user {user_id}")
+        logger.info(f"Retrieved road conditions for {validated.route} for user {validated.user_id}")
 
         return {
             "success": True,
-            "location": location,
-            "route": route,
+            "route": validated.route,
+            "start_location": validated.start_location,
+            "end_location": validated.end_location,
             "conditions": conditions,
             "alert_count": alert_count,
-            "message": f"Road conditions for {location}: {conditions['overall_status']}" +
+            "message": f"Road conditions for {validated.route}: {conditions['overall_status']}" +
                       (f" ({alert_count} alerts)" if alert_count > 0 else " (no alerts)")
         }
 

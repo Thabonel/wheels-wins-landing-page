@@ -11,6 +11,7 @@ import { RegionalSettings } from '@/components/settings/RegionalSettings';
 import { IntegrationSettings } from '@/components/settings/IntegrationSettings';
 import { LocationSettings } from '@/components/settings/LocationSettings';
 import { VoiceSettings } from '@/components/settings/VoiceSettings';
+import { TransitionSettings } from '@/components/settings/TransitionSettings';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -36,6 +37,7 @@ export default function Settings() {
         <DisplaySettings />
         <RegionalSettings />
         <IntegrationSettings />
+        <TransitionSettings />
       </div>
     </div>
   );

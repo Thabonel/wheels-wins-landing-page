@@ -5,11 +5,15 @@ Estimate fuel costs for a trip based on distance and vehicle MPG
 Example usage:
 - "How much will gas cost for 500 miles?"
 - "Calculate fuel cost from LA to Vegas"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
 import os
+from decimal import Decimal, ROUND_HALF_UP
+from pydantic import ValidationError
 from supabase import create_client, Client
 from .unit_conversion import (
     get_user_unit_preference,
@@ -17,6 +21,7 @@ from .unit_conversion import (
     convert_km_to_miles
 )
 from app.services.external.eia_gas_prices import get_fuel_price_for_region
+from app.services.pam.schemas.trip import CalculateGasCostInput
 
 logger = logging.getLogger(__name__)
 
@@ -84,31 +89,38 @@ async def calculate_gas_cost(
         Dict with gas cost estimate formatted in user's preferred units
     """
     try:
-        # Handle distance input (accept either miles or km, convert to miles internally)
-        if distance_km is not None:
-            distance_miles = convert_km_to_miles(distance_km)
-        elif distance_miles is None:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = CalculateGasCostInput(
+                user_id=user_id,
+                distance_miles=distance_miles,
+                distance_km=distance_km,
+                mpg=mpg,
+                gas_price=gas_price
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Must provide either distance_miles or distance_km"
+                "error": f"Invalid input: {error_msg}"
             }
 
-        # Validate distance
-        if distance_miles <= 0:
-            return {
-                "success": False,
-                "error": "Distance must be positive"
-            }
+        # Handle distance input (accept either miles or km, convert to miles internally)
+        if validated.distance_km is not None:
+            distance_miles = convert_km_to_miles(validated.distance_km)
+        else:
+            distance_miles = validated.distance_miles
 
         # If MPG not provided, try to get from user's primary vehicle
-        if mpg is None:
+        if validated.mpg is None:
             try:
                 supabase: Client = create_client(
                     os.getenv("SUPABASE_URL"),
                     os.getenv("SUPABASE_SERVICE_ROLE_KEY")
                 )
 
-                vehicle_response = supabase.table("vehicles").select("fuel_consumption_mpg, name").eq("user_id", user_id).eq("is_primary", True).single().execute()
+                vehicle_response = supabase.table("vehicles").select("fuel_consumption_mpg, name").eq("user_id", validated.user_id).eq("is_primary", True).single().execute()
 
                 if vehicle_response.data and vehicle_response.data.get("fuel_consumption_mpg"):
                     mpg = float(vehicle_response.data["fuel_consumption_mpg"])
@@ -120,11 +132,13 @@ async def calculate_gas_cost(
             except Exception as e:
                 logger.warning(f"Could not fetch vehicle fuel consumption: {e}")
                 mpg = 10.0  # Fallback to RV default
+        else:
+            mpg = validated.mpg
 
         # Get real gas price from regional API if not provided
-        if gas_price is None:
+        if validated.gas_price is None:
             # Detect user's region
-            region = await _detect_user_region(user_id)
+            region = await _detect_user_region(validated.user_id)
             fuel_price_data = await get_fuel_price_for_region(region, "regular")
 
             # Convert to USD per gallon if needed
@@ -143,20 +157,27 @@ async def calculate_gas_cost(
                 f"{fuel_price_data['currency']}/{fuel_price_data['unit']} "
                 f"(source: {fuel_price_data['source']})"
             )
+            gas_price = price_per_gallon if region != "US" else fuel_price_data["price"]
+        else:
+            gas_price = validated.gas_price
 
-        # Calculate gallons needed
-        gallons_needed = distance_miles / mpg
+        # Calculate gallons needed (convert to Decimal for precision)
+        distance_decimal = Decimal(str(distance_miles))
+        mpg_decimal = Decimal(str(mpg))
+        gas_price_decimal = Decimal(str(gas_price))
+
+        gallons_needed = distance_decimal / mpg_decimal
 
         # Calculate total cost
-        total_cost = gallons_needed * gas_price
+        total_cost = gallons_needed * gas_price_decimal
 
         # Calculate cost per mile
-        cost_per_mile = total_cost / distance_miles
+        cost_per_mile = total_cost / distance_decimal
 
-        logger.info(f"Calculated gas cost: ${total_cost:.2f} for {distance_miles} miles for user {user_id}")
+        logger.info(f"Calculated gas cost: ${total_cost:.2f} for {distance_miles} miles for user {validated.user_id}")
 
         # Get user's unit preference to format response
-        unit_system = await get_user_unit_preference(user_id)
+        unit_system = await get_user_unit_preference(validated.user_id)
 
         # Format response message in user's preferred units
         message = format_gas_cost_response(
@@ -168,14 +189,23 @@ async def calculate_gas_cost(
             gas_price=gas_price
         )
 
+        # Calculate final values with proper rounding
+        total_cost_rounded = float(total_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        gas_price_rounded = float(gas_price_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        gallons_rounded = float(gallons_needed.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        cost_per_mile_rounded = float(cost_per_mile.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+
         return {
             "success": True,
             "distance_miles": distance_miles,
             "mpg": mpg,
-            "gas_price_per_gallon": gas_price,
-            "gallons_needed": round(gallons_needed, 2),
-            "total_cost": round(total_cost, 2),
-            "cost_per_mile": round(cost_per_mile, 2),
+            # Include both old and new field names for backwards compatibility
+            "gas_price_per_gallon": gas_price_rounded,
+            "price_per_gallon": gas_price_rounded,  # Test expects this name
+            "gallons_needed": gallons_rounded,
+            "total_cost": total_cost_rounded,
+            "cost_estimate": total_cost_rounded,  # Test expects this name
+            "cost_per_mile": cost_per_mile_rounded,
             "message": message
         }
 

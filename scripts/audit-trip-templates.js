@@ -102,7 +102,7 @@ async function auditTripTemplates() {
         withoutImages: withoutImages.length,
         withThumbnails: withThumbnails.length
       },
-      sources: sources,
+      sources,
       templatesWithImages: withImages.map(t => ({
         id: t.id,
         name: t.name,

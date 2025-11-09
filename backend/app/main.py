@@ -67,13 +67,14 @@ from app.core.import_guard import safe_import_router
 # Import API routers
 from app.api.v1 import (
     health,
-    chat,
     wins,
     wheels,
     social,
     monitoring,
     receipts,
     pam,
+    pam_realtime,  # OpenAI Realtime session management
+    pam_tools,  # PAM tool execution endpoints
     auth,
     subscription,
     support,
@@ -97,6 +98,7 @@ from app.api.v1 import (
     national_parks,
     health_consultation,
     community,  # Community contribution system
+    transition,  # Life Transition Navigator module
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import system_settings as system_settings_api
@@ -216,6 +218,15 @@ async def lifespan(app: FastAPI):
 
         await cache_service.initialize()
         logger.info("✅ Redis cache service initialized")
+
+        # Validate database schema (prevents id/user_id confusion)
+        try:
+            from app.core.schema_validator import run_startup_validation
+            await run_startup_validation()
+            logger.info("✅ Database schema validation completed")
+        except Exception as schema_error:
+            logger.warning(f"⚠️ Schema validation error: {schema_error}")
+            logger.info("💡 Backend continuing despite schema validation failure")
 
         # Initialize production monitoring
         await production_monitor.start_monitoring()
@@ -349,6 +360,26 @@ async def lifespan(app: FastAPI):
         except Exception as simple_error:
             logger.error(f"❌ Simple Gemini Service initialization failed: {simple_error}")
             logger.error("🚨 No fallback available for PAM if orchestrator fails")
+
+        # Initialize PAM Tool Registry (CRITICAL for Claude function calling)
+        logger.info("🔧 Initializing PAM Tool Registry...")
+        try:
+            from app.services.pam.tools.tool_registry import initialize_tool_registry
+
+            tool_registry = await initialize_tool_registry()
+
+            if tool_registry.is_initialized:
+                tool_count = len([d for d in tool_registry.tool_definitions.values() if d.enabled])
+                logger.info(f"✅ PAM Tool Registry initialized: {tool_count} tools available")
+
+                # Log available tools
+                tool_names = [name for name, defn in tool_registry.tool_definitions.items() if defn.enabled]
+                logger.info(f"🔧 Available tools: {', '.join(tool_names)}")
+            else:
+                logger.warning("⚠️ Tool Registry initialized but marked as not ready")
+        except Exception as tool_error:
+            logger.error(f"❌ Tool Registry initialization failed: {tool_error}")
+            logger.warning("🚨 PAM will operate without tool calling capabilities")
 
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
@@ -699,12 +730,16 @@ app.include_router(
     health.router, prefix="", tags=["Health"]
 )  # No prefix for /health endpoint
 app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
-app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(wins.router, prefix="/api", tags=["Wins"])
 app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
+
+# OpenAI Realtime API endpoints (direct browser connection)
+app.include_router(pam_realtime.router, prefix="/api/v1", tags=["PAM Realtime"])
+app.include_router(pam_tools.router, prefix="/api/v1", tags=["PAM Tools"])
+
 # PAM 2.0 - Clean, modular implementation (Phase 1 setup)
 # PAM 2.0 - Modular AI Assistant (New Architecture)
 try:
@@ -814,6 +849,7 @@ app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"]
 app.include_router(openroute.router, prefix="/api/v1/openroute", tags=["OpenRoute Service Proxy"])
 app.include_router(health_consultation.router, prefix="/api/v1", tags=["Health Consultation"])
 app.include_router(community.router, prefix="/api/v1/community", tags=["Community"])
+app.include_router(transition.router, prefix="/api/v1", tags=["Transition"])
 app.include_router(system_settings_api.router)
 app.include_router(ai_structured_api.router)
 app.include_router(ai_ingest_api.router)

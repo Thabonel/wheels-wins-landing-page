@@ -5,13 +5,17 @@ Locate cheapest gas stations near a location or along a route
 Example usage:
 - "Find cheap gas near me"
 - "Show cheapest gas stations along I-5"
+
+Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional, List
 import os
+from pydantic import ValidationError
 from supabase import create_client, Client
 from app.services.external.eia_gas_prices import get_fuel_price_for_region
+from app.services.pam.schemas.trip import FindCheapGasInput
 
 logger = logging.getLogger(__name__)
 
@@ -77,27 +81,32 @@ async def find_cheap_gas(
         Dict with gas station listings sorted by price
     """
     try:
-        if not location:
+        # Validate inputs using Pydantic schema
+        try:
+            validated = FindCheapGasInput(
+                user_id=user_id,
+                location=location,
+                radius_miles=radius_miles,
+                fuel_type=fuel_type
+            )
+        except ValidationError as e:
+            # Extract first error message for user-friendly response
+            error_msg = e.errors()[0]['msg']
             return {
                 "success": False,
-                "error": "Location is required"
+                "error": f"Invalid input: {error_msg}"
             }
 
-        # Validate fuel type
-        valid_fuel_types = ["regular", "diesel", "premium"]
-        if fuel_type not in valid_fuel_types:
-            fuel_type = "regular"
-
         # Detect user's region and get regional fuel price
-        region = await _detect_user_region(user_id)
-        fuel_price_data = await get_fuel_price_for_region(region, fuel_type)
+        region = await _detect_user_region(validated.user_id)
+        fuel_price_data = await get_fuel_price_for_region(region, validated.fuel_type.value)  # ✅ Extract enum value
 
         base_price = fuel_price_data["price"]
         currency = fuel_price_data["currency"]
         unit = fuel_price_data["unit"]
 
         logger.info(
-            f"Using {region} fuel price for {fuel_type}: "
+            f"Using {region} fuel price for {validated.fuel_type.value}: "  # ✅ Extract enum value
             f"{base_price:.2f} {currency}/{unit} "
             f"(source: {fuel_price_data['source']})"
         )
@@ -160,12 +169,12 @@ async def find_cheap_gas(
         sorted_stations = sorted(mock_stations, key=lambda x: x["price"])
 
         # Filter by fuel type if diesel
-        if fuel_type == "diesel":
+        if validated.fuel_type.value == "diesel":  # ✅ Extract enum value
             sorted_stations = [s for s in sorted_stations if s.get("has_diesel", False)]
 
         cheapest_price = sorted_stations[0]["price"] if sorted_stations else None
 
-        logger.info(f"Found {len(sorted_stations)} gas stations near {location} for user {user_id}")
+        logger.info(f"Found {len(sorted_stations)} gas stations near {validated.location} for user {validated.user_id}")
 
         # Build region-aware message
         price_source = {
@@ -180,18 +189,18 @@ async def find_cheap_gas(
         if cheapest_price:
             message = (
                 f"Based on current {region} averages ({base_price:.2f} {currency}/{unit} from {price_source}), "
-                f"the cheapest {fuel_type} should be around {cheapest_price:.2f} {currency}/{unit} near {location}. "
+                f"the cheapest {validated.fuel_type.value} should be around {cheapest_price:.2f} {currency}/{unit} near {validated.location}. "  # ✅ Extract enum value
                 f"I've listed {len(sorted_stations)} representative stations below. "
                 f"Note: For real-time station-specific prices, check local apps or websites."
             )
         else:
-            message = f"No {fuel_type} stations found"
+            message = f"No {validated.fuel_type.value} stations found"  # ✅ Extract enum value
 
         return {
             "success": True,
-            "location": location,
-            "radius_miles": radius_miles,
-            "fuel_type": fuel_type,
+            "location": validated.location,
+            "radius_miles": validated.radius_miles,
+            "fuel_type": validated.fuel_type.value,  # ✅ Extract enum value
             "region": region,
             "regional_average": base_price,
             "currency": currency,
