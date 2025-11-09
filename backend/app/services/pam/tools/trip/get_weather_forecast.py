@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 async def get_weather_forecast(
     user_id: str,
-    location: str,
+    location: Optional[str] = None,
     days: Optional[int] = 7,
     **kwargs
 ) -> Dict[str, Any]:
@@ -30,13 +30,33 @@ async def get_weather_forecast(
 
     Args:
         user_id: UUID of the user
-        location: Location for weather forecast
+        location: Location for weather forecast (optional - uses user_location from context if not provided)
         days: Number of days to forecast (default: 7, max: 7 for free tier)
 
     Returns:
         Dict with weather forecast data from OpenMeteo
     """
     try:
+        # Auto-inject user location from context if not provided
+        if not location and 'context' in kwargs:
+            user_loc = kwargs.get('context', {}).get('user_location', {})
+            if isinstance(user_loc, dict):
+                # Prefer city name for better weather descriptions
+                if user_loc.get('city') and user_loc.get('region'):
+                    location = f"{user_loc['city']}, {user_loc['region']}"
+                    logger.info(f"📍 Using user location from context: {location}")
+                # Fallback to lat/lng coordinates
+                elif user_loc.get('lat') and user_loc.get('lng'):
+                    location = f"{user_loc['lat']},{user_loc['lng']}"
+                    logger.info(f"📍 Using user coordinates from context: {location}")
+
+        # If still no location, return error
+        if not location:
+            return {
+                "success": False,
+                "error": "Location not provided and user location not available. Please specify a location or enable location services."
+            }
+
         # Validate inputs using Pydantic schema
         try:
             validated = GetWeatherForecastInput(

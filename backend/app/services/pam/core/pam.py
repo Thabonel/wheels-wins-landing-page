@@ -430,14 +430,14 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             },
             {
                 "name": "get_weather_forecast",
-                "description": "Get weather forecast for a location. Use when user asks about weather.",
+                "description": "Get weather forecast for a location. Automatically uses user's current location if not specified. Use when user asks about weather without specifying where.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "location": {"type": "string", "description": "Location for forecast"},
+                        "location": {"type": "string", "description": "Location for forecast (optional - uses user's current location if not provided)"},
                         "days": {"type": "integer", "description": "Number of days (default: 7, max: 14)"}
                     },
-                    "required": ["location"]
+                    "required": []
                 }
             },
             {
@@ -1351,6 +1351,17 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     if tool_name in tool_functions:
                         # Add user_id to all tool calls
                         tool_input["user_id"] = self.user_id
+
+                        # Add context from most recent user message (enables location-aware tools)
+                        # Extract context from the last user message in conversation history
+                        recent_context = {}
+                        for msg in reversed(self.conversation_history):
+                            if msg.get("role") == "user" and msg.get("context"):
+                                recent_context = msg.get("context", {})
+                                break
+
+                        if recent_context:
+                            tool_input["context"] = recent_context
 
                         # Call the tool
                         result = await tool_functions[tool_name](**tool_input)
