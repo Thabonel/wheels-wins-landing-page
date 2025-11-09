@@ -10,7 +10,7 @@ const CallToAction = () => {
         </h2>
 
         <p className="text-xl md:text-2xl mb-10 max-w-3xl mx-auto opacity-90">
-          Wherever the road takes you, you're never alone — and Pam's always got your back.
+          Wherever the road takes you, you're never alone, and Pam's always got your back.
         </p>
 
         <Link to="/signup">
