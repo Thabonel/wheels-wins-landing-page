@@ -54,6 +54,7 @@ from app.services.stt.manager import get_stt_manager
 from app.core.simple_pam_service import simple_pam_service
 from app.services.stt.base import AudioFormat
 from app.services.pam.cache_warming import get_cache_warming_service
+from app.middleware.websocket_rate_limit import get_websocket_rate_limiter
 
 # Optional AI router (dry-run only). This does not affect current behavior.
 try:
@@ -645,10 +646,33 @@ async def websocket_endpoint(
                 message_start_time = time.time()
                 raw_data = await websocket.receive_json()
                 logger.info(f"📨 [DEBUG] WebSocket message received from user {user_id}")
-                
+
+                # SECURITY: WebSocket message rate limiting
+                ws_rate_limiter = get_websocket_rate_limiter()
+                is_allowed, rate_info = await ws_rate_limiter.check_rate_limit(user_id)
+
+                if not is_allowed:
+                    # Rate limit exceeded - send error and skip processing
+                    logger.warning(
+                        f"⚠️ WebSocket rate limit exceeded for user {user_id}: "
+                        f"{rate_info.get('limit')} messages/{rate_info.get('window')}s"
+                    )
+                    await safe_send_json(websocket, {
+                        "type": "error",
+                        "message": "Rate limit exceeded. Please slow down your messages.",
+                        "error_code": "RATE_LIMIT_EXCEEDED",
+                        "rate_limit": {
+                            "limit": rate_info.get("limit"),
+                            "window": rate_info.get("window"),
+                            "retry_after": rate_info.get("retry_after"),
+                            "reset": rate_info.get("reset")
+                        }
+                    })
+                    continue  # Skip this message, continue receiving
+
                 # Calculate message size for logging
                 message_size = len(json.dumps(raw_data, cls=DateTimeEncoder, ensure_ascii=False))
-                
+
                 # SECURITY: Comprehensive input validation and sanitization
                 try:
                     # Use SecureWebSocketMessage for validation and sanitization
