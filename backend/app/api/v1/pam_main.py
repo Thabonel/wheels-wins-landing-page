@@ -5484,7 +5484,7 @@ async def record_savings_event(
 @router.get("/savings/monthly-summary")
 async def get_monthly_savings_summary(
     month: Optional[str] = Query(None, description="YYYY-MM-DD format"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Get monthly savings summary for the user
@@ -5498,7 +5498,7 @@ async def get_monthly_savings_summary(
 
         # Get monthly summary
         summary = await savings_calculator.get_monthly_savings_summary(
-            str(current_user.id),
+            current_user.get('sub'),
             target_month
         )
 
@@ -5521,7 +5521,7 @@ async def get_monthly_savings_summary(
 @router.get("/savings/guarantee-status")
 async def get_guarantee_status(
     month: Optional[str] = Query(None, description="YYYY-MM-DD format"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Check savings guarantee status for a billing period
@@ -5535,7 +5535,7 @@ async def get_guarantee_status(
 
         # Evaluate guarantee status
         guarantee_status = await savings_calculator.evaluate_savings_guarantee(
-            str(current_user.id),
+            current_user.get('sub'),
             target_month
         )
 
@@ -5567,7 +5567,7 @@ async def get_guarantee_status(
 @router.post("/recommendations/with-savings-prediction", response_model=SuccessResponse)
 async def create_recommendation_with_savings(
     request: CreateRecommendationRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Create a PAM recommendation with savings prediction
@@ -5575,7 +5575,7 @@ async def create_recommendation_with_savings(
     try:
         # Create recommendation with savings
         recommendation_id = await savings_calculator.create_recommendation_with_savings(
-            user_id=str(current_user.id),
+            user_id=current_user.get('sub'),
             title=request.title,
             description=request.description,
             category=request.category,
@@ -5605,7 +5605,7 @@ async def create_recommendation_with_savings(
 @router.post("/savings/detect")
 async def detect_savings(
     request: DetectSavingsRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Automatically detect potential savings from an expense
@@ -5616,14 +5616,14 @@ async def detect_savings(
 
         if request.category == "fuel":
             savings_event = await savings_calculator.detect_fuel_savings(
-                user_id=str(current_user.id),
+                user_id=current_user.get('sub'),
                 expense_amount=Decimal(str(request.expense_amount)),
                 location=tuple(request.location) if request.location else (0, 0),
                 description=request.description or ""
             )
         elif request.category in ["camping", "lodging"]:
             savings_event = await savings_calculator.detect_camping_savings(
-                user_id=str(current_user.id),
+                user_id=current_user.get('sub'),
                 expense_amount=Decimal(str(request.expense_amount)),
                 location=tuple(request.location) if request.location else (0, 0),
                 description=request.description or ""
@@ -5669,7 +5669,7 @@ async def detect_savings(
 @router.get("/savings/recent")
 async def get_recent_savings(
     limit: int = Query(10, description="Number of recent savings events to return"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Get recent savings events for the user
@@ -5677,7 +5677,7 @@ async def get_recent_savings(
     try:
         # Get recent savings events
         recent_events = await savings_calculator.get_recent_savings_events(
-            user_id=str(current_user.id),
+            user_id=current_user.get('sub'),
             limit=limit
         )
 
