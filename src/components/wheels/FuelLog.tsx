@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger, DialogContent } from "@/components/common/AnimatedDialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getMapboxPublicToken } from "@/utils/mapboxConfig";
 
 const getTodayDate = () => new Date().toISOString().split("T")[0];
 
@@ -55,10 +56,8 @@ export default function FuelLog() {
         const { latitude, longitude } = position.coords;
         try {
           // Use Mapbox Geocoding API which properly handles CORS
-          const token = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN || 
-                       import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN || 
-                       import.meta.env.VITE_MAPBOX_TOKEN;
-          
+          const token = getMapboxPublicToken();
+
           if (token && token.startsWith('pk.')) {
             const res = await fetch(
               `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${token}`

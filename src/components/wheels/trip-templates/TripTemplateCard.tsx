@@ -2,10 +2,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  MapPin, 
-  Clock, 
-  DollarSign, 
+import {
+  MapPin,
+  Clock,
+  DollarSign,
   Star,
   Plus,
   Check,
@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
 import { googleImageService } from '@/services/googleImageService';
 import TripRatingWidget from './TripRatingWidget';
+import { getMapboxPublicToken } from '@/utils/mapboxConfig';
 
 interface TripTemplateCardProps {
   template: TripTemplate;
@@ -77,7 +78,7 @@ export default function TripTemplateCard({
     }
 
     // Priority 5: Generate intelligent route-specific Mapbox map (excellent fallback!)
-    const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+    const mapboxToken = getMapboxPublicToken();
     if (!mapboxToken) {
       console.warn('No Mapbox token available for map generation');
       // Return a solid color fallback instead of placeholder service

@@ -14,20 +14,33 @@
  * Priority: PUBLIC_TOKEN -> LEGACY_TOKEN -> null
  */
 export function getMapboxPublicToken(): string | null {
-  // Primary: Use dedicated public token (industry standard)
+  // Debug: Log what env vars are available
   const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+  const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
+  console.log('🗺️ Mapbox Token Debug:', {
+    environment: import.meta.env.MODE,
+    hasPublicToken: Boolean(publicToken),
+    hasLegacyToken: Boolean(legacyToken),
+    publicTokenPrefix: publicToken ? publicToken.substring(0, 10) : 'none',
+    legacyTokenPrefix: legacyToken ? legacyToken.substring(0, 10) : 'none',
+    publicTokenValid: publicToken?.startsWith('pk.') && !publicToken?.includes('your_'),
+    legacyTokenValid: legacyToken?.startsWith('pk.') && !legacyToken?.includes('your_'),
+  });
+
+  // Primary: Use dedicated public token (industry standard)
   if (publicToken && publicToken.startsWith('pk.') && !publicToken.includes('your_')) {
+    console.log('✅ Using VITE_MAPBOX_PUBLIC_TOKEN');
     return publicToken;
   }
-  
+
   // Fallback: Legacy token (for backward compatibility)
-  const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
   if (legacyToken && legacyToken.startsWith('pk.') && !legacyToken.includes('your_')) {
     console.warn('🔄 Using legacy VITE_MAPBOX_TOKEN. Migrate to VITE_MAPBOX_PUBLIC_TOKEN for better security.');
     return legacyToken;
   }
-  
-  console.error('❌ No valid Mapbox public token found. Please set VITE_MAPBOX_PUBLIC_TOKEN.');
+
+  console.error('❌ No valid Mapbox public token found. Please set VITE_MAPBOX_PUBLIC_TOKEN or VITE_MAPBOX_TOKEN.');
   return null;
 }
 
