@@ -236,18 +236,17 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       // Add scale control
       newMap.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
 
-      // Add geolocate control only if not already created
-      if (!geolocateControlRef.current) {
-        geolocateControlRef.current = new mapboxgl.GeolocateControl({
-          positionOptions: {
-            enableHighAccuracy: true
-          },
-          trackUserLocation: true,
-          showUserHeading: true,
-          showAccuracyCircle: true // Show the accuracy circle
-        });
-        newMap.addControl(geolocateControlRef.current, 'top-right');
-      }
+      // Add geolocate control - always create fresh instance for new map
+      // (removing conditional check that prevented recreation on remount)
+      geolocateControlRef.current = new mapboxgl.GeolocateControl({
+        positionOptions: {
+          enableHighAccuracy: true
+        },
+        trackUserLocation: true,
+        showUserHeading: true,
+        showAccuracyCircle: true // Show the accuracy circle
+      });
+      newMap.addControl(geolocateControlRef.current, 'top-right');
 
       // Add native Mapbox fullscreen control with container option
       // This ensures the entire trip planner (including toolbar) goes fullscreen
