@@ -5,7 +5,7 @@ import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
 const pamEnabled = true;
 
 // Regular imports
-import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown, Bot } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 // Claude WebSocket PAM REMOVED - OpenAI Realtime only
 // import { usePamConnection } from "@/hooks/usePamConnection";
@@ -1134,17 +1134,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       {/* Floating PAM Bubble */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-3 shadow-lg transition-all z-50"
+        className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg transition-all z-50"
         aria-label="Open PAM Chat"
       >
           <div className="relative">
-            <img
-              src={getPublicAssetUrl('Pam.webp')}
-              alt="PAM Assistant"
-              className="w-8 h-8 rounded-full"
-            />
+            <Bot className="w-8 h-8" />
           <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
-            connectionStatus === "Connected" ? "bg-green-500" : 
+            connectionStatus === "Connected" ? "bg-green-500" :
             connectionStatus === "Connecting" ? "bg-yellow-500" : "bg-red-500"
           }`} />
         </div>
@@ -1156,11 +1152,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b bg-primary/5 rounded-t-lg">
             <div className="flex items-center space-x-3">
-              <img
-                src={getPublicAssetUrl('Pam.webp')}
-                alt="PAM"
-                className="w-8 h-8 rounded-full"
-              />
+              <div className="bg-primary/10 rounded-full p-2">
+                <Bot className="w-6 h-6 text-primary" />
+              </div>
               <div>
                 <h3 className="font-semibold text-gray-800">PAM</h3>
                 <div className="text-xs text-gray-500 space-y-0.5">
