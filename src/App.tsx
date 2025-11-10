@@ -59,7 +59,6 @@ const PerformanceTestPage = lazyWithRetry(() => import('./dev/PerformanceTestPag
 const SiteQALog = lazyWithRetry(() => import('./pages/SiteQALog'));
 const FreshTripPlannerTest = lazyWithRetry(() => import('./pages/FreshTripPlannerTest'));
 const WheelsSimple = lazyWithRetry(() => import('./pages/WheelsSimple'));
-const SimplePamTest = lazyWithRetry(() => import('./pages/SimplePamTest'));
 const PamDirectApiTest = lazyWithRetry(() => import('./pages/PamDirectApiTest'));
 const Transition = lazyWithRetry(() => import('./pages/Transition'));
 
@@ -136,7 +135,6 @@ function App() {
                                   <Route path="/qa" element={<SiteQALog />} />
                                   <Route path="/fresh-trip-planner" element={<FreshTripPlannerTest />} />
                                   <Route path="/wheels-simple" element={<WheelsSimple />} />
-                                  <Route path="/simple-pam-test" element={<SimplePamTest />} />
                                   <Route path="/pam-direct-api-test" element={<PamDirectApiTest />} />
                                   <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                                 </Routes>
