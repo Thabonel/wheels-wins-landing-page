@@ -73,7 +73,8 @@ from app.api.v1 import (
     monitoring,
     receipts,
     pam,
-    pam_realtime,  # OpenAI Realtime session management
+    pam_realtime,  # OpenAI Realtime session management (pure OpenAI)
+    pam_realtime_hybrid,  # Hybrid: OpenAI voice + Claude reasoning
     pam_tools,  # PAM tool execution endpoints
     auth,
     subscription,
@@ -738,6 +739,7 @@ app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
 
 # OpenAI Realtime API endpoints (direct browser connection)
 app.include_router(pam_realtime.router, prefix="/api/v1", tags=["PAM Realtime"])
+app.include_router(pam_realtime_hybrid.router, prefix="/api/v1", tags=["PAM Voice Hybrid"])
 app.include_router(pam_tools.router, prefix="/api/v1", tags=["PAM Tools"])
 
 # PAM 2.0 - Clean, modular implementation (Phase 1 setup)
