@@ -17,7 +17,7 @@ import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
 import { audioManager } from "@/utils/audioManager";
-import { OpenAIRealtimeService } from "@/services/openaiRealtimeService";
+import { PAMVoiceHybridService, createVoiceService } from "@/services/pamVoiceHybridService";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
@@ -90,7 +90,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [voiceActivationMode, setVoiceActivationMode] = useState<'manual' | 'auto' | 'command'>('manual');
-  const [realtimeService, setRealtimeService] = useState<OpenAIRealtimeService | null>(null);
+  const [realtimeService, setRealtimeService] = useState<PAMVoiceHybridService | null>(null);
   const ttsQueueRef = useRef<TTSQueueManager | null>(null);
   const { startTracking, stopTracking, getCurrentLocation, ...locationState } = useLocationTracking();
   const [audioLevel, setAudioLevel] = useState(0);
@@ -516,28 +516,54 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         return;
       }
 
-      logger.debug('🎙️ Starting OpenAI Realtime voice mode');
+      logger.debug('🎙️ Starting PAM Hybrid voice mode');
 
       // Get API base URL from environment
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-      // Create OpenAI Realtime service with direct connection
-      const service = new OpenAIRealtimeService(
-        user.id,
-        session.access_token,
-        apiBaseUrl
-      );
+      // Get fresh JWT token
+      const authToken = await user.getIdToken();
 
-      // Connect to OpenAI (gets session token, opens WebSocket)
-      await service.connect();
+      // Create PAM Hybrid Voice service (OpenAI voice + Claude reasoning)
+      const service = createVoiceService({
+        userId: user.id,
+        apiBaseUrl,
+        authToken,
+        voice: 'marin', // Natural expressive voice
+        onTranscript: (text) => {
+          // Add user's transcribed speech as a message
+          const newMessage: PamMessage = {
+            id: Date.now().toString(),
+            content: text,
+            sender: "user",
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, newMessage]);
+        },
+        onResponse: (text) => {
+          // Add PAM's response as a message
+          const newMessage: PamMessage = {
+            id: Date.now().toString(),
+            content: text,
+            sender: "pam",
+            timestamp: new Date().toISOString(),
+            shouldSpeak: true,
+          };
+          setMessages((prev) => [...prev, newMessage]);
+        },
+        onStatusChange: (status) => {
+          setIsSpeaking(status.isSpeaking);
+          setIsListening(status.isListening);
+        }
+      });
 
-      // Start voice mode (microphone → OpenAI)
-      await service.startVoiceMode();
+      // Start voice session (microphone → OpenAI → Claude → response)
+      await service.start();
 
       setRealtimeService(service);
       setIsContinuousMode(true);
 
-      logger.info('✅ PAM voice mode active (ChatGPT quality, zero latency!)');
+      logger.info('✅ PAM voice mode active (OpenAI voice + Claude reasoning!)');
 
     } catch (error) {
       logger.error('❌ Failed to start voice mode:', error);
@@ -548,13 +574,15 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const stopContinuousVoiceMode = async () => {
     logger.debug('🔇 Stopping continuous voice mode');
 
-    // Stop OpenAI Realtime service
+    // Stop PAM Hybrid Voice service
     if (realtimeService) {
-      realtimeService.stopVoiceMode();
+      await realtimeService.stop();
       setRealtimeService(null);
     }
 
     setIsContinuousMode(false);
+    setIsListening(false);
+    setIsSpeaking(false);
     logger.debug('✅ Continuous voice mode stopped');
   };
 
