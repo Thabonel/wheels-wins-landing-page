@@ -227,12 +227,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   // On first ready connection, show greeting once
   useEffect(() => {
     if (!pamEnabled) return;
+    const isReady = !!user && !!session?.access_token;
     if (isReady && messages.length === 0 && !hasShownWelcomeRef.current) {
       logger.debug('💬 PAM: Adding greeting message on first ready connection');
       addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
       hasShownWelcomeRef.current = true;
     }
-  }, [isReady, messages.length]);
+  }, [user, session?.access_token, messages.length]);
 
   // Update location context when tracking state changes
   useEffect(() => {
@@ -521,8 +522,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Get API base URL from environment
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-      // Get fresh JWT token
-      const authToken = await user.getIdToken();
+      // Get JWT token from Supabase session
+      const authToken = session.access_token;
 
       // Create PAM Hybrid Voice service (OpenAI voice + Claude reasoning)
       const service = createVoiceService({
