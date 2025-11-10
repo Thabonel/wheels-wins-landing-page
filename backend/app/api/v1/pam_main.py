@@ -3560,7 +3560,7 @@ async def generate_pam_voice(
 async def get_monthly_savings_status(
     year: int = Query(default=None, description="Year (defaults to current year)"),
     month: int = Query(default=None, description="Month (defaults to current month)"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Get monthly PAM savings status and guarantee information
@@ -3583,7 +3583,7 @@ async def get_monthly_savings_status(
             result = supabase.rpc(
                 "calculate_monthly_pam_savings",
                 {
-                    "user_id_param": str(current_user.id),
+                    "user_id_param": current_user.get('sub'),
                     "year_param": target_year,
                     "month_param": target_month
                 }
@@ -3642,8 +3642,8 @@ async def get_monthly_savings_status(
         )
 
 
-@router.get("/savings-analytics")  
-async def get_pam_savings_analytics(current_user = Depends(get_current_user)):
+@router.get("/savings-analytics")
+async def get_pam_savings_analytics(current_user: dict = Depends(verify_supabase_jwt_token)):
     """
     Get comprehensive PAM savings analytics using simplified database functions
     
@@ -3657,8 +3657,8 @@ async def get_pam_savings_analytics(current_user = Depends(get_current_user)):
         # Try to call the analytics database function - graceful fallback if function doesn't exist
         try:
             result = supabase.rpc(
-                "get_pam_savings_analytics", 
-                {"user_id_param": str(current_user.id)}
+                "get_pam_savings_analytics",
+                {"user_id_param": current_user.get('sub')}
             ).execute()
             
             if result.data and len(result.data) > 0:
@@ -5440,7 +5440,7 @@ class DetectSavingsRequest(BaseModel):
 @router.post("/savings/record", response_model=SuccessResponse)
 async def record_savings_event(
     request: RecordSavingsRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Record a PAM savings event when the AI helps a user save money
@@ -5448,7 +5448,7 @@ async def record_savings_event(
     try:
         # Create savings event
         savings_event = SavingsEvent(
-            user_id=str(current_user.id),
+            user_id=current_user.get('sub'),
             savings_type=SavingsType(request.savings_type),
             predicted_savings=Decimal(str(request.predicted_savings)),
             actual_savings=Decimal(str(request.actual_savings)),
