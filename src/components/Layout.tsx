@@ -1,5 +1,6 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
+import Pam from "@/components/Pam";
 import Header from "@/components/header/Header";
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
@@ -35,6 +36,9 @@ export default function Layout({ children }: LayoutProps) {
       <footer className="bg-white text-gray-600 py-4 border-t">
         <Footer />
       </footer>
+
+      {/* PAM AI Assistant - floating bubble on all pages */}
+      <Pam />
     </div>
   );
 }
