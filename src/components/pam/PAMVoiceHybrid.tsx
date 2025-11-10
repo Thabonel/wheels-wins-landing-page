@@ -16,7 +16,7 @@ import {
   destroyVoiceService,
   type VoiceStatus
 } from '@/services/pamVoiceHybridService';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext';
 
 interface Message {
   id: string;
