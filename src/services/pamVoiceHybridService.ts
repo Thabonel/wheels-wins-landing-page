@@ -226,12 +226,13 @@ export class PAMVoiceHybridService {
     return new Promise((resolve, reject) => {
       const wsUrl = `${sessionData.ws_url}?model=${sessionData.model}`;
 
-      this.openaiWs = new WebSocket(wsUrl, {
-        headers: {
-          'Authorization': `Bearer ${sessionData.session_token}`,
-          'OpenAI-Beta': 'realtime=v1'
-        }
-      } as any);
+      // CRITICAL: Browser WebSocket auth requires subprotocols, NOT headers
+      // Research: https://platform.openai.com/docs/guides/realtime
+      this.openaiWs = new WebSocket(wsUrl, [
+        'realtime',
+        `openai-insecure-api-key.${sessionData.session_token}`,
+        'openai-beta.realtime-v1'
+      ]);
 
       this.openaiWs.onopen = () => {
         logger.info('[PAMVoiceHybrid] OpenAI WebSocket connected');
@@ -334,8 +335,9 @@ export class PAMVoiceHybridService {
         .replace('https://', 'wss://')
         .replace('http://', 'ws://');
 
+      // CRITICAL: Add JWT token as query parameter for authentication
       this.claudeBridge = new WebSocket(
-        `${wsUrl}/api/v1/pam/voice-hybrid/bridge/${this.config.userId}`
+        `${wsUrl}/api/v1/pam/voice-hybrid/bridge/${this.config.userId}?token=${this.config.authToken}`
       );
 
       this.claudeBridge.onopen = () => {
