@@ -6,6 +6,7 @@ import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css';
 import './fresh-trip-planner.css';
 import '@/styles/mapbox-fixes.css';
 import { toast } from 'sonner';
+import { getMapboxPublicToken } from '@/utils/mapboxConfig';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
@@ -174,23 +175,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     
-    // Check for Mapbox token - try multiple env vars for backward compatibility
-    const mainToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN;
-    const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
-    const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
-    const token = mainToken || publicToken || legacyToken;
-    
-    // Debug logging to help diagnose environment variable issues
-    console.log('🗺️ Mapbox Token Debug:', {
-      hasMainToken: !!mainToken,
-      hasPublicToken: !!publicToken, 
-      hasLegacyToken: !!legacyToken,
-      tokenSelected: token ? `${token.substring(0, 8)}...` : 'none',
-      envVarsChecked: ['VITE_MAPBOX_PUBLIC_TOKEN_MAIN', 'VITE_MAPBOX_PUBLIC_TOKEN', 'VITE_MAPBOX_TOKEN']
-    });
-    
+    // Get Mapbox token from centralized config
+    const token = getMapboxPublicToken();
+
     if (!token) {
-      const errorMsg = 'Mapbox token not configured. Please set one of: VITE_MAPBOX_PUBLIC_TOKEN_MAIN, VITE_MAPBOX_PUBLIC_TOKEN, or VITE_MAPBOX_TOKEN in your environment variables.';
+      const errorMsg = 'Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN or VITE_MAPBOX_TOKEN in your environment variables.';
       toast.error(errorMsg);
       console.error('❌ Mapbox Token Error:', errorMsg);
       return;

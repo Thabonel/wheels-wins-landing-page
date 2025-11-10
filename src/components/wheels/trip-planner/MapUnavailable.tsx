@@ -1,8 +1,10 @@
+import { getMapboxPublicToken } from '@/utils/mapboxConfig';
+
 export default function MapUnavailable() {
-  // Simple debug info like the working version
+  // Use centralized token management
+  const currentToken = getMapboxPublicToken();
   const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
   const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
-  const currentToken = publicToken || legacyToken;
   
   const debugInfo = {
     hasPublicToken: Boolean(publicToken),
