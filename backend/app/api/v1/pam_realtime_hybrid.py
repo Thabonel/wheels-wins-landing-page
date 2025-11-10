@@ -8,6 +8,7 @@ This endpoint creates secure sessions and forwards tool calls to Claude.
 import os
 import json
 import logging
+import traceback
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -73,49 +74,108 @@ async def create_hybrid_voice_session(
     7. OpenAI Realtime speaks response to user
     """
     try:
+        # Log function entry
+        logger.info(f"🎤 Voice session creation started for user {current_user.user_id}")
+
+        # Check OpenAI API key
         openai_key = os.getenv('OPENAI_API_KEY')
+        logger.info(f"OpenAI API key configured: {bool(openai_key)}")
+
         if not openai_key:
+            logger.error("❌ OpenAI API key not found in environment")
             raise HTTPException(
                 status_code=500,
-                detail="OpenAI API key not configured"
+                detail="OpenAI API key not configured. Please contact support."
             )
 
         # Create ephemeral session with OpenAI
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/realtime/sessions",
-                headers={
-                    "Authorization": f"Bearer {openai_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "gpt-4o-realtime-preview",
-                    "voice": request.voice,
-                    "modalities": ["text", "audio"],  # Enable both
-                    "instructions": _get_minimal_instructions(),
-                    # CRITICAL: NO TOOLS - OpenAI just handles voice I/O
-                    "tools": [],
-                    "turn_detection": {
-                        "type": "server_vad",
-                        "threshold": 0.5,
-                        "prefix_padding_ms": 300,
-                        "silence_duration_ms": 500
-                    },
-                    "input_audio_format": "pcm16",
-                    "output_audio_format": "pcm16",
-                    "temperature": request.temperature
-                }
-            )
+        logger.info(f"📡 Sending request to OpenAI Realtime API...")
 
-        if response.status_code != 200:
-            error_detail = response.text
-            logger.error(f"Failed to create OpenAI session: {error_detail}")
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/realtime/sessions",
+                    headers={
+                        "Authorization": f"Bearer {openai_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "gpt-4o-realtime-preview",
+                        "voice": request.voice,
+                        "modalities": ["text", "audio"],
+                        "instructions": _get_minimal_instructions(),
+                        "tools": [],
+                        "turn_detection": {
+                            "type": "server_vad",
+                            "threshold": 0.5,
+                            "prefix_padding_ms": 300,
+                            "silence_duration_ms": 500
+                        },
+                        "input_audio_format": "pcm16",
+                        "output_audio_format": "pcm16",
+                        "temperature": request.temperature
+                    }
+                )
+
+            logger.info(f"📡 OpenAI API response status: {response.status_code}")
+
+        except httpx.TimeoutException as e:
+            logger.error(f"⏱️ Timeout connecting to OpenAI API: {e}")
+            logger.error(traceback.format_exc())
             raise HTTPException(
                 status_code=500,
-                detail=f"OpenAI session creation failed: {error_detail}"
+                detail="Request to OpenAI timed out. Please try again."
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"🔌 Connection error to OpenAI API: {e}")
+            logger.error(traceback.format_exc())
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to connect to OpenAI. Please check your network."
+            )
+        except httpx.HTTPError as e:
+            logger.error(f"🌐 HTTP error calling OpenAI API: {type(e).__name__} - {e}")
+            logger.error(traceback.format_exc())
+            raise HTTPException(
+                status_code=500,
+                detail=f"Network error: {type(e).__name__}"
             )
 
-        session_data = response.json()
+        # Check response status
+        if response.status_code != 200:
+            error_detail = response.text[:500]  # Limit error text
+            logger.error(f"❌ OpenAI API returned {response.status_code}: {error_detail}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"OpenAI API error ({response.status_code}): {error_detail}"
+            )
+
+        # Parse response
+        try:
+            session_data = response.json()
+            logger.info(f"📦 Received session data with keys: {list(session_data.keys())}")
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Failed to parse OpenAI response as JSON: {e}")
+            logger.error(f"Response text (first 500 chars): {response.text[:500]}")
+            logger.error(traceback.format_exc())
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid response from OpenAI API"
+            )
+
+        # Extract session token
+        try:
+            session_token = session_data["client_secret"]["value"]
+            expires_at = session_data["expires_at"]
+            logger.info(f"✅ Successfully extracted session token, expires: {expires_at}")
+        except KeyError as e:
+            logger.error(f"❌ Missing key in OpenAI response: {e}")
+            logger.error(f"Session data structure: {json.dumps(session_data, indent=2)}")
+            logger.error(traceback.format_exc())
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected response structure from OpenAI (missing {e})"
+            )
 
         pam_logger.info(
             f"✅ Created hybrid voice session for user {current_user.user_id}",
@@ -127,24 +187,23 @@ async def create_hybrid_voice_session(
         )
 
         return VoiceSessionResponse(
-            session_token=session_data["client_secret"]["value"],
-            expires_at=session_data["expires_at"],
+            session_token=session_token,
+            expires_at=expires_at,
             ws_url="wss://api.openai.com/v1/realtime",
             model="gpt-4o-realtime-preview",
             voice=request.voice
         )
 
-    except httpx.HTTPError as e:
-        logger.error(f"HTTP error creating voice session: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create voice session: {str(e)}"
-        )
+    except HTTPException:
+        # Re-raise HTTPExceptions (already logged above)
+        raise
     except Exception as e:
-        logger.error(f"Unexpected error creating voice session: {e}")
+        # Catch-all for any unexpected errors
+        logger.error(f"💥 Unexpected error in voice session creation: {type(e).__name__} - {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
-            detail=f"Voice session creation failed: {str(e)}"
+            detail=f"Internal error: {type(e).__name__} - {str(e)}"
         )
 
 
