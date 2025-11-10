@@ -50,6 +50,7 @@ const AuthTest = lazyWithRetry(() => import('./pages/AuthTest'));
 // Temporarily disabled - AI SDK not configured
 // const PamAiSdkTest = lazyWithRetry(() => import('./pages/PamAiSdkTest'));
 const PamVoiceTest = lazyWithRetry(() => import('./pages/PamVoiceTest'));
+const PAMVoiceHybridTest = lazyWithRetry(() => import('./pages/PAMVoiceHybridTest'));
 // const PamWebSocketTest = lazyWithRetry(() => import('./pages/PamWebSocketTest')); // Disabled - using unified PAM service
 const PAMTestingPage = lazyWithRetry(() => import('./pages/PAMTestingPage'));
 const PAMDevTestPage = lazyWithRetry(() => import('./pages/PAMDevTestPage'));
@@ -126,6 +127,7 @@ function App() {
                                   <Route path="/auth-test" element={<ProtectedRoute><AuthTest /></ProtectedRoute>} />
                                   {/* <Route path="/pam-ai-sdk-test" element={<PamAiSdkTest />} /> */}
                                   <Route path="/pam-voice-test" element={<PamVoiceTest />} />
+                                  <Route path="/pam-voice-hybrid-test" element={<ProtectedRoute><PAMVoiceHybridTest /></ProtectedRoute>} />
                                   {/* <Route path="/pam-websocket-test" element={<PamWebSocketTest />} /> */}
                                   <Route path="/pam-testing" element={<ProtectedRoute><PAMTestingPage /></ProtectedRoute>} />
                                   <Route path="/pam-dev-test" element={<PAMDevTestPage />} />
