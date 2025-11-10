@@ -2448,6 +2448,12 @@ async def chat_endpoint(
         context = request.context or {}
         context["user_id"] = str(user_id)
 
+        # CRITICAL: Fix location context mapping
+        # Frontend sends 'userLocation' but backend expects 'user_location'
+        if context.get("userLocation"):
+            context["user_location"] = context["userLocation"]
+            logger.info(f"📍 REST API: User location received: {context['user_location']}")
+
         logger.info(f"Processing chat request for user {user_id} with PersonalizedPamAgent")
 
         # PRIVACY: classify and create a sanitized version of the message

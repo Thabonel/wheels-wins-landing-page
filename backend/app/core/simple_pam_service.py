@@ -318,9 +318,16 @@ class SimplePamService:
             if False:  # Disabled old weather tool logic
                 logger.info(f"🌤️ Weather query detected, using WeatherTool")
                 try:
-                    # Smart location extraction - use context first, never ask for permission
+                    # Smart location extraction - use context first
                     user_location = None
-                    
+
+                    # Debug: Log what's in context
+                    logger.debug(f"🔍 Context keys: {list(context.keys())}")
+                    if context.get("user_location"):
+                        logger.debug(f"🔍 user_location in context: {context['user_location']}")
+                    if context.get("userLocation"):
+                        logger.debug(f"🔍 userLocation in context: {context['userLocation']}")
+
                     # 1. Check WebSocket connection context (stored on init)
                     if context.get("user_location"):
                         loc = context["user_location"]
@@ -333,7 +340,7 @@ class SimplePamService:
                         elif isinstance(loc, str):
                             user_location = loc
                             logger.info(f"📍 Using location string from context: {user_location}")
-                    
+
                     # 2. Check userLocation in context (from frontend)
                     if not user_location and context.get("userLocation"):
                         loc = context["userLocation"]
@@ -343,7 +350,7 @@ class SimplePamService:
                             if lat and lon:
                                 user_location = f"{lat},{lon}"
                                 logger.info(f"📍 Using location from userLocation: {user_location}")
-                    
+
                     # 3. Try to extract location from message itself
                     if not user_location:
                         # Look for city names or location mentions in the message
@@ -357,12 +364,12 @@ class SimplePamService:
                                 if len(potential_location) > 2:  # Basic validation
                                     user_location = potential_location
                                     logger.info(f"📍 Extracted location from message: {user_location}")
-                    
-                    # 4. Use default location if still none (never ask for permission)
+
+                    # 4. If no location found, pass None to weather tool
                     if not user_location:
-                        # Use a sensible default (US geographic center)
-                        user_location = "39.8283,-98.5795"  # Geographic center of USA
-                        logger.info(f"📍 Using default US location for weather")
+                        logger.warning(f"⚠️ No location found in context or message - weather tool will handle missing location")
+                        # Don't use hardcoded fallback - let weather tool ask user for location if needed
+                        user_location = None
                     
                     # Always provide weather data - never ask for location
                     if "tomorrow" in message_lower or "week" in message_lower or "forecast" in message_lower:
