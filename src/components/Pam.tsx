@@ -77,9 +77,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [messages, setMessages] = useState<PamMessage[]>([]);
   // Claude WebSocket PAM REMOVED - OpenAI Realtime only
   // const { status: pamStatus, isReady, sendMessage: sendPamMessage } = usePamConnection();
-  const connectionStatus: "Connected" | "Connecting" | "Disconnected" = isContinuousMode
-    ? "Connected"
-    : "Disconnected";
+  const connectionStatus: "Connected" | "Connecting" | "Disconnected" =
+    (!!user && !!session?.access_token) ? "Connected" : "Disconnected";
   const [userContext, setUserContext] = useState<any>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -846,9 +845,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       // SIMPLE REST API CHAT (production-ready)
       logger.info('💬 Sending message via simple REST API');
 
-      // Call simple chat endpoint
+      // Call production PAM chat endpoint
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
-      const response = await fetch(`${apiBaseUrl}/api/v1/pam-simple/chat`, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/pam/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

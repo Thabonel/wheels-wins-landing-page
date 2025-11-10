@@ -49,15 +49,15 @@ export function PAMConnectionDiagnostic() {
   const getPamEndpoints = () => {
     const env = getEnvironment();
 
-    // PAM 2.0 Simple endpoints (Barry-inspired architecture)
+    // PAM Production endpoints (pam_main.py system)
     return {
       production: {
-        health: 'https://pam-backend.onrender.com/api/v1/pam-simple/health',
-        chat: 'https://pam-backend.onrender.com/api/v1/pam-simple/chat'
+        health: 'https://pam-backend.onrender.com/api/v1/pam/health',
+        chat: 'https://pam-backend.onrender.com/api/v1/pam/chat'
       },
       staging: {
-        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/health',
-        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/chat'
+        health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health',
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat'
       }
     }[env];
   };
