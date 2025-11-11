@@ -3,14 +3,16 @@ import { getMapboxPublicToken } from '@/utils/mapboxConfig';
 export default function MapUnavailable() {
   // Use centralized token management
   const currentToken = getMapboxPublicToken();
+  const mainToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN;
   const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
   const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
-  
+
   const debugInfo = {
+    hasMainToken: Boolean(mainToken),
     hasPublicToken: Boolean(publicToken),
     hasLegacyToken: Boolean(legacyToken),
     currentToken: currentToken ? `${currentToken.substring(0, 10)}...` : null,
-    tokenSource: publicToken ? 'public' : legacyToken ? 'legacy' : 'none',
+    tokenSource: mainToken ? 'main' : publicToken ? 'public' : legacyToken ? 'legacy' : 'none',
     environment: import.meta.env.MODE,
   };
   
@@ -26,16 +28,17 @@ export default function MapUnavailable() {
         </p>
         <div className="text-xs text-gray-500 bg-gray-200 p-2 rounded">
           <strong>Debug Info (Industry Standard Token Management):</strong><br />
+          Main Token: {debugInfo.hasMainToken ? 'Configured' : 'Missing'}<br />
           Public Token: {debugInfo.hasPublicToken ? 'Configured' : 'Missing'}<br />
           Legacy Token: {debugInfo.hasLegacyToken ? 'Available' : 'Missing'}<br />
           Active Token: {debugInfo.currentToken || 'None'}<br />
           Token Source: {debugInfo.tokenSource}<br />
           Environment: {debugInfo.environment}<br />
-          {!debugInfo.hasPublicToken && (
-            <><br /><strong className="text-orange-600">⚠️ Recommendation:</strong> Create VITE_MAPBOX_PUBLIC_TOKEN</>
+          {!debugInfo.hasMainToken && (
+            <><br /><strong className="text-orange-600">⚠️ Recommendation:</strong> Create VITE_MAPBOX_PUBLIC_TOKEN_MAIN in Netlify</>
           )}
-          {debugInfo.hasLegacyToken && !debugInfo.hasPublicToken && (
-            <><br /><strong className="text-blue-600">🔄 Migration:</strong> Switch to public token for better security</>
+          {debugInfo.hasLegacyToken && !debugInfo.hasMainToken && (
+            <><br /><strong className="text-blue-600">🔄 Migration:</strong> Switch to VITE_MAPBOX_PUBLIC_TOKEN_MAIN for better security</>
           )}
         </div>
       </div>
