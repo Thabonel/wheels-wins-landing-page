@@ -9,6 +9,7 @@ import os
 import json
 import logging
 import traceback
+from datetime import datetime
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -166,7 +167,9 @@ async def create_hybrid_voice_session(
         # Extract session token
         try:
             session_token = session_data["client_secret"]["value"]
-            expires_at = session_data["expires_at"]
+            expires_at_raw = session_data["expires_at"]
+            # Convert to ISO 8601 string (OpenAI returns Unix timestamp, often 0)
+            expires_at = datetime.fromtimestamp(expires_at_raw).isoformat() if expires_at_raw else datetime.utcnow().isoformat()
             logger.info(f"✅ Successfully extracted session token, expires: {expires_at}")
         except KeyError as e:
             logger.error(f"❌ Missing key in OpenAI response: {e}")
