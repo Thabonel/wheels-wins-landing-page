@@ -643,6 +643,27 @@ class PAMLogger:
                 total_size += file_path.stat().st_size
         return round(total_size / (1024 * 1024), 2)
 
+    # Standard logging methods for compatibility
+    def info(self, message: str, **kwargs):
+        """Log info level message (standard logging interface)"""
+        self.logger.info(message, **kwargs)
+
+    def error(self, message: str, **kwargs):
+        """Log error level message (standard logging interface)"""
+        self.logger.error(message, **kwargs)
+
+    def warning(self, message: str, **kwargs):
+        """Log warning level message (standard logging interface)"""
+        self.logger.warning(message, **kwargs)
+
+    def debug(self, message: str, **kwargs):
+        """Log debug level message (standard logging interface)"""
+        self.logger.debug(message, **kwargs)
+
+    def critical(self, message: str, **kwargs):
+        """Log critical level message (standard logging interface)"""
+        self.logger.critical(message, **kwargs)
+
 
 # Global PAM logger instance
 pam_logger = PAMLogger()
