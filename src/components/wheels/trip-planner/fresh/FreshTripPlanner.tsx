@@ -248,6 +248,56 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       });
       newMap.addControl(geolocateControlRef.current, 'top-right');
 
+      // DIAGNOSTIC: Add error listeners to capture what's failing
+      const geolocate = geolocateControlRef.current;
+
+      console.log('🔍 GeolocateControl Diagnostics:', {
+        browserSupport: 'geolocation' in navigator,
+        isSecureContext: window.isSecureContext,
+        protocol: window.location.protocol,
+        hostname: window.location.hostname
+      });
+
+      // Check permission state (if supported)
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' as PermissionName })
+          .then(result => {
+            console.log('📍 Geolocation Permission State:', result.state);
+          })
+          .catch(err => {
+            console.log('📍 Permissions API not supported:', err);
+          });
+      }
+
+      // Listen for errors
+      geolocate.on('error', (error: GeolocationPositionError) => {
+        console.error('🔴 GeolocateControl Error:', {
+          code: error.code,
+          message: error.message,
+          type: error.code === 1 ? 'PERMISSION_DENIED' :
+                error.code === 2 ? 'POSITION_UNAVAILABLE' :
+                error.code === 3 ? 'TIMEOUT' : 'UNKNOWN'
+        });
+      });
+
+      // Listen for successful geolocation
+      geolocate.on('geolocate', (position: GeolocationPosition) => {
+        console.log('✅ GeolocateControl Success:', {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        });
+      });
+
+      // Listen for tracking events
+      geolocate.on('trackuserlocationstart', () => {
+        console.log('📍 Tracking user location started');
+      });
+
+      geolocate.on('trackuserlocationend', () => {
+        console.log('📍 Tracking user location stopped');
+      });
+
       // Add native Mapbox fullscreen control with container option
       // This ensures the entire trip planner (including toolbar) goes fullscreen
       const tripPlannerRoot = mapContainerRef.current?.closest('[data-trip-planner-root="true"]');
