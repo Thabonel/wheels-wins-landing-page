@@ -14,7 +14,7 @@ import { VoiceSettings } from './voice/VoiceSettings';
 import { VoiceToggle } from './voice/VoiceToggle';
 import { useTextToSpeech } from '@/hooks/voice/useTextToSpeech';
 import { toast } from 'sonner';
-import { getPublicAssetUrl } from '@/utils/publicAssets';
+import PamImage from '@/assets/Pam.webp';
 import './SimplePAM.css';
 
 /**
@@ -340,7 +340,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
       {/* Header */}
       <div className="pam-header flex items-center justify-between p-4 border-b">
         <div className="flex items-center gap-2">
-          <img src={getPublicAssetUrl('Pam.webp')} alt="PAM" className="h-5 w-5 rounded-full" />
+          <img src={PamImage} alt="PAM" className="h-8 w-8 rounded-full object-cover" />
           <h2 className="text-lg font-semibold">PAM - Personal AI Manager</h2>
           {tts.isSpeaking && (
             <div className="flex items-center gap-1">
@@ -412,7 +412,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
                     {message.role === 'user' ? (
                       <User className="h-3 w-3" />
                     ) : (
-                      <img src={getPublicAssetUrl('Pam.webp')} alt="PAM" className="h-3 w-3 rounded-full" />
+                      <img src={PamImage} alt="PAM" className="h-8 w-8 rounded-full object-cover" />
                     )}
                   </div>
                   
