@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent, useCallback } from 'react';
-import { Send, Loader2, AlertCircle, Bot, User, VolumeX, Volume2 } from 'lucide-react';
+import { Send, Loader2, AlertCircle, User, VolumeX, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 // import { getToolsForClaude } from '@/services/pam/tools/toolRegistry';
 import { PamApiService } from '@/services/pamApiService';
 import { useAuth } from '@/context/AuthContext';
+import { getPublicAssetUrl } from '@/utils/publicAssets';
 import { cn } from '@/lib/utils';
 import { VoiceSettings } from './voice/VoiceSettings';
 import { VoiceToggle } from './voice/VoiceToggle';
@@ -339,7 +340,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
       {/* Header */}
       <div className="pam-header flex items-center justify-between p-4 border-b">
         <div className="flex items-center gap-2">
-          <Bot className="h-5 w-5 text-primary" />
+          <img src={getPublicAssetUrl('Pam.webp')} alt="PAM Assistant" className="h-8 w-8 rounded-full object-cover" />
           <h2 className="text-lg font-semibold">PAM - Personal AI Manager</h2>
           {tts.isSpeaking && (
             <div className="flex items-center gap-1">
@@ -411,7 +412,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
                     {message.role === 'user' ? (
                       <User className="h-3 w-3" />
                     ) : (
-                      <Bot className="h-3 w-3" />
+                      <img src={getPublicAssetUrl('Pam.webp')} alt="PAM" className="h-6 w-6 rounded-full object-cover" />
                     )}
                   </div>
                   
