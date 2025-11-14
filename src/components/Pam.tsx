@@ -412,8 +412,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         try {
           const parsed = JSON.parse(savedState);
           if (parsed.messages && Array.isArray(parsed.messages)) {
-            setMessages(parsed.messages);
-            logger.debug('📚 PAM: Restored conversation from localStorage:', parsed.messages.length, 'messages');
+            // Filter duplicate greetings - keep only the first one
+            const greetingText = "🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?";
+            const filtered = parsed.messages.filter((msg, index) =>
+              msg.text !== greetingText || parsed.messages.findIndex(m => m.text === greetingText) === index
+            );
+            setMessages(filtered);
+            logger.debug('📚 PAM: Restored conversation from localStorage:', filtered.length, 'messages (duplicates filtered)');
             
             // Restore session ID if available
             if (parsed.sessionId) {
