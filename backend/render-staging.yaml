@@ -28,11 +28,11 @@ services:
       # Required OpenAI API Key
       - key: OPENAI_API_KEY
         sync: false  # Set manually in dashboard
-      # Redis for caching (auto-wired from pam-redis-staging service)
+      # Redis for caching (auto-wired from pam-redis service)
       - key: REDIS_URL
         fromService:
           type: redis
-          name: pam-redis-staging
+          name: pam-redis
           property: connectionString
       # TTS Configuration
       - key: TTS_ENABLED
@@ -64,8 +64,6 @@ services:
         - backend/**/*.md
         - backend/.env
         - backend/.env.*
-  # Redis cache service for PAM (staging)
-  - type: redis
-    name: pam-redis-staging
-    plan: free
-    ipAllowList: []  # Private network only
+  # Redis cache service for PAM (staging) - using existing pam-redis service
+  # Service already exists: red-d1venaur433s73fk12j0
+  # No need to create new service, just reference existing one above
