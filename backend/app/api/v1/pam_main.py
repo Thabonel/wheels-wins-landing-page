@@ -2660,12 +2660,12 @@ async def chat_endpoint(
                 "message_length": len(request.message),
                 "response_length": len(response_text),
                 "has_actions": len(actions) > 0 if actions else False,
-                "use_case": use_case.value if use_case else "unknown"
+                "use_case": (use_case.value if ('use_case' in locals() and use_case) else "unknown")
             }
         )
         
         # Record profile metrics for performance tracking
-        if use_case and not has_error:
+        if ('use_case' in locals() and use_case) and not has_error:
             profile_router.record_performance(
                 use_case=use_case,
                 latency=processing_time_seconds,
@@ -3528,19 +3528,20 @@ async def generate_pam_voice(
                 "processing_time_ms": result.processing_time_ms
             }
         
-        # Enhanced TTS failed completely - return meaningful error
+        # Enhanced TTS failed completely - degrade gracefully to text response (200)
         error_message = result.error if result.error else "Unknown TTS failure"
         logger.error(f"❌ All TTS engines failed: {error_message}")
-        
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "TTS service unavailable",
-                "message": f"All text-to-speech engines failed: {error_message}",
-                "fallback_text": request.text,
-                "engines_tried": [engine.value for engine in enhanced_tts_service.fallback_chain]
-            }
-        )
+
+        return {
+            "audio": None,
+            "text": request.text,
+            "cached": False,
+            "engine": "disabled",
+            "quality": "fallback",
+            "fallback_used": True,
+            "error": error_message,
+            "processing_time_ms": result.processing_time_ms if hasattr(result, 'processing_time_ms') else None
+        }
         
     except HTTPException:
         # Re-raise HTTP exceptions
