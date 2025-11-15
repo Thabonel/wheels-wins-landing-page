@@ -216,7 +216,8 @@
     "lodash.template": "npm:lodash@^4.17.21",
     "esbuild": "^0.25.9",
     "vite": "^5.4.19",
-    "lodash": "^4.17.21"
+    "lodash": "^4.17.21",
+    "@ai-sdk/gateway": "2.0.1"
   },
   "engines": {
     "node": ">=18 <=22"

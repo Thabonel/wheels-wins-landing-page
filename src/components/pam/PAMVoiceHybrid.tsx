@@ -263,14 +263,14 @@ export function PAMVoiceHybrid() {
         {/* Main mic toggle */}
         <Button
           size="lg"
-          variant={isActive ? 'destructive' : 'default'}
+          variant={isActive ? 'default' : 'outline'}
           onClick={toggleVoiceSession}
           className="flex-1"
           disabled={!user}
         >
           {isActive ? (
             <>
-              <MicOff className="w-5 h-5 mr-2" />
+              <Mic className="w-5 h-5 mr-2" />
               Stop Voice Session
             </>
           ) : (
