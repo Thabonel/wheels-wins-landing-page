@@ -351,7 +351,8 @@ class CacheWarmingService:
                 'vehicle_make_model': profile.get('vehicle_make_model'),
                 'travel_style': preferences.get('travel_style'),
                 'full_name': profile.get('full_name'),
-                'nickname': profile.get('nickname')
+                'nickname': profile.get('nickname'),
+                'language': profile.get('language', 'en')
             }
 
             return context
@@ -378,7 +379,8 @@ class CacheWarmingService:
                 'vehicle_make_model': profile.get('vehicle_make_model'),
                 'travel_style': profile.get('travel_style'),
                 'full_name': profile.get('full_name'),
-                'nickname': profile.get('nickname')
+                'nickname': profile.get('nickname'),
+                'language': profile.get('language', 'en')
             }
 
         except Exception as e:

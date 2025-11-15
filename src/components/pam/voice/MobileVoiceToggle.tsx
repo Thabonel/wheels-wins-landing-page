@@ -34,8 +34,23 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
   const [showStatusMessage, setShowStatusMessage] = useState<string | null>(null);
 
-  // Mobile voice hook with optimizations
-  const mobileVoice = useMobileVoice(
+  // Mobile voice hook with optimizations - destructure for proper React reactivity
+  const {
+    isListening,
+    isProcessing,
+    isSupported,
+    canListen,
+    startListening,
+    stopListening,
+    ttsSupported,
+    isSpeaking,
+    speak,
+    stopSpeaking,
+    audioUnlocked,
+    unlockAudio,
+    keyboardOpen,
+    mobileInfo
+  } = useMobileVoice(
     {
       pauseOnBackground: true,
       resumeOnForeground: true,
@@ -46,7 +61,7 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
       if (result.isFinal && result.transcript.trim()) {
         onTranscript?.(result.transcript, result.confidence);
         onVoiceCommand?.(result.transcript.trim());
-        
+
         // Mobile-optimized toast
         toast.success('Voice input received', {
           description: `"${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}"`,
@@ -54,55 +69,53 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
         });
       }
     }, [onTranscript, onVoiceCommand]),
-    
+
     useCallback((error: string) => {
       setShowStatusMessage(error);
       setTimeout(() => setShowStatusMessage(null), 4000);
     }, [])
   );
-
-  const { mobileInfo } = mobileVoice;
   const touchTargetSize = getOptimalTouchTargetSize();
   
   // Handle audio unlock for iOS
   const handleAudioUnlock = useCallback(async () => {
-    if (!mobileInfo.isIOS || mobileVoice.audioUnlocked) return;
-    
-    await mobileVoice.unlockAudio();
-  }, [mobileInfo.isIOS, mobileVoice]);
+    if (!mobileInfo.isIOS || audioUnlocked) return;
+
+    await unlockAudio();
+  }, [mobileInfo.isIOS, audioUnlocked, unlockAudio]);
 
   // Handle voice toggle with mobile optimizations
   const handleVoiceToggle = useCallback(async () => {
-    if (disabled || !mobileVoice.isSupported) {
+    if (disabled || !isSupported) {
       setShowStatusMessage('Voice input not available on this device');
       setTimeout(() => setShowStatusMessage(null), 3000);
       return;
     }
 
     // Check if keyboard is open
-    if (mobileVoice.keyboardOpen) {
+    if (keyboardOpen) {
       setShowStatusMessage('Close keyboard to use voice input');
       setTimeout(() => setShowStatusMessage(null), 3000);
       return;
     }
 
     // Handle iOS audio unlock
-    if (mobileInfo.isIOS && !mobileVoice.audioUnlocked) {
+    if (mobileInfo.isIOS && !audioUnlocked) {
       await handleAudioUnlock();
     }
 
     // Check for permission
-    if (!mobileVoice.canListen && !mobileVoice.isListening) {
+    if (!canListen && !isListening) {
       setShowPermissionPrompt(true);
       return;
     }
 
     try {
-      if (mobileVoice.isListening) {
-        mobileVoice.stopListening();
+      if (isListening) {
+        stopListening();
         setShowStatusMessage('Voice input stopped');
       } else {
-        const started = await mobileVoice.startListening();
+        const started = await startListening();
         if (started) {
           setShowStatusMessage('Listening... Speak now');
         } else {
@@ -114,30 +127,30 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
       setShowStatusMessage('Voice input error occurred');
       setTimeout(() => setShowStatusMessage(null), 3000);
     }
-  }, [disabled, mobileVoice, mobileInfo.isIOS, handleAudioUnlock]);
+  }, [disabled, isSupported, keyboardOpen, mobileInfo.isIOS, audioUnlocked, handleAudioUnlock, canListen, isListening, stopListening, startListening]);
 
   // Handle TTS toggle
   const handleTTSToggle = useCallback(async () => {
-    if (!mobileVoice.ttsSupported) {
+    if (!ttsSupported) {
       setShowStatusMessage('Text-to-speech not available');
       setTimeout(() => setShowStatusMessage(null), 3000);
       return;
     }
 
     // Handle iOS audio unlock
-    if (mobileInfo.isIOS && !mobileVoice.audioUnlocked) {
+    if (mobileInfo.isIOS && !audioUnlocked) {
       await handleAudioUnlock();
     }
 
-    if (mobileVoice.isSpeaking) {
-      mobileVoice.stopSpeaking();
+    if (isSpeaking) {
+      stopSpeaking();
       setShowStatusMessage('Speech stopped');
     } else {
-      await mobileVoice.speak('Voice system is ready.');
+      await speak('Voice system is ready.');
       setShowStatusMessage('Text-to-speech enabled');
     }
     setTimeout(() => setShowStatusMessage(null), 2000);
-  }, [mobileVoice, mobileInfo.isIOS, handleAudioUnlock]);
+  }, [ttsSupported, mobileInfo.isIOS, audioUnlocked, handleAudioUnlock, isSpeaking, stopSpeaking, speak]);
 
   // Handle touch feedback
   const handleTouchStart = useCallback(() => {
@@ -155,14 +168,14 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
   // Listen for global stop events (e.g., when hybrid voice stops)
   useEffect(() => {
     const handleGlobalStop = () => {
-      if (mobileVoice.isListening || mobileVoice.isProcessing) {
-        mobileVoice.stopListening();
+      if (isListening || isProcessing) {
+        stopListening();
       }
       setIsPressed(false);
     };
     window.addEventListener('pam-voice:stop-all', handleGlobalStop as EventListener);
     return () => window.removeEventListener('pam-voice:stop-all', handleGlobalStop as EventListener);
-  }, [mobileVoice]);
+  }, [isListening, isProcessing, stopListening]);
 
   // Size classes for mobile optimization
   const getSizeClasses = () => {
@@ -181,10 +194,10 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
   const sizeStyle = getSizeClasses();
   const mobileCSSClasses = getMobileCSSClasses();
 
-  // Determine button states
-  const isVoiceActive = mobileVoice.isListening || mobileVoice.isProcessing;
-  const isVoiceDisabled = disabled || !mobileVoice.canListen;
-  const isTTSActive = mobileVoice.isSpeaking;
+  // Determine button states - NOW REACTIVE!
+  const isVoiceActive = isListening || isProcessing;
+  const isVoiceDisabled = disabled || !canListen;
+  const isTTSActive = isSpeaking;
 
   return (
     <>
@@ -199,7 +212,7 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
           className={cn(
             'voice-toggle-button relative transition-all duration-200',
             isVoiceActive && 'voice-listening-mobile',
-            mobileVoice.isSpeaking && 'voice-speaking-mobile',
+            isSpeaking && 'voice-speaking-mobile',
             isVoiceDisabled && 'opacity-50 cursor-not-allowed',
             isPressed && 'scale-95'
           )}
@@ -216,14 +229,14 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
           title={
             isVoiceDisabled
               ? 'Voice input not available'
-              : mobileVoice.keyboardOpen
+              : keyboardOpen
               ? 'Close keyboard to use voice'
               : isVoiceActive
               ? 'Stop voice input'
               : 'Start voice input'
           }
         >
-          {mobileVoice.isProcessing ? (
+          {isProcessing ? (
             <Loader2 size={20} className="animate-spin" />
           ) : isVoiceActive ? (
             <Mic size={20} />
@@ -239,17 +252,17 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
             className={cn(
               'voice-toggle-button transition-all duration-200',
               isTTSActive && 'voice-speaking-mobile',
-              !mobileVoice.ttsSupported && 'opacity-50 cursor-not-allowed'
+              !ttsSupported && 'opacity-50 cursor-not-allowed'
             )}
             style={sizeStyle}
-            disabled={!mobileVoice.ttsSupported || disabled}
+            disabled={!ttsSupported || disabled}
             onClick={handleTTSToggle}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             aria-label="Toggle text-to-speech"
             aria-pressed={isTTSActive}
             title={
-              !mobileVoice.ttsSupported
+              !ttsSupported
                 ? 'Text-to-speech not available'
                 : isTTSActive
                 ? 'Stop speech'
@@ -276,7 +289,7 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
       {showMobileHints && (
         <>
           {/* Keyboard Open Hint */}
-          {mobileVoice.keyboardOpen && mobileVoice.isListening && (
+          {keyboardOpen && isListening && (
             <div className="voice-status-mobile show">
               <AlertTriangle size={16} className="inline mr-1" />
               Close keyboard to continue voice input
@@ -284,14 +297,14 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
           )}
 
           {/* Orientation Change Hint */}
-          {!mobileVoice.isPortrait && mobileVoice.isListening && (
+          {!mobileInfo.isPortrait && isListening && (
             <div className="voice-status-mobile show">
               Voice input works better in portrait mode
             </div>
           )}
 
           {/* Background Warning */}
-          {mobileVoice.isInBackground && (
+          {mobileInfo.isInBackground && (
             <div className="voice-status-mobile show">
               Voice features paused - return to app
             </div>
@@ -314,7 +327,7 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
               className="primary-button"
               onClick={async () => {
                 setShowPermissionPrompt(false);
-                await mobileVoice.startListening();
+                await startListening();
               }}
             >
               Enable
