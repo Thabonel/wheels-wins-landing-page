@@ -148,7 +148,7 @@ class MapboxMCPTools:
                         "alternatives": {
                             "type": "boolean",
                             "description": "Include alternative routes (default: true)",
-                            "default": true
+                            "default": True
                         },
                         "waypoints": {
                             "type": "array",
