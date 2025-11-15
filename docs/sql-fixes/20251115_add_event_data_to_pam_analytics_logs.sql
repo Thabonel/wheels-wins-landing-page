@@ -28,18 +28,42 @@ CREATE INDEX IF NOT EXISTS idx_pam_analytics_user_type
 -- 4) Row Level Security (RLS) policies (idempotent)
 ALTER TABLE public.pam_analytics_logs ENABLE ROW LEVEL SECURITY;
 
+-- Create separate policies for each action; ignore if they already exist
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
     WHERE schemaname = 'public'
       AND tablename = 'pam_analytics_logs'
-      AND policyname = 'Users can access own PAM analytics'
+      AND policyname = 'Users can select own PAM analytics'
   ) THEN
-    EXECUTE $$
-      CREATE POLICY "Users can access own PAM analytics" ON public.pam_analytics_logs
-      FOR ALL USING (auth.uid() = user_id)
-    $$;
+    EXECUTE 'CREATE POLICY "Users can select own PAM analytics" ON public.pam_analytics_logs FOR SELECT USING (auth.uid() = user_id)';
   END IF;
-END $$;
 
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'pam_analytics_logs'
+      AND policyname = 'Users can insert own PAM analytics'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert own PAM analytics" ON public.pam_analytics_logs FOR INSERT WITH CHECK (auth.uid() = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'pam_analytics_logs'
+      AND policyname = 'Users can update own PAM analytics'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can update own PAM analytics" ON public.pam_analytics_logs FOR UPDATE USING (auth.uid() = user_id)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'pam_analytics_logs'
+      AND policyname = 'Users can delete own PAM analytics'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can delete own PAM analytics" ON public.pam_analytics_logs FOR DELETE USING (auth.uid() = user_id)';
+  END IF;
+END $$ LANGUAGE plpgsql;
