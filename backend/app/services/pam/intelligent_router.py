@@ -9,12 +9,18 @@ Features:
 - Fallback chain on failure
 - Admin controls for behavior tuning
 
+Model Selection Strategy (Cursor-style Auto-Routing):
+  SIMPLE queries → Cheapest fast model (auto-selected by cost)
+  MEDIUM queries → GPT-5.1 Instant (2-5x faster, 58% cheaper) or Haiku 4.5
+  COMPLEX queries → GPT-5.1 Thinking (adaptive reasoning) or Sonnet 4.5
+
 Usage:
   router = IntelligentModelRouter()
   model = await router.select_model(user_message, context)
   # Returns best model for the query
 
 Date: October 16, 2025
+Last Updated: November 15, 2025 (Added GPT-5.1 Instant/Thinking support)
 """
 
 import re
@@ -211,8 +217,13 @@ class IntelligentModelRouter:
 
         elif complexity == QueryComplexity.MEDIUM:
             # Use balanced model (good quality, reasonable cost)
-            # Prefer Haiku 4.5 or similar mid-tier models
-            preferred_models = ["claude-haiku-4-5-20250514", "claude-3-5-haiku-20241022", "gpt-4o-mini"]
+            # Prefer GPT-5.1 Instant (2-5x faster) or Haiku 4.5 for medium queries
+            preferred_models = [
+                "gpt-5.1-instant",  # NEW: Fast, conversational, 58% cheaper than Sonnet 4.5
+                "claude-haiku-4-5-20250514",
+                "claude-3-5-haiku-20241022",
+                "gpt-4o-mini"
+            ]
 
             for model_id in preferred_models:
                 model = next((m for m in healthy_models if m.model_id == model_id), None)
@@ -229,8 +240,13 @@ class IntelligentModelRouter:
 
         else:  # COMPLEX
             # Use best quality model
-            # Prefer Sonnet 4.5 or GPT-4o for complex reasoning
-            preferred_models = ["claude-sonnet-4-5-20250929", "claude-3-7-sonnet-20250219", "gpt-4o"]
+            # Prefer GPT-5.1 Thinking (adaptive reasoning) or Sonnet 4.5 for complex tasks
+            preferred_models = [
+                "gpt-5.1-thinking",  # NEW: Adaptive reasoning with dynamic thinking time
+                "claude-sonnet-4-5-20250929",  # Proven best-in-class
+                "claude-3-7-sonnet-20250219",
+                "gpt-4o"
+            ]
 
             for model_id in preferred_models:
                 model = next((m for m in healthy_models if m.model_id == model_id), None)
