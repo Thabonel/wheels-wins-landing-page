@@ -15,6 +15,25 @@
 
 import { logger } from '@/lib/logger';
 
+// Simple linear resampler from inRate → outRate for mono Float32
+function resampleFloat32(input: Float32Array, inRate: number, outRate: number): Float32Array {
+  if (inRate === outRate || input.length === 0) return input;
+  const ratio = outRate / inRate;
+  const outLength = Math.max(1, Math.floor(input.length * ratio));
+  const output = new Float32Array(outLength);
+  const step = inRate / outRate;
+  let pos = 0;
+  for (let i = 0; i < outLength; i++) {
+    const idx = Math.floor(pos);
+    const frac = pos - idx;
+    const a = input[idx] ?? 0;
+    const b = input[idx + 1] ?? a;
+    output[i] = a + (b - a) * frac;
+    pos += step;
+  }
+  return output;
+}
+
 // =====================================================
 // TYPES
 // =====================================================
@@ -24,6 +43,7 @@ export interface VoiceSessionConfig {
   apiBaseUrl: string;
   authToken: string;
   voice?: 'marin' | 'cedar' | 'alloy' | 'echo' | 'nova' | 'shimmer';
+  temperature?: number;
   onTranscript?: (text: string) => void;
   onResponse?: (text: string) => void;
   onStatusChange?: (status: VoiceStatus) => void;
@@ -50,16 +70,20 @@ interface OpenAISessionData {
 
 class AudioProcessor {
   private audioContext: AudioContext;
-  private audioQueue: Float32Array[] = [];
-  private isPlaying = false;
+  private masterGain: GainNode;
+  private scheduleTime = 0; // keeps continuous timeline
+  private readonly prerollSec = 0.2; // jitter buffer
+  private readonly crossfadeSec = 0.01; // 10 ms fade at boundaries
 
-  constructor() {
-    this.audioContext = new AudioContext({ sampleRate: 24000 });
+  constructor(audioContext: AudioContext) {
+    this.audioContext = audioContext;
+    this.masterGain = this.audioContext.createGain();
+    this.masterGain.gain.setValueAtTime(1.0, this.audioContext.currentTime);
+    this.masterGain.connect(this.audioContext.destination);
   }
 
   async playAudioChunk(base64Audio: string): Promise<void> {
     try {
-      // Decode base64 PCM16
       const binaryString = atob(base64Audio);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
@@ -67,49 +91,55 @@ class AudioProcessor {
       }
       const pcm16 = new Int16Array(bytes.buffer);
 
-      // Convert to Float32 for Web Audio
       const float32 = new Float32Array(pcm16.length);
       for (let i = 0; i < pcm16.length; i++) {
         float32[i] = pcm16[i] / (pcm16[i] < 0 ? 0x8000 : 0x7FFF);
       }
 
-      this.audioQueue.push(float32);
+      // Create buffer at 24 kHz (Realtime PCM16 default)
+      const audioBuffer = this.audioContext.createBuffer(1, float32.length, 24000);
+      audioBuffer.getChannelData(0).set(float32);
 
-      if (!this.isPlaying) {
-        await this.playNextChunk();
+      // Schedule playback with small crossfade to avoid clicks
+      const source = this.audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+
+      const gain = this.audioContext.createGain();
+      gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+      source.connect(gain).connect(this.masterGain);
+
+      // Compute start time with preroll/jitter handling
+      const now = this.audioContext.currentTime;
+      if (this.scheduleTime < now + this.prerollSec) {
+        this.scheduleTime = now + this.prerollSec;
       }
+
+      const startTime = this.scheduleTime;
+      const duration = audioBuffer.duration;
+      const endTime = startTime + duration;
+
+      // Fade in/out envelopes to remove boundary clicks
+      const fade = Math.min(this.crossfadeSec, duration / 4);
+      gain.gain.setValueAtTime(0.0, startTime);
+      gain.gain.linearRampToValueAtTime(1.0, startTime + fade);
+      gain.gain.setValueAtTime(1.0, endTime - fade);
+      gain.gain.linearRampToValueAtTime(0.0, endTime);
+
+      source.start(startTime);
+
+      // Next chunk starts with tiny overlap equal to fade
+      this.scheduleTime = endTime - fade;
     } catch (error) {
       logger.error('[AudioProcessor] Failed to play chunk:', error);
     }
   }
 
-  private async playNextChunk(): Promise<void> {
-    if (this.audioQueue.length === 0) {
-      this.isPlaying = false;
-      return;
-    }
-
-    this.isPlaying = true;
-    const float32 = this.audioQueue.shift()!;
-
-    const audioBuffer = this.audioContext.createBuffer(1, float32.length, 24000);
-    audioBuffer.getChannelData(0).set(float32);
-
-    const source = this.audioContext.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(this.audioContext.destination);
-    source.onended = () => this.playNextChunk();
-    source.start();
-  }
-
   stop(): void {
-    this.audioQueue = [];
-    this.isPlaying = false;
-  }
-
-  close(): void {
-    this.stop();
-    this.audioContext.close();
+    // Smooth fade-out master gain to prevent pop
+    const now = this.audioContext.currentTime;
+    this.masterGain.gain.setTargetAtTime(0.0, now, 0.01);
+    // Reset schedule so next playback re-prerolls
+    this.scheduleTime = 0;
   }
 }
 
@@ -156,14 +186,16 @@ export class PAMVoiceHybridService {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 24000,
+          // Capture at device/native 48k when possible; we resample to 24k for OpenAI
+          sampleRate: 48000,
           channelCount: 1
         }
       });
 
       // Step 3: Initialize audio processing
-      this.audioContext = new AudioContext({ sampleRate: 24000 });
-      this.audioProcessor = new AudioProcessor();
+      // Let browser use native sample rate for microphone processing too
+      this.audioContext = new AudioContext();
+      this.audioProcessor = new AudioProcessor(this.audioContext);
 
       // Step 4: Connect to OpenAI Realtime WebSocket
       await this.connectOpenAIWebSocket(sessionData);
@@ -199,7 +231,8 @@ export class PAMVoiceHybridService {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          voice: this.config.voice
+          voice: this.config.voice,
+          temperature: this.config.temperature ?? 0.65
         })
       }
     );
@@ -403,13 +436,22 @@ export class PAMVoiceHybridService {
     const source = this.audioContext.createMediaStreamSource(this.mediaStream);
     this.processorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
 
+    // Use a muted gain to keep the processing node active without audible loopback
+    const silentGain = this.audioContext.createGain();
+    silentGain.gain.setValueAtTime(0.0, this.audioContext.currentTime);
+
     this.processorNode.onaudioprocess = (e) => {
       const inputData = e.inputBuffer.getChannelData(0);
 
-      // Convert Float32 to PCM16
-      const pcm16 = new Int16Array(inputData.length);
-      for (let i = 0; i < inputData.length; i++) {
-        const s = Math.max(-1, Math.min(1, inputData[i]));
+      // Resample mic audio from AudioContext rate → 24k mono Float32
+      const inRate = this.audioContext!.sampleRate;
+      const targetRate = 24000;
+      const resampled = resampleFloat32(inputData, inRate, targetRate);
+
+      // Convert Float32 to PCM16 at 24k
+      const pcm16 = new Int16Array(resampled.length);
+      for (let i = 0; i < resampled.length; i++) {
+        const s = Math.max(-1, Math.min(1, resampled[i]));
         pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
       }
 
@@ -423,7 +465,8 @@ export class PAMVoiceHybridService {
     };
 
     source.connect(this.processorNode);
-    this.processorNode.connect(this.audioContext.destination);
+    // Connect to silent gain instead of destination to avoid feedback/clicks
+    this.processorNode.connect(silentGain).connect(this.audioContext.destination);
 
     logger.info('[PAMVoiceHybrid] 🎤 Microphone streaming started');
   }
