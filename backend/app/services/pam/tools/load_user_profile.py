@@ -5,6 +5,7 @@ from typing import Dict, Any
 from pydantic import BaseModel, Field, ValidationError
 from .base_tool import BaseTool
 from app.core.database import get_supabase_client, get_user_context_supabase_client
+from app.core.config import get_settings
 
 
 class _ExecuteParams(BaseModel):
@@ -47,7 +48,34 @@ class LoadUserProfileTool(BaseTool):
                 .execute()
             )
             
-            self.logger.info(f"🔍 PROFILE DEBUG: Raw profile response: {profile_response.data}")
+            # Sanitize logging: avoid dumping full profile (PII) and base64 image blobs
+            try:
+                settings = get_settings()
+            except Exception:
+                settings = None
+
+            _data = profile_response.data or {}
+            image_len = 0
+            if isinstance(_data, dict) and isinstance(_data.get('profile_image_url'), str):
+                try:
+                    image_len = len(_data.get('profile_image_url') or "")
+                except Exception:
+                    image_len = 0
+
+            profile_summary = {
+                'id': _data.get('id') or _data.get('user_id'),
+                'role': _data.get('role'),
+                'region': _data.get('region'),
+                'has_image': bool(_data.get('profile_image_url')),
+                'image_length': image_len,
+                'fields': len(_data) if isinstance(_data, dict) else 0,
+            }
+
+            # Only log summary; use debug level in non-development environments
+            if settings and getattr(settings, 'ENVIRONMENT', 'production') != 'development':
+                self.logger.debug(f"🔍 PROFILE DEBUG: Profile summary: {profile_summary}")
+            else:
+                self.logger.info(f"🔍 PROFILE DEBUG: Profile summary: {profile_summary}")
             
             # Debug vehicle-specific fields
             if profile_response.data:
