@@ -152,6 +152,18 @@ export const MobileVoiceToggle: React.FC<MobileVoiceToggleProps> = ({
     setIsPressed(false);
   }, []);
 
+  // Listen for global stop events (e.g., when hybrid voice stops)
+  useEffect(() => {
+    const handleGlobalStop = () => {
+      if (mobileVoice.isListening || mobileVoice.isProcessing) {
+        mobileVoice.stopListening();
+      }
+      setIsPressed(false);
+    };
+    window.addEventListener('pam-voice:stop-all', handleGlobalStop as EventListener);
+    return () => window.removeEventListener('pam-voice:stop-all', handleGlobalStop as EventListener);
+  }, [mobileVoice]);
+
   // Size classes for mobile optimization
   const getSizeClasses = () => {
     const baseSize = {

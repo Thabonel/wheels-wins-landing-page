@@ -44,6 +44,14 @@ export interface VoiceSessionConfig {
   authToken: string;
   voice?: 'marin' | 'cedar' | 'alloy' | 'echo' | 'nova' | 'shimmer';
   temperature?: number;
+  language?: string; // User's preferred language (e.g., 'en', 'es', 'fr')
+  location?: {
+    lat: number;
+    lng: number;
+    city?: string;
+    region?: string;
+  };
+  currentPage?: string;
   onTranscript?: (text: string) => void;
   onResponse?: (text: string) => void;
   onStatusChange?: (status: VoiceStatus) => void;
@@ -320,11 +328,17 @@ export class PAMVoiceHybridService {
             logger.info('[PAMVoiceHybrid] 👤 Transcript:', transcript);
             this.config.onTranscript?.(transcript);
 
-            // Send to Claude for reasoning
+            // Send to Claude for reasoning with full context
             this.sendToClaudeBridge({
               type: 'user_message',
               text: transcript,
-              timestamp: Date.now()
+              timestamp: Date.now(),
+              context: {
+                user_id: this.config.userId,
+                language: this.config.language || 'en',
+                user_location: this.config.location,
+                current_page: this.config.currentPage || 'pam_chat'
+              }
             });
           }
         }
@@ -520,6 +534,10 @@ export class PAMVoiceHybridService {
     logger.info('[PAMVoiceHybrid] Stopping voice session...');
     this.cleanup();
     logger.info('[PAMVoiceHybrid] Voice session stopped');
+    // Broadcast global stop so any UI mic toggles can sync visual state
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pam-voice:stop-all'));
+    }
   }
 
   private cleanup(): void {

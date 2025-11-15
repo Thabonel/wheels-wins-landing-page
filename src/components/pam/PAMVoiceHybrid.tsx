@@ -115,7 +115,14 @@ export function PAMVoiceHybrid() {
     }
     destroyVoiceService();
     setIsActive(false);
+    // Hard reset local status to ensure UI reflects stopped state immediately
+    setStatus({ isConnected: false, isListening: false, isSpeaking: false });
     setCurrentTranscript('');
+
+    // Notify any other voice components (e.g., search bar mic) to stop
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pam-voice:stop-all'));
+    }
 
     toast({
       title: 'Voice deactivated',
