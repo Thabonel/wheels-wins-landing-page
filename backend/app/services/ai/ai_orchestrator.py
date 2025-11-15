@@ -73,7 +73,31 @@ class AIOrchestrator:
         self.round_robin_index = 0
         self._health_check_task = None
         self._initialized = False
-    
+
+    def _normalize_messages(self, messages: List[Any]) -> List[AIMessage]:
+        """
+        Convert dict messages to AIMessage objects if needed.
+        Handles both AIMessage objects and dict messages for compatibility.
+        """
+        normalized = []
+        for msg in messages:
+            if isinstance(msg, AIMessage):
+                # Already AIMessage, use as-is
+                normalized.append(msg)
+            elif isinstance(msg, dict):
+                # Convert dict to AIMessage
+                normalized.append(AIMessage(
+                    role=msg.get("role", "user"),
+                    content=msg.get("content", ""),
+                    name=msg.get("name"),
+                    function_call=msg.get("function_call")
+                ))
+            else:
+                # Unknown type, log warning but try to use it
+                logger.warning(f"Unknown message type {type(msg)}, attempting to use as-is")
+                normalized.append(msg)
+        return normalized
+
     async def initialize(self):
         """Initialize all configured providers"""
         if self._initialized:
@@ -222,8 +246,11 @@ class AIOrchestrator:
                         provider.name
                     )
 
+                # Normalize messages (handle both dict and AIMessage objects)
+                normalized_messages = self._normalize_messages(messages)
+
                 response = await provider.complete(
-                    messages=messages,
+                    messages=normalized_messages,
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens,
@@ -301,9 +328,12 @@ class AIOrchestrator:
                 # Stream the response
                 start_time = time.time()
                 first_chunk = True
-                
+
+                # Normalize messages (handle both dict and AIMessage objects)
+                normalized_messages = self._normalize_messages(messages)
+
                 async for chunk in provider.stream(
-                    messages=messages,
+                    messages=normalized_messages,
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens,
