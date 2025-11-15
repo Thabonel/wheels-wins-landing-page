@@ -277,8 +277,17 @@ async def voice_to_claude_bridge(
                 context = data.get("context", {})
 
                 # Get or update PAM instance with user's language preference
-                # This matches the pattern from pam_main.py for consistent language handling
-                user_language = context.get("language", "en")
+                # Prefer context language if explicitly provided; otherwise read from cached profile
+                user_language = context.get("language")
+                if not user_language:
+                    try:
+                        from app.services.pam.cache_warming import get_cache_warming_service
+                        cache_service = await get_cache_warming_service()
+                        cached_ctx = await cache_service.get_cached_user_context(user_id)
+                        user_language = (cached_ctx or {}).get("language", "en")
+                    except Exception:
+                        user_language = "en"
+
                 pam = await get_pam(user_id, user_language=user_language)
 
                 pam_logger.info(
