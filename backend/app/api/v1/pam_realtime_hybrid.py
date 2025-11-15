@@ -257,8 +257,8 @@ async def voice_to_claude_bridge(
     await websocket.accept()
 
     try:
-        # Get PAM instance for this user (Claude brain)
-        pam = await get_pam(user_id)
+        # Initialize PAM instance variable (will be set when we receive first message with context)
+        pam = None
 
         pam_logger.info(
             f"🔗 Voice bridge connected for user {user_id}",
@@ -275,6 +275,11 @@ async def voice_to_claude_bridge(
                 # User spoke, OpenAI transcribed, now process with Claude
                 user_text = data.get("text", "")
                 context = data.get("context", {})
+
+                # Get or update PAM instance with user's language preference
+                # This matches the pattern from pam_main.py for consistent language handling
+                user_language = context.get("language", "en")
+                pam = await get_pam(user_id, user_language=user_language)
 
                 pam_logger.info(
                     f"👤 User voice input: {user_text[:50]}...",

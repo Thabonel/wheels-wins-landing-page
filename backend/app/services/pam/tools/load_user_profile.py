@@ -72,6 +72,7 @@ class LoadUserProfileTool(BaseTool):
                 return self._create_success_response({
                     "user_id": user_id,
                     "profile_exists": False,
+                    "language": "en",  # Default language for new users
                     "travel_preferences": {},
                     "vehicle_info": {},
                     "budget_preferences": {},
@@ -86,6 +87,7 @@ class LoadUserProfileTool(BaseTool):
             enhanced_profile = {
                 "user_id": user_id,
                 "profile_exists": True,
+                "language": profile.get("language", "en"),  # User's preferred language for PAM responses
                 "personal_details": {
                     "full_name": profile.get("full_name", ""),
                     "nickname": profile.get("nickname", ""),  # Now from onboarding

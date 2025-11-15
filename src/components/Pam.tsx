@@ -523,11 +523,18 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       logger.debug('🎙️ Starting PAM Hybrid voice mode');
 
+      // Update UI state IMMEDIATELY for instant visual feedback
+      setIsContinuousMode(true);
+
       // Get API base URL from environment
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
 
       // Get JWT token from Supabase session
       const authToken = session.access_token;
+
+      // Prepare user context for PAM
+      const userLanguage = settings?.display_preferences?.language || 'en';
+      const userLocation = settings?.location_preferences?.default_location || locationState.currentLocation;
 
       // Create PAM Hybrid Voice service (OpenAI voice + Claude reasoning)
       const service = createVoiceService({
@@ -535,6 +542,14 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         apiBaseUrl,
         authToken,
         voice: 'marin', // Natural expressive voice
+        language: userLanguage, // User's preferred language
+        location: userLocation ? {
+          lat: userLocation.latitude || 0,
+          lng: userLocation.longitude || 0,
+          city: userLocation.city,
+          region: userLocation.state
+        } : undefined,
+        currentPage: 'pam_chat',
         onTranscript: (text) => {
           // Add user's transcribed speech as a message
           const newMessage: PamMessage = {
@@ -566,12 +581,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       await service.start();
 
       setRealtimeService(service);
-      setIsContinuousMode(true);
 
       logger.info('✅ PAM voice mode active (OpenAI voice + Claude reasoning!)');
 
     } catch (error) {
       logger.error('❌ Failed to start voice mode:', error);
+      // Revert UI state on error
+      setIsContinuousMode(false);
       alert(`Failed to start voice mode: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
@@ -579,15 +595,17 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const stopContinuousVoiceMode = async () => {
     logger.debug('🔇 Stopping continuous voice mode');
 
-    // Stop PAM Hybrid Voice service
+    // Update UI state IMMEDIATELY for instant visual feedback
+    setIsContinuousMode(false);
+    setIsListening(false);
+    setIsSpeaking(false);
+
+    // Then stop PAM Hybrid Voice service (async - won't block UI)
     if (realtimeService) {
       await realtimeService.stop();
       setRealtimeService(null);
     }
 
-    setIsContinuousMode(false);
-    setIsListening(false);
-    setIsSpeaking(false);
     logger.debug('✅ Continuous voice mode stopped');
   };
 
