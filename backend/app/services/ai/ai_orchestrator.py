@@ -18,7 +18,8 @@ from .provider_interface import (
 )
 from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
-from .gemini_provider import GeminiProvider
+# Gemini provider disabled - using OpenAI + Anthropic only
+# from .gemini_provider import GeminiProvider
 from app.core.config import get_settings
 from app.core.infra_config import get_infra_settings
 from app.services.mcp_config import mcp_config
@@ -83,11 +84,10 @@ class AIOrchestrator:
         logger.info(f"📋 Checking available API keys...")
 
         # Log which API keys are available (securely)
-        gemini_available = hasattr(infra_settings, 'GEMINI_API_KEY') and infra_settings.GEMINI_API_KEY
         anthropic_available = hasattr(infra_settings, 'ANTHROPIC_API_KEY') and infra_settings.ANTHROPIC_API_KEY
         openai_available = hasattr(infra_settings, 'OPENAI_API_KEY') and infra_settings.OPENAI_API_KEY
 
-        logger.info(f"🔑 API Keys availability: OpenAI={openai_available}, Anthropic={anthropic_available}, Gemini={gemini_available}")
+        logger.info(f"🔑 API Keys availability: OpenAI={openai_available}, Anthropic={anthropic_available}")
 
         # Initialize OpenAI provider FIRST (primary AI provider - reliable and feature-rich)
         if openai_available:
@@ -95,7 +95,7 @@ class AIOrchestrator:
                 openai_config = ProviderConfig(
                     name="openai",
                     api_key=infra_settings.OPENAI_API_KEY.get_secret_value(),
-                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', 'gpt-5'),
+                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', 'gpt-5.1-instant'),
                     max_retries=3,
                     timeout_seconds=30
                 )
@@ -131,24 +131,9 @@ class AIOrchestrator:
             except Exception as e:
                 logger.error(f"Error initializing Anthropic provider: {e}")
 
-        # Initialize Gemini provider as tertiary fallback (cost-effective backup)
-        if gemini_available:
-            try:
-                gemini_config = ProviderConfig(
-                    name="gemini",
-                    api_key=infra_settings.GEMINI_API_KEY.get_secret_value() if hasattr(infra_settings.GEMINI_API_KEY, 'get_secret_value') else str(infra_settings.GEMINI_API_KEY),
-                    default_model=getattr(infra_settings, 'GEMINI_DEFAULT_MODEL', 'gemini-1.5-flash'),
-                    max_retries=3,
-                    timeout_seconds=30
-                )
-                gemini_provider = GeminiProvider(gemini_config)
-                if await gemini_provider.initialize():
-                    self.providers.append(gemini_provider)
-                    logger.info("✅ Gemini provider initialized successfully (tertiary)")
-                else:
-                    logger.error("❌ Failed to initialize Gemini provider")
-            except Exception as e:
-                logger.error(f"Error initializing Gemini provider: {e}")
+        # Gemini provider DISABLED - Using OpenAI (GPT-5.1) + Anthropic (Claude) only
+        # Simplifies provider management and avoids message formatting issues
+        logger.info("ℹ️ Gemini provider disabled - using OpenAI + Anthropic only")
         
         # Initialize metrics for each provider
         for provider in self.providers:
