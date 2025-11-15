@@ -329,3 +329,199 @@ def reload_model_config():
         _model_config.reload_config()
     else:
         _model_config = ModelConfigManager()
+
+
+# ============================================================================
+# VOICE MODELS EXTENSION (Added: November 2025)
+# Safe extension - doesn't change existing behavior
+# Feature flag: ENABLE_VOICE_MODEL_CONFIG (default: False)
+# ============================================================================
+
+@dataclass
+class VoiceModelConfig:
+    """Configuration for voice AI models (STT/TTS)"""
+    name: str
+    provider: Literal["openai", "google", "microsoft", "supabase"]
+    model_id: str
+    service_type: Literal["stt", "tts"]
+    cost_per_minute: float
+    languages: List[str]
+    description: str
+    version_note: Optional[str] = None
+
+
+# Voice model registry (STT = Speech-to-Text, TTS = Text-to-Speech)
+VOICE_MODEL_REGISTRY: Dict[str, VoiceModelConfig] = {
+    # Speech-to-Text Models
+    "openai-whisper-1": VoiceModelConfig(
+        name="OpenAI Whisper",
+        provider="openai",
+        model_id="whisper-1",
+        service_type="stt",
+        cost_per_minute=0.006,
+        languages=["en", "es", "fr", "de", "it", "pt", "nl", "ja", "ko", "zh"],
+        description="OpenAI Whisper - industry standard STT",
+        version_note="Stable model ID, unlikely to change"
+    ),
+    "google-speech-to-text": VoiceModelConfig(
+        name="Google Speech-to-Text",
+        provider="google",
+        model_id="latest",
+        service_type="stt",
+        cost_per_minute=0.024,
+        languages=["en", "es", "fr", "de", "it", "pt", "ja", "ko", "zh"],
+        description="Google Cloud Speech-to-Text",
+        version_note="Uses 'latest' - auto-updates"
+    ),
+
+    # Text-to-Speech Models
+    "openai-realtime-gpt4o": VoiceModelConfig(
+        name="OpenAI Realtime (GPT-4o)",
+        provider="openai",
+        model_id=os.getenv("OPENAI_REALTIME_MODEL", "gpt-4o-realtime-preview-2024-12-17"),
+        service_type="tts",
+        cost_per_minute=0.24,
+        languages=["en"],
+        description="OpenAI Realtime API with GPT-4o - conversational voice",
+        version_note="⚠️ Model ID changes monthly! Use env var OPENAI_REALTIME_MODEL"
+    ),
+    "edge-tts": VoiceModelConfig(
+        name="Microsoft Edge TTS",
+        provider="microsoft",
+        model_id="edge-tts",
+        service_type="tts",
+        cost_per_minute=0.0,
+        languages=["en", "es", "fr", "de", "it", "pt", "ja", "ko", "zh"],
+        description="Microsoft Edge TTS - free, good quality",
+        version_note="Free tier, rate limited"
+    ),
+    "supabase-tts": VoiceModelConfig(
+        name="Supabase TTS",
+        provider="supabase",
+        model_id="supabase-tts",
+        service_type="tts",
+        cost_per_minute=0.001,
+        languages=["en"],
+        description="Supabase TTS service",
+        version_note="Credit-based, may need top-up"
+    ),
+}
+
+
+class VoiceModelConfigManager:
+    """
+    Manages voice AI model configuration with hot-swapping
+
+    Features:
+    - Zero-downtime voice model switching
+    - Automatic fallback for STT/TTS
+    - Health monitoring
+
+    BACKWARD COMPATIBLE: Only used if ENABLE_VOICE_MODEL_CONFIG=true
+    """
+
+    def __init__(self):
+        self.enabled = os.getenv("ENABLE_VOICE_MODEL_CONFIG", "false").lower() == "true"
+
+        if not self.enabled:
+            logger.info("Voice model config disabled (ENABLE_VOICE_MODEL_CONFIG=false)")
+            return
+
+        self._load_config()
+        self._health_cache: Dict[str, tuple[bool, datetime]] = {}
+
+    def _load_config(self):
+        """Load voice model configuration from environment"""
+        # STT (Speech-to-Text)
+        self.stt_primary = os.getenv("VOICE_STT_PRIMARY", "openai-whisper-1")
+        self.stt_fallbacks = [
+            os.getenv("VOICE_STT_FALLBACK_1", "google-speech-to-text"),
+        ]
+
+        # TTS (Text-to-Speech)
+        self.tts_primary = os.getenv("VOICE_TTS_PRIMARY", "openai-realtime-gpt4o")
+        self.tts_fallbacks = [
+            os.getenv("VOICE_TTS_FALLBACK_1", "edge-tts"),
+            os.getenv("VOICE_TTS_FALLBACK_2", "supabase-tts"),
+        ]
+
+        # OpenAI Realtime voice preference
+        self.openai_voice = os.getenv("OPENAI_VOICE", "marin")
+
+        logger.info(f"Voice Config Loaded: STT={self.stt_primary}, TTS={self.tts_primary}, Voice={self.openai_voice}")
+
+    def get_stt_model(self) -> VoiceModelConfig:
+        """Get primary STT (speech-to-text) model"""
+        if not self.enabled:
+            # Fallback to default if disabled
+            return VOICE_MODEL_REGISTRY["openai-whisper-1"]
+
+        if self.stt_primary in VOICE_MODEL_REGISTRY:
+            return VOICE_MODEL_REGISTRY[self.stt_primary]
+
+        logger.warning(f"Unknown STT model: {self.stt_primary}, using default")
+        return VOICE_MODEL_REGISTRY["openai-whisper-1"]
+
+    def get_tts_model(self) -> VoiceModelConfig:
+        """Get primary TTS (text-to-speech) model"""
+        if not self.enabled:
+            # Fallback to default if disabled
+            return VOICE_MODEL_REGISTRY["openai-realtime-gpt4o"]
+
+        if self.tts_primary in VOICE_MODEL_REGISTRY:
+            return VOICE_MODEL_REGISTRY[self.tts_primary]
+
+        logger.warning(f"Unknown TTS model: {self.tts_primary}, using default")
+        return VOICE_MODEL_REGISTRY["openai-realtime-gpt4o"]
+
+    def get_stt_fallbacks(self) -> List[VoiceModelConfig]:
+        """Get STT fallback models"""
+        if not self.enabled:
+            return []
+
+        fallbacks = []
+        for model_id in self.stt_fallbacks:
+            if model_id in VOICE_MODEL_REGISTRY:
+                fallbacks.append(VOICE_MODEL_REGISTRY[model_id])
+        return fallbacks
+
+    def get_tts_fallbacks(self) -> List[VoiceModelConfig]:
+        """Get TTS fallback models"""
+        if not self.enabled:
+            return []
+
+        fallbacks = []
+        for model_id in self.tts_fallbacks:
+            if model_id in VOICE_MODEL_REGISTRY:
+                fallbacks.append(VOICE_MODEL_REGISTRY[model_id])
+        return fallbacks
+
+    def get_openai_voice(self) -> str:
+        """Get OpenAI Realtime voice preference"""
+        return self.openai_voice
+
+    def reload_config(self):
+        """Reload voice configuration (hot-swap)"""
+        if not self.enabled:
+            return
+
+        logger.info("Reloading voice model configuration...")
+        self._load_config()
+        self._health_cache.clear()
+
+
+# Global singleton for voice models
+_voice_model_config: Optional[VoiceModelConfigManager] = None
+
+
+def get_voice_model_config() -> VoiceModelConfigManager:
+    """Get or create voice model configuration manager"""
+    global _voice_model_config
+    if _voice_model_config is None:
+        _voice_model_config = VoiceModelConfigManager()
+    return _voice_model_config
+
+
+def is_voice_config_enabled() -> bool:
+    """Check if voice model config is enabled"""
+    return os.getenv("ENABLE_VOICE_MODEL_CONFIG", "false").lower() == "true"
