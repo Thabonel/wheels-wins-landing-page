@@ -146,11 +146,19 @@ class CacheWarmingService:
             enriched_profile = profile_result["result"]
 
             # Store ENRICHED profile in Redis (not raw Supabase data)
-            cache_key = f"user_profile:{user_id}"
+            # Write to both legacy and primary keys for compatibility
+            legacy_key = f"user_profile:{user_id}"
+            primary_key = f"pam:profile:{user_id}"
             profile_json = json.dumps(enriched_profile)
 
             await self.redis_client.setex(
-                cache_key,
+                primary_key,
+                self.ttl_config['profile'],
+                profile_json
+            )
+
+            await self.redis_client.setex(
+                legacy_key,
                 self.ttl_config['profile'],
                 profile_json
             )

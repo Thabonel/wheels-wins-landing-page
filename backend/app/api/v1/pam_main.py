@@ -1191,12 +1191,15 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             import time
             profile_start = time.time()
 
-            # Try Redis cache first
+            # Try Redis cache first (support both historical and new keys)
             from app.services.cache_service import get_cache
             cache = await get_cache()
-            cache_key = f"pam:profile:{user_id}"
+            primary_key = f"pam:profile:{user_id}"
+            legacy_key = f"user_profile:{user_id}"
 
-            cached_profile = await cache.get(cache_key)
+            cached_profile = await cache.get(primary_key)
+            if not cached_profile:
+                cached_profile = await cache.get(legacy_key)
 
             if cached_profile:
                 logger.info(f"👤 [CACHE HIT] Profile from Redis in {(time.time()-profile_start)*1000:.1f}ms")
@@ -1233,7 +1236,9 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                     context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
 
                     # Cache for 10 minutes (600 seconds) - profiles change less frequently
-                    await cache.set(cache_key, user_profile, ttl=600)
+                    await cache.set(primary_key, user_profile, ttl=600)
+                    # Also write legacy key for backward compatibility
+                    await cache.set(legacy_key, user_profile, ttl=600)
 
                     elapsed_ms = (time.time() - profile_start) * 1000
                     # Log vehicle info for debugging Unimog recognition
