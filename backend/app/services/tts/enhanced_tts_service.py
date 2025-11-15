@@ -1003,10 +1003,16 @@ class EnhancedTTSService:
                             logger.info(f"✅ Error recovery successful for {engine_type.value}")
                             # Convert recovery result to TTSResponse
                             recovery_response = recovery_result.get("response", {})
+                            # Map recovery engine string safely; treat 'text_fallback' as DISABLED
+                            _engine_str = recovery_response.get("engine", "text_fallback")
+                            try:
+                                _engine = TTSEngine.DISABLED if _engine_str == "text_fallback" else TTSEngine(_engine_str)
+                            except Exception:
+                                _engine = TTSEngine.DISABLED
                             return TTSResponse(
                                 audio_data=recovery_response.get("audio_data"),
                                 text=recovery_response.get("text", text),
-                                engine=TTSEngine(recovery_response.get("engine", "text_fallback")),
+                                engine=_engine,
                                 quality=TTSQuality.FALLBACK,
                                 voice_id=resolved_voice_id,
                                 fallback_used=True,
@@ -1030,10 +1036,15 @@ class EnhancedTTSService:
                         if recovery_result.get("success"):
                             logger.info(f"✅ Exception recovery successful for {engine_type.value}")
                             recovery_response = recovery_result.get("response", {})
+                            _engine_str = recovery_response.get("engine", "text_fallback")
+                            try:
+                                _engine = TTSEngine.DISABLED if _engine_str == "text_fallback" else TTSEngine(_engine_str)
+                            except Exception:
+                                _engine = TTSEngine.DISABLED
                             return TTSResponse(
                                 audio_data=recovery_response.get("audio_data"),
                                 text=recovery_response.get("text", text),
-                                engine=TTSEngine(recovery_response.get("engine", "text_fallback")),
+                                engine=_engine,
                                 quality=TTSQuality.FALLBACK,
                                 voice_id=resolved_voice_id,
                                 fallback_used=True,

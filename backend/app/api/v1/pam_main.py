@@ -2359,6 +2359,8 @@ async def chat_endpoint(
     import time
     start_time = time.time()  # Use time.time() for performance tracking
     request_id = str(uuid.uuid4())
+    # Initialize use_case to avoid NameError in guarded references further down
+    use_case = None
 
     try:
         # Extract request metadata
