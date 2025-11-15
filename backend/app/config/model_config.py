@@ -133,6 +133,28 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
     ),
 
     # OpenAI Models
+    "gpt-5.1-instant": ModelConfig(
+        name="GPT-5.1 Instant",
+        provider="openai",
+        model_id="gpt-5.1-instant",
+        cost_per_1m_input=1.25,  # Estimated based on GPT-5 pricing
+        cost_per_1m_output=10.0,
+        max_tokens=200000,  # Estimated, verify with OpenAI docs
+        supports_tools=True,
+        supports_streaming=True,
+        description="Latest OpenAI model (Nov 13, 2025) - 2-5x faster, more conversational"
+    ),
+    "gpt-5.1-thinking": ModelConfig(
+        name="GPT-5.1 Thinking",
+        provider="openai",
+        model_id="gpt-5.1-thinking",
+        cost_per_1m_input=1.25,  # Estimated - may include reasoning token costs
+        cost_per_1m_output=10.0,
+        max_tokens=200000,
+        supports_tools=True,
+        supports_streaming=True,
+        description="GPT-5.1 with adaptive reasoning (dynamic thinking time)"
+    ),
     "gpt-4o": ModelConfig(
         name="GPT-4o",
         provider="openai",
