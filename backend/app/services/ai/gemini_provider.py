@@ -32,7 +32,7 @@ class GeminiProvider(AIProviderInterface):
                 # Optionally VISION if enabled later
             ]
         if not config.default_model:
-            config.default_model = "gemini-2.5-flash"  # Updated to Gemini 2.5 (1.x retired in 2025)
+            config.default_model = "models/gemini-1.5-flash-latest"  # Stable v1beta API model
 
         # Approximate costs (adjust via env/config as needed)
         if config.cost_per_1k_input_tokens == 0.0:
