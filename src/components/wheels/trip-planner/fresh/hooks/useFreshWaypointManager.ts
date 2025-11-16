@@ -324,7 +324,7 @@ export function useFreshWaypointManager({
     console.log(`✅ Total markers created: ${markersRef.current.size}`);
   }, [map]);
   
-  // Calculate elevation profile for route
+  // Calculate elevation profile for route (network-safe mock; avoids heavy tile requests)
   const calculateElevationProfile = useCallback(async (geometry: any): Promise<ElevationProfile | null> => {
     try {
       // Sample 100 points along the route for elevation analysis
@@ -337,20 +337,11 @@ export function useFreshWaypointManager({
         samplePoints.push(coordinates[i]);
       }
       
-      // Fetch elevation data from Mapbox Terrain API
-      const elevationPromises = samplePoints.map(async (coord, index) => {
-        const response = await fetch(
-          `https://api.mapbox.com/v4/mapbox.terrain-rgb/${Math.floor(Math.random() * 15 + 1)}/${coord[0]},${coord[1]}.pngraw?access_token=${mapboxgl.accessToken}`
-        );
-        // For now, generate realistic mock data - replace with actual API when available
-        const mockElevation = 100 + Math.sin(index * 0.1) * 200 + Math.random() * 50;
-        return {
-          distance: index * 1000, // Approximate distance in meters
-          elevation: mockElevation
-        };
-      });
-      
-      const elevationPoints = await Promise.all(elevationPromises);
+      // Network-safe mock elevation: avoid terrain tile requests to reduce Mapbox usage
+      const elevationPoints = samplePoints.map((_, index) => ({
+        distance: index * 1000, // Approximate distance in meters
+        elevation: 100 + Math.sin(index * 0.1) * 200 + Math.random() * 50
+      }));
       
       // Calculate elevation statistics
       let totalClimb = 0;
@@ -487,6 +478,9 @@ export function useFreshWaypointManager({
       setIsLoadingRoute(false);
     }
   }, [map, routeProfile, drawRoute, fitMapToRoute, calculateElevationProfile, calculateStraightLineDistance, createStraightLineGeometry]);
+
+  // Debounce route calculation to prevent request bursts during rapid updates
+  const routeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Main setWaypoints function - properly exposed
   const setWaypoints = useCallback((newWaypoints: Waypoint[]) => {
@@ -500,7 +494,13 @@ export function useFreshWaypointManager({
     
     // Calculate route if we have enough waypoints
     if (newWaypoints.length >= 2) {
-      calculateRoute(newWaypoints);
+      // Debounce route calculations to avoid spamming Mapbox APIs
+      if (routeDebounceRef.current) {
+        clearTimeout(routeDebounceRef.current);
+      }
+      routeDebounceRef.current = setTimeout(() => {
+        calculateRoute(newWaypoints);
+      }, 700);
     } else {
       setCurrentRoute(null);
     }
