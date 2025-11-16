@@ -173,10 +173,16 @@ Check: https://github.com/Thabonel/wheels-wins-landing-page/issues
 - **200K Token Context**: Massive context window for conversation history
 - **Best-in-Class**: Industry-leading accuracy and response quality
 - **Simple Architecture**: ONE AI brain via AsyncAnthropic client
-- **Gemini Flash Fallback**: Cost-effective backup for simple queries
-- **OpenAI Tertiary**: Available as additional fallback option
-- **Cost**: $3/1M input + $15/1M output tokens (Claude Sonnet 4.5)
-- **Reference**: See `/docs/pam-rebuild-2025/PAM_FINAL_PLAN.md` for full architecture
+- **GPT-5.1 Instant Fallback**: Fast responses for everyday queries (Nov 2025)
+  - Model: `gpt-5.1-instant`
+  - Use Case: Quick conversations, simple queries
+  - Cost: $1.25/1M input + $10/1M output tokens
+- **GPT-5.1 Thinking Option**: Deep reasoning for complex problems
+  - Model: `gpt-5.1-thinking`
+  - Use Case: Math, debugging, complex reasoning
+  - Takes longer to respond (deliberate thinking process)
+- **Primary Cost**: $3/1M input + $15/1M output tokens (Claude Sonnet 4.5)
+- **Reference**: See `/docs/VERIFIED_AI_MODELS.md` for complete model information
 
 ## Critical Commands
 ```bash
