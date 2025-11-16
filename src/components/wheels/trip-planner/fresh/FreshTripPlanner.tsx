@@ -280,13 +280,15 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         });
       });
 
-      // Listen for successful geolocation
+      // Listen for successful geolocation and center map
       geolocate.on('geolocate', (position: GeolocationPosition) => {
-        console.log('✅ GeolocateControl Success:', {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy
-        });
+        const { latitude, longitude, accuracy } = position.coords;
+        console.log('✅ GeolocateControl Success:', { latitude, longitude, accuracy });
+        try {
+          newMap.flyTo({ center: [longitude, latitude], zoom: 13, duration: 1200 });
+        } catch (e) {
+          console.warn('Geolocate flyTo failed:', e);
+        }
       });
 
       // Listen for tracking events
@@ -763,6 +765,34 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
   };
   
+  // Center map on user's current position (user-gesture friendly)
+  const handleUseMyLocation = () => {
+    try {
+      if (geolocateControlRef.current) {
+        geolocateControlRef.current.trigger();
+        return;
+      }
+    } catch (e) {
+      console.warn('Geolocate trigger failed; falling back to navigator.geolocation', e);
+    }
+
+    if ('geolocation' in navigator && mapRef.current) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          mapRef.current!.flyTo({ center: [longitude, latitude], zoom: 13, duration: 1200 });
+        },
+        (err) => {
+          console.error('Navigator geolocation error:', err);
+          toast.error('Unable to access your location. Please allow location permissions.');
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    } else {
+      toast.error('Geolocation not supported by this browser');
+    }
+  };
+  
   // Handle location selection from search
   const handleLocationSelect = (coordinates: [number, number], name: string) => {
     // Add waypoint at the selected location
@@ -924,6 +954,17 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         isAddingWaypoint={isAddingWaypoint}
         hasRoute={waypointManager.waypoints.length >= 2 || hasDirectionsRoute}
       />
+      
+      {/* Use My Location floating button */}
+      <div className="absolute top-32 left-4 z-[10000]">
+        <button
+          onClick={handleUseMyLocation}
+          className="bg-white text-gray-800 px-3 py-2 rounded shadow mapboxgl-ctrl mapboxgl-ctrl-group hover:bg-gray-100"
+          title="Use my location"
+        >
+          📍 My Location
+        </button>
+      </div>
       
       {/* Add waypoint indicator */}
       {isAddingWaypoint && (
