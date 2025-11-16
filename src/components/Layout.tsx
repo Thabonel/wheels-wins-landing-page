@@ -1,8 +1,6 @@
 import React from "react";
-import Pam from "@/components/Pam"; // Original beautiful PAM interface with Direct Claude API integration
-import { SimplePamBubble } from "@/components/SimplePamBubble"; // Simple fallback bubble
-import { useAuth } from "@/context/AuthContext";
 import { useLocation } from "react-router-dom";
+import Pam from "@/components/Pam";
 import Header from "@/components/header/Header";
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
@@ -14,16 +12,14 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { pathname } = useLocation();
-  const hidePam = ["/", "/auth", "/onboarding"].includes(pathname);
-  const isHomePage = pathname === "/";
-  
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header - let HeaderContainer handle its own styling */}
       <Header />
-      
+
       {pathname === "/" && <Hero />}
-      
+
       <main
         className={
           pathname === "/"
@@ -36,13 +32,13 @@ export default function Layout({ children }: LayoutProps) {
           {children}
         </div>
       </main>
-      
-      {/* PAM - Simple bubble (always visible for testing) */}
-      {!hidePam && <SimplePamBubble />}
-      
+
       <footer className="bg-white text-gray-600 py-4 border-t">
         <Footer />
       </footer>
+
+      {/* PAM AI Assistant - floating bubble on all pages */}
+      <Pam />
     </div>
   );
 }

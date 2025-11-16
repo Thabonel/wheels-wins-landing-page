@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { useVoiceInput, type VoiceInputResult } from '@/hooks/voice/useVoiceInput';
 import { useTextToSpeech } from '@/hooks/voice/useTextToSpeech';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -25,13 +26,26 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
   className,
   ariaLabel = 'Toggle voice input'
 }) => {
-  // Voice input hook
-  const voiceInput = useVoiceInput(
+  // Get user settings for language preference
+  const { settings } = useUserSettings();
+  const userLanguage = settings?.display_preferences?.language || 'en-US';
+
+  // Voice input hook - destructure for proper React reactivity
+  const {
+    isListening,
+    isProcessing,
+    isSupported,
+    hasPermission,
+    startListening,
+    stopListening,
+    abortListening,
+    requestPermission
+  } = useVoiceInput(
     useCallback((result: VoiceInputResult) => {
       if (result.isFinal && result.transcript.trim()) {
         onTranscript?.(result.transcript, result.confidence);
         onVoiceCommand?.(result.transcript.trim());
-        
+
         // Show success toast
         toast.success('Voice input received', {
           description: `"${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}"`,
@@ -39,13 +53,15 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
         });
       }
     }, [onTranscript, onVoiceCommand]),
-    
+
     useCallback((error: string) => {
       toast.error('Voice input error', {
         description: error,
         duration: 5000,
       });
-    }, [])
+    }, []),
+
+    { lang: userLanguage } // Pass user's language preference to Web Speech API
   );
 
   // Text-to-speech hook for feedback
@@ -61,29 +77,41 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
 
   // Handle permission request on first use
   const handlePermissionRequest = useCallback(async () => {
-    if (permissionRequested || voiceInput.hasPermission !== null) return;
+    if (permissionRequested || hasPermission !== null) return;
 
     setPermissionRequested(true);
-    const granted = await voiceInput.requestPermission();
-    
+    const granted = await requestPermission();
+
     if (!granted) {
       toast.error('Microphone access required', {
         description: 'Please allow microphone access to use voice input.',
         duration: 7000,
       });
     }
-  }, [permissionRequested, voiceInput]);
+  }, [permissionRequested, hasPermission, requestPermission]);
 
   // Initialize permission check
   useEffect(() => {
-    if (voiceInput.isSupported && !permissionRequested) {
+    if (isSupported && !permissionRequested) {
       handlePermissionRequest();
     }
-  }, [voiceInput.isSupported, handlePermissionRequest, permissionRequested]);
+  }, [isSupported, handlePermissionRequest, permissionRequested]);
+
+  // Listen for global stop events (e.g., when hybrid voice stops)
+  useEffect(() => {
+    const handleGlobalStop = () => {
+      if (isListening || isProcessing) {
+        abortListening();
+      }
+      setIsPressed(false);
+    };
+    window.addEventListener('pam-voice:stop-all', handleGlobalStop as EventListener);
+    return () => window.removeEventListener('pam-voice:stop-all', handleGlobalStop as EventListener);
+  }, [isListening, isProcessing, abortListening]);
 
   // Handle voice toggle
   const handleVoiceToggle = useCallback(async () => {
-    if (disabled || !voiceInput.isSupported) {
+    if (disabled || !isSupported) {
       toast.error('Voice input not available', {
         description: 'Your browser does not support voice input.',
         duration: 5000,
@@ -91,7 +119,7 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
       return;
     }
 
-    if (voiceInput.hasPermission === false) {
+    if (hasPermission === false) {
       toast.error('Microphone access denied', {
         description: 'Please enable microphone access in your browser settings.',
         duration: 7000,
@@ -100,13 +128,13 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
     }
 
     try {
-      if (voiceInput.isListening) {
-        voiceInput.stopListening();
+      if (isListening) {
+        stopListening();
         toast.info('Voice input stopped', {
           duration: 2000,
         });
       } else {
-        const started = await voiceInput.startListening();
+        const started = await startListening();
         if (started) {
           toast.info('Listening...', {
             description: 'Speak now to input voice commands.',
@@ -120,7 +148,7 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
         duration: 5000,
       });
     }
-  }, [disabled, voiceInput]);
+  }, [disabled, isSupported, hasPermission, isListening, stopListening, startListening]);
 
   // Handle TTS toggle
   const handleTTSToggle = useCallback(() => {
@@ -150,9 +178,9 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
   const handleMouseDown = useCallback(() => setIsPressed(true), []);
   const handleMouseUp = useCallback(() => setIsPressed(false), []);
 
-  // Determine button state and styling
-  const isVoiceActive = voiceInput.isListening || voiceInput.isProcessing;
-  const isVoiceDisabled = disabled || !voiceInput.isSupported || voiceInput.hasPermission === false;
+  // Determine button state and styling - NOW REACTIVE!
+  const isVoiceActive = isListening || isProcessing;
+  const isVoiceDisabled = disabled || !isSupported || hasPermission === false;
   const isTTSActive = tts.isSpeaking;
   const isTTSDisabled = disabled || !tts.isSupported;
 
@@ -202,7 +230,7 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
             : 'Start voice input'
         }
       >
-        {voiceInput.isProcessing ? (
+        {isProcessing ? (
           <Loader2 size={iconSizes[size]} className="animate-spin" />
         ) : isVoiceActive ? (
           <Mic size={iconSizes[size]} />
@@ -248,7 +276,7 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
       )}
 
       {/* Status Indicator */}
-      {(voiceInput.isListening || voiceInput.isProcessing) && (
+      {(isListening || isProcessing) && (
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <div className="flex space-x-1">
             <div className="w-1 h-1 bg-primary rounded-full animate-bounce" />
@@ -256,7 +284,7 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({
             <div className="w-1 h-1 bg-primary rounded-full animate-bounce delay-150" />
           </div>
           <span className="hidden sm:inline">
-            {voiceInput.isProcessing ? 'Processing...' : 'Listening...'}
+            {isProcessing ? 'Processing...' : 'Listening...'}
           </span>
         </div>
       )}

@@ -83,20 +83,24 @@ export const PAM_CONFIG = {
   REST_ENDPOINTS: {
     production: {
       primary: {
-        chat: 'https://pam-backend.onrender.com/api/v1/pam-simple/chat',
+        // Use main PAM chat endpoint (PersonalizedPamAgent)
+        chat: 'https://pam-backend.onrender.com/api/v1/pam/chat',
         health: 'https://pam-backend.onrender.com/api/v1/pam/health'
       },
       fallback: {
+        // Fallback to simple PAM endpoint
         chat: 'https://pam-backend.onrender.com/api/v1/pam-simple/chat',
         health: 'https://pam-backend.onrender.com/api/v1/pam/health'
       }
     },
     staging: {
       primary: {
-        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/chat',
+        // Use main PAM chat endpoint (PersonalizedPamAgent)
+        chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat',
         health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health'
       },
       fallback: {
+        // Fallback to simple PAM endpoint
         chat: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam-simple/chat',
         health: 'https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health'
       }
@@ -828,13 +832,14 @@ class PamService {
           healthScore: Math.min(100, this.status.healthScore + 5)
         });
 
-        // Convert PAM 2.0 response to compatible format
+        // Convert PAM 2.0 response to compatible format (support both 'response' and 'content')
+        const content = (pam2Response as any).response || (pam2Response as any).content || (pam2Response as any).message;
         const legacyResponse: PamApiResponse = {
-          response: pam2Response.response,
-          message: pam2Response.response,
-          content: pam2Response.response,
-          ui_action: pam2Response.ui_action,
-          metadata: pam2Response.metadata
+          response: content,
+          message: content,
+          content,
+          ui_action: (pam2Response as any).ui_action,
+          metadata: (pam2Response as any).metadata
         };
 
         console.log(`✅ PAM 2.0 REST response (${latency}ms):`, pam2Response);
@@ -884,11 +889,12 @@ class PamService {
           healthScore: Math.min(100, this.status.healthScore + 3)
         });
 
-        // Convert PAM 1.0 response to compatible format
+        // Convert PAM 1.0 response to compatible format (support 'content')
+        const content1 = pam1Response.response || pam1Response.content || pam1Response.message;
         const legacyResponse: PamApiResponse = {
-          response: pam1Response.response || pam1Response.message,
-          message: pam1Response.response || pam1Response.message,
-          content: pam1Response.response || pam1Response.message,
+          response: content1,
+          message: content1,
+          content: content1,
           ui_action: pam1Response.ui_action,
           metadata: { ...pam1Response.metadata, fallback: true, version: '1.0' }
         };

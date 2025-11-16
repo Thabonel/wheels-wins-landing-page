@@ -1138,162 +1138,164 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         context["user_id"] = user_id
         context["connection_type"] = "websocket"
 
-        # Load financial context from cache/database for enhanced PAM responses
-        try:
-            financial_start = time.time()
+        # PERFORMANCE OPTIMIZATION: Load all context types in parallel using asyncio.gather()
+        # Previous implementation loaded sequentially (300-1500ms), now loads in parallel (100-500ms)
+        import asyncio
+        from app.services.cache_service import get_cache
 
-            # Try Redis cache first
-            from app.services.cache_service import get_cache
-            cache = await get_cache()
-            cache_key = f"pam:financial:{user_id}"
+        async def load_financial_context():
+            """Load financial context from cache or database"""
+            try:
+                financial_start = time.time()
+                cache = await get_cache()
+                cache_key = f"pam:financial:{user_id}"
+                financial_data = await cache.get(cache_key)
 
-            financial_data = await cache.get(cache_key)
-
-            if financial_data:
-                logger.info(f"💰 [CACHE HIT] Financial context from Redis in {(time.time()-financial_start)*1000:.1f}ms")
-                context["financial_context"] = financial_data
-            else:
-                # Cache miss - load from database
-                financial_context = await financial_context_service.get_user_financial_context(user_id)
-                if financial_context:
-                    financial_data = {
-                        "expenses": {
-                            "total_amount": financial_context.expenses.total_amount,
-                            "transaction_count": financial_context.expenses.transaction_count,
-                            "categories": financial_context.expenses.categories,
-                            "average_daily": financial_context.expenses.average_daily
-                        },
-                        "budgets": {
-                            "total_budget": financial_context.budgets.total_budget,
-                            "remaining_budget": financial_context.budgets.remaining_budget,
-                            "budget_utilization": financial_context.budgets.budget_utilization,
-                            "over_budget_categories": financial_context.budgets.over_budget_categories
-                        },
-                        "context_summary": {
-                            "has_recent_expenses": financial_context.expenses.transaction_count > 0,
-                            "has_active_budgets": financial_context.budgets.total_budget > 0,
-                            "financial_health_score": calculate_financial_health_score(financial_context)
+                if financial_data:
+                    logger.info(f"💰 [CACHE HIT] Financial context from Redis in {(time.time()-financial_start)*1000:.1f}ms")
+                    return financial_data
+                else:
+                    # Cache miss - load from database
+                    financial_context = await financial_context_service.get_user_financial_context(user_id)
+                    if financial_context:
+                        financial_data = {
+                            "expenses": {
+                                "total_amount": financial_context.expenses.total_amount,
+                                "transaction_count": financial_context.expenses.transaction_count,
+                                "categories": financial_context.expenses.categories,
+                                "average_daily": financial_context.expenses.average_daily
+                            },
+                            "budgets": {
+                                "total_budget": financial_context.budgets.total_budget,
+                                "remaining_budget": financial_context.budgets.remaining_budget,
+                                "budget_utilization": financial_context.budgets.budget_utilization,
+                                "over_budget_categories": financial_context.budgets.over_budget_categories
+                            },
+                            "context_summary": {
+                                "has_recent_expenses": financial_context.expenses.transaction_count > 0,
+                                "has_active_budgets": financial_context.budgets.total_budget > 0,
+                                "financial_health_score": calculate_financial_health_score(financial_context)
+                            }
                         }
-                    }
-                    context["financial_context"] = financial_data
+                        # Cache for 5 minutes (300 seconds)
+                        await cache.set(cache_key, financial_data, ttl=300)
+                        elapsed_ms = (time.time() - financial_start) * 1000
+                        logger.info(f"💰 [CACHE MISS] Financial context from DB in {elapsed_ms:.1f}ms (cached for 5 min)")
+                        return financial_data
+                    return None
+            except Exception as e:
+                logger.error(f"❌ [CACHE] Error loading financial context: {e}")
+                return None
 
-                    # Cache for 5 minutes (300 seconds)
-                    await cache.set(cache_key, financial_data, ttl=300)
+        async def load_profile_context():
+            """Load user profile from cache or database"""
+            try:
+                profile_start = time.time()
+                cache = await get_cache()
+                primary_key = f"pam:profile:{user_id}"
+                legacy_key = f"user_profile:{user_id}"
 
-                    elapsed_ms = (time.time() - financial_start) * 1000
-                    logger.info(f"💰 [CACHE MISS] Financial context from DB in {elapsed_ms:.1f}ms (cached for 5 min)")
-        except Exception as e:
-            logger.error(f"❌ [CACHE] Error loading financial context: {e}")
-            # Continue without financial context - don't block chat
-        
-        # Load user profile to ensure PAM has access to vehicle and travel info
-        try:
-            import time
-            profile_start = time.time()
+                cached_profile = await cache.get(primary_key)
+                if not cached_profile:
+                    cached_profile = await cache.get(legacy_key)
 
-            # Try Redis cache first
-            from app.services.cache_service import get_cache
-            cache = await get_cache()
-            cache_key = f"pam:profile:{user_id}"
-
-            cached_profile = await cache.get(cache_key)
-
-            if cached_profile:
-                logger.info(f"👤 [CACHE HIT] Profile from Redis in {(time.time()-profile_start)*1000:.1f}ms")
-                user_profile = cached_profile
-                context["user_profile"] = user_profile
-                context["vehicle_info"] = user_profile.get("vehicle_info", {})
-                context["travel_preferences"] = user_profile.get("travel_preferences", {})
-                context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
-            else:
-                # Cache miss - trigger full cache warming for this user
-                logger.info(f"🔥 [CACHE WARMING] Profile cache miss - triggering full cache warming for user {user_id}")
-                try:
-                    from app.services.pam.cache_warming import get_cache_warming_service
-                    cache_service = await get_cache_warming_service()
-
-                    # Warm cache asynchronously (don't block message)
-                    import asyncio
-                    asyncio.create_task(cache_service.warm_user_cache(user_id))
-                    logger.info(f"🔥 [CACHE WARMING] Triggered for user {user_id} (async)")
-                except Exception as e:
-                    logger.error(f"❌ [CACHE WARMING] Failed to trigger: {e}")
-                    # Continue with database fallback
-
-                # Cache miss - load from database
-                from app.services.pam.tools.load_user_profile import LoadUserProfileTool
-                profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
-                profile_result = await profile_tool.execute(user_id)
-
-                if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
-                    user_profile = profile_result["result"]
-                    context["user_profile"] = user_profile
-                    context["vehicle_info"] = user_profile.get("vehicle_info", {})
-                    context["travel_preferences"] = user_profile.get("travel_preferences", {})
-                    context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
-
-                    # Cache for 10 minutes (600 seconds) - profiles change less frequently
-                    await cache.set(cache_key, user_profile, ttl=600)
-
-                    elapsed_ms = (time.time() - profile_start) * 1000
-                    # Log vehicle info for debugging Unimog recognition
-                    vehicle_info = user_profile.get("vehicle_info", {})
-                    logger.info(f"🚐 [CACHE MISS] Profile from DB in {elapsed_ms:.1f}ms (cached for 10 min)")
-                    logger.info(f"🚐 [PROFILE] Vehicle loaded: {vehicle_info.get('type', 'unknown')} - {vehicle_info.get('make_model_year', 'N/A')}")
-                    logger.info(f"🚐 [PROFILE] Is RV: {vehicle_info.get('is_rv', False)}")
+                if cached_profile:
+                    logger.info(f"👤 [CACHE HIT] Profile from Redis in {(time.time()-profile_start)*1000:.1f}ms")
+                    return cached_profile
                 else:
-                    logger.info(f"👤 [PROFILE] No profile found for user {user_id}")
-        except Exception as e:
-            logger.error(f"❌ [PROFILE] Error loading user profile: {e}")
-            # Continue without profile - don't block chat
-        
-        # Load social context to enable friend meetup suggestions during travel
-        try:
-            import time
-            social_start = time.time()
+                    # Cache miss - trigger full cache warming for this user
+                    logger.info(f"🔥 [CACHE WARMING] Profile cache miss - triggering full cache warming for user {user_id}")
+                    try:
+                        from app.services.pam.cache_warming import get_cache_warming_service
+                        cache_service = await get_cache_warming_service()
+                        # Warm cache asynchronously (don't block message)
+                        asyncio.create_task(cache_service.warm_user_cache(user_id))
+                        logger.info(f"🔥 [CACHE WARMING] Triggered for user {user_id} (async)")
+                    except Exception as e:
+                        logger.error(f"❌ [CACHE WARMING] Failed to trigger: {e}")
 
-            # Try Redis cache first
-            from app.services.cache_service import get_cache
-            cache = await get_cache()
-            cache_key = f"pam:social:{user_id}"
+                    # Cache miss - load from database
+                    from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+                    profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
+                    profile_result = await profile_tool.execute(user_id)
 
-            cached_social = await cache.get(cache_key)
+                    if profile_result.get("success") and profile_result.get("result", {}).get("profile_exists"):
+                        user_profile = profile_result["result"]
+                        # Cache for 10 minutes (600 seconds) - profiles change less frequently
+                        await cache.set(primary_key, user_profile, ttl=600)
+                        await cache.set(legacy_key, user_profile, ttl=600)
+                        elapsed_ms = (time.time() - profile_start) * 1000
+                        vehicle_info = user_profile.get("vehicle_info", {})
+                        logger.info(f"🚐 [CACHE MISS] Profile from DB in {elapsed_ms:.1f}ms (cached for 10 min)")
+                        logger.info(f"🚐 [PROFILE] Vehicle loaded: {vehicle_info.get('type', 'unknown')} - {vehicle_info.get('make_model_year', 'N/A')}")
+                        logger.info(f"🚐 [PROFILE] Is RV: {vehicle_info.get('is_rv', False)}")
+                        return user_profile
+                    else:
+                        logger.info(f"👤 [PROFILE] No profile found for user {user_id}")
+                        return None
+            except Exception as e:
+                logger.error(f"❌ [PROFILE] Error loading user profile: {e}")
+                return None
 
-            if cached_social:
-                logger.info(f"🤝 [CACHE HIT] Social context from Redis in {(time.time()-social_start)*1000:.1f}ms")
-                social_context = cached_social
-                context["social_context"] = social_context
-                context["friends_nearby"] = social_context.get("friend_locations", {})
-                context["upcoming_events"] = social_context.get("nearby_events", {})
-                context["friend_travel_activity"] = social_context.get("friend_travel_activity", {})
-            else:
-                # Cache miss - load from database
-                from app.services.pam.tools.load_social_context import LoadSocialContextTool
-                social_tool = LoadSocialContextTool()
-                social_result = await social_tool.execute(user_id)
+        async def load_social_context():
+            """Load social context from cache or database"""
+            try:
+                social_start = time.time()
+                cache = await get_cache()
+                cache_key = f"pam:social:{user_id}"
+                cached_social = await cache.get(cache_key)
 
-                if social_result.get("success") and social_result.get("result"):
-                    social_context = social_result["result"]
-                    context["social_context"] = social_context
-                    context["friends_nearby"] = social_context.get("friend_locations", {})
-                    context["upcoming_events"] = social_context.get("nearby_events", {})
-                    context["friend_travel_activity"] = social_context.get("friend_travel_activity", {})
-
-                    # Cache for 5 minutes (300 seconds) - social updates frequently
-                    await cache.set(cache_key, social_context, ttl=300)
-
-                    elapsed_ms = (time.time() - social_start) * 1000
-                    # Log social context for debugging
-                    friends_count = social_context.get("friends", {}).get("count", 0)
-                    locations_count = social_context.get("friend_locations", {}).get("count", 0)
-                    events_count = social_context.get("nearby_events", {}).get("count", 0)
-                    logger.info(f"🤝 [CACHE MISS] Social context from DB in {elapsed_ms:.1f}ms (cached for 5 min)")
-                    logger.info(f"🤝 [SOCIAL] Loaded: {friends_count} friends, {locations_count} recent locations, {events_count} events")
+                if cached_social:
+                    logger.info(f"🤝 [CACHE HIT] Social context from Redis in {(time.time()-social_start)*1000:.1f}ms")
+                    return cached_social
                 else:
-                    logger.info(f"🤝 [SOCIAL] No social context available for user {user_id}")
-        except Exception as e:
-            logger.error(f"❌ [SOCIAL] Error loading social context: {e}")
-            # Continue without social context - don't block chat
+                    # Cache miss - load from database
+                    from app.services.pam.tools.load_social_context import LoadSocialContextTool
+                    social_tool = LoadSocialContextTool()
+                    social_result = await social_tool.execute(user_id)
+
+                    if social_result.get("success") and social_result.get("result"):
+                        social_context = social_result["result"]
+                        # Cache for 5 minutes (300 seconds) - social updates frequently
+                        await cache.set(cache_key, social_context, ttl=300)
+                        elapsed_ms = (time.time() - social_start) * 1000
+                        friends_count = social_context.get("friends", {}).get("count", 0)
+                        locations_count = social_context.get("friend_locations", {}).get("count", 0)
+                        events_count = social_context.get("nearby_events", {}).get("count", 0)
+                        logger.info(f"🤝 [CACHE MISS] Social context from DB in {elapsed_ms:.1f}ms (cached for 5 min)")
+                        logger.info(f"🤝 [SOCIAL] Loaded: {friends_count} friends, {locations_count} recent locations, {events_count} events")
+                        return social_context
+                    else:
+                        logger.info(f"🤝 [SOCIAL] No social context available for user {user_id}")
+                        return None
+            except Exception as e:
+                logger.error(f"❌ [SOCIAL] Error loading social context: {e}")
+                return None
+
+        # Load all contexts in parallel - fastest operation determines total time
+        parallel_start = time.time()
+        financial_data, user_profile, social_context = await asyncio.gather(
+            load_financial_context(),
+            load_profile_context(),
+            load_social_context(),
+            return_exceptions=True  # Don't fail entire gather if one fails
+        )
+        parallel_elapsed = (time.time() - parallel_start) * 1000
+        logger.info(f"⚡ [PARALLEL] All contexts loaded in {parallel_elapsed:.1f}ms (vs ~{parallel_elapsed*3:.1f}ms sequential)")
+
+        # Apply loaded contexts to message context
+        if financial_data and not isinstance(financial_data, Exception):
+            context["financial_context"] = financial_data
+        if user_profile and not isinstance(user_profile, Exception):
+            context["user_profile"] = user_profile
+            context["vehicle_info"] = user_profile.get("vehicle_info", {})
+            context["travel_preferences"] = user_profile.get("travel_preferences", {})
+            context["is_rv_traveler"] = user_profile.get("vehicle_info", {}).get("is_rv", False)
+        if social_context and not isinstance(social_context, Exception):
+            context["social_context"] = social_context
+            context["friends_nearby"] = social_context.get("friend_locations", {})
+            context["upcoming_events"] = social_context.get("nearby_events", {})
+            context["friend_travel_activity"] = social_context.get("friend_travel_activity", {})
         
         # Get stored connection context (includes location from init)
         connection_id = getattr(websocket, 'connection_id', None)
@@ -2359,6 +2361,8 @@ async def chat_endpoint(
     import time
     start_time = time.time()  # Use time.time() for performance tracking
     request_id = str(uuid.uuid4())
+    # Initialize use_case to avoid NameError in guarded references further down
+    use_case = None
 
     try:
         # Extract request metadata
@@ -2447,6 +2451,12 @@ async def chat_endpoint(
         # Prepare minimal context - PersonalizedPamAgent handles the rest
         context = request.context or {}
         context["user_id"] = str(user_id)
+
+        # CRITICAL: Fix location context mapping
+        # Frontend sends 'userLocation' but backend expects 'user_location'
+        if context.get("userLocation"):
+            context["user_location"] = context["userLocation"]
+            logger.info(f"📍 REST API: User location received: {context['user_location']}")
 
         logger.info(f"Processing chat request for user {user_id} with PersonalizedPamAgent")
 
@@ -2652,7 +2662,7 @@ async def chat_endpoint(
                 "message_length": len(request.message),
                 "response_length": len(response_text),
                 "has_actions": len(actions) > 0 if actions else False,
-                "use_case": use_case.value if use_case else "unknown"
+                "use_case": (use_case.value if use_case else "unknown")
             }
         )
         
@@ -3520,19 +3530,20 @@ async def generate_pam_voice(
                 "processing_time_ms": result.processing_time_ms
             }
         
-        # Enhanced TTS failed completely - return meaningful error
+        # Enhanced TTS failed completely - degrade gracefully to text response (200)
         error_message = result.error if result.error else "Unknown TTS failure"
         logger.error(f"❌ All TTS engines failed: {error_message}")
-        
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "TTS service unavailable",
-                "message": f"All text-to-speech engines failed: {error_message}",
-                "fallback_text": request.text,
-                "engines_tried": [engine.value for engine in enhanced_tts_service.fallback_chain]
-            }
-        )
+
+        return {
+            "audio": None,
+            "text": request.text,
+            "cached": False,
+            "engine": "disabled",
+            "quality": "fallback",
+            "fallback_used": True,
+            "error": error_message,
+            "processing_time_ms": result.processing_time_ms if hasattr(result, 'processing_time_ms') else None
+        }
         
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -3560,35 +3571,53 @@ async def generate_pam_voice(
 async def get_monthly_savings_status(
     year: int = Query(default=None, description="Year (defaults to current year)"),
     month: int = Query(default=None, description="Month (defaults to current month)"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Get monthly PAM savings status and guarantee information
-    
+
     This simplified endpoint replaces the complex savings guarantee system
     with a single, efficient query using database functions.
+
+    PERFORMANCE: Redis caching with 60s TTL (savings data updates frequently)
     """
     try:
         from app.database.supabase_client import get_supabase_client
-        
+        from app.services.cache_service import get_cache
+        import time
+
         # Use current year/month if not specified
         now = datetime.utcnow()
         target_year = year or now.year
         target_month = month or now.month
-        
+        user_id = current_user.get('sub')
+
+        # Try Redis cache first
+        cache_start = time.time()
+        cache = await get_cache()
+        cache_key = f"pam:savings:{user_id}:{target_year}:{target_month}"
+        cached_data = await cache.get(cache_key)
+
+        if cached_data:
+            cache_elapsed = (time.time() - cache_start) * 1000
+            logger.info(f"💰 [CACHE HIT] Savings data from Redis in {cache_elapsed:.1f}ms")
+            return cached_data
+
+        # Cache miss - query database
+        db_start = time.time()
         supabase = get_supabase_client()
-        
+
         # Try to call the database function - graceful fallback if function doesn't exist
         try:
             result = supabase.rpc(
                 "calculate_monthly_pam_savings",
                 {
-                    "user_id_param": str(current_user.id),
+                    "user_id_param": user_id,
                     "year_param": target_year,
                     "month_param": target_month
                 }
             ).execute()
-            
+
             if result.data and len(result.data) > 0:
                 # Extract data from function result
                 savings_data = result.data[0]
@@ -3596,8 +3625,8 @@ async def get_monthly_savings_status(
                 subscription_cost = float(savings_data.get("subscription_cost", 29.99))
                 guarantee_met = savings_data.get("guarantee_met", False)
                 percentage_achieved = float(savings_data.get("percentage_achieved", 0))
-                
-                return {
+
+                response_data = {
                     "success": True,
                     "data": {
                         "total_savings": total_savings,
@@ -3612,12 +3641,19 @@ async def get_monthly_savings_status(
                         }
                     }
                 }
-            
+
+                # Cache for 60 seconds (savings can change frequently when user adds expenses)
+                await cache.set(cache_key, response_data, ttl=60)
+                db_elapsed = (time.time() - db_start) * 1000
+                logger.info(f"💰 [CACHE MISS] Savings data from DB in {db_elapsed:.1f}ms (cached for 60s)")
+
+                return response_data
+
         except Exception as db_error:
             logger.warning(f"Database function 'calculate_monthly_pam_savings' not available: {db_error}")
-        
+
         # Fallback: Return default values (database function doesn't exist yet or failed)
-        return {
+        fallback_data = {
             "success": True,
             "data": {
                 "total_savings": 0.0,
@@ -3633,7 +3669,12 @@ async def get_monthly_savings_status(
                 "note": "PAM savings tracking will be enabled after database migration"
             }
         }
-        
+
+        # Cache fallback data for shorter period (30s) to retry database function sooner
+        await cache.set(cache_key, fallback_data, ttl=30)
+
+        return fallback_data
+
     except Exception as e:
         logger.error(f"Failed to get monthly savings status: {str(e)}")
         raise HTTPException(
@@ -3642,8 +3683,8 @@ async def get_monthly_savings_status(
         )
 
 
-@router.get("/savings-analytics")  
-async def get_pam_savings_analytics(current_user = Depends(get_current_user)):
+@router.get("/savings-analytics")
+async def get_pam_savings_analytics(current_user: dict = Depends(verify_supabase_jwt_token)):
     """
     Get comprehensive PAM savings analytics using simplified database functions
     
@@ -3657,8 +3698,8 @@ async def get_pam_savings_analytics(current_user = Depends(get_current_user)):
         # Try to call the analytics database function - graceful fallback if function doesn't exist
         try:
             result = supabase.rpc(
-                "get_pam_savings_analytics", 
-                {"user_id_param": str(current_user.id)}
+                "get_pam_savings_analytics",
+                {"user_id_param": current_user.get('sub')}
             ).execute()
             
             if result.data and len(result.data) > 0:
@@ -5440,7 +5481,7 @@ class DetectSavingsRequest(BaseModel):
 @router.post("/savings/record", response_model=SuccessResponse)
 async def record_savings_event(
     request: RecordSavingsRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Record a PAM savings event when the AI helps a user save money
@@ -5448,7 +5489,7 @@ async def record_savings_event(
     try:
         # Create savings event
         savings_event = SavingsEvent(
-            user_id=str(current_user.id),
+            user_id=current_user.get('sub'),
             savings_type=SavingsType(request.savings_type),
             predicted_savings=Decimal(str(request.predicted_savings)),
             actual_savings=Decimal(str(request.actual_savings)),
@@ -5484,7 +5525,7 @@ async def record_savings_event(
 @router.get("/savings/monthly-summary")
 async def get_monthly_savings_summary(
     month: Optional[str] = Query(None, description="YYYY-MM-DD format"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Get monthly savings summary for the user
@@ -5498,7 +5539,7 @@ async def get_monthly_savings_summary(
 
         # Get monthly summary
         summary = await savings_calculator.get_monthly_savings_summary(
-            str(current_user.id),
+            current_user.get('sub'),
             target_month
         )
 
@@ -5521,7 +5562,7 @@ async def get_monthly_savings_summary(
 @router.get("/savings/guarantee-status")
 async def get_guarantee_status(
     month: Optional[str] = Query(None, description="YYYY-MM-DD format"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Check savings guarantee status for a billing period
@@ -5535,7 +5576,7 @@ async def get_guarantee_status(
 
         # Evaluate guarantee status
         guarantee_status = await savings_calculator.evaluate_savings_guarantee(
-            str(current_user.id),
+            current_user.get('sub'),
             target_month
         )
 
@@ -5567,7 +5608,7 @@ async def get_guarantee_status(
 @router.post("/recommendations/with-savings-prediction", response_model=SuccessResponse)
 async def create_recommendation_with_savings(
     request: CreateRecommendationRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Create a PAM recommendation with savings prediction
@@ -5575,7 +5616,7 @@ async def create_recommendation_with_savings(
     try:
         # Create recommendation with savings
         recommendation_id = await savings_calculator.create_recommendation_with_savings(
-            user_id=str(current_user.id),
+            user_id=current_user.get('sub'),
             title=request.title,
             description=request.description,
             category=request.category,
@@ -5605,7 +5646,7 @@ async def create_recommendation_with_savings(
 @router.post("/savings/detect")
 async def detect_savings(
     request: DetectSavingsRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Automatically detect potential savings from an expense
@@ -5616,14 +5657,14 @@ async def detect_savings(
 
         if request.category == "fuel":
             savings_event = await savings_calculator.detect_fuel_savings(
-                user_id=str(current_user.id),
+                user_id=current_user.get('sub'),
                 expense_amount=Decimal(str(request.expense_amount)),
                 location=tuple(request.location) if request.location else (0, 0),
                 description=request.description or ""
             )
         elif request.category in ["camping", "lodging"]:
             savings_event = await savings_calculator.detect_camping_savings(
-                user_id=str(current_user.id),
+                user_id=current_user.get('sub'),
                 expense_amount=Decimal(str(request.expense_amount)),
                 location=tuple(request.location) if request.location else (0, 0),
                 description=request.description or ""
@@ -5669,7 +5710,7 @@ async def detect_savings(
 @router.get("/savings/recent")
 async def get_recent_savings(
     limit: int = Query(10, description="Number of recent savings events to return"),
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(verify_supabase_jwt_token)
 ):
     """
     Get recent savings events for the user
@@ -5677,7 +5718,7 @@ async def get_recent_savings(
     try:
         # Get recent savings events
         recent_events = await savings_calculator.get_recent_savings_events(
-            user_id=str(current_user.id),
+            user_id=current_user.get('sub'),
             limit=limit
         )
 

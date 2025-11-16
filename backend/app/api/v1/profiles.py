@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, status
 from typing import Dict, Any
 from app.services.profiles_service import profiles_service
+from app.services.pam.cache_warming import get_cache_warming_service
 from app.core.auth import get_current_user
 from app.api.deps import verify_supabase_jwt_token
 
@@ -50,6 +51,13 @@ async def update_user_profile(
         # If profile doesn't exist, create it
         payload['user_id'] = user_id
         profile = await profiles_service.create_profile(payload)
+    # Invalidate Redis profile cache for this user so PAM reads fresh data
+    try:
+        cache_service = await get_cache_warming_service()
+        await cache_service.invalidate_user_cache(user_id, 'profile')
+        await cache_service.invalidate_user_cache(user_id, 'preferences')
+    except Exception:
+        pass
     return profile
 
 # Frontend-expected endpoint: POST /api/v1/users/{user_id}/profile/upload
@@ -93,6 +101,12 @@ async def upload_profile_photo(
         profile = await profiles_service.update_profile(user_id, update_data)
         if not profile:
             raise HTTPException(status_code=404, detail="Profile not found")
+        # Invalidate profile cache keys to refresh avatar URLs and profile fields
+        try:
+            cache_service = await get_cache_warming_service()
+            await cache_service.invalidate_user_cache(user_id, 'profile')
+        except Exception:
+            pass
             
         return {
             "message": f"{field_type.replace('_', ' ').title()} uploaded successfully",
@@ -113,13 +127,29 @@ async def get_profile(profile_id: str):
 
 @router.post("/profiles", status_code=201)
 async def create_profile(payload: Dict[str, Any]):
-    return await profiles_service.create_profile(payload)
+    profile = await profiles_service.create_profile(payload)
+    try:
+        user_id = payload.get('user_id') or payload.get('id')
+        if user_id:
+            cache_service = await get_cache_warming_service()
+            await cache_service.invalidate_user_cache(user_id, 'profile')
+            await cache_service.invalidate_user_cache(user_id, 'preferences')
+    except Exception:
+        pass
+    return profile
 
 @router.put("/profiles/{profile_id}")
 async def update_profile(profile_id: str, payload: Dict[str, Any]):
     profile = await profiles_service.update_profile(profile_id, payload)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+    try:
+        user_id = profile.get('user_id') or profile_id
+        cache_service = await get_cache_warming_service()
+        await cache_service.invalidate_user_cache(user_id, 'profile')
+        await cache_service.invalidate_user_cache(user_id, 'preferences')
+    except Exception:
+        pass
     return profile
 
 @router.delete("/profiles/{profile_id}")
@@ -127,4 +157,9 @@ async def delete_profile(profile_id: str):
     success = await profiles_service.delete_profile(profile_id)
     if not success:
         raise HTTPException(status_code=404, detail="Profile not found")
+    try:
+        cache_service = await get_cache_warming_service()
+        await cache_service.invalidate_user_cache(profile_id, 'all')
+    except Exception:
+        pass
     return {"success": True}

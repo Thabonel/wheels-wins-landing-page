@@ -1,7 +1,7 @@
 """
-Google Gemini Provider (lightweight adapter)
-Note: This is a minimal scaffold to fit the AIProviderInterface. It initializes lazily and
-defers to Claude if the SDK is unavailable.
+Google Gemini Provider (DISABLED - Unreliable API)
+Note: Gemini is disabled due to unstable v1beta API.
+Use Anthropic (Claude Sonnet 4.5) or OpenAI (GPT-5.1) instead.
 """
 
 import time
@@ -12,6 +12,7 @@ from .provider_interface import (
     AIProviderInterface, AIMessage, AIResponse, AICapability,
     AIProviderStatus, ProviderConfig
 )
+from app.config.ai_providers import GEMINI_ENABLED
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,14 @@ except Exception:
 
 class GeminiProvider(AIProviderInterface):
     def __init__(self, config: ProviderConfig):
+        # Check if Gemini is disabled in centralized config
+        if not GEMINI_ENABLED:
+            raise RuntimeError(
+                "Gemini provider is disabled. "
+                "Use Anthropic (Claude Sonnet 4.5) or OpenAI (GPT-5.1). "
+                "See /docs/VERIFIED_AI_MODELS.md"
+            )
+
         if not config.capabilities:
             config.capabilities = [
                 AICapability.CHAT,
@@ -32,7 +41,7 @@ class GeminiProvider(AIProviderInterface):
                 # Optionally VISION if enabled later
             ]
         if not config.default_model:
-            config.default_model = "gemini-2.5-flash"  # Updated to Gemini 2.5 (1.x retired in 2025)
+            config.default_model = "models/gemini-1.5-flash-latest"  # Stable v1beta API model
 
         # Approximate costs (adjust via env/config as needed)
         if config.cost_per_1k_input_tokens == 0.0:

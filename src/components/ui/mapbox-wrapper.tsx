@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
+import { getMapboxPublicToken } from '@/utils/mapboxConfig';
 
 // Import CSS only when needed
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -34,7 +35,7 @@ const MapboxWrapper: React.FC<MapboxWrapperProps> = ({
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    const token = import.meta.env.VITE_MAPBOX_TOKEN;
+    const token = getMapboxPublicToken();
     if (!token) {
       console.warn('Mapbox token not found. Map will not load.');
       return;

@@ -278,6 +278,13 @@ export function useVoiceInput(
     if (!recognition.current || !state.isListening) return;
 
     try {
+      // Update state immediately for instant UI feedback
+      setState(prev => ({
+        ...prev,
+        isListening: false,
+        isProcessing: false
+      }));
+
       recognition.current.stop();
       logger.debug('Voice input: Stopped listening');
     } catch (error) {
@@ -358,10 +365,21 @@ export function useVoiceInput(
 
   // Cleanup on unmount
   useEffect(() => {
+    // Listen for global stop requests (e.g., turning off PAM voice elsewhere)
+    const handleGlobalStop = () => {
+      abortListening();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pam-voice:stop-all', handleGlobalStop as EventListener);
+    }
+
     return () => {
       if (recognition.current) {
         recognition.current.abort();
         recognition.current = null;
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pam-voice:stop-all', handleGlobalStop as EventListener);
       }
     };
   }, []);

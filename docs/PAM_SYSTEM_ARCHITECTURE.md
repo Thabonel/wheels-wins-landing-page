@@ -1,7 +1,7 @@
 # PAM - Complete System Architecture
 
-**Version:** 2.1 (Claude Sonnet 4.5 - Amended)
-**Last Updated:** November 4, 2025
+**Version:** 2.2 (Claude Sonnet 4.5 + OpenAI 5.1 Updates)
+**Last Updated:** November 16, 2025
 **Status:** ✅ Code Complete (42 Tools in MVP - Tests Required)
 **Purpose:** Single source of truth for PAM implementation
 
@@ -17,7 +17,17 @@ PAM is a voice-first AI assistant that:
 - Tracks savings to prove ROI (goal: pay for herself at $10/month)
 - Powered by Claude Sonnet 4.5 (state-of-the-art AI from Anthropic)
 
-**Key Principle:** ONE AI brain, NO routing complexity, 42 action tools (MVP - shop tools coming Phase 2)
+**Key Principle:** ONE AI brain (Claude primary), OpenAI provider support, 42 action tools (MVP - shop tools Phase 2)
+
+---
+
+## ⚡ Recent Updates (2025‑11‑16)
+
+- OpenAI 5.1 support via Responses API (uses `max_completion_tokens`)
+- Anthropic tool schema compatibility: split geocoding tool into forward/reverse (no top‑level `oneOf`)
+- Safer Mapbox usage in Trip Planner: client request guard + debounce + 429 backoff
+- Redis profile cache keys aligned: reads/writes `pam:profile:{user_id}` and `user_profile:{user_id}`
+- Analytics schema aligned: `pam_analytics_logs` includes `event_type`, `event_data` (JSONB), `metadata`, `success`
 
 ---
 
@@ -366,6 +376,10 @@ wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jw
 - **WebSocket Client:** Native WebSocket API
 - **PWA:** Service workers for offline capability
 
+Mapbox integration:
+- Token selection accepts any valid public `pk.*` token in this order: `VITE_MAPBOX_PUBLIC_TOKEN_MAIN` → `VITE_MAPBOX_PUBLIC_TOKEN` → legacy `VITE_MAPBOX_TOKEN`.
+- A client‑side guard throttles geocoding/directions requests and backs off on 429 to keep the planner responsive.
+
 **Key Files:**
 - `src/services/pamService.ts` - WebSocket client, message handling
 - `src/components/pam/PamAssistant.tsx` - Main chat UI
@@ -374,7 +388,16 @@ wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jw
 
 ### Backend
 - **Framework:** FastAPI (Python 3.11+)
-- **AI Model:** Claude Sonnet 4.5 via Anthropic AsyncAnthropic client
+- **AI Models:**
+  - **Primary:** Anthropic Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`) via AsyncAnthropic
+    - Released: September 2025
+    - Best for: Advanced coding, agentic tasks, tool usage, long-context conversations
+    - Cost: $3/1M input + $15/1M output tokens
+  - **Fallback:** OpenAI GPT-5.1 Instant (`gpt-5.1-instant`) via Chat Completions API
+    - Released: November 2025
+    - Best for: Fast responses, everyday conversations, simple queries
+    - Cost: $1.25/1M input + $10/1M output tokens
+  - **Optional:** OpenAI GPT-5.1 Thinking (`gpt-5.1-thinking`) for complex reasoning
 - **Database:** PostgreSQL via Supabase
 - **Caching:** Redis (connection pooling, financial context, etc)
 - **Task Queue:** Celery with Redis broker
@@ -382,8 +405,10 @@ wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jw
 
 **Key Files:**
 - `backend/app/services/pam/core/pam.py` - PAM AI brain (1,090 lines)
-- `backend/app/api/v1/pam_main.py` - WebSocket endpoint
-- `backend/app/services/pam/tools/` - 42 tool implementations (MVP), 5 archived (shop)
+- `backend/app/services/ai/openai_provider.py` - OpenAI provider (Responses API for 5.x, Chat for 4.x)
+- `backend/app/services/ai/anthropic_provider.py` - Anthropic provider (MCP tools)
+- `backend/app/services/ai/mapbox_mcp_tools.py` - Mapbox MCP tools (forward/reverse geocoding, directions, static)
+- `backend/app/api/v1/pam_main.py` - WebSocket/HTTP endpoints
 - `backend/app/core/websocket_manager.py` - Connection management
 
 ### External APIs
@@ -406,6 +431,10 @@ wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jw
 - `pam_savings_events` - Money saved by PAM
 - `calendar_events` - User calendar
 - `posts` - Social feed content
+
+Analytics:
+- `pam_analytics_logs` includes `event_type`, `event_data` (JSONB), `metadata`, `success`, `created_at`.
+- Idempotent migration scripts provided under `docs/sql-fixes` (see files adding `event_data` and policies).
 
 **Reference:** `docs/DATABASE_SCHEMA_REFERENCE.md`
 

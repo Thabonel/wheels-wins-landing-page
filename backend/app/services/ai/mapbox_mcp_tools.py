@@ -64,22 +64,14 @@ class MapboxMCPTools:
         
         return [
             {
-                "name": "mapbox_geocoding",
-                "description": "Convert addresses to coordinates or vice versa. Essential for trip planning and location queries.",
+                "name": "mapbox_geocoding_forward",
+                "description": "Forward geocoding: convert address/place name to coordinates.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "Address, place name, or location to geocode (e.g., 'Yellowstone National Park', '123 Main St, Denver CO')"
-                        },
-                        "longitude": {
-                            "type": "number",
-                            "description": "Longitude for reverse geocoding (coordinates to address)"
-                        },
-                        "latitude": {
-                            "type": "number", 
-                            "description": "Latitude for reverse geocoding (coordinates to address)"
+                            "description": "Address, place name, or location (e.g., 'Yellowstone National Park')"
                         },
                         "limit": {
                             "type": "number",
@@ -87,10 +79,30 @@ class MapboxMCPTools:
                             "default": 5
                         }
                     },
-                    "oneOf": [
-                        {"required": ["query"]},
-                        {"required": ["longitude", "latitude"]}
-                    ]
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "mapbox_geocoding_reverse",
+                "description": "Reverse geocoding: convert coordinates to an address/place name.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "longitude": {
+                            "type": "number",
+                            "description": "Longitude for reverse geocoding"
+                        },
+                        "latitude": {
+                            "type": "number",
+                            "description": "Latitude for reverse geocoding"
+                        },
+                        "limit": {
+                            "type": "number",
+                            "description": "Maximum number of results (default: 5)",
+                            "default": 5
+                        }
+                    },
+                    "required": ["longitude", "latitude"]
                 }
             },
             {
@@ -148,7 +160,7 @@ class MapboxMCPTools:
                         "alternatives": {
                             "type": "boolean",
                             "description": "Include alternative routes (default: true)",
-                            "default": true
+                            "default": True
                         },
                         "waypoints": {
                             "type": "array",
@@ -221,7 +233,11 @@ class MapboxMCPTools:
             )
         
         try:
-            if tool_name == "mapbox_geocoding":
+            if tool_name in ("mapbox_geocoding", "mapbox_geocoding_forward"):
+                # Forward geocoding (query required)
+                return await self._geocoding(parameters)
+            elif tool_name == "mapbox_geocoding_reverse":
+                # Reverse geocoding (longitude/latitude required)
                 return await self._geocoding(parameters)
             elif tool_name == "mapbox_search_poi":
                 return await self._search_poi(parameters)
