@@ -71,6 +71,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [inputMessage, setInputMessage] = useState("");
   const [shouldAutoSend, setShouldAutoSend] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [conversationMode, setConversationMode] = useState<'voice' | 'text'>('text'); // Track if user wants voice responses
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [isContinuousMode, setIsContinuousMode] = useState(false);
@@ -525,6 +526,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       // Update UI state IMMEDIATELY for instant visual feedback
       setIsContinuousMode(true);
+      setConversationMode('voice'); // Enable voice responses when voice mode starts
 
       // Get API base URL from environment
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
@@ -597,6 +599,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     // Update UI state IMMEDIATELY for instant visual feedback
     setIsContinuousMode(false);
+    setConversationMode('text'); // Disable voice responses when voice mode stops
     setIsListening(false);
     setIsSpeaking(false);
 
@@ -882,6 +885,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           context: {
             region: userContext?.region,
             current_page: 'pam_chat',
+            conversation_mode: conversationMode, // "voice" or "text" - controls TTS
             location: locationObj || undefined,
             userLocation: locationObj || undefined,
             conversation_history: conversationHistory.slice(-3)
@@ -910,8 +914,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         window.dispatchEvent(new CustomEvent('reload-calendar'));
       }
 
-      // Text-to-speech if enabled
-      if (settings?.pam_preferences?.voice_enabled) {
+      // Text-to-speech only in voice conversation mode (not for typed messages)
+      if (conversationMode === 'voice') {
         await speakText(responseContent);
       }
 
@@ -1122,6 +1126,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               onChange={(e) => {
                 console.log('🔍 DEBUG: Input changed from', inputMessage, 'to', e.target.value);
                 setInputMessage(e.target.value);
+                // When user types manually, switch to text mode (no voice output)
+                if (!isContinuousMode && conversationMode !== 'text') {
+                  setConversationMode('text');
+                }
               }}
               onKeyPress={handleKeyPress}
               placeholder="Ask PAM anything..."
@@ -1323,7 +1331,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 ref={inputRef}
                 type="text"
                 value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
+                onChange={(e) => {
+                  setInputMessage(e.target.value);
+                  // When user types manually, switch to text mode (no voice output)
+                  if (!isContinuousMode && conversationMode !== 'text') {
+                    setConversationMode('text');
+                  }
+                }}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask PAM anything..."
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
