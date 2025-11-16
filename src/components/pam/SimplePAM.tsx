@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent, useCallback } from 'react';
-import { Send, Loader2, AlertCircle, Bot, User, VolumeX, Volume2 } from 'lucide-react';
+import { Send, Loader2, AlertCircle, Bot, VolumeX, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { VoiceSettings } from './voice/VoiceSettings';
 import { VoiceToggle } from './voice/VoiceToggle';
 import { useTextToSpeech } from '@/hooks/voice/useTextToSpeech';
 import { toast } from 'sonner';
+import { getPublicAssetUrl } from '@/utils/publicAssets';
 import './SimplePAM.css';
 
 /**
@@ -66,6 +67,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(true);
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(true);
   const [isListeningForVoice, setIsListeningForVoice] = useState(false);
+  const [conversationMode, setConversationMode] = useState<'voice' | 'text'>('text'); // Track if user wants audio responses
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -105,6 +107,9 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
    */
   const handleVoiceInput = useCallback((transcript: string, confidence: number) => {
     if (!voiceInputEnabled || !transcript.trim()) return;
+
+    // Set conversation mode to "voice" when user uses microphone
+    setConversationMode('voice');
 
     // Populate the text input
     setInput(transcript.trim());
@@ -244,6 +249,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
         user_id: user.id,
         context: {
           current_page: 'simple-pam-test',
+          conversation_mode: conversationMode, // "voice" or "text" - controls TTS
           session_data: {
             conversation_length: messages.length
           }
@@ -339,8 +345,20 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
       {/* Header */}
       <div className="pam-header flex items-center justify-between p-4 border-b">
         <div className="flex items-center gap-2">
-          <Bot className="h-5 w-5 text-primary" />
+          <img src={getPublicAssetUrl('Pam.webp')} alt="PAM" className="h-8 w-8 rounded-full object-cover" />
           <h2 className="text-lg font-semibold">PAM - Personal AI Manager</h2>
+          {conversationMode === 'voice' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setConversationMode('text')}
+              className="flex items-center gap-1 h-6 px-2 text-xs"
+              title="Click to exit voice mode"
+            >
+              <Volume2 className="h-3 w-3" />
+              <span>Voice Mode</span>
+            </Button>
+          )}
           {tts.isSpeaking && (
             <div className="flex items-center gap-1">
               <Volume2 className="h-4 w-4 text-primary animate-pulse" />
@@ -400,41 +418,23 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
                   message.isLoading && 'pam-message-loading'
                 )}
               >
-                {/* Avatar */}
-                <div className="flex items-start gap-2">
-                  <div className={cn(
-                    'flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center',
-                    message.role === 'user' 
-                      ? 'bg-primary-foreground/20' 
-                      : 'bg-muted-foreground/20'
-                  )}>
-                    {message.role === 'user' ? (
-                      <User className="h-3 w-3" />
-                    ) : (
-                      <Bot className="h-3 w-3" />
-                    )}
+                {/* Message Content */}
+                {message.isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">{message.content}</span>
                   </div>
-                  
-                  {/* Message Content */}
-                  <div className="flex-1">
-                    {message.isLoading ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">{message.content}</span>
-                      </div>
-                    ) : (
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    )}
-                    
-                    {/* Timestamp */}
-                    <span className="text-xs opacity-50 mt-1 block">
-                      {message.timestamp.toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </span>
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                )}
+
+                {/* Timestamp */}
+                <span className="text-xs opacity-50 mt-1 block">
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
               </div>
             </div>
           ))}

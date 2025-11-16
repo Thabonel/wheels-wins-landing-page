@@ -1,6 +1,6 @@
 """
 Anthropic Claude Provider Implementation
-Supports Claude 3.5 Sonnet, Haiku, and Opus models with native MCP support
+Supports Claude Sonnet 4.5 with native MCP support
 Enhanced with Mapbox location intelligence for travel planning
 """
 
@@ -13,6 +13,12 @@ from .provider_interface import (
     AIProviderStatus, ProviderConfig
 )
 from .mapbox_mcp_tools import mapbox_mcp_tools
+from app.config.ai_providers import (
+    ANTHROPIC_MODEL,
+    ANTHROPIC_MAX_TOKENS,
+    ANTHROPIC_TEMPERATURE,
+    validate_model,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,15 +53,18 @@ class AnthropicProvider(AIProviderInterface):
                 AICapability.FUNCTION_CALLING  # Native MCP support
             ]
         
-        # Set default model - Latest Claude 3.5 Sonnet (never Opus for cost reasons)
+        # Set default model - Claude Sonnet 4.5 (Sept 2025 release)
         if not config.default_model:
-            config.default_model = "claude-3-5-sonnet-20241022"  # Will auto-update to latest
-        
-        # Set token limits - Claude 3.5 capabilities
-        config.max_context_window = 200000  # Claude 3.5: 200K context
-        config.max_tokens_per_request = 8192  # Claude 3.5: 8K max output
-        
-        # Set costs - Claude 3.5 Sonnet pricing
+            config.default_model = ANTHROPIC_MODEL  # claude-sonnet-4-5-20250929
+
+        # Validate model is not deprecated
+        validate_model(config.default_model, "anthropic")
+
+        # Set token limits - Claude Sonnet 4.5 capabilities
+        config.max_context_window = 200000  # Claude Sonnet 4.5: 200K context
+        config.max_tokens_per_request = ANTHROPIC_MAX_TOKENS  # 4096 max output
+
+        # Set costs - Claude Sonnet 4.5 pricing
         config.cost_per_1k_input_tokens = 0.003   # $3/M input tokens
         config.cost_per_1k_output_tokens = 0.015  # $15/M output tokens
         
@@ -116,7 +125,10 @@ class AnthropicProvider(AIProviderInterface):
             
             # Get available tools (Mapbox MCP tools)
             available_tools = mapbox_mcp_tools.get_tool_definitions()
-            
+
+            # Check if tools should be enabled (remove from kwargs to avoid passing to API)
+            enable_tools = kwargs.pop('enable_tools', True)
+
             # Prepare API call parameters
             api_params = {
                 "model": model or self.config.default_model,
@@ -126,9 +138,9 @@ class AnthropicProvider(AIProviderInterface):
                 "max_tokens": max_tokens or self.config.max_tokens_per_request,
                 **kwargs
             }
-            
+
             # Add tools if available and not explicitly disabled
-            if available_tools and kwargs.get('enable_tools', True):
+            if available_tools and enable_tools:
                 api_params["tools"] = available_tools
                 logger.debug(f"🗺️ Added {len(available_tools)} Mapbox tools to Claude")
             

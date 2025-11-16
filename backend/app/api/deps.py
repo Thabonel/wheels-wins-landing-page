@@ -639,7 +639,7 @@ async def verify_flexible_auth(
 
 
 async def get_current_user(
-    payload: Dict[str, Any] = Depends(verify_jwt_token), db: DatabaseService = Depends(get_database)
+    payload: Dict[str, Any] = Depends(verify_supabase_jwt_token), db: DatabaseService = Depends(get_database)
 ) -> CurrentUser:
     """Get current authenticated user"""
     try:

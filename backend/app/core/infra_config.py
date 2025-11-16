@@ -35,9 +35,9 @@ class InfrastructureSettings(BaseSettings):
     REDIS_PASSWORD: Optional[str] = None
 
     # External APIs
-    OPENAI_API_KEY: Optional[str] = None
-    ANTHROPIC_API_KEY: Optional[str] = None
-    GEMINI_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[SecretStr] = None
+    ANTHROPIC_API_KEY: Optional[SecretStr] = None
+    GEMINI_API_KEY: Optional[SecretStr] = None
     SUPABASE_URL: Optional[str] = "https://placeholder.supabase.co"
     SUPABASE_KEY: Optional[str] = "placeholder-anon-key"
     SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None

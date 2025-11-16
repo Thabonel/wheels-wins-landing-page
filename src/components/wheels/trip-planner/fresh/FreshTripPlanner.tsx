@@ -6,6 +6,7 @@ import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css';
 import './fresh-trip-planner.css';
 import '@/styles/mapbox-fixes.css';
 import { toast } from 'sonner';
+import { getMapboxPublicToken } from '@/utils/mapboxConfig';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
@@ -174,23 +175,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
     
-    // Check for Mapbox token - try multiple env vars for backward compatibility
-    const mainToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN_MAIN;
-    const publicToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
-    const legacyToken = import.meta.env.VITE_MAPBOX_TOKEN;
-    const token = mainToken || publicToken || legacyToken;
-    
-    // Debug logging to help diagnose environment variable issues
-    console.log('🗺️ Mapbox Token Debug:', {
-      hasMainToken: !!mainToken,
-      hasPublicToken: !!publicToken, 
-      hasLegacyToken: !!legacyToken,
-      tokenSelected: token ? `${token.substring(0, 8)}...` : 'none',
-      envVarsChecked: ['VITE_MAPBOX_PUBLIC_TOKEN_MAIN', 'VITE_MAPBOX_PUBLIC_TOKEN', 'VITE_MAPBOX_TOKEN']
-    });
-    
+    // Get Mapbox token from centralized config
+    const token = getMapboxPublicToken();
+
     if (!token) {
-      const errorMsg = 'Mapbox token not configured. Please set one of: VITE_MAPBOX_PUBLIC_TOKEN_MAIN, VITE_MAPBOX_PUBLIC_TOKEN, or VITE_MAPBOX_TOKEN in your environment variables.';
+      const errorMsg = 'Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN_MAIN or VITE_MAPBOX_PUBLIC_TOKEN (pk.*).';
       toast.error(errorMsg);
       console.error('❌ Mapbox Token Error:', errorMsg);
       return;
@@ -247,18 +236,93 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       // Add scale control
       newMap.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
 
-      // Add geolocate control only if not already created
-      if (!geolocateControlRef.current) {
-        geolocateControlRef.current = new mapboxgl.GeolocateControl({
-          positionOptions: {
-            enableHighAccuracy: true
-          },
-          trackUserLocation: true,
-          showUserHeading: true,
-          showAccuracyCircle: true // Show the accuracy circle
-        });
-        newMap.addControl(geolocateControlRef.current, 'top-right');
+      // Add geolocate control - always create fresh instance for new map
+      // (removing conditional check that prevented recreation on remount)
+      geolocateControlRef.current = new mapboxgl.GeolocateControl({
+        positionOptions: {
+          enableHighAccuracy: true
+        },
+        trackUserLocation: true,
+        showUserHeading: true,
+        showAccuracyCircle: true // Show the accuracy circle
+      });
+      newMap.addControl(geolocateControlRef.current, 'top-right');
+
+      // DIAGNOSTIC: Add error listeners to capture what's failing
+      const geolocate = geolocateControlRef.current;
+
+      console.log('🔍 GeolocateControl Diagnostics:', {
+        browserSupport: 'geolocation' in navigator,
+        isSecureContext: window.isSecureContext,
+        protocol: window.location.protocol,
+        hostname: window.location.hostname
+      });
+
+      // Check permission state (if supported) and proactively trigger prompt on first load
+      if (navigator.permissions) {
+        navigator.permissions
+          .query({ name: 'geolocation' as PermissionName })
+          .then(result => {
+            console.log('📍 Geolocation Permission State:', result.state);
+            // If user hasn't decided yet or already granted, attempt a one-time trigger to show prompt/center map
+            if (result.state === 'prompt' || result.state === 'granted') {
+              try {
+                geolocate.trigger();
+              } catch (e) {
+                console.warn('Initial geolocate trigger failed:', e);
+              }
+            } else if (result.state === 'denied') {
+              // Provide gentle guidance if denied
+              toast.info('Location is blocked in your browser for this site. Enable it to use "My Location".', { duration: 5000 });
+            }
+            // React to permission changes without reload
+            (result as any).onchange = () => {
+              console.log('📍 Geolocation Permission changed to:', result.state);
+              if (result.state === 'granted') {
+                try { geolocate.trigger(); } catch {}
+              }
+            };
+          })
+          .catch(err => {
+            console.log('📍 Permissions API not supported:', err);
+            // Try a best-effort trigger once; some browsers will prompt even without Permissions API
+            try { geolocate.trigger(); } catch {}
+          });
+      } else {
+        // No Permissions API: try a one-time trigger; browsers typically prompt on first call
+        try { geolocate.trigger(); } catch {}
       }
+
+      // Listen for errors
+      geolocate.on('error', (error: GeolocationPositionError) => {
+        console.error('🔴 GeolocateControl Error:', {
+          code: error.code,
+          message: error.message,
+          type: error.code === 1 ? 'PERMISSION_DENIED' :
+                error.code === 2 ? 'POSITION_UNAVAILABLE' :
+                error.code === 3 ? 'TIMEOUT' : 'UNKNOWN'
+        });
+      });
+
+      // Listen for successful geolocation and center map
+      geolocate.on('geolocate', (position: GeolocationPosition) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        console.log('✅ GeolocateControl Success:', { latitude, longitude, accuracy });
+        try {
+          newMap.flyTo({ center: [longitude, latitude], zoom: 13, duration: 1200 });
+        } catch (e) {
+          console.warn('Geolocate flyTo failed:', e);
+        }
+      });
+
+      // Listen for tracking events
+      geolocate.on('trackuserlocationstart', () => {
+        console.log('📍 Tracking user location started');
+      });
+
+      geolocate.on('trackuserlocationend', () => {
+        console.log('📍 Tracking user location stopped');
+      });
 
       // Add native Mapbox fullscreen control with container option
       // This ensures the entire trip planner (including toolbar) goes fullscreen
@@ -725,6 +789,34 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
   };
   
+  // Center map on user's current position (user-gesture friendly)
+  const handleUseMyLocation = () => {
+    try {
+      if (geolocateControlRef.current) {
+        geolocateControlRef.current.trigger();
+        return;
+      }
+    } catch (e) {
+      console.warn('Geolocate trigger failed; falling back to navigator.geolocation', e);
+    }
+
+    if ('geolocation' in navigator && mapRef.current) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          mapRef.current!.flyTo({ center: [longitude, latitude], zoom: 13, duration: 1200 });
+        },
+        (err) => {
+          console.error('Navigator geolocation error:', err);
+          toast.error('Unable to access your location. Please allow location permissions.');
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    } else {
+      toast.error('Geolocation not supported by this browser');
+    }
+  };
+  
   // Handle location selection from search
   const handleLocationSelect = (coordinates: [number, number], name: string) => {
     // Add waypoint at the selected location
@@ -886,6 +978,17 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         isAddingWaypoint={isAddingWaypoint}
         hasRoute={waypointManager.waypoints.length >= 2 || hasDirectionsRoute}
       />
+      
+      {/* Use My Location floating button */}
+      <div className="absolute top-32 left-4 z-[10000]">
+        <button
+          onClick={handleUseMyLocation}
+          className="bg-white text-gray-800 px-3 py-2 rounded shadow mapboxgl-ctrl mapboxgl-ctrl-group hover:bg-gray-100"
+          title="Use my location"
+        >
+          📍 My Location
+        </button>
+      </div>
       
       {/* Add waypoint indicator */}
       {isAddingWaypoint && (

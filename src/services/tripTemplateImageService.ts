@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { TripTemplate } from './tripTemplateService';
+import { getMapboxPublicToken } from '@/utils/mapboxConfig';
 
 /**
  * Service for managing trip template images in the database
@@ -107,7 +108,7 @@ export class TripTemplateImageService {
    * Generate and store a Mapbox static map URL for a template
    */
   static generateAndStoreMapboxImage(template: TripTemplate): boolean {
-    const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+    const mapboxToken = getMapboxPublicToken();
     if (!mapboxToken) {
       console.warn('No Mapbox token available for map generation');
       return false;

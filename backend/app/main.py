@@ -73,7 +73,7 @@ from app.api.v1 import (
     monitoring,
     receipts,
     pam,
-    pam_realtime,  # OpenAI Realtime session management
+    pam_realtime_hybrid,  # Hybrid: OpenAI voice + Claude reasoning
     pam_tools,  # PAM tool execution endpoints
     auth,
     subscription,
@@ -106,7 +106,7 @@ from app.api.v1 import ai_structured as ai_structured_api
 from app.api.v1 import ai_ingest as ai_ingest_api
 from app.services.ai.automation import ensure_defaults, periodic_ingest_loop
 from app.api.v1 import observability as observability_api
-from app.api import websocket, actions
+from app.api import actions
 from app.api.v1 import voice_streaming
 from app.webhooks import stripe_webhooks
 from app.api.deps import verify_supabase_jwt_token
@@ -736,8 +736,8 @@ app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
 
-# OpenAI Realtime API endpoints (direct browser connection)
-app.include_router(pam_realtime.router, prefix="/api/v1", tags=["PAM Realtime"])
+# PAM Voice Hybrid: OpenAI Realtime API (voice I/O) + Claude Sonnet 4.5 (reasoning)
+app.include_router(pam_realtime_hybrid.router, prefix="/api/v1", tags=["PAM Voice Hybrid"])
 app.include_router(pam_tools.router, prefix="/api/v1", tags=["PAM Tools"])
 
 # PAM 2.0 - Clean, modular implementation (Phase 1 setup)
@@ -775,7 +775,7 @@ except Exception as simple_error:
 # Combines Barry AI's proven simplicity with PAM's 40 action tools
 try:
     from app.api.v1 import pam_simple_with_tools
-    app.include_router(pam_simple_with_tools.router, prefix="/api/v1", tags=["PAM 2.0 Simple"])
+    app.include_router(pam_simple_with_tools.router, prefix="/api/v1/pam-simple", tags=["PAM 2.0 Simple"])
     logger.info("✅ PAM 2.0 Simple + Tools (Barry-inspired) loaded successfully")
 except Exception as pam2_error:
     logger.error(f"❌ Failed to load PAM 2.0 Simple: {pam2_error}")

@@ -18,10 +18,15 @@ from .provider_interface import (
 )
 from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
-from .gemini_provider import GeminiProvider
+# Gemini provider disabled - using OpenAI + Anthropic only
+# from .gemini_provider import GeminiProvider
 from app.core.config import get_settings
 from app.core.infra_config import get_infra_settings
 from app.services.mcp_config import mcp_config
+from app.config.ai_providers import (
+    ANTHROPIC_MODEL,
+    OPENAI_MODEL,
+)
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -72,7 +77,31 @@ class AIOrchestrator:
         self.round_robin_index = 0
         self._health_check_task = None
         self._initialized = False
-    
+
+    def _normalize_messages(self, messages: List[Any]) -> List[AIMessage]:
+        """
+        Convert dict messages to AIMessage objects if needed.
+        Handles both AIMessage objects and dict messages for compatibility.
+        """
+        normalized = []
+        for msg in messages:
+            if isinstance(msg, AIMessage):
+                # Already AIMessage, use as-is
+                normalized.append(msg)
+            elif isinstance(msg, dict):
+                # Convert dict to AIMessage
+                normalized.append(AIMessage(
+                    role=msg.get("role", "user"),
+                    content=msg.get("content", ""),
+                    name=msg.get("name"),
+                    function_call=msg.get("function_call")
+                ))
+            else:
+                # Unknown type, log warning but try to use it
+                logger.warning(f"Unknown message type {type(msg)}, attempting to use as-is")
+                normalized.append(msg)
+        return normalized
+
     async def initialize(self):
         """Initialize all configured providers"""
         if self._initialized:
@@ -83,11 +112,10 @@ class AIOrchestrator:
         logger.info(f"📋 Checking available API keys...")
 
         # Log which API keys are available (securely)
-        gemini_available = hasattr(infra_settings, 'GEMINI_API_KEY') and infra_settings.GEMINI_API_KEY
         anthropic_available = hasattr(infra_settings, 'ANTHROPIC_API_KEY') and infra_settings.ANTHROPIC_API_KEY
         openai_available = hasattr(infra_settings, 'OPENAI_API_KEY') and infra_settings.OPENAI_API_KEY
 
-        logger.info(f"🔑 API Keys availability: OpenAI={openai_available}, Anthropic={anthropic_available}, Gemini={gemini_available}")
+        logger.info(f"🔑 API Keys availability: OpenAI={openai_available}, Anthropic={anthropic_available}")
 
         # Initialize OpenAI provider FIRST (primary AI provider - reliable and feature-rich)
         if openai_available:
@@ -95,7 +123,7 @@ class AIOrchestrator:
                 openai_config = ProviderConfig(
                     name="openai",
                     api_key=infra_settings.OPENAI_API_KEY.get_secret_value(),
-                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', 'gpt-5'),
+                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', OPENAI_MODEL),
                     max_retries=3,
                     timeout_seconds=30
                 )
@@ -114,7 +142,7 @@ class AIOrchestrator:
                 anthropic_config = ProviderConfig(
                     name="anthropic",
                     api_key=infra_settings.ANTHROPIC_API_KEY.get_secret_value() if infra_settings.ANTHROPIC_API_KEY else None,
-                    default_model=getattr(infra_settings, 'ANTHROPIC_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022'),
+                    default_model=getattr(infra_settings, 'ANTHROPIC_DEFAULT_MODEL', ANTHROPIC_MODEL),
                     max_retries=3,
                     timeout_seconds=30
                 )
@@ -131,24 +159,9 @@ class AIOrchestrator:
             except Exception as e:
                 logger.error(f"Error initializing Anthropic provider: {e}")
 
-        # Initialize Gemini provider as tertiary fallback (cost-effective backup)
-        if gemini_available:
-            try:
-                gemini_config = ProviderConfig(
-                    name="gemini",
-                    api_key=infra_settings.GEMINI_API_KEY.get_secret_value() if hasattr(infra_settings.GEMINI_API_KEY, 'get_secret_value') else str(infra_settings.GEMINI_API_KEY),
-                    default_model=getattr(infra_settings, 'GEMINI_DEFAULT_MODEL', 'gemini-1.5-flash'),
-                    max_retries=3,
-                    timeout_seconds=30
-                )
-                gemini_provider = GeminiProvider(gemini_config)
-                if await gemini_provider.initialize():
-                    self.providers.append(gemini_provider)
-                    logger.info("✅ Gemini provider initialized successfully (tertiary)")
-                else:
-                    logger.error("❌ Failed to initialize Gemini provider")
-            except Exception as e:
-                logger.error(f"Error initializing Gemini provider: {e}")
+        # Gemini provider DISABLED - Using OpenAI (GPT-5.1) + Anthropic (Claude) only
+        # Simplifies provider management and avoids message formatting issues
+        logger.info("ℹ️ Gemini provider disabled - using OpenAI + Anthropic only")
         
         # Initialize metrics for each provider
         for provider in self.providers:
@@ -237,8 +250,11 @@ class AIOrchestrator:
                         provider.name
                     )
 
+                # Normalize messages (handle both dict and AIMessage objects)
+                normalized_messages = self._normalize_messages(messages)
+
                 response = await provider.complete(
-                    messages=messages,
+                    messages=normalized_messages,
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens,
@@ -316,9 +332,12 @@ class AIOrchestrator:
                 # Stream the response
                 start_time = time.time()
                 first_chunk = True
-                
+
+                # Normalize messages (handle both dict and AIMessage objects)
+                normalized_messages = self._normalize_messages(messages)
+
                 async for chunk in provider.stream(
-                    messages=messages,
+                    messages=normalized_messages,
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens,

@@ -5,6 +5,7 @@ from typing import Dict, Any
 from pydantic import BaseModel, Field, ValidationError
 from .base_tool import BaseTool
 from app.core.database import get_supabase_client, get_user_context_supabase_client
+from app.core.config import get_settings
 
 
 class _ExecuteParams(BaseModel):
@@ -47,7 +48,34 @@ class LoadUserProfileTool(BaseTool):
                 .execute()
             )
             
-            self.logger.info(f"🔍 PROFILE DEBUG: Raw profile response: {profile_response.data}")
+            # Sanitize logging: avoid dumping full profile (PII) and base64 image blobs
+            try:
+                settings = get_settings()
+            except Exception:
+                settings = None
+
+            _data = profile_response.data or {}
+            image_len = 0
+            if isinstance(_data, dict) and isinstance(_data.get('profile_image_url'), str):
+                try:
+                    image_len = len(_data.get('profile_image_url') or "")
+                except Exception:
+                    image_len = 0
+
+            profile_summary = {
+                'id': _data.get('id') or _data.get('user_id'),
+                'role': _data.get('role'),
+                'region': _data.get('region'),
+                'has_image': bool(_data.get('profile_image_url')),
+                'image_length': image_len,
+                'fields': len(_data) if isinstance(_data, dict) else 0,
+            }
+
+            # Only log summary; use debug level in non-development environments
+            if settings and getattr(settings, 'ENVIRONMENT', 'production') != 'development':
+                self.logger.debug(f"🔍 PROFILE DEBUG: Profile summary: {profile_summary}")
+            else:
+                self.logger.info(f"🔍 PROFILE DEBUG: Profile summary: {profile_summary}")
             
             # Debug vehicle-specific fields
             if profile_response.data:
@@ -72,6 +100,7 @@ class LoadUserProfileTool(BaseTool):
                 return self._create_success_response({
                     "user_id": user_id,
                     "profile_exists": False,
+                    "language": "en",  # Default language for new users
                     "travel_preferences": {},
                     "vehicle_info": {},
                     "budget_preferences": {},
@@ -86,6 +115,7 @@ class LoadUserProfileTool(BaseTool):
             enhanced_profile = {
                 "user_id": user_id,
                 "profile_exists": True,
+                "language": profile.get("language", "en"),  # User's preferred language for PAM responses
                 "personal_details": {
                     "full_name": profile.get("full_name", ""),
                     "nickname": profile.get("nickname", ""),  # Now from onboarding
@@ -178,7 +208,7 @@ class LoadUserProfileTool(BaseTool):
     
     def _extract_budget_preferences(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract and structure budget preferences"""
-        budget_prefs = profile.get("budget_preferences", {})
+        budget_prefs = profile.get("budget_preferences") or {}
         return {
             "daily_budget": budget_prefs.get("daily_budget", 100),
             "fuel_budget_monthly": budget_prefs.get("fuel_budget", 200),
@@ -191,7 +221,7 @@ class LoadUserProfileTool(BaseTool):
     
     def _extract_accessibility_needs(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract accessibility and health requirements"""
-        accessibility = profile.get("accessibility_needs", {})
+        accessibility = profile.get("accessibility_needs") or {}
         return {
             "mobility_aids": accessibility.get("mobility_aids", False),
             "wheelchair_access": accessibility.get("wheelchair_access", False),
@@ -203,7 +233,7 @@ class LoadUserProfileTool(BaseTool):
     
     def _extract_communication_preferences(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract communication and interaction preferences"""
-        comm_prefs = profile.get("communication_preferences", {})
+        comm_prefs = profile.get("communication_preferences") or {}
         return {
             "preferred_greeting": comm_prefs.get("preferred_greeting", "friendly"),
             "detail_level": comm_prefs.get("detail_level", "detailed"),  # brief, detailed, comprehensive
@@ -215,7 +245,7 @@ class LoadUserProfileTool(BaseTool):
     
     def _extract_family_details(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract family and companion information"""
-        family = profile.get("family_details", {})
+        family = profile.get("family_details") or {}
         return {
             "traveling_companions": family.get("companions", []),
             "children_ages": family.get("children_ages", []),

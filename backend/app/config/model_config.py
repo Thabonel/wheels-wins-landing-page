@@ -1,29 +1,36 @@
 """
-AI Model Configuration System - Hot-Swappable Models
+⚠️ DEPRECATION NOTICE (November 16, 2025) ⚠️
+
+This file contains deprecated model configurations.
+For CURRENT AI models, see: /backend/app/config/ai_providers.py
+
+CURRENT MODELS (November 2025):
+  - Primary: Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+  - Fallback: GPT-5.1 Instant (gpt-5.1-instant)
+
+DEPRECATED MODELS (Do Not Use):
+  - Claude 3.5 variants (claude-3-5-*)
+  - GPT-4 variants (gpt-4*, gpt-3.5-turbo)
+  - Gemini variants (gemini-* - unstable API)
+
+See /docs/VERIFIED_AI_MODELS.md for full documentation.
+
+---
+
+AI Model Configuration System - Hot-Swappable Models (LEGACY)
 Zero-downtime model switching via environment variables
 
-Usage:
-  1. Set environment variables in Render/Netlify dashboard
-  2. Models switch instantly (no code deploy needed)
-  3. Automatic fallback if primary model fails
-  4. Health monitoring with auto-failover
-
 Environment Variables:
-  PAM_PRIMARY_MODEL - Primary Claude model (default: claude-sonnet-4-5-20250929)
-  PAM_FALLBACK_MODEL_1 - First fallback (default: claude-3-5-haiku-20241022)
-  PAM_FALLBACK_MODEL_2 - Second fallback (default: gemini-1.5-flash-latest)
-  PAM_FALLBACK_MODEL_3 - Third fallback (default: gpt-4o)
+  PAM_PRIMARY_MODEL - Primary model (default: claude-sonnet-4-5-20250929)
+  PAM_FALLBACK_MODEL_1 - First fallback (default: gpt-5.1-instant)
+  PAM_FALLBACK_MODEL_2 - Second fallback (default: none - Gemini disabled)
+  PAM_FALLBACK_MODEL_3 - Third fallback (default: none)
 
 Example .env:
   PAM_PRIMARY_MODEL=claude-sonnet-4-5-20250929
-  PAM_FALLBACK_MODEL_1=claude-3-5-haiku-20241022
-  PAM_FALLBACK_MODEL_2=gemini-1.5-flash-latest
+  PAM_FALLBACK_MODEL_1=gpt-5.1-instant
 
-To switch models instantly (no downtime):
-  1. Update env var in Render dashboard
-  2. Model switches on next request (no restart needed)
-
-Date: October 16, 2025
+Date: November 16, 2025 (Updated)
 """
 
 import os
@@ -133,6 +140,28 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
     ),
 
     # OpenAI Models
+    "gpt-5.1-instant": ModelConfig(
+        name="GPT-5.1 Instant",
+        provider="openai",
+        model_id="gpt-5.1-instant",
+        cost_per_1m_input=1.25,  # Estimated based on GPT-5 pricing
+        cost_per_1m_output=10.0,
+        max_tokens=200000,  # Estimated, verify with OpenAI docs
+        supports_tools=True,
+        supports_streaming=True,
+        description="Latest OpenAI model (Nov 13, 2025) - 2-5x faster, more conversational"
+    ),
+    "gpt-5.1-thinking": ModelConfig(
+        name="GPT-5.1 Thinking",
+        provider="openai",
+        model_id="gpt-5.1-thinking",
+        cost_per_1m_input=1.25,  # Estimated - may include reasoning token costs
+        cost_per_1m_output=10.0,
+        max_tokens=200000,
+        supports_tools=True,
+        supports_streaming=True,
+        description="GPT-5.1 with adaptive reasoning (dynamic thinking time)"
+    ),
     "gpt-4o": ModelConfig(
         name="GPT-4o",
         provider="openai",
@@ -182,12 +211,11 @@ class ModelConfigManager:
             "claude-sonnet-4-5-20250929"
         )
 
-        # Fallback chain (default: Haiku 3.5 -> Gemini -> GPT-4o)
-        self.fallback_chain = [
-            os.getenv("PAM_FALLBACK_MODEL_1", "claude-3-5-haiku-20241022"),
-            os.getenv("PAM_FALLBACK_MODEL_2", "gemini-1.5-flash-latest"),
-            os.getenv("PAM_FALLBACK_MODEL_3", "gpt-4o"),
-        ]
+        # Fallback chain (default: GPT-5.1 Instant only)
+        # ⚠️ DEPRECATED: Use /backend/app/config/ai_providers.py instead
+        # Gemini disabled (unstable API), GPT-4 deprecated
+        fallback_1 = os.getenv("PAM_FALLBACK_MODEL_1", "gpt-5.1-instant")
+        self.fallback_chain = [fallback_1] if fallback_1 else []
 
         # Remove empty strings and duplicates
         self.fallback_chain = [
@@ -329,3 +357,154 @@ def reload_model_config():
         _model_config.reload_config()
     else:
         _model_config = ModelConfigManager()
+
+
+# ============================================================================
+# VOICE MODELS EXTENSION (Added: November 2025)
+# Safe extension - doesn't change existing behavior
+# Feature flag: ENABLE_VOICE_MODEL_CONFIG (default: False)
+# ============================================================================
+
+@dataclass
+class VoiceModelConfig:
+    """
+    Configuration for OpenAI Realtime API voice models
+
+    ARCHITECTURE:
+    - OpenAI Realtime API is speech-to-speech (NOT separate STT/TTS)
+    - Whisper-1 is embedded in Realtime API (not configurable)
+    - Browser Web Speech API only used for wake word detection
+
+    What CAN be configured:
+    - Model ID (changes monthly, e.g., gpt-4o-realtime-preview-2024-12-17)
+    - Voice preference (alloy, echo, fable, onyx, nova, shimmer, marin, cedar)
+    """
+    name: str
+    provider: Literal["openai"]
+    model_id: str
+    voices: List[str]
+    cost_per_minute: float
+    description: str
+    version_note: Optional[str] = None
+
+
+# Voice model registry - OpenAI Realtime API configurations
+VOICE_MODEL_REGISTRY: Dict[str, VoiceModelConfig] = {
+    "gpt-4o-realtime-2024-12": VoiceModelConfig(
+        name="GPT-4o Realtime (Dec 2024)",
+        provider="openai",
+        model_id="gpt-4o-realtime-preview-2024-12-17",
+        voices=["alloy", "echo", "fable", "onyx", "nova", "shimmer", "marin", "cedar"],
+        cost_per_minute=0.24,
+        description="OpenAI Realtime API - speech-to-speech with function calling",
+        version_note="⚠️ Current production model (Dec 2024)"
+    ),
+    "gpt-4o-realtime-latest": VoiceModelConfig(
+        name="GPT-4o Realtime (Latest)",
+        provider="openai",
+        model_id=os.getenv("OPENAI_REALTIME_MODEL", "gpt-4o-realtime-preview-2024-12-17"),
+        voices=["alloy", "echo", "fable", "onyx", "nova", "shimmer", "marin", "cedar"],
+        cost_per_minute=0.24,
+        description="OpenAI Realtime API - uses OPENAI_REALTIME_MODEL env var",
+        version_note="⚠️ Model ID changes monthly! Set via OPENAI_REALTIME_MODEL env var"
+    ),
+}
+
+
+class VoiceModelConfigManager:
+    """
+    Manages OpenAI Realtime API configuration with hot-swapping
+
+    ACTUAL ARCHITECTURE:
+    - OpenAI Realtime API handles EVERYTHING (speech-to-speech)
+    - Whisper-1 is embedded (not configurable separately)
+    - Only model ID and voice preference can be changed
+
+    Features:
+    - Zero-downtime model version switching
+    - Voice preference hot-swap
+    - Environment variable control
+
+    BACKWARD COMPATIBLE: Only used if ENABLE_VOICE_MODEL_CONFIG=true
+    """
+
+    def __init__(self):
+        self.enabled = os.getenv("ENABLE_VOICE_MODEL_CONFIG", "false").lower() == "true"
+
+        if not self.enabled:
+            logger.info("Voice model config disabled (ENABLE_VOICE_MODEL_CONFIG=false)")
+            # Set defaults even when disabled
+            self.model_id = "gpt-4o-realtime-preview-2024-12-17"
+            self.voice = "marin"
+            return
+
+        self._load_config()
+
+    def _load_config(self):
+        """Load OpenAI Realtime API configuration from environment"""
+        # Model selection (use latest or specific version)
+        model_key = os.getenv("OPENAI_REALTIME_CONFIG", "gpt-4o-realtime-latest")
+
+        if model_key in VOICE_MODEL_REGISTRY:
+            config = VOICE_MODEL_REGISTRY[model_key]
+            self.model_id = config.model_id
+        else:
+            # Fallback to default
+            self.model_id = os.getenv("OPENAI_REALTIME_MODEL", "gpt-4o-realtime-preview-2024-12-17")
+
+        # Voice preference (alloy, echo, fable, onyx, nova, shimmer, marin, cedar)
+        self.voice = os.getenv("OPENAI_VOICE", "marin")
+
+        logger.info(f"Voice Config Loaded: Model={self.model_id}, Voice={self.voice}")
+
+    def get_realtime_model(self) -> VoiceModelConfig:
+        """Get OpenAI Realtime API model configuration"""
+        if not self.enabled:
+            # Return default config when disabled
+            return VOICE_MODEL_REGISTRY["gpt-4o-realtime-2024-12"]
+
+        # Find config matching current model_id
+        for config in VOICE_MODEL_REGISTRY.values():
+            if config.model_id == self.model_id:
+                return config
+
+        # Fallback to latest
+        return VOICE_MODEL_REGISTRY["gpt-4o-realtime-latest"]
+
+    def get_model_id(self) -> str:
+        """Get current OpenAI Realtime model ID"""
+        return self.model_id
+
+    def get_voice(self) -> str:
+        """Get OpenAI Realtime voice preference"""
+        return self.voice
+
+    def get_available_voices(self) -> List[str]:
+        """Get list of available voice options"""
+        config = self.get_realtime_model()
+        return config.voices
+
+    def reload_config(self):
+        """Reload voice configuration (hot-swap without restart)"""
+        if not self.enabled:
+            return
+
+        logger.info("Reloading OpenAI Realtime API configuration...")
+        self._load_config()
+
+
+# Global singleton for voice models
+_voice_model_config: Optional[VoiceModelConfigManager] = None
+
+
+def get_voice_model_config() -> VoiceModelConfigManager:
+    """Get or create voice model configuration manager"""
+    global _voice_model_config
+    if _voice_model_config is None:
+        _voice_model_config = VoiceModelConfigManager()
+    return _voice_model_config
+
+
+def is_voice_config_enabled() -> bool:
+    """Check if voice model config is enabled"""
+    return os.getenv("ENABLE_VOICE_MODEL_CONFIG", "false").lower() == "true"

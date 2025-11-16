@@ -17,7 +17,7 @@ import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
 import { audioManager } from "@/utils/audioManager";
-import { OpenAIRealtimeService } from "@/services/openaiRealtimeService";
+import { PAMVoiceHybridService, createVoiceService } from "@/services/pamVoiceHybridService";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
@@ -71,15 +71,15 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [inputMessage, setInputMessage] = useState("");
   const [shouldAutoSend, setShouldAutoSend] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [conversationMode, setConversationMode] = useState<'voice' | 'text'>('text'); // Track if user wants voice responses
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "processing" | "error">("idle");
   const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [messages, setMessages] = useState<PamMessage[]>([]);
   // Claude WebSocket PAM REMOVED - OpenAI Realtime only
   // const { status: pamStatus, isReady, sendMessage: sendPamMessage } = usePamConnection();
-  const connectionStatus: "Connected" | "Connecting" | "Disconnected" = isContinuousMode
-    ? "Connected"
-    : "Disconnected";
+  const connectionStatus: "Connected" | "Connecting" | "Disconnected" =
+    (!!user && !!session?.access_token) ? "Connected" : "Disconnected";
   const [userContext, setUserContext] = useState<any>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
@@ -90,7 +90,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [voiceActivationMode, setVoiceActivationMode] = useState<'manual' | 'auto' | 'command'>('manual');
-  const [realtimeService, setRealtimeService] = useState<OpenAIRealtimeService | null>(null);
+  const [realtimeService, setRealtimeService] = useState<PAMVoiceHybridService | null>(null);
   const ttsQueueRef = useRef<TTSQueueManager | null>(null);
   const { startTracking, stopTracking, getCurrentLocation, ...locationState } = useLocationTracking();
   const [audioLevel, setAudioLevel] = useState(0);
@@ -227,12 +227,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   // On first ready connection, show greeting once
   useEffect(() => {
     if (!pamEnabled) return;
+    const isReady = !!user && !!session?.access_token;
     if (isReady && messages.length === 0 && !hasShownWelcomeRef.current) {
       logger.debug('💬 PAM: Adding greeting message on first ready connection');
       addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
       hasShownWelcomeRef.current = true;
     }
-  }, [isReady, messages.length]);
+  }, [user, session?.access_token, messages.length]);
 
   // Update location context when tracking state changes
   useEffect(() => {
@@ -412,8 +413,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         try {
           const parsed = JSON.parse(savedState);
           if (parsed.messages && Array.isArray(parsed.messages)) {
-            setMessages(parsed.messages);
-            logger.debug('📚 PAM: Restored conversation from localStorage:', parsed.messages.length, 'messages');
+            // Filter duplicate greetings - keep only the first one
+            const greetingText = "🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?";
+            const filtered = parsed.messages.filter((msg, index) =>
+              msg.text !== greetingText || parsed.messages.findIndex(m => m.text === greetingText) === index
+            );
+            setMessages(filtered);
+            logger.debug('📚 PAM: Restored conversation from localStorage:', filtered.length, 'messages (duplicates filtered)');
             
             // Restore session ID if available
             if (parsed.sessionId) {
@@ -516,31 +522,74 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         return;
       }
 
-      logger.debug('🎙️ Starting OpenAI Realtime voice mode');
+      logger.debug('🎙️ Starting PAM Hybrid voice mode');
+
+      // Update UI state IMMEDIATELY for instant visual feedback
+      setIsContinuousMode(true);
+      setConversationMode('voice'); // Enable voice responses when voice mode starts
 
       // Get API base URL from environment
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
 
-      // Create OpenAI Realtime service with direct connection
-      const service = new OpenAIRealtimeService(
-        user.id,
-        session.access_token,
-        apiBaseUrl
-      );
+      // Get JWT token from Supabase session
+      const authToken = session.access_token;
 
-      // Connect to OpenAI (gets session token, opens WebSocket)
-      await service.connect();
+      // Prepare user context for PAM
+      const userLanguage = settings?.display_preferences?.language || 'en';
+      const userLocation = settings?.location_preferences?.default_location || locationState.currentLocation;
 
-      // Start voice mode (microphone → OpenAI)
-      await service.startVoiceMode();
+      // Create PAM Hybrid Voice service (OpenAI voice + Claude reasoning)
+      const service = createVoiceService({
+        userId: user.id,
+        apiBaseUrl,
+        authToken,
+        voice: 'marin', // Natural expressive voice
+        language: userLanguage, // User's preferred language
+        location: userLocation ? {
+          lat: userLocation.latitude || 0,
+          lng: userLocation.longitude || 0,
+          city: userLocation.city,
+          region: userLocation.state
+        } : undefined,
+        currentPage: 'pam_chat',
+        onTranscript: (text) => {
+          // Add user's transcribed speech as a message
+          const newMessage: PamMessage = {
+            id: Date.now().toString(),
+            content: text,
+            sender: "user",
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, newMessage]);
+        },
+        onResponse: (text) => {
+          // Add PAM's response as a message
+          const newMessage: PamMessage = {
+            id: Date.now().toString(),
+            content: text,
+            sender: "pam",
+            timestamp: new Date().toISOString(),
+            shouldSpeak: true,
+          };
+          setMessages((prev) => [...prev, newMessage]);
+        },
+        onStatusChange: (status) => {
+          setIsSpeaking(status.isSpeaking);
+          setIsListening(status.isListening);
+        }
+      });
+
+      // Start voice session (microphone → OpenAI → Claude → response)
+      await service.start();
 
       setRealtimeService(service);
-      setIsContinuousMode(true);
 
-      logger.info('✅ PAM voice mode active (ChatGPT quality, zero latency!)');
+      logger.info('✅ PAM voice mode active (OpenAI voice + Claude reasoning!)');
 
     } catch (error) {
       logger.error('❌ Failed to start voice mode:', error);
+      // Revert UI state on error
+      setIsContinuousMode(false);
       alert(`Failed to start voice mode: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
@@ -548,13 +597,18 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const stopContinuousVoiceMode = async () => {
     logger.debug('🔇 Stopping continuous voice mode');
 
-    // Stop OpenAI Realtime service
+    // Update UI state IMMEDIATELY for instant visual feedback
+    setIsContinuousMode(false);
+    setConversationMode('text'); // Disable voice responses when voice mode stops
+    setIsListening(false);
+    setIsSpeaking(false);
+
+    // Then stop PAM Hybrid Voice service (async - won't block UI)
     if (realtimeService) {
-      realtimeService.stopVoiceMode();
+      await realtimeService.stop();
       setRealtimeService(null);
     }
 
-    setIsContinuousMode(false);
     logger.debug('✅ Continuous voice mode stopped');
   };
 
@@ -817,9 +871,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       // SIMPLE REST API CHAT (production-ready)
       logger.info('💬 Sending message via simple REST API');
 
-      // Call simple chat endpoint
+      // Call production PAM chat endpoint
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
-      const response = await fetch(`${apiBaseUrl}/api/v1/pam-simple/chat`, {
+      const response = await fetch(`${apiBaseUrl}/api/v1/pam/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -831,6 +885,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           context: {
             region: userContext?.region,
             current_page: 'pam_chat',
+            conversation_mode: conversationMode, // "voice" or "text" - controls TTS
             location: locationObj || undefined,
             userLocation: locationObj || undefined,
             conversation_history: conversationHistory.slice(-3)
@@ -859,8 +914,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         window.dispatchEvent(new CustomEvent('reload-calendar'));
       }
 
-      // Text-to-speech if enabled
-      if (settings?.pam_preferences?.voice_enabled) {
+      // Text-to-speech only in voice conversation mode (not for typed messages)
+      if (conversationMode === 'voice') {
         await speakText(responseContent);
       }
 
@@ -1071,6 +1126,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               onChange={(e) => {
                 console.log('🔍 DEBUG: Input changed from', inputMessage, 'to', e.target.value);
                 setInputMessage(e.target.value);
+                // When user types manually, switch to text mode (no voice output)
+                if (!isContinuousMode && conversationMode !== 'text') {
+                  setConversationMode('text');
+                }
               }}
               onKeyPress={handleKeyPress}
               placeholder="Ask PAM anything..."
@@ -1106,17 +1165,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       {/* Floating PAM Bubble */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-3 shadow-lg transition-all z-50"
+        className="fixed bottom-6 right-6 bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-lg transition-all z-50"
         aria-label="Open PAM Chat"
       >
           <div className="relative">
-            <img
-              src={getPublicAssetUrl('Pam.webp')}
-              alt="PAM Assistant"
-              className="w-8 h-8 rounded-full"
-            />
+            <img src={getPublicAssetUrl('Pam.webp')} alt="PAM" className="w-8 h-8 rounded-full object-cover" />
           <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
-            connectionStatus === "Connected" ? "bg-green-500" : 
+            connectionStatus === "Connected" ? "bg-green-500" :
             connectionStatus === "Connecting" ? "bg-yellow-500" : "bg-red-500"
           }`} />
         </div>
@@ -1128,11 +1183,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b bg-primary/5 rounded-t-lg">
             <div className="flex items-center space-x-3">
-              <img
-                src={getPublicAssetUrl('Pam.webp')}
-                alt="PAM"
-                className="w-8 h-8 rounded-full"
-              />
+              <img src={getPublicAssetUrl('Pam.webp')} alt="PAM" className="w-10 h-10 rounded-full object-cover" />
               <div>
                 <h3 className="font-semibold text-gray-800">PAM</h3>
                 <div className="text-xs text-gray-500 space-y-0.5">
@@ -1280,7 +1331,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 ref={inputRef}
                 type="text"
                 value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
+                onChange={(e) => {
+                  setInputMessage(e.target.value);
+                  // When user types manually, switch to text mode (no voice output)
+                  if (!isContinuousMode && conversationMode !== 'text') {
+                    setConversationMode('text');
+                  }
+                }}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask PAM anything..."
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
