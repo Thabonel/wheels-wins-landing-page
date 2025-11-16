@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import mapboxgl from 'mapbox-gl';
+import { guardedJson } from '@/utils/mapboxGuard';
 
 interface FreshGeocodeSearchProps {
   isOpen: boolean;
@@ -63,15 +64,15 @@ export default function FreshGeocodeSearch({
     setIsSearching(true);
     
     try {
-      const response = await fetch(
+      const data = await guardedJson(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
         `access_token=${mapboxgl.accessToken}&` +
         `country=AU,NZ,US,CA,GB&` + // Focus on common countries
         `types=place,locality,address,poi&` +
-        `limit=5`
+        `limit=5`,
+        undefined,
+        'geocoding'
       );
-      
-      const data = await response.json();
       setSearchResults(data.features || []);
     } catch (error) {
       console.error('Geocoding error:', error);
