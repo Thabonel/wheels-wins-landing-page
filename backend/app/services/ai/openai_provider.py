@@ -89,7 +89,7 @@ class OpenAIProvider(AIProviderInterface):
         start_time = time.time()
         
         try:
-            # Convert messages to OpenAI format
+            # Convert messages to OpenAI Chat Completions format (fallback)
             openai_messages = []
             system_message = None
             
@@ -105,6 +105,63 @@ class OpenAIProvider(AIProviderInterface):
             
             # Make the API call with GPT-5 fallback
             actual_model = self._get_model_with_fallback(model)
+            # Use Responses API for GPT-5 family (requires max_completion_tokens)
+            if "gpt-5" in actual_model:
+                # Build a simple text input for Responses API
+                # Concatenate roles and content to preserve context
+                parts: List[str] = []
+                for m in openai_messages:
+                    role = m.get("role", "user")
+                    content = m.get("content", "")
+                    parts.append(f"{role.upper()}: {content}")
+                input_text = "\n".join(parts)
+
+                resp = await self.client.responses.create(
+                    model=actual_model,
+                    input=input_text,
+                    temperature=temperature,
+                    max_completion_tokens=max_tokens or self.config.max_tokens_per_request,
+                    **kwargs
+                )
+
+                # Extract text and usage
+                content_text = getattr(resp, "output_text", None)
+                if not content_text:
+                    # Fallback: assemble from output blocks
+                    try:
+                        blocks = getattr(resp, "output", []) or []
+                        texts: List[str] = []
+                        for b in blocks:
+                            for c in getattr(b, "content", []) or []:
+                                t = getattr(c, "text", None) or getattr(c, "value", None)
+                                if t:
+                                    texts.append(str(t))
+                        content_text = "".join(texts)
+                    except Exception:
+                        content_text = ""
+
+                usage_obj = getattr(resp, "usage", None)
+                input_tokens = getattr(usage_obj, "input_tokens", None) or getattr(usage_obj, "prompt_tokens", 0) if usage_obj else 0
+                output_tokens = getattr(usage_obj, "output_tokens", None) or getattr(usage_obj, "completion_tokens", 0) if usage_obj else 0
+
+                latency_ms = (time.time() - start_time) * 1000
+                self.record_success(latency_ms)
+
+                return AIResponse(
+                    content=content_text,
+                    model=actual_model,
+                    provider="openai",
+                    usage={
+                        "prompt_tokens": input_tokens,
+                        "completion_tokens": output_tokens,
+                        "total_tokens": (input_tokens or 0) + (output_tokens or 0)
+                    },
+                    latency_ms=latency_ms,
+                    finish_reason="stop",
+                    function_calls=None
+                )
+
+            # Otherwise use Chat Completions API (max_tokens valid)
             response = await self.client.chat.completions.create(
                 model=actual_model,
                 messages=openai_messages,
