@@ -27,6 +27,7 @@ from app.services.database import DatabaseService
 from app.core.exceptions import PAMError, ErrorCode
 from app.services.pam.tools.tool_registry import get_tool_registry
 from app.services.pam.tools.tool_capabilities import ToolCapability
+from app.services.cache import cache_service
 
 logger = get_logger(__name__)
 
@@ -159,11 +160,35 @@ class ClaudeAIService:
             )
         return self.client
 
-    def _build_system_prompt(self, user_context: Optional[Dict] = None) -> str:
-        """Build enhanced system prompt with location awareness"""
+    async def _build_system_prompt(self, user_id: Optional[str] = None, user_context: Optional[Dict] = None) -> str:
+        """Build enhanced system prompt with location awareness and cached user context from Redis"""
         from app.services.pam.prompts.enhanced_pam_prompt import ENHANCED_PAM_SYSTEM_PROMPT
 
         base_prompt = ENHANCED_PAM_SYSTEM_PROMPT
+
+        # Read cached user context from Redis if user_id is provided
+        cached_context_section = ""
+        if user_id:
+            try:
+                cache_key = f"comprehensive_user_context:{user_id}"
+                cached_context = await cache_service.get(cache_key)
+
+                if cached_context:
+                    logger.info(f"✅ Injecting cached user context from Redis for user {user_id}")
+                    # Format cached context as concise summary
+                    cached_context_section = f"""
+
+📦 CACHED USER CONTEXT (from Redis, may be partial/outdated):
+{json.dumps(cached_context, indent=2, cls=DateTimeEncoder)}
+
+Use this cached context to provide personalized responses based on the user's history, preferences, and data.
+If the user asks about recent activity, budgets, trips, or personal information, reference this cached data.
+Note: This context may not include the very latest changes - use tools if you need fresh data.
+"""
+                else:
+                    logger.debug(f"No cached context found in Redis for user {user_id}")
+            except Exception as e:
+                logger.warning(f"Failed to load cached context from Redis: {e}")
 
         # Add location context if available
         location_context = ""
@@ -204,7 +229,7 @@ You have full internet access and can search for current information including:
 Always use current, real-time information when available.
 """
 
-        return base_prompt + location_context + time_context + search_context
+        return base_prompt + cached_context_section + location_context + time_context + search_context
 
     async def chat_completion(
         self,
@@ -221,8 +246,8 @@ Always use current, real-time information when available.
         client = await self._get_client()
 
         try:
-            # Build system message with enhanced context
-            system_prompt = self._build_system_prompt(user_context)
+            # Build system message with enhanced context (includes cached Redis context)
+            system_prompt = await self._build_system_prompt(user_id, user_context)
 
             # Prepare messages for Claude API (excludes system message from messages array)
             claude_messages = []
