@@ -1,6 +1,6 @@
 """
 OpenAI Provider Implementation
-Supports GPT-4, GPT-3.5, and other OpenAI models
+Supports GPT-5.1 Instant and GPT-5.1 Thinking models
 """
 
 import time
@@ -11,6 +11,13 @@ import logging
 from .provider_interface import (
     AIProviderInterface, AIMessage, AIResponse, AICapability,
     AIProviderStatus, ProviderConfig
+)
+from app.config.ai_providers import (
+    OPENAI_MODEL,
+    OPENAI_MAX_COMPLETION_TOKENS,
+    OPENAI_TEMPERATURE,
+    OPENAI_THINKING_MODEL,
+    validate_model,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,15 +38,18 @@ class OpenAIProvider(AIProviderInterface):
                 AICapability.AUDIO
             ]
         
-        # Set default models - GPT-5 Enhanced
+        # Set default model - GPT-5.1 Instant (Nov 2025 release)
         if not config.default_model:
-            config.default_model = "gpt-5"  # Try GPT-5 first, fallback handled in complete()
-        
-        # Set token limits - GPT-5 capabilities
-        config.max_context_window = 256000  # GPT-5: 256K context
-        config.max_tokens_per_request = 128000  # GPT-5: 128K output
-        
-        # Set costs - GPT-5 pricing
+            config.default_model = OPENAI_MODEL  # gpt-5.1-instant
+
+        # Validate model is not deprecated
+        validate_model(config.default_model, "openai")
+
+        # Set token limits - GPT-5.1 capabilities
+        config.max_context_window = 256000  # GPT-5.1: 256K context
+        config.max_tokens_per_request = OPENAI_MAX_COMPLETION_TOKENS  # 4096 output
+
+        # Set costs - GPT-5.1 Instant pricing
         config.cost_per_1k_input_tokens = 0.00125  # $1.25/M tokens
         config.cost_per_1k_output_tokens = 0.01    # $10/M tokens
         
@@ -103,72 +113,27 @@ class OpenAIProvider(AIProviderInterface):
             if system_message:
                 openai_messages.insert(0, {"role": "system", "content": system_message})
             
-            # Make the API call with GPT-5 fallback
-            actual_model = self._get_model_with_fallback(model)
-            # Use Responses API for GPT-5 family (requires max_completion_tokens)
-            if "gpt-5" in actual_model:
-                # Build a simple text input for Responses API
-                # Concatenate roles and content to preserve context
-                parts: List[str] = []
-                for m in openai_messages:
-                    role = m.get("role", "user")
-                    content = m.get("content", "")
-                    parts.append(f"{role.upper()}: {content}")
-                input_text = "\n".join(parts)
+            # Use Chat Completions API for all models (GPT-5.1 uses max_completion_tokens)
+            actual_model = model or self.config.default_model
 
-                resp = await self.client.responses.create(
+            # For GPT-5.1 models, use max_completion_tokens parameter
+            if "gpt-5" in actual_model:
+                response = await self.client.chat.completions.create(
                     model=actual_model,
-                    input=input_text,
+                    messages=openai_messages,
+                    temperature=temperature,
+                    max_completion_tokens=max_tokens or self.config.max_tokens_per_request,
+                    **kwargs
+                )
+            else:
+                # For older models (if any), use max_tokens
+                response = await self.client.chat.completions.create(
+                    model=actual_model,
+                    messages=openai_messages,
                     temperature=temperature,
                     max_tokens=max_tokens or self.config.max_tokens_per_request,
                     **kwargs
                 )
-
-                # Extract text and usage
-                content_text = getattr(resp, "output_text", None)
-                if not content_text:
-                    # Fallback: assemble from output blocks
-                    try:
-                        blocks = getattr(resp, "output", []) or []
-                        texts: List[str] = []
-                        for b in blocks:
-                            for c in getattr(b, "content", []) or []:
-                                t = getattr(c, "text", None) or getattr(c, "value", None)
-                                if t:
-                                    texts.append(str(t))
-                        content_text = "".join(texts)
-                    except Exception:
-                        content_text = ""
-
-                usage_obj = getattr(resp, "usage", None)
-                input_tokens = getattr(usage_obj, "input_tokens", None) or getattr(usage_obj, "prompt_tokens", 0) if usage_obj else 0
-                output_tokens = getattr(usage_obj, "output_tokens", None) or getattr(usage_obj, "completion_tokens", 0) if usage_obj else 0
-
-                latency_ms = (time.time() - start_time) * 1000
-                self.record_success(latency_ms)
-
-                return AIResponse(
-                    content=content_text,
-                    model=actual_model,
-                    provider="openai",
-                    usage={
-                        "prompt_tokens": input_tokens,
-                        "completion_tokens": output_tokens,
-                        "total_tokens": (input_tokens or 0) + (output_tokens or 0)
-                    },
-                    latency_ms=latency_ms,
-                    finish_reason="stop",
-                    function_calls=None
-                )
-
-            # Otherwise use Chat Completions API (max_tokens valid)
-            response = await self.client.chat.completions.create(
-                model=actual_model,
-                messages=openai_messages,
-                temperature=temperature,
-                max_tokens=max_tokens or self.config.max_tokens_per_request,
-                **kwargs
-            )
             
             # Calculate latency
             latency_ms = (time.time() - start_time) * 1000

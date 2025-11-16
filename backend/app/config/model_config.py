@@ -1,29 +1,36 @@
 """
-AI Model Configuration System - Hot-Swappable Models
+⚠️ DEPRECATION NOTICE (November 16, 2025) ⚠️
+
+This file contains deprecated model configurations.
+For CURRENT AI models, see: /backend/app/config/ai_providers.py
+
+CURRENT MODELS (November 2025):
+  - Primary: Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
+  - Fallback: GPT-5.1 Instant (gpt-5.1-instant)
+
+DEPRECATED MODELS (Do Not Use):
+  - Claude 3.5 variants (claude-3-5-*)
+  - GPT-4 variants (gpt-4*, gpt-3.5-turbo)
+  - Gemini variants (gemini-* - unstable API)
+
+See /docs/VERIFIED_AI_MODELS.md for full documentation.
+
+---
+
+AI Model Configuration System - Hot-Swappable Models (LEGACY)
 Zero-downtime model switching via environment variables
 
-Usage:
-  1. Set environment variables in Render/Netlify dashboard
-  2. Models switch instantly (no code deploy needed)
-  3. Automatic fallback if primary model fails
-  4. Health monitoring with auto-failover
-
 Environment Variables:
-  PAM_PRIMARY_MODEL - Primary Claude model (default: claude-sonnet-4-5-20250929)
-  PAM_FALLBACK_MODEL_1 - First fallback (default: claude-3-5-haiku-20241022)
-  PAM_FALLBACK_MODEL_2 - Second fallback (default: gemini-1.5-flash-latest)
-  PAM_FALLBACK_MODEL_3 - Third fallback (default: gpt-4o)
+  PAM_PRIMARY_MODEL - Primary model (default: claude-sonnet-4-5-20250929)
+  PAM_FALLBACK_MODEL_1 - First fallback (default: gpt-5.1-instant)
+  PAM_FALLBACK_MODEL_2 - Second fallback (default: none - Gemini disabled)
+  PAM_FALLBACK_MODEL_3 - Third fallback (default: none)
 
 Example .env:
   PAM_PRIMARY_MODEL=claude-sonnet-4-5-20250929
-  PAM_FALLBACK_MODEL_1=claude-3-5-haiku-20241022
-  PAM_FALLBACK_MODEL_2=gemini-1.5-flash-latest
+  PAM_FALLBACK_MODEL_1=gpt-5.1-instant
 
-To switch models instantly (no downtime):
-  1. Update env var in Render dashboard
-  2. Model switches on next request (no restart needed)
-
-Date: October 16, 2025
+Date: November 16, 2025 (Updated)
 """
 
 import os
@@ -204,12 +211,11 @@ class ModelConfigManager:
             "claude-sonnet-4-5-20250929"
         )
 
-        # Fallback chain (default: Haiku 3.5 -> Gemini -> GPT-4o)
-        self.fallback_chain = [
-            os.getenv("PAM_FALLBACK_MODEL_1", "claude-3-5-haiku-20241022"),
-            os.getenv("PAM_FALLBACK_MODEL_2", "gemini-1.5-flash-latest"),
-            os.getenv("PAM_FALLBACK_MODEL_3", "gpt-4o"),
-        ]
+        # Fallback chain (default: GPT-5.1 Instant only)
+        # ⚠️ DEPRECATED: Use /backend/app/config/ai_providers.py instead
+        # Gemini disabled (unstable API), GPT-4 deprecated
+        fallback_1 = os.getenv("PAM_FALLBACK_MODEL_1", "gpt-5.1-instant")
+        self.fallback_chain = [fallback_1] if fallback_1 else []
 
         # Remove empty strings and duplicates
         self.fallback_chain = [

@@ -62,10 +62,17 @@
 
 ## Architecture: Simple Stack
 
-### ONE AI Brain
-- **Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
-- **Flow:** User → PAM → Claude → Response
-- **No routing, no multi-model, no agents**
+### Primary AI Brain
+- **Primary Model:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
+  - Released: September 2025
+  - Best for: Advanced coding, agentic tasks, tool usage
+  - Cost: $3/1M input + $15/1M output tokens
+- **Fallback Model:** GPT-5.1 Instant (`gpt-5.1-instant`)
+  - Released: November 2025
+  - Best for: Fast responses, everyday conversations
+  - Cost: $1.25/1M input + $10/1M output tokens
+- **Flow:** User → PAM → Claude (or GPT-5.1 fallback) → Response
+- **Simple Architecture:** No complex routing, no agents, just provider fallback
 
 ### Backend
 - Python 3.11+ with FastAPI
