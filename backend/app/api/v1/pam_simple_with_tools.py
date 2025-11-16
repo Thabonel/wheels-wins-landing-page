@@ -57,6 +57,9 @@ import json
 import os
 
 from anthropic import AsyncAnthropic
+from app.services.ai.anthropic_provider import AnthropicProvider
+from app.services.ai.provider_interface import ProviderConfig, AIMessage, AIProviderStatus
+from app.config.ai_providers import ANTHROPIC_MODEL, ANTHROPIC_MAX_TOKENS
 from app.services.pam.tools.budget import (
     create_expense, analyze_budget, track_savings, update_budget,
     get_spending_summary, compare_vs_budget, predict_end_of_month,
@@ -77,12 +80,24 @@ ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC-WHEELS-KE
 if not ANTHROPIC_KEY:
     raise ValueError("Missing ANTHROPIC_API_KEY or ANTHROPIC-WHEELS-KEY")
 
-anthropic_client = AsyncAnthropic(api_key=ANTHROPIC_KEY)
+# Feature flag: Use fixed AnthropicProvider (recommended) vs raw client
+USE_FIXED_PROVIDER = os.getenv("PAM_USE_FIXED_PROVIDER", "true").lower() == "true"
+
+if USE_FIXED_PROVIDER:
+    logger.info("✅ Using fixed AnthropicProvider with all bug fixes")
+    anthropic_provider = AnthropicProvider(ProviderConfig(
+        api_key=ANTHROPIC_KEY,
+        default_model=ANTHROPIC_MODEL
+    ))
+    # Initialize will be called async on first use
+else:
+    logger.info("⚠️  Using raw AsyncAnthropic client (legacy mode)")
+    anthropic_client = AsyncAnthropic(api_key=ANTHROPIC_KEY)
 
 # Constants (from Barry's proven config)
-CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+CLAUDE_MODEL = ANTHROPIC_MODEL  # Use centralized config
 CLAUDE_TIMEOUT_SECONDS = 25  # Allow time for Claude thinking + tool execution (frontend timeout is 30s)
-MAX_TOKENS = 1024
+MAX_TOKENS = ANTHROPIC_MAX_TOKENS  # Use centralized config (4096)
 MAX_CONVERSATION_MESSAGES = 8  # Send last 8 messages to Claude
 
 
@@ -326,6 +341,51 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any], user_id: str)
         return {"error": str(e)}
 
 
+async def call_claude_api(
+    model: str,
+    max_tokens: int,
+    system: str,
+    messages: List[Dict],
+    tools: List[Dict] = None
+):
+    """Wrapper to call either AnthropicProvider or raw client"""
+    if USE_FIXED_PROVIDER:
+        # Ensure provider is initialized
+        if anthropic_provider._status != AIProviderStatus.HEALTHY:
+            await anthropic_provider.initialize()
+
+        # Convert to AIMessage format
+        ai_messages = [AIMessage(role=msg["role"], content=msg["content"]) for msg in messages]
+
+        # Call provider
+        response = await anthropic_provider.complete(
+            messages=ai_messages,
+            model=model,
+            max_tokens=max_tokens,
+            enable_tools=tools is not None
+        )
+
+        # Return in same format as raw client
+        class FakeResponse:
+            def __init__(self, content_text):
+                self.content = [type('obj', (object,), {'text': content_text, 'type': 'text'})]
+                self.stop_reason = "end_turn"
+
+        return FakeResponse(response.content)
+    else:
+        # Use raw client
+        api_params = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "system": system,
+            "messages": messages
+        }
+        if tools:
+            api_params["tools"] = tools
+
+        return await anthropic_client.messages.create(**api_params)
+
+
 async def chat_with_claude(
     message: str,
     user_id: str,
@@ -379,11 +439,12 @@ async def chat_with_claude(
             # Quick Claude call without tools
             claude_start = time.time()
             response = await asyncio.wait_for(
-                anthropic_client.messages.create(
+                call_claude_api(
                     model=CLAUDE_MODEL,
                     max_tokens=MAX_TOKENS,
                     system=system_prompt,
-                    messages=[{"role": "user", "content": message}]
+                    messages=[{"role": "user", "content": message}],
+                    tools=None
                 ),
                 timeout=CLAUDE_TIMEOUT_SECONDS
             )
@@ -410,7 +471,7 @@ async def chat_with_claude(
         # Call Claude with tools (with timeout like Barry)
         claude_start = time.time()
         response = await asyncio.wait_for(
-            anthropic_client.messages.create(
+            call_claude_api(
                 model=CLAUDE_MODEL,
                 max_tokens=MAX_TOKENS,
                 system=system_prompt,
@@ -456,7 +517,7 @@ async def chat_with_claude(
 
             final_start = time.time()
             final_response = await asyncio.wait_for(
-                anthropic_client.messages.create(
+                call_claude_api(
                     model=CLAUDE_MODEL,
                     max_tokens=MAX_TOKENS,
                     system=PAM_SYSTEM_PROMPT,
@@ -483,8 +544,8 @@ async def chat_with_claude(
 
     except Exception as e:
         logger.error(f"❌ Claude error: {type(e).__name__}: {str(e)}", exc_info=True)
-        # NEVER fail completely (Barry's philosophy)
-        return "I encountered an error processing your request. Please try again."
+        # TEMPORARY: Return actual error for debugging (TODO: revert to generic message after fix)
+        return f"Debug error: {type(e).__name__}: {str(e)}"
 
 
 @router.websocket("/ws/{user_id}")
