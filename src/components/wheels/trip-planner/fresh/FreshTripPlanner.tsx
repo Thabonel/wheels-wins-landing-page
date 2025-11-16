@@ -179,7 +179,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     const token = getMapboxPublicToken();
 
     if (!token) {
-      const errorMsg = 'Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN or VITE_MAPBOX_TOKEN in your environment variables.';
+      const errorMsg = 'Mapbox token not configured. Please set VITE_MAPBOX_PUBLIC_TOKEN_MAIN or VITE_MAPBOX_PUBLIC_TOKEN (pk.*).';
       toast.error(errorMsg);
       console.error('❌ Mapbox Token Error:', errorMsg);
       return;
