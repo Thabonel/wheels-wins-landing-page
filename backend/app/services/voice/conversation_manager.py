@@ -32,6 +32,7 @@ class ConversationState:
     interruption_stack: List[Dict[str, Any]] = None
     waiting_for_response: bool = False
     route_id: Optional[str] = None  # Track proactive discovery route
+    conversation_mode: str = "voice"  # "voice" = speak responses, "text" = text only
     
     def __post_init__(self):
         if self.interruption_stack is None:
@@ -201,6 +202,7 @@ class VoiceConversationManager:
             # Prepare context for PAM
             conversation_context = {
                 "voice_mode": True,
+                "conversation_mode": conversation.conversation_mode,  # "voice" or "text"
                 "driving_status": conversation.driving_status,
                 "location": conversation.current_location,
                 "conversation_history": self._get_recent_history(conversation, 5),
@@ -217,14 +219,16 @@ class VoiceConversationManager:
             )
 
             response_text = pam_response.get("response_text", "I'm not sure how to help with that.")
-            
-            # Convert to voice using existing TTS
-            response_audio = await synthesize_for_pam(
-                text=response_text,
-                voice_profile=PAMVoiceProfile.PAM_ASSISTANT,
-                user_id=conversation.user_id,
-                context={"voice_conversation": True}
-            )
+
+            # Convert to voice using existing TTS (only if in voice mode)
+            response_audio = None
+            if conversation.conversation_mode == "voice":
+                response_audio = await synthesize_for_pam(
+                    text=response_text,
+                    voice_profile=PAMVoiceProfile.PAM_ASSISTANT,
+                    user_id=conversation.user_id,
+                    context={"voice_conversation": True}
+                )
             
             # Add PAM response to history
             pam_message = VoiceMessage(

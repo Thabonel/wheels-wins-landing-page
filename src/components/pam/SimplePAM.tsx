@@ -67,6 +67,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(true);
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(true);
   const [isListeningForVoice, setIsListeningForVoice] = useState(false);
+  const [conversationMode, setConversationMode] = useState<'voice' | 'text'>('text'); // Track if user wants audio responses
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -106,6 +107,9 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
    */
   const handleVoiceInput = useCallback((transcript: string, confidence: number) => {
     if (!voiceInputEnabled || !transcript.trim()) return;
+
+    // Set conversation mode to "voice" when user uses microphone
+    setConversationMode('voice');
 
     // Populate the text input
     setInput(transcript.trim());
@@ -245,6 +249,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
         user_id: user.id,
         context: {
           current_page: 'simple-pam-test',
+          conversation_mode: conversationMode, // "voice" or "text" - controls TTS
           session_data: {
             conversation_length: messages.length
           }
@@ -342,6 +347,18 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
         <div className="flex items-center gap-2">
           <img src={getPublicAssetUrl('Pam.webp')} alt="PAM" className="h-8 w-8 rounded-full object-cover" />
           <h2 className="text-lg font-semibold">PAM - Personal AI Manager</h2>
+          {conversationMode === 'voice' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setConversationMode('text')}
+              className="flex items-center gap-1 h-6 px-2 text-xs"
+              title="Click to exit voice mode"
+            >
+              <Volume2 className="h-3 w-3" />
+              <span>Voice Mode</span>
+            </Button>
+          )}
           {tts.isSpeaking && (
             <div className="flex items-center gap-1">
               <Volume2 className="h-4 w-4 text-primary animate-pulse" />

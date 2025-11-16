@@ -78,10 +78,17 @@ async def handle_pam_turn(
         # Generate session_id if not provided
         session_id = context.get("session_id") or context.get("conversation_id")
 
-        # Determine response mode (voice requests should use ADAPTIVE or VOICE mode)
-        response_mode = ResponseMode.ADAPTIVE
-        if context.get("voice_mode") or context.get("input_mode") == "voice":
-            response_mode = ResponseMode.ADAPTIVE  # Let orchestrator decide voice vs text
+        # Determine response mode based on conversation mode
+        conversation_mode = context.get("conversation_mode")
+        if conversation_mode == "voice":
+            # Voice mode: user wants audio responses (even if typing)
+            response_mode = ResponseMode.ADAPTIVE
+        elif conversation_mode == "text":
+            # Text mode: user wants text-only responses (no audio)
+            response_mode = ResponseMode.TEXT_ONLY
+        else:
+            # Fallback: check legacy voice_mode flags
+            response_mode = ResponseMode.ADAPTIVE if (context.get("voice_mode") or context.get("input_mode") == "voice") else ResponseMode.TEXT_ONLY
 
         logger.info(f"🎯 handle_pam_turn: user={user_id}, message='{message[:50]}...', location={user_location}, mode={response_mode}")
 
