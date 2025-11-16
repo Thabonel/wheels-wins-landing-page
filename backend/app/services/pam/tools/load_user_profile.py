@@ -208,7 +208,7 @@ class LoadUserProfileTool(BaseTool):
     
     def _extract_budget_preferences(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract and structure budget preferences"""
-        budget_prefs = profile.get("budget_preferences", {})
+        budget_prefs = profile.get("budget_preferences") or {}
         return {
             "daily_budget": budget_prefs.get("daily_budget", 100),
             "fuel_budget_monthly": budget_prefs.get("fuel_budget", 200),
@@ -221,7 +221,7 @@ class LoadUserProfileTool(BaseTool):
     
     def _extract_accessibility_needs(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract accessibility and health requirements"""
-        accessibility = profile.get("accessibility_needs", {})
+        accessibility = profile.get("accessibility_needs") or {}
         return {
             "mobility_aids": accessibility.get("mobility_aids", False),
             "wheelchair_access": accessibility.get("wheelchair_access", False),
@@ -233,7 +233,7 @@ class LoadUserProfileTool(BaseTool):
     
     def _extract_communication_preferences(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract communication and interaction preferences"""
-        comm_prefs = profile.get("communication_preferences", {})
+        comm_prefs = profile.get("communication_preferences") or {}
         return {
             "preferred_greeting": comm_prefs.get("preferred_greeting", "friendly"),
             "detail_level": comm_prefs.get("detail_level", "detailed"),  # brief, detailed, comprehensive
@@ -245,7 +245,7 @@ class LoadUserProfileTool(BaseTool):
     
     def _extract_family_details(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract family and companion information"""
-        family = profile.get("family_details", {})
+        family = profile.get("family_details") or {}
         return {
             "traveling_companions": family.get("companions", []),
             "children_ages": family.get("children_ages", []),
