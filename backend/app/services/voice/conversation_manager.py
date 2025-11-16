@@ -207,20 +207,16 @@ class VoiceConversationManager:
                 "session_id": session_id
             }
             
-            # Process with existing PAM system (lazy import)
-            try:
-                from app.services.pam.graph_enhanced_orchestrator import graph_enhanced_orchestrator
-                pam_response = await graph_enhanced_orchestrator.process_user_message(
-                    user_id=conversation.user_id,
-                    message=transcript,
-                    session_id=session_id,
-                    context=conversation_context
-                )
-            except ImportError:
-                # Fallback response if orchestrator not available
-                pam_response = {"response": f"I heard you say: {transcript}. How can I help?"}
-            
-            response_text = pam_response.get("response", "I'm not sure how to help with that.")
+            # Process with unified PAM brain (same as text chat)
+            from app.services.pam.turn_handler import handle_pam_turn
+
+            pam_response = await handle_pam_turn(
+                user_id=conversation.user_id,
+                message=transcript,
+                frontend_context=conversation_context
+            )
+
+            response_text = pam_response.get("response_text", "I'm not sure how to help with that.")
             
             # Convert to voice using existing TTS
             response_audio = await synthesize_for_pam(
