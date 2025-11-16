@@ -23,6 +23,10 @@ from .anthropic_provider import AnthropicProvider
 from app.core.config import get_settings
 from app.core.infra_config import get_infra_settings
 from app.services.mcp_config import mcp_config
+from app.config.ai_providers import (
+    ANTHROPIC_MODEL,
+    OPENAI_MODEL,
+)
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -119,7 +123,7 @@ class AIOrchestrator:
                 openai_config = ProviderConfig(
                     name="openai",
                     api_key=infra_settings.OPENAI_API_KEY.get_secret_value(),
-                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', 'gpt-5.1-instant'),
+                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', OPENAI_MODEL),
                     max_retries=3,
                     timeout_seconds=30
                 )
@@ -138,7 +142,7 @@ class AIOrchestrator:
                 anthropic_config = ProviderConfig(
                     name="anthropic",
                     api_key=infra_settings.ANTHROPIC_API_KEY.get_secret_value() if infra_settings.ANTHROPIC_API_KEY else None,
-                    default_model=getattr(infra_settings, 'ANTHROPIC_DEFAULT_MODEL', 'claude-3-5-sonnet-20241022'),
+                    default_model=getattr(infra_settings, 'ANTHROPIC_DEFAULT_MODEL', ANTHROPIC_MODEL),
                     max_retries=3,
                     timeout_seconds=30
                 )

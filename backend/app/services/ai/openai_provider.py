@@ -62,7 +62,17 @@ class OpenAIProvider(AIProviderInterface):
             self.client = AsyncOpenAI(api_key=self.config.api_key)
             # Test the connection
             status, message = await self.health_check()
-            return status == AIProviderStatus.HEALTHY
+            if status == AIProviderStatus.HEALTHY:
+                return True
+
+            # If health check failed with GPT-5, try falling back to GPT-4
+            if "gpt-5" in self.config.default_model:
+                logger.warning(f"GPT-5.1 unavailable, falling back to gpt-4-turbo")
+                self.config.default_model = "gpt-4-turbo"
+                status, message = await self.health_check()
+                return status == AIProviderStatus.HEALTHY
+
+            return False
         except Exception as e:
             logger.error(f"Failed to initialize OpenAI provider: {e}")
             self._status = AIProviderStatus.UNHEALTHY
@@ -182,6 +192,13 @@ class OpenAIProvider(AIProviderInterface):
             )
             
         except OpenAIError as e:
+            # Handle 404 errors for GPT-5 by falling back to GPT-4
+            if "404" in str(e) and "gpt-5" in actual_model:
+                logger.warning(f"GPT-5 model not found (404), falling back to gpt-4-turbo")
+                self.config.default_model = "gpt-4-turbo"
+                # Retry with GPT-4
+                return await self.complete(messages, model="gpt-4-turbo", temperature=temperature, max_tokens=max_tokens, **kwargs)
+
             self.record_failure(e)
             logger.error(f"OpenAI API error: {e}")
             raise
