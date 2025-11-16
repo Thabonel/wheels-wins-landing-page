@@ -3575,31 +3575,49 @@ async def get_monthly_savings_status(
 ):
     """
     Get monthly PAM savings status and guarantee information
-    
+
     This simplified endpoint replaces the complex savings guarantee system
     with a single, efficient query using database functions.
+
+    PERFORMANCE: Redis caching with 60s TTL (savings data updates frequently)
     """
     try:
         from app.database.supabase_client import get_supabase_client
-        
+        from app.services.cache_service import get_cache
+        import time
+
         # Use current year/month if not specified
         now = datetime.utcnow()
         target_year = year or now.year
         target_month = month or now.month
-        
+        user_id = current_user.get('sub')
+
+        # Try Redis cache first
+        cache_start = time.time()
+        cache = await get_cache()
+        cache_key = f"pam:savings:{user_id}:{target_year}:{target_month}"
+        cached_data = await cache.get(cache_key)
+
+        if cached_data:
+            cache_elapsed = (time.time() - cache_start) * 1000
+            logger.info(f"💰 [CACHE HIT] Savings data from Redis in {cache_elapsed:.1f}ms")
+            return cached_data
+
+        # Cache miss - query database
+        db_start = time.time()
         supabase = get_supabase_client()
-        
+
         # Try to call the database function - graceful fallback if function doesn't exist
         try:
             result = supabase.rpc(
                 "calculate_monthly_pam_savings",
                 {
-                    "user_id_param": current_user.get('sub'),
+                    "user_id_param": user_id,
                     "year_param": target_year,
                     "month_param": target_month
                 }
             ).execute()
-            
+
             if result.data and len(result.data) > 0:
                 # Extract data from function result
                 savings_data = result.data[0]
@@ -3607,8 +3625,8 @@ async def get_monthly_savings_status(
                 subscription_cost = float(savings_data.get("subscription_cost", 29.99))
                 guarantee_met = savings_data.get("guarantee_met", False)
                 percentage_achieved = float(savings_data.get("percentage_achieved", 0))
-                
-                return {
+
+                response_data = {
                     "success": True,
                     "data": {
                         "total_savings": total_savings,
@@ -3623,12 +3641,19 @@ async def get_monthly_savings_status(
                         }
                     }
                 }
-            
+
+                # Cache for 60 seconds (savings can change frequently when user adds expenses)
+                await cache.set(cache_key, response_data, ttl=60)
+                db_elapsed = (time.time() - db_start) * 1000
+                logger.info(f"💰 [CACHE MISS] Savings data from DB in {db_elapsed:.1f}ms (cached for 60s)")
+
+                return response_data
+
         except Exception as db_error:
             logger.warning(f"Database function 'calculate_monthly_pam_savings' not available: {db_error}")
-        
+
         # Fallback: Return default values (database function doesn't exist yet or failed)
-        return {
+        fallback_data = {
             "success": True,
             "data": {
                 "total_savings": 0.0,
@@ -3644,7 +3669,12 @@ async def get_monthly_savings_status(
                 "note": "PAM savings tracking will be enabled after database migration"
             }
         }
-        
+
+        # Cache fallback data for shorter period (30s) to retry database function sooner
+        await cache.set(cache_key, fallback_data, ttl=30)
+
+        return fallback_data
+
     except Exception as e:
         logger.error(f"Failed to get monthly savings status: {str(e)}")
         raise HTTPException(
