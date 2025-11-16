@@ -775,7 +775,7 @@ except Exception as simple_error:
 # Combines Barry AI's proven simplicity with PAM's 40 action tools
 try:
     from app.api.v1 import pam_simple_with_tools
-    app.include_router(pam_simple_with_tools.router, prefix="/api/v1", tags=["PAM 2.0 Simple"])
+    app.include_router(pam_simple_with_tools.router, prefix="/api/v1/pam-simple", tags=["PAM 2.0 Simple"])
     logger.info("✅ PAM 2.0 Simple + Tools (Barry-inspired) loaded successfully")
 except Exception as pam2_error:
     logger.error(f"❌ Failed to load PAM 2.0 Simple: {pam2_error}")
