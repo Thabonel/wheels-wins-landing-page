@@ -120,7 +120,7 @@ class OpenAIProvider(AIProviderInterface):
                     model=actual_model,
                     input=input_text,
                     temperature=temperature,
-                    max_completion_tokens=max_tokens or self.config.max_tokens_per_request,
+                    max_tokens=max_tokens or self.config.max_tokens_per_request,
                     **kwargs
                 )
 
