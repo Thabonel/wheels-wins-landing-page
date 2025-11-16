@@ -37,7 +37,7 @@ python-multipart>=0.0.10
 click==8.1.7
 
 # Lightweight TTS that actually works
-edge-tts==6.2.1  # Updated to fix Microsoft 403 authentication errors
+edge-tts==7.2.3  # Updated to fix Microsoft 403 authentication errors
 
 # Essential monitoring
 structlog==25.4.0
