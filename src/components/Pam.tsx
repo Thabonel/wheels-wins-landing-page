@@ -5,7 +5,7 @@ import { PAMErrorBoundary } from '@/components/common/PAMErrorBoundary';
 const pamEnabled = true;
 
 // Regular imports
-import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown, Bot } from "lucide-react";
+import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 // Claude WebSocket PAM REMOVED - OpenAI Realtime only
 // import { usePamConnection } from "@/hooks/usePamConnection";
@@ -1161,7 +1161,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         aria-label="Open PAM Chat"
       >
           <div className="relative">
-            <Bot className="w-8 h-8" />
+            <img src={getPublicAssetUrl('Pam.webp')} alt="PAM" className="w-8 h-8 rounded-full object-cover" />
           <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
             connectionStatus === "Connected" ? "bg-green-500" :
             connectionStatus === "Connecting" ? "bg-yellow-500" : "bg-red-500"
@@ -1175,9 +1175,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b bg-primary/5 rounded-t-lg">
             <div className="flex items-center space-x-3">
-              <div className="bg-primary/10 rounded-full p-2">
-                <Bot className="w-6 h-6 text-primary" />
-              </div>
+              <img src={getPublicAssetUrl('Pam.webp')} alt="PAM" className="w-10 h-10 rounded-full object-cover" />
               <div>
                 <h3 className="font-semibold text-gray-800">PAM</h3>
                 <div className="text-xs text-gray-500 space-y-0.5">
