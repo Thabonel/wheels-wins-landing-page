@@ -419,8 +419,7 @@ export function useFreshWaypointManager({
       
       const url = `https://api.mapbox.com/directions/v5/mapbox/${routeProfile}/${coordinates}?${params}`;
       
-      const response = await fetch(url);
-      const data = await response.json();
+      const data = await (await import('@/utils/mapboxGuard')).guardedJson(url, undefined, 'directions');
       
       if (data.routes && data.routes.length > 0) {
         const mainRoute = data.routes[0];

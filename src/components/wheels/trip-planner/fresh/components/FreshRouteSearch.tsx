@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import mapboxgl from 'mapbox-gl';
+import { guardedJson } from '@/utils/mapboxGuard';
 import { toast } from 'sonner';
 
 interface FreshRouteSearchProps {
@@ -56,15 +57,15 @@ export default function FreshRouteSearch({
     const timeoutId = setTimeout(async () => {
       setIsSearchingOrigin(true);
       try {
-        const response = await fetch(
+        const data = await guardedJson(
           `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(originInput)}.json?` +
           `access_token=${mapboxgl.accessToken}&` +
           `country=AU,NZ,US,CA,GB&` +
           `types=place,locality,address,poi&` +
-          `limit=5`
+          `limit=5`,
+          undefined,
+          'geocoding'
         );
-        
-        const data = await response.json();
         setOriginSuggestions(data.features || []);
         setShowOriginSuggestions(true);
       } catch (error) {
@@ -88,15 +89,15 @@ export default function FreshRouteSearch({
     const timeoutId = setTimeout(async () => {
       setIsSearchingDestination(true);
       try {
-        const response = await fetch(
+        const data = await guardedJson(
           `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(destinationInput)}.json?` +
           `access_token=${mapboxgl.accessToken}&` +
           `country=AU,NZ,US,CA,GB&` +
           `types=place,locality,address,poi&` +
-          `limit=5`
+          `limit=5`,
+          undefined,
+          'geocoding'
         );
-        
-        const data = await response.json();
         setDestinationSuggestions(data.features || []);
         setShowDestinationSuggestions(true);
       } catch (error) {
