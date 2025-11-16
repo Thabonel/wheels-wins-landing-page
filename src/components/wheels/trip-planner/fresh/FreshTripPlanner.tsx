@@ -258,15 +258,39 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         hostname: window.location.hostname
       });
 
-      // Check permission state (if supported)
+      // Check permission state (if supported) and proactively trigger prompt on first load
       if (navigator.permissions) {
-        navigator.permissions.query({ name: 'geolocation' as PermissionName })
+        navigator.permissions
+          .query({ name: 'geolocation' as PermissionName })
           .then(result => {
             console.log('📍 Geolocation Permission State:', result.state);
+            // If user hasn't decided yet or already granted, attempt a one-time trigger to show prompt/center map
+            if (result.state === 'prompt' || result.state === 'granted') {
+              try {
+                geolocate.trigger();
+              } catch (e) {
+                console.warn('Initial geolocate trigger failed:', e);
+              }
+            } else if (result.state === 'denied') {
+              // Provide gentle guidance if denied
+              toast.info('Location is blocked in your browser for this site. Enable it to use "My Location".', { duration: 5000 });
+            }
+            // React to permission changes without reload
+            (result as any).onchange = () => {
+              console.log('📍 Geolocation Permission changed to:', result.state);
+              if (result.state === 'granted') {
+                try { geolocate.trigger(); } catch {}
+              }
+            };
           })
           .catch(err => {
             console.log('📍 Permissions API not supported:', err);
+            // Try a best-effort trigger once; some browsers will prompt even without Permissions API
+            try { geolocate.trigger(); } catch {}
           });
+      } else {
+        // No Permissions API: try a one-time trigger; browsers typically prompt on first call
+        try { geolocate.trigger(); } catch {}
       }
 
       // Listen for errors
