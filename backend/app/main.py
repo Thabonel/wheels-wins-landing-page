@@ -106,7 +106,7 @@ from app.api.v1 import ai_structured as ai_structured_api
 from app.api.v1 import ai_ingest as ai_ingest_api
 from app.services.ai.automation import ensure_defaults, periodic_ingest_loop
 from app.api.v1 import observability as observability_api
-from app.api import websocket, actions
+from app.api import actions
 from app.api.v1 import voice_streaming
 from app.webhooks import stripe_webhooks
 from app.api.deps import verify_supabase_jwt_token
