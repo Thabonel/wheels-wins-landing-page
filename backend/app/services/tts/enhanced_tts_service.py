@@ -282,68 +282,101 @@ class EdgeTTSEngine:
             return False
     
     async def synthesize(self, text: str, voice_id: str = "pam_default") -> TTSResponse:
-        """Synthesize speech using Edge TTS with voice mapping"""
+        """Synthesize speech using Edge TTS with voice mapping and retry logic"""
         start_time = datetime.now()
-        
-        try:
-            import edge_tts
-            
-            # Map generic voice ID to Edge TTS specific voice
-            edge_voice_id = voice_mapping_service.get_engine_voice_id(voice_id, "edge")
-            if not edge_voice_id:
-                logger.warning(f"⚠️ No Edge TTS mapping for voice '{voice_id}', using fallback")
-                edge_voice_id = "en-US-JennyNeural"  # Safe fallback
-            
-            logger.info(f"🎯 Edge TTS synthesis: {voice_id} -> {edge_voice_id}")
-            
-            # Create communicate instance
-            communicate = edge_tts.Communicate(text, edge_voice_id)
-            
-            # Generate audio data
-            audio_data = b""
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    audio_data += chunk["data"]
-            
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            
-            return TTSResponse(
-                audio_data=audio_data,
-                text=text,
-                engine=TTSEngine.EDGE,
-                quality=TTSQuality.HIGH,
-                duration_ms=len(text) * 80,  # Rough estimate
-                voice_id=edge_voice_id,
-                processing_time_ms=processing_time
-            )
-            
-        except Exception as e:
-            processing_time = (datetime.now() - start_time).total_seconds() * 1000
-            
-            # Detailed error logging for different failure types
-            error_msg = str(e)
-            if "ConnectError" in error_msg or "NetworkError" in error_msg:
-                logger.error(f"❌ Edge TTS network error (no internet?): {e}")
-                error_msg = f"Network connectivity error: {error_msg}"
-            elif "TimeoutError" in error_msg or "ReadTimeout" in error_msg:
-                logger.error(f"❌ Edge TTS timeout (slow connection?): {e}")
-                error_msg = f"Connection timeout: {error_msg}"
-            elif "certificate" in error_msg.lower() or "ssl" in error_msg.lower():
-                logger.error(f"❌ Edge TTS SSL/Certificate error: {e}")
-                error_msg = f"SSL/Certificate error: {error_msg}"
-            elif "403" in error_msg or "401" in error_msg:
-                logger.error(f"❌ Edge TTS authentication/permission error: {e}")
-                error_msg = f"Authentication error: {error_msg}"
-            else:
-                logger.error(f"❌ Edge TTS synthesis failed: {e}")
-            
-            return TTSResponse(
-                text=text,
-                engine=TTSEngine.EDGE,
-                quality=TTSQuality.FALLBACK,
-                error=error_msg,
-                processing_time_ms=processing_time
-            )
+
+        # Retry configuration for transient errors (403, network issues)
+        max_retries = 3
+        base_delay = 0.5  # seconds
+
+        import edge_tts
+
+        # Map generic voice ID to Edge TTS specific voice
+        edge_voice_id = voice_mapping_service.get_engine_voice_id(voice_id, "edge")
+        if not edge_voice_id:
+            logger.warning(f"⚠️ No Edge TTS mapping for voice '{voice_id}', using fallback")
+            edge_voice_id = "en-US-JennyNeural"  # Safe fallback
+
+        logger.info(f"🎯 Edge TTS synthesis: {voice_id} -> {edge_voice_id}")
+
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                # Create communicate instance
+                communicate = edge_tts.Communicate(text, edge_voice_id)
+
+                # Generate audio data
+                audio_data = b""
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        audio_data += chunk["data"]
+
+                processing_time = (datetime.now() - start_time).total_seconds() * 1000
+
+                if attempt > 0:
+                    logger.info(f"✅ Edge TTS synthesis succeeded on retry #{attempt + 1}")
+
+                return TTSResponse(
+                    audio_data=audio_data,
+                    text=text,
+                    engine=TTSEngine.EDGE,
+                    quality=TTSQuality.HIGH,
+                    duration_ms=len(text) * 80,  # Rough estimate
+                    voice_id=edge_voice_id,
+                    processing_time_ms=processing_time
+                )
+
+            except Exception as e:
+                last_error = e
+                error_msg = str(e)
+
+                # Determine if error is retryable
+                is_retryable = (
+                    "403" in error_msg or
+                    "401" in error_msg or
+                    "ConnectError" in error_msg or
+                    "NetworkError" in error_msg or
+                    "TimeoutError" in error_msg or
+                    "ReadTimeout" in error_msg
+                )
+
+                if is_retryable and attempt < max_retries - 1:
+                    # Exponential backoff: 0.5s, 1.0s, 2.0s
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"⚠️ Edge TTS error (attempt {attempt + 1}/{max_retries}), retrying in {delay}s: {error_msg}")
+                    await asyncio.sleep(delay)
+                    continue  # Retry
+                else:
+                    # Last attempt or non-retryable error
+                    break
+
+        # All retries failed
+        processing_time = (datetime.now() - start_time).total_seconds() * 1000
+        error_msg = str(last_error)
+
+        # Detailed error logging for different failure types
+        if "ConnectError" in error_msg or "NetworkError" in error_msg:
+            logger.error(f"❌ Edge TTS network error (no internet?) after {max_retries} retries: {last_error}")
+            error_msg = f"Network connectivity error: {error_msg}"
+        elif "TimeoutError" in error_msg or "ReadTimeout" in error_msg:
+            logger.error(f"❌ Edge TTS timeout (slow connection?) after {max_retries} retries: {last_error}")
+            error_msg = f"Connection timeout: {error_msg}"
+        elif "certificate" in error_msg.lower() or "ssl" in error_msg.lower():
+            logger.error(f"❌ Edge TTS SSL/Certificate error: {last_error}")
+            error_msg = f"SSL/Certificate error: {error_msg}"
+        elif "403" in error_msg or "401" in error_msg:
+            logger.error(f"❌ Edge TTS authentication/permission error after {max_retries} retries: {last_error}")
+            error_msg = f"Authentication error (Microsoft service temporarily unavailable): {error_msg}"
+        else:
+            logger.error(f"❌ Edge TTS synthesis failed after {max_retries} retries: {last_error}")
+
+        return TTSResponse(
+            text=text,
+            engine=TTSEngine.EDGE,
+            quality=TTSQuality.FALLBACK,
+            error=error_msg,
+            processing_time_ms=processing_time
+        )
 
 
 class CoquiTTSEngine:

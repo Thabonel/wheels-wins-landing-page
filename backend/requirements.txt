@@ -39,8 +39,8 @@ neo4j>=5.14.0,<6.0.0
 textstat==0.7.7
 pyttsx3==2.99  # Python TTS library - important fallback for production
 
-# Phase 5A: TTS Dependencies  
-edge-tts>=6.1.9
+# Phase 5A: TTS Dependencies
+edge-tts==6.2.1  # Updated to fix Microsoft 403 authentication errors
 pydub>=0.25.1
 gtts>=2.3.0  # Google Text-to-Speech as additional fallback
 elevenlabs>=1.0.0  # ElevenLabs premium TTS for PAM voice
