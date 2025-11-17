@@ -123,12 +123,24 @@ class AnthropicProvider(AIProviderInterface):
                     if formatted:
                         anthropic_messages.append(formatted)
             
-            # Get available tools (Mapbox MCP tools)
-            available_tools = mapbox_mcp_tools.get_tool_definitions()
-
+            # ----- TOOL HANDLING (PAM tools + Mapbox) -----
+            # Get Mapbox MCP tools
+            mapbox_tools = mapbox_mcp_tools.get_tool_definitions() or []
+            
+            # Collect any additional tools passed in (e.g. PAM tools from orchestrator)
+            extra_tools = kwargs.pop("tools", None) or []
+            
             # Check if tools should be enabled (remove from kwargs to avoid passing to API)
-            enable_tools = kwargs.pop('enable_tools', True)
-
+            enable_tools = kwargs.pop("enable_tools", True)
+            
+            # Combine tools into a single list
+            combined_tools: List[Dict[str, Any]] = []
+            if extra_tools:
+                combined_tools.extend(extra_tools)
+            if mapbox_tools:
+                combined_tools.extend(mapbox_tools)
+            # ----- END TOOL HANDLING -----
+            
             # Prepare API call parameters
             api_params = {
                 "model": model or self.config.default_model,
@@ -140,9 +152,12 @@ class AnthropicProvider(AIProviderInterface):
             }
 
             # Add tools if available and not explicitly disabled
-            if available_tools and enable_tools:
-                api_params["tools"] = available_tools
-                logger.debug(f"🗺️ Added {len(available_tools)} Mapbox tools to Claude")
+            if combined_tools and enable_tools:
+                api_params["tools"] = combined_tools
+                logger.debug(
+                    f"🔧 Added {len(combined_tools)} tools to Claude "
+                    f"({len(extra_tools)} app tools, {len(mapbox_tools)} Mapbox tools)"
+                )
             
             # Make the API call
             response = await self.client.messages.create(**api_params)
