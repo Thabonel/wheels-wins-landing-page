@@ -117,27 +117,9 @@ class AIOrchestrator:
 
         logger.info(f"🔑 API Keys availability: OpenAI={openai_available}, Anthropic={anthropic_available}")
 
-        # Initialize OpenAI provider FIRST (primary AI provider - reliable and feature-rich)
-        if openai_available:
-            try:
-                openai_config = ProviderConfig(
-                    name="openai",
-                    api_key=infra_settings.OPENAI_API_KEY.get_secret_value(),
-                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', OPENAI_MODEL),
-                    max_retries=3,
-                    timeout_seconds=30
-                )
-                openai_provider = OpenAIProvider(openai_config)
-                if await openai_provider.initialize():
-                    self.providers.append(openai_provider)
-                    logger.info("✅ OpenAI provider initialized successfully (primary)")
-                else:
-                    logger.error("❌ Failed to initialize OpenAI provider")
-            except Exception as e:
-                logger.error(f"Error initializing OpenAI provider: {e}")
-
-        # Initialize Anthropic provider as secondary fallback
-        if hasattr(infra_settings, 'ANTHROPIC_API_KEY') and infra_settings.ANTHROPIC_API_KEY:
+        # Initialize Anthropic provider FIRST (primary AI provider - Claude Sonnet 4.5)
+        # Best for: Advanced reasoning, function calling, native MCP tool support
+        if anthropic_available:
             try:
                 anthropic_config = ProviderConfig(
                     name="anthropic",
@@ -153,11 +135,31 @@ class AIOrchestrator:
                         logger.info("✅ MCP tools enabled for Anthropic provider")
 
                     self.providers.append(anthropic_provider)
-                    logger.info("✅ Anthropic provider initialized successfully (secondary)")
+                    logger.info("✅ Anthropic (Claude Sonnet 4.5) initialized successfully (primary)")
                 else:
                     logger.error("❌ Failed to initialize Anthropic provider")
             except Exception as e:
                 logger.error(f"Error initializing Anthropic provider: {e}")
+
+        # Initialize OpenAI provider as secondary fallback
+        # Best for: Fast responses, cost-effective for simple queries
+        if openai_available:
+            try:
+                openai_config = ProviderConfig(
+                    name="openai",
+                    api_key=infra_settings.OPENAI_API_KEY.get_secret_value(),
+                    default_model=getattr(infra_settings, 'OPENAI_DEFAULT_MODEL', OPENAI_MODEL),
+                    max_retries=3,
+                    timeout_seconds=30
+                )
+                openai_provider = OpenAIProvider(openai_config)
+                if await openai_provider.initialize():
+                    self.providers.append(openai_provider)
+                    logger.info("✅ OpenAI (GPT-5.1) initialized successfully (secondary fallback)")
+                else:
+                    logger.error("❌ Failed to initialize OpenAI provider")
+            except Exception as e:
+                logger.error(f"Error initializing OpenAI provider: {e}")
 
         # Gemini provider DISABLED - Using OpenAI (GPT-5.1) + Anthropic (Claude) only
         # Simplifies provider management and avoids message formatting issues
