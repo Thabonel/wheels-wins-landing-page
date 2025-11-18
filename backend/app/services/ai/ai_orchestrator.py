@@ -243,7 +243,14 @@ class AIOrchestrator:
                 provider_kwargs = dict(kwargs)
 
                 if functions and provider.supports(AICapability.FUNCTION_CALLING):
-                    provider_kwargs["functions"] = functions
+                    # Route parameter name based on provider type
+                    # Anthropic uses "tools", OpenAI uses "functions"
+                    if provider.name == "anthropic":
+                        provider_kwargs["tools"] = functions
+                        logger.debug(f"🔧 Passing {len(functions)} tools to Anthropic as 'tools' parameter")
+                    else:
+                        provider_kwargs["functions"] = functions
+                        logger.debug(f"🔧 Passing {len(functions)} tools to {provider.name} as 'functions' parameter")
                 elif functions:
                     logger.debug(
                         "Provider %s does not support function calling; omitting tool payload",
