@@ -136,6 +136,10 @@ class AnthropicProvider(AIProviderInterface):
                 if extra_tools:
                     logger.debug("🔄 Converting 'functions' parameter to 'tools' for Claude compatibility")
             extra_tools = extra_tools or []
+
+            # Convert OpenAI format to Claude format if needed
+            if extra_tools:
+                extra_tools = self._convert_openai_to_claude_format(extra_tools)
             
             # Check if tools should be enabled (remove from kwargs to avoid passing to API)
             enable_tools = kwargs.pop("enable_tools", True)
@@ -265,11 +269,56 @@ class AnthropicProvider(AIProviderInterface):
                 return final_response
             
             return response
-            
+
         except Exception as e:
             logger.error(f"❌ Error handling tool calls: {e}")
             return response
-    
+
+    def _convert_openai_to_claude_format(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Convert OpenAI tool format to Claude tool format.
+
+        OpenAI format uses 'parameters', Claude uses 'input_schema'.
+        Also handles OpenAI's nested 'function' structure.
+
+        Args:
+            tools: List of tools in OpenAI format
+
+        Returns:
+            List of tools in Claude format
+        """
+        claude_tools = []
+
+        for tool in tools:
+            # Check if already in Claude format (has 'input_schema')
+            if "input_schema" in tool:
+                claude_tools.append(tool)
+                continue
+
+            # Handle OpenAI nested function structure
+            if "type" in tool and tool["type"] == "function" and "function" in tool:
+                func_def = tool["function"]
+                claude_tool = {
+                    "name": func_def.get("name"),
+                    "description": func_def.get("description", ""),
+                    "input_schema": func_def.get("parameters", {"type": "object", "properties": {}})
+                }
+                claude_tools.append(claude_tool)
+            # Handle flat OpenAI format with 'parameters'
+            elif "parameters" in tool:
+                claude_tool = {
+                    "name": tool.get("name"),
+                    "description": tool.get("description", ""),
+                    "input_schema": tool["parameters"]
+                }
+                claude_tools.append(claude_tool)
+            else:
+                # Unknown format, log warning and skip
+                logger.warning(f"⚠️ Unknown tool format, skipping: {tool.get('name', 'unknown')}")
+
+        logger.debug(f"🔄 Converted {len(claude_tools)} tools from OpenAI to Claude format")
+        return claude_tools
+
     async def stream(
         self,
         messages: List[AIMessage],
