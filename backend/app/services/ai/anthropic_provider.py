@@ -128,7 +128,14 @@ class AnthropicProvider(AIProviderInterface):
             mapbox_tools = mapbox_mcp_tools.get_tool_definitions() or []
             
             # Collect any additional tools passed in (e.g. PAM tools from orchestrator)
-            extra_tools = kwargs.pop("tools", None) or []
+            # Support both "tools" (Claude format) and "functions" (OpenAI format) for compatibility
+            extra_tools = kwargs.pop("tools", None)
+            if not extra_tools:
+                # Fallback to "functions" parameter (OpenAI format)
+                extra_tools = kwargs.pop("functions", None)
+                if extra_tools:
+                    logger.debug("🔄 Converting 'functions' parameter to 'tools' for Claude compatibility")
+            extra_tools = extra_tools or []
             
             # Check if tools should be enabled (remove from kwargs to avoid passing to API)
             enable_tools = kwargs.pop("enable_tools", True)
