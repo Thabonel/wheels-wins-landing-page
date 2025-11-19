@@ -169,7 +169,21 @@ class AnthropicProvider(AIProviderInterface):
                     f"🔧 Added {len(combined_tools)} tools to Claude "
                     f"({len(extra_tools)} app tools, {len(mapbox_tools)} Mapbox tools)"
                 )
-            
+
+                # DIAGNOSTIC: Log tool names to verify weather_advisor is present
+                tool_names = [t.get('name', 'unnamed') for t in combined_tools]
+                logger.info(f"📋 Tool names in payload: {tool_names}")
+
+                # DIAGNOSTIC: Log full schema of weather_advisor if found
+                weather_tool = next((t for t in combined_tools if 'weather' in t.get('name', '').lower()), None)
+                if weather_tool:
+                    import json
+                    logger.info(f"🌤️ Weather tool schema: {json.dumps(weather_tool, indent=2)}")
+                else:
+                    logger.warning("⚠️ No weather tool found in payload despite registration")
+            else:
+                logger.warning(f"⚠️ CRITICAL: Tool list is EMPTY (combined_tools={len(combined_tools) if combined_tools else 0}, enable_tools={enable_tools})")
+
             # Make the API call
             response = await self.client.messages.create(**api_params)
             
