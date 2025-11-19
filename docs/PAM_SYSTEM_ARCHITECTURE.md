@@ -1,9 +1,12 @@
 # PAM - Complete System Architecture
 
-**Version:** 2.2 (Claude Sonnet 4.5 + OpenAI 5.1 Updates)
-**Last Updated:** November 16, 2025
-**Status:** ✅ Code Complete (42 Tools in MVP - Tests Required)
+**Version:** 2.3 (Reality Check Update)
+**Last Updated:** November 19, 2025
+**Status:** ⚠️ **PARTIALLY IMPLEMENTED** - 6-7 Tools Operational, 35+ Tools Planned
 **Purpose:** Single source of truth for PAM implementation
+
+**⚠️ CRITICAL NOTICE:**
+This document previously claimed 42 tools were "Code Complete". After thorough investigation, only **6-7 tools are actually registered and operational** in the live system (`enhanced_orchestrator.py` + `tool_registry.py`). The remaining 35+ tools exist as code files but are NOT connected to the active PAM endpoint. See "Implementation Reality" section below for details.
 
 ---
 
@@ -17,7 +20,10 @@ PAM is a voice-first AI assistant that:
 - Tracks savings to prove ROI (goal: pay for herself at $10/month)
 - Powered by Claude Sonnet 4.5 (state-of-the-art AI from Anthropic)
 
-**Key Principle:** ONE AI brain (Claude primary), OpenAI provider support, 42 action tools (MVP - shop tools Phase 2)
+**Key Principle:** ONE AI brain (Claude primary), OpenAI provider support
+
+**Current Reality:** 6-7 operational tools via `tool_registry.py`
+**Future Goal:** 40+ tools (35+ need to be registered, shop tools in Phase 2)
 
 ---
 
@@ -59,9 +65,9 @@ PAM is a voice-first AI assistant that:
 │        ┌───────────┴──────────┐                            │
 │        │                      │                             │
 │  ┌─────▼──────┐      ┌───────▼────────┐                   │
-│  │TOOL EXECUTOR│      │CONTEXT MANAGER │                   │
-│  │42 tools     │      │• User location │                   │
-│  │available    │      │• Financial data│                   │
+│  │TOOL REGISTRY│      │CONTEXT MANAGER │                   │
+│  │6-7 tools    │      │• User location │                   │
+│  │registered   │      │• Financial data│                   │
 │  └─────┬──────┘      │• Travel prefs  │                   │
 │        │              └────────────────┘                   │
 └────────┼───────────────────────────────────────────────────┘
@@ -69,9 +75,12 @@ PAM is a voice-first AI assistant that:
          │ Calls as needed
          │
 ┌────────▼──────────────────────────────────────────────────┐
-│                   42 ACTION TOOLS (MVP)                    │
-│  Budget (10) | Trip (12) | Social (10) | Profile (6)      │
-│  Community (2) | Admin (2) | Shop (Coming Soon)           │
+│           6-7 OPERATIONAL TOOLS (tool_registry.py)         │
+│  manage_finances | mapbox_navigator | weather_advisor     │
+│  create_calendar_event | get_fuel_log | search_videos     │
+│                                                            │
+│           35+ TOOLS NOT YET REGISTERED                     │
+│  (Files exist in /tools/ but not connected to registry)   │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -167,51 +176,112 @@ PAM is a voice-first AI assistant that:
 
 ---
 
-## 🛠️ Tool Inventory (42 Total - MVP Scope)
+## 🚨 Implementation Reality (CRITICAL - READ FIRST)
 
-### 💰 Budget Tools (10)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `create_expense` | Add new expense to tracker | "Add $50 gas expense" |
-| `analyze_budget` | Generate budget insights | "How's my budget looking?" |
-| `track_savings` | Log money saved by PAM | Automatic when finding cheaper gas |
-| `update_budget` | Modify budget categories | "Increase food budget to $800" |
-| `get_spending_summary` | View spending breakdown | "Show my spending this month" |
-| `compare_vs_budget` | Actual vs planned spending | "Am I over budget?" |
-| `predict_end_of_month` | Forecast future spending | "Will I stay under budget?" |
-| `find_savings_opportunities` | AI-powered savings tips | "Where can I save money?" |
-| `categorize_transaction` | Auto-categorize expenses | Automatic when importing bank statements |
-| `export_budget_report` | Generate financial reports | "Export my expenses to PDF" |
+### What's Actually Working Right Now
 
-### 🗺️ Trip Tools (12)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `plan_trip` | Multi-stop route planning | "Plan trip from Phoenix to Seattle under $2000" |
-| `find_rv_parks` | Search campgrounds | "Find RV parks near Yellowstone with hookups" |
-| `get_weather_forecast` | 7-day weather forecasts | "What's the weather in Denver?" |
-| `calculate_gas_cost` | Estimate fuel expenses | "How much gas for 500 miles?" |
-| `find_cheap_gas` | Locate cheapest stations | "Find cheap gas near me" |
-| `optimize_route` | Cost-effective routing | "Optimize route through Grand Canyon" |
-| `get_road_conditions` | Traffic, closures, hazards | "Check road conditions on I-80" |
-| `find_attractions` | Points of interest | "Find attractions near Yellowstone" |
-| `estimate_travel_time` | Trip duration calculator | "How long to drive to Vegas?" |
-| `save_favorite_spot` | Bookmark locations | "Save this campground" |
-| `get_elevation` | Elevation profiles | "Show elevation for this route" |
-| `find_dump_stations` | RV dump station locator | "Find dump stations near me" |
+**Active Endpoint:** `/api/v1/pam/ws/{user_id}` (pam_main.py)
+**Active Orchestrator:** `EnhancedPamOrchestrator` (enhanced_orchestrator.py)
+**Tool Loading System:** `tool_registry.py` (lines 436-934)
 
-### 👥 Social Tools (10)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `create_post` | Share travel updates | "Post photo of sunset at Grand Canyon" |
-| `message_friend` | Send direct messages | "Message John about meetup" |
-| `comment_on_post` | Engage with community | "Comment on Lisa's camping post" |
-| `search_posts` | Find relevant content | "Search posts about Yellowstone" |
-| `get_feed` | Load social feed | "Show recent posts from friends" |
-| `like_post` | React to posts | "Like Sarah's trip update" |
-| `follow_user` | Connect with RVers | "Follow @rvtraveler123" |
-| `share_location` | Share current spot | "Share my current location" |
-| `find_nearby_rvers` | Discover local community | "Who's camping nearby?" |
-| `create_event` | Plan meetups | "Create meetup event for Saturday" |
+**OPERATIONAL TOOLS: 6-7 Total**
+
+| Tool Name | Type | What It Does | Status |
+|-----------|------|--------------|--------|
+| `manage_finances` | Budget Wrapper | Log expenses, fetch summaries, budget suggestions | ✅ Registered & Working |
+| `mapbox_navigator` | Trip Wrapper | Route planning, find campgrounds, calculate costs | ✅ Registered & Working |
+| `weather_advisor` | Weather (FREE API) | Current weather, forecasts, travel conditions | ✅ Registered & Working |
+| `create_calendar_event` | Calendar | Create appointments and events | ✅ Registered & Working |
+| `get_fuel_log` | Fuel Tracking | Retrieve user's fuel purchase history | ✅ Registered & Working |
+| `search_travel_videos` | YouTube | Find travel videos and RV tips | ⚠️ Registered (may have dependency issues) |
+| Memory tools | Context | User profile, recent memories | ❌ Code exists but NOT registered |
+
+### What's NOT Working (Files Exist, Not Registered)
+
+**35+ tools** exist as code files in `backend/app/services/pam/tools/` but are **NOT registered** in `tool_registry.py`:
+
+- ❌ **Budget Tools (9)**: Individual create_expense, track_savings, analyze_budget, etc. files exist but not registered (functionality exists through `manage_finances` wrapper)
+- ❌ **Trip Tools (11)**: plan_trip, find_rv_parks, optimize_route, etc. files exist but not registered (some functionality exists through `mapbox_navigator` wrapper)
+- ❌ **Social Tools (10)**: create_post, message_friend, get_feed, etc. files exist but not registered
+- ❌ **Profile Tools (6)**: update_profile, update_settings, etc. files exist but not registered
+- ❌ **Community Tools (2)**: submit_tip, search_tips files exist but not registered
+- ❌ **Admin Tools (2)**: add_knowledge, search_knowledge files exist but not registered
+
+### Two PAM Implementations (Architectural Confusion)
+
+**1. Simple PAM (`pam.py`)** - **NOT CONNECTED TO LIVE SYSTEM**
+- Location: `backend/app/services/pam/core/pam.py`
+- Has 40 tool imports defined
+- Used by `/pam-simple` endpoint (inactive)
+- **Status:** Code exists but NOT used by production
+
+**2. Enhanced Orchestrator (`enhanced_orchestrator.py`)** - **LIVE SYSTEM**
+- Location: `backend/app/services/pam/enhanced_orchestrator.py`
+- Uses `tool_registry.py` for tool loading
+- Only 6-7 tools registered
+- **Status:** Active production system
+
+**The Problem:** This documentation was written for `pam.py` (40 tools), but the live system uses `enhanced_orchestrator.py` (6-7 tools).
+
+---
+
+## 🛠️ Tool Inventory (Documentation vs. Reality)
+
+### 💰 Budget Tools (1 Operational via Wrapper, 9 Not Registered)
+
+**⚠️ Reality:** These 10 individual tools are NOT registered. Budget functionality exists through the `manage_finances` wrapper tool.
+
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `manage_finances` | **WRAPPER** - Handles all budget operations | "Add $50 gas expense" / "Show my budget" | ✅ **OPERATIONAL** (via wrapper) |
+| `create_expense` | Add new expense to tracker | "Add $50 gas expense" | ❌ File exists, NOT registered |
+| `analyze_budget` | Generate budget insights | "How's my budget looking?" | ❌ File exists, NOT registered |
+| `track_savings` | Log money saved by PAM | Automatic when finding cheaper gas | ❌ File exists, NOT registered |
+| `update_budget` | Modify budget categories | "Increase food budget to $800" | ❌ File exists, NOT registered |
+| `get_spending_summary` | View spending breakdown | "Show my spending this month" | ❌ File exists, NOT registered |
+| `compare_vs_budget` | Actual vs planned spending | "Am I over budget?" | ❌ File exists, NOT registered |
+| `predict_end_of_month` | Forecast future spending | "Will I stay under budget?" | ❌ File exists, NOT registered |
+| `find_savings_opportunities` | AI-powered savings tips | "Where can I save money?" | ❌ File exists, NOT registered |
+| `categorize_transaction` | Auto-categorize expenses | Automatic when importing bank statements | ❌ File exists, NOT registered |
+| `export_budget_report` | Generate financial reports | "Export my expenses to PDF" | ❌ File exists, NOT registered |
+
+### 🗺️ Trip Tools (2 Operational via Wrappers, 11 Not Registered)
+
+**⚠️ Reality:** Individual trip tools are NOT registered. Some trip functionality exists through `mapbox_navigator` wrapper and `weather_advisor` tool.
+
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `mapbox_navigator` | **WRAPPER** - Route planning, find campgrounds, calculate costs | "Plan route to Yellowstone" | ✅ **OPERATIONAL** (via wrapper) |
+| `weather_advisor` | **OPERATIONAL** - 7-day weather forecasts (OpenMeteo API) | "What's the weather in Denver?" | ✅ **OPERATIONAL** |
+| `plan_trip` | Multi-stop route planning | "Plan trip from Phoenix to Seattle under $2000" | ❌ File exists, NOT registered |
+| `find_rv_parks` | Search campgrounds | "Find RV parks near Yellowstone with hookups" | ❌ File exists, NOT registered |
+| `get_weather_forecast` | Weather forecasts (REPLACED by weather_advisor) | "What's the weather?" | ❌ Replaced by weather_advisor |
+| `calculate_gas_cost` | Estimate fuel expenses | "How much gas for 500 miles?" | ❌ File exists, NOT registered |
+| `find_cheap_gas` | Locate cheapest stations | "Find cheap gas near me" | ❌ File exists, NOT registered |
+| `optimize_route` | Cost-effective routing | "Optimize route through Grand Canyon" | ❌ File exists, NOT registered |
+| `get_road_conditions` | Traffic, closures, hazards | "Check road conditions on I-80" | ❌ File exists, NOT registered |
+| `find_attractions` | Points of interest | "Find attractions near Yellowstone" | ❌ File exists, NOT registered |
+| `estimate_travel_time` | Trip duration calculator | "How long to drive to Vegas?" | ❌ File exists, NOT registered |
+| `save_favorite_spot` | Bookmark locations | "Save this campground" | ❌ File exists, NOT registered |
+| `get_elevation` | Elevation profiles | "Show elevation for this route" | ❌ File exists, NOT registered |
+| `find_dump_stations` | RV dump station locator | "Find dump stations near me" | ❌ File exists, NOT registered |
+
+### 👥 Social Tools (0 Operational, 10 Not Registered)
+
+**⚠️ Reality:** ALL social tools files exist but NONE are registered in tool_registry.py. No social functionality available through PAM.
+
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `create_post` | Share travel updates | "Post photo of sunset at Grand Canyon" | ❌ File exists, NOT registered |
+| `message_friend` | Send direct messages | "Message John about meetup" | ❌ File exists, NOT registered |
+| `comment_on_post` | Engage with community | "Comment on Lisa's camping post" | ❌ File exists, NOT registered |
+| `search_posts` | Find relevant content | "Search posts about Yellowstone" | ❌ File exists, NOT registered |
+| `get_feed` | Load social feed | "Show recent posts from friends" | ❌ File exists, NOT registered |
+| `like_post` | React to posts | "Like Sarah's trip update" | ❌ File exists, NOT registered |
+| `follow_user` | Connect with RVers | "Follow @rvtraveler123" | ❌ File exists, NOT registered |
+| `share_location` | Share current spot | "Share my current location" | ❌ File exists, NOT registered |
+| `find_nearby_rvers` | Discover local community | "Who's camping nearby?" | ❌ File exists, NOT registered |
+| `create_event` | Plan meetups | "Create meetup event for Saturday" | ❌ File exists, NOT registered |
 
 ### 🛒 Shop Tools (5) - 🚧 COMING SOON (Phase 2)
 **Status:** Archived for MVP, planned for Phase 2 implementation
@@ -227,27 +297,62 @@ PAM is a voice-first AI assistant that:
 
 **Note:** Shop tools are implemented but not included in MVP. They will be activated in Phase 2 once database schema and payment integration are complete.
 
-### 👤 Profile Tools (6)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `update_profile` | Modify user info | "Update my email address" |
-| `update_settings` | Change preferences | "Change units to metric" |
-| `manage_privacy` | Control data sharing | "Make my location private" |
-| `get_user_stats` | View usage statistics | "Show my PAM usage stats" |
-| `export_data` | Download user data (GDPR) | "Export all my data" |
-| `update_vehicle_info` | RV/vehicle details | "Update my RV make and model" |
+### 👤 Profile Tools (0 Operational, 6 Not Registered)
 
-### 🏘️ Community Tools (2)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `find_local_events` | Discover RV gatherings | "Find RV events near me" |
-| `join_community` | Join travel groups | "Join full-time RVers group" |
+**⚠️ Reality:** ALL profile tools files exist but NONE are registered in tool_registry.py.
 
-### ⚙️ Admin Tools (2)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `get_system_status` | Check backend health | "Show system status" |
-| `manage_user_permissions` | Admin controls | Admin panel only |
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `update_profile` | Modify user info | "Update my email address" | ❌ File exists, NOT registered |
+| `update_settings` | Change preferences | "Change units to metric" | ❌ File exists, NOT registered |
+| `manage_privacy` | Control data sharing | "Make my location private" | ❌ File exists, NOT registered |
+| `get_user_stats` | View usage statistics | "Show my PAM usage stats" | ❌ File exists, NOT registered |
+| `export_data` | Download user data (GDPR) | "Export all my data" | ❌ File exists, NOT registered |
+| `update_vehicle_info` | RV/vehicle details | "Update my RV make and model" | ❌ File exists, NOT registered |
+
+### 🏘️ Community Tools (0 Operational, 2 Not Registered)
+
+**⚠️ Reality:** Community tools files exist but are NOT registered in tool_registry.py.
+
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `submit_tip` | Share community tips | "Share my tip about RV maintenance" | ❌ File exists, NOT registered |
+| `search_tips` | Find community tips | "Search for RV maintenance tips" | ❌ File exists, NOT registered |
+
+### ⚙️ Admin Tools (0 Operational, 2 Not Registered)
+
+**⚠️ Reality:** Admin tools files exist but are NOT registered in tool_registry.py.
+
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `add_knowledge` | Add to knowledge base | Admin function | ❌ File exists, NOT registered |
+| `search_knowledge` | Search knowledge base | "Search knowledge for X" | ❌ File exists, NOT registered |
+
+### 📅 Calendar Tools (1 Operational, 2 Not Registered)
+
+**⚠️ Reality:** Only `create_calendar_event` is registered. Update and delete events not available.
+
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `create_calendar_event` | Create appointments/events | "Add dinner appointment for the 13th at 12pm" | ✅ **OPERATIONAL** |
+| `update_calendar_event` | Modify existing events | "Change dinner to 1pm" | ❌ File exists, NOT registered |
+| `delete_calendar_event` | Remove events | "Cancel dinner appointment" | ❌ File exists, NOT registered |
+
+### 🚗 Fuel Tools (1 Operational)
+
+**⚠️ Reality:** Only fuel log retrieval is operational.
+
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `get_fuel_log` | Retrieve fuel purchase history | "Show my fuel expenses" | ✅ **OPERATIONAL** |
+
+### 🎥 Media Tools (1 Operational)
+
+**⚠️ Reality:** YouTube search may have dependency issues.
+
+| Tool | Purpose | Example Use | Status |
+|------|---------|-------------|--------|
+| `search_travel_videos` | Find travel videos and RV tips | "Find RV maintenance videos" | ⚠️ Registered (may have dependency issues) |
 
 ---
 
@@ -757,36 +862,44 @@ Before touching PAM code, read these documents in order:
 
 ---
 
-## 📊 Quick Stats
+## 📊 Quick Stats (ACTUAL Reality)
 
-| Metric | Value |
-|--------|-------|
-| **Total Tools (MVP)** | 42 (5 shop tools in Phase 2) |
-| **Tool Categories** | 6 (Budget, Trip, Social, Profile, Community, Admin) |
-| **AI Model** | Claude Sonnet 4.5 |
-| **Context Window** | 200K tokens |
-| **Backend Language** | Python 3.11+ |
-| **Frontend Language** | TypeScript |
-| **Connection Type** | WebSocket (persistent) |
-| **Average Response Time** | 1-3 seconds |
-| **WebSocket Latency** | ~50ms |
-| **Success Rate** | 90%+ |
-| **Cost per Conversation** | $0.003-0.015 |
-| **Test Coverage** | 0% → Target 80% (Week 3) |
-| **Status** | ✅ Code Complete (Tests Required) |
+| Metric | Documented | **ACTUAL Reality** |
+|--------|------------|-------------------|
+| **Total Tools** | 42 claimed | **6-7 operational** ⚠️ |
+| **Registered in tool_registry.py** | - | **6-7 tools** |
+| **Files exist but NOT registered** | - | **35+ tools** |
+| **Tool Categories Working** | 6 categories | **3 categories** (Budget wrapper, Trip wrappers, Calendar) |
+| **AI Model** | Claude Sonnet 4.5 | ✅ Claude Sonnet 4.5 (CORRECT) |
+| **Context Window** | 200K tokens | ✅ 200K tokens (CORRECT) |
+| **Backend Language** | Python 3.11+ | ✅ Python 3.11+ (CORRECT) |
+| **Frontend Language** | TypeScript | ✅ TypeScript (CORRECT) |
+| **Connection Type** | WebSocket | ✅ WebSocket (CORRECT) |
+| **Active Orchestrator** | Not documented | **EnhancedPamOrchestrator** |
+| **Tool Loading** | Not documented | **tool_registry.py** |
+| **Average Response Time** | 1-3 seconds | ✅ 1-3 seconds (CORRECT) |
+| **WebSocket Latency** | ~50ms | ✅ ~50ms (CORRECT) |
+| **Success Rate** | 90%+ claimed | **Unknown** (no metrics) |
+| **Cost per Conversation** | $0.003-0.015 | ✅ $0.003-0.015 (CORRECT) |
+| **Test Coverage** | 0% → Target 80% | ⚠️ **Still 0%** |
+| **Status** | "Code Complete" claimed | **⚠️ PARTIALLY IMPLEMENTED** |
+| **Implementation Gap** | - | **85% gap** (35+ tools not registered) |
 
 ---
 
-**Last Updated:** November 4, 2025 (Amended to reflect MVP scope)
-**Version:** 2.1 (Claude Sonnet 4.5 - Amended)
+**Last Updated:** November 19, 2025 (**REALITY CHECK UPDATE**)
+**Version:** 2.3 (Honesty Update)
 **Maintainer:** Development Team
-**Next Review:** After Week 3 test suite completion or when adding new tools
+**Next Review:** When remaining 35+ tools are registered in tool_registry.py
 
-**Amendment Notes:**
-- Updated tool count from 47 to 42 (shop tools moved to Phase 2)
-- Added test coverage targets (0% → 80%)
-- Updated status from "Fully Operational" to "Code Complete (Tests Required)"
-- Clarified shop tools are archived for MVP, planned for Phase 2
+**Critical Findings (November 19, 2025):**
+- ❌ Documentation claimed 42 tools "Code Complete" - FALSE
+- ✅ Only 6-7 tools are actually registered and operational
+- ❌ 35+ tool files exist but NOT connected to active endpoint
+- ❌ Two competing PAM implementations causing confusion (pam.py vs enhanced_orchestrator.py)
+- ⚠️ Active system uses `enhanced_orchestrator.py` + `tool_registry.py`, NOT `pam.py`
+- 📝 This document has been updated to reflect ACTUAL current state
+- 🎯 See "Implementation Reality" section above for complete breakdown
 
 ---
 
