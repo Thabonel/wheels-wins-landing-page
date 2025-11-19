@@ -132,12 +132,12 @@ class OpenAIProvider(AIProviderInterface):
             # If functions provided, convert to tools format
             if functions and not tools:
                 tools = self._convert_functions_to_tools(functions)
-                logger.debug(f"🔄 Converted {len(functions)} functions to tools format for OpenAI")
+                logger.info(f"🔄 Converted {len(functions)} functions to tools format for OpenAI")
 
             # Add tools to kwargs if present
             if tools:
                 kwargs["tools"] = tools
-                logger.debug(f"🔧 Passing {len(tools)} tools to OpenAI API")
+                logger.info(f"🔧 Passing {len(tools)} tools to OpenAI API")
             # ----- END TOOL HANDLING -----
 
             # Use Chat Completions API for all models (GPT-5.1 uses max_completion_tokens)

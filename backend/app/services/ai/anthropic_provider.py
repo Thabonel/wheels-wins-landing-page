@@ -134,7 +134,7 @@ class AnthropicProvider(AIProviderInterface):
                 # Fallback to "functions" parameter (OpenAI format)
                 extra_tools = kwargs.pop("functions", None)
                 if extra_tools:
-                    logger.debug("🔄 Converting 'functions' parameter to 'tools' for Claude compatibility")
+                    logger.info("🔄 Converting 'functions' parameter to 'tools' for Claude compatibility")
             extra_tools = extra_tools or []
 
             # Convert OpenAI format to Claude format if needed
@@ -165,7 +165,7 @@ class AnthropicProvider(AIProviderInterface):
             # Add tools if available and not explicitly disabled
             if combined_tools and enable_tools:
                 api_params["tools"] = combined_tools
-                logger.debug(
+                logger.info(
                     f"🔧 Added {len(combined_tools)} tools to Claude "
                     f"({len(extra_tools)} app tools, {len(mapbox_tools)} Mapbox tools)"
                 )
@@ -316,7 +316,7 @@ class AnthropicProvider(AIProviderInterface):
                 # Unknown format, log warning and skip
                 logger.warning(f"⚠️ Unknown tool format, skipping: {tool.get('name', 'unknown')}")
 
-        logger.debug(f"🔄 Converted {len(claude_tools)} tools from OpenAI to Claude format")
+        logger.info(f"🔄 Converted {len(claude_tools)} tools from OpenAI to Claude format")
         return claude_tools
 
     async def stream(
