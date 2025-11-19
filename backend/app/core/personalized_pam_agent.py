@@ -44,13 +44,13 @@ class UserContext:
     conversation_history: List[Dict[str, Any]]
     conversation_mode: ConversationMode
 
-    # Location context (for weather, travel planning, etc.)
-    user_location: Optional[Dict[str, Any]] = None
-
-    # Dynamic properties
+    # Dynamic properties (required fields)
     is_rv_traveler: bool
     vehicle_capabilities: Dict[str, Any]
     preferred_transport_modes: List[str]
+
+    # Location context (optional - for weather, travel planning, etc.)
+    user_location: Optional[Dict[str, Any]] = None
 
 
 class PersonalizedPamAgent:
