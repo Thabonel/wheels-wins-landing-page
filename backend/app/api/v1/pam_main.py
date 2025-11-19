@@ -2367,11 +2367,18 @@ async def chat_endpoint(
                 user_pam_agent = personalized_pam_agent
 
             logger.info(f"🤖 Processing with PersonalizedPamAgent - profile loading and context injection with proper RLS authentication")
+
+            # Extract location from context for PersonalizedPamAgent
+            user_location = context.get("user_location")
+            if user_location:
+                logger.info(f"📍 Passing location to PersonalizedPamAgent: {user_location.get('city', 'unknown')} ({user_location.get('lat')}, {user_location.get('lng')})")
+
             pam_response = await user_pam_agent.process_message(
                 user_id=str(user_id),
                 message=sanitized_message,
                 session_id=request.conversation_id,
-                additional_context=context
+                additional_context=context,
+                user_location=user_location
             )
             actions = pam_response.get("actions", [])
 

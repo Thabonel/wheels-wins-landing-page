@@ -43,7 +43,10 @@ class UserContext:
     travel_preferences: Dict[str, Any]
     conversation_history: List[Dict[str, Any]]
     conversation_mode: ConversationMode
-    
+
+    # Location context (for weather, travel planning, etc.)
+    user_location: Optional[Dict[str, Any]] = None
+
     # Dynamic properties
     is_rv_traveler: bool
     vehicle_capabilities: Dict[str, Any]
@@ -83,14 +86,15 @@ class PersonalizedPamAgent:
         user_id: str,
         message: str,
         session_id: Optional[str] = None,
-        additional_context: Optional[Dict[str, Any]] = None
+        additional_context: Optional[Dict[str, Any]] = None,
+        user_location: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Main entry point - processes user message with full personalization
         """
         try:
             # Step 1: Load or get cached user context
-            user_context = await self._get_user_context(user_id)
+            user_context = await self._get_user_context(user_id, user_location)
             
             # Step 2: Detect intent and travel mode
             travel_mode = await self.travel_detector.detect_mode(
@@ -126,12 +130,16 @@ class PersonalizedPamAgent:
                 "success": False
             }
     
-    async def _get_user_context(self, user_id: str) -> UserContext:
+    async def _get_user_context(self, user_id: str, user_location: Optional[Dict[str, Any]] = None) -> UserContext:
         """Load or retrieve cached user context"""
-        
+
         # Check cache first
         if user_id in self.user_contexts:
-            return self.user_contexts[user_id]
+            context = self.user_contexts[user_id]
+            # Update location even if using cached context
+            if user_location:
+                context.user_location = user_location
+            return context
         
         # Load fresh profile
         profile_result = await self.profile_tool.execute(user_id)
@@ -145,6 +153,7 @@ class PersonalizedPamAgent:
                 travel_preferences={},
                 conversation_history=[],
                 conversation_mode=ConversationMode.GENERAL_TRAVEL,
+                user_location=user_location,
                 is_rv_traveler=False,
                 vehicle_capabilities={},
                 preferred_transport_modes=["flight", "train", "bus"]
@@ -167,6 +176,7 @@ class PersonalizedPamAgent:
             travel_preferences=profile_data.get("travel_preferences", {}),
             conversation_history=[],
             conversation_mode=conversation_mode,
+            user_location=user_location,
             is_rv_traveler=vehicle_capabilities.get("is_rv_capable", False),
             vehicle_capabilities=vehicle_capabilities,
             preferred_transport_modes=self._get_preferred_transport_modes(vehicle_capabilities)
@@ -219,13 +229,38 @@ IMPORTANT USER CONTEXT:
         if user_context.travel_preferences:
             prefs = user_context.travel_preferences
             base_prompt += f"""
-            
+
 USER TRAVEL PREFERENCES:
 - Style: {prefs.get('style', 'balanced')}
 - Camping: {', '.join(prefs.get('camp_types', []))}
 - Daily drive limit: {prefs.get('drive_limit_per_day', 'flexible')}
             """
-        
+
+        # Add location context
+        if user_context.user_location:
+            location = user_context.user_location
+            city = location.get("city", "unknown location")
+            region = location.get("region", "")
+            country = location.get("country", "")
+
+            location_str = f"{city}"
+            if region:
+                location_str += f", {region}"
+            if country:
+                location_str += f", {country}"
+
+            base_prompt += f"""
+
+USER LOCATION CONTEXT:
+- Current location: {location_str}
+- Coordinates: {location.get('lat', 'N/A')}, {location.get('lng', 'N/A')}
+- Timezone: {location.get('timezone', 'unknown')}
+- Location source: {location.get('source', 'unknown')}
+
+IMPORTANT: When user asks about weather or location-dependent information, use this location automatically.
+Do NOT ask "where are you?" if location is already known.
+            """
+
         # Add conversation mode context
         if user_context.conversation_mode == ConversationMode.RV_TRAVEL:
             base_prompt += """
@@ -300,9 +335,20 @@ Respond naturally and conversationally, always considering the user's specific c
 
         # Prepare messages for AI
         messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": message}
+            {"role": "system", "content": system_prompt}
         ]
+
+        # Add location context if available (helps tools access location)
+        if user_context.user_location:
+            location = user_context.user_location
+            city = location.get("city", "unknown")
+            lat = location.get("lat", "N/A")
+            lng = location.get("lng", "N/A")
+            location_str = f"{city}" if city != "unknown" else f"({lat}, {lng})"
+            messages.append({
+                "role": "system",
+                "content": f"User's current location: {location_str} (lat: {lat}, lng: {lng})"
+            })
 
         # Add recent conversation history
         for hist_msg in user_context.conversation_history[-5:]:  # Last 5 messages
