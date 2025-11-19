@@ -43,7 +43,8 @@ class AnthropicProvider(AIProviderInterface):
             raise RuntimeError("Anthropic package is not installed. Install with: pip install anthropic")
         
         # Set default Claude capabilities
-        if not config.capabilities:
+        # Check for both empty and default-only (CHAT) capabilities
+        if not config.capabilities or config.capabilities == [AICapability.CHAT]:
             config.capabilities = [
                 AICapability.CHAT,
                 AICapability.STREAMING,

@@ -28,7 +28,8 @@ class OpenAIProvider(AIProviderInterface):
     
     def __init__(self, config: ProviderConfig):
         # Set default OpenAI capabilities
-        if not config.capabilities:
+        # Check for both empty and default-only (CHAT) capabilities
+        if not config.capabilities or config.capabilities == [AICapability.CHAT]:
             config.capabilities = [
                 AICapability.CHAT,
                 AICapability.STREAMING,
