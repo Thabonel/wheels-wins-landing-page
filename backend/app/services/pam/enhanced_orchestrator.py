@@ -1095,17 +1095,17 @@ class EnhancedPamOrchestrator:
                 try:
                     # Get relevant tool capabilities based on context
                     relevant_capabilities = self._determine_relevant_capabilities(message, enhanced_context)
-                    logger.debug(f"🔧 Relevant capabilities: {relevant_capabilities}")
+                    logger.info(f"🔧 Relevant capabilities: {relevant_capabilities}")
                     tools = self.tool_registry.get_openai_functions(capabilities=relevant_capabilities)
-                    logger.debug(f"🔧 Retrieved {len(tools)} tools")
+                    logger.info(f"🔧 Retrieved {len(tools)} tools from Tool Registry")
                 except Exception as tool_e:
                     logger.warning(f"⚠️ Failed to get tools: {tool_e}")
                     tools = []
             else:
-                logger.debug("🔧 No tool registry available")
-            
+                logger.info("🔧 No tool registry available")
+
             # Call AI orchestrator with tools for function calling
-            logger.debug(f"🤖 Calling AI orchestrator with {len(tools)} tools...")
+            logger.info(f"🤖 Calling AI orchestrator with {len(tools)} tools...")
             messages = [
                 AIMessage(role="system", content="You are PAM, a helpful AI assistant with access to various tools for travel planning and expense management."),
                 AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context, cls=DateTimeEncoder)}")
