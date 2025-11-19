@@ -645,7 +645,43 @@ class EnhancedPamOrchestrator:
         except Exception as e:
             logger.error(f"Error routing to {intent} node: {e}")
             return None
-    
+
+    def _normalize_location_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        CRITICAL FIX: Maps frontend 'lat/lng' to tool-expected 'latitude/longitude'.
+        Ensures tools like weather_advisor don't get filtered out due to missing params.
+
+        This addresses Gemini AI's Suspect #2 (Context-Based Exclusion).
+        """
+        if not context:
+            return context or {}
+
+        user_location = context.get("user_location")
+
+        if not user_location:
+            logger.debug("📍 No user_location found in context")
+            return context
+
+        # 1. Check if we have short codes (lat/lng) but miss long codes
+        if "lat" in user_location and "latitude" not in user_location:
+            user_location["latitude"] = user_location["lat"]
+            logger.info(f"📍 Normalized 'lat' {user_location['lat']} -> 'latitude'")
+
+        if "lng" in user_location and "longitude" not in user_location:
+            user_location["longitude"] = user_location["lng"]
+            logger.info(f"📍 Normalized 'lng' {user_location['lng']} -> 'longitude'")
+
+        # 2. Reverse check - ensure short codes exist if tools use them
+        if "latitude" in user_location and "lat" not in user_location:
+            user_location["lat"] = user_location["latitude"]
+
+        if "longitude" in user_location and "lng" not in user_location:
+            user_location["lng"] = user_location["longitude"]
+
+        # Update context in place
+        context["user_location"] = user_location
+        return context
+
     @observe_agent(name="enhanced_pam_process", metadata={"agent_type": "enhanced_pam"})
     async def process_message(
         self,
@@ -670,7 +706,12 @@ class EnhancedPamOrchestrator:
             if not self.is_initialized:
                 logger.error("❌ Enhanced orchestrator not initialized")
                 raise Exception("Enhanced orchestrator not initialized")
-            
+
+            # CRITICAL FIX: Normalize location context BEFORE any tool selection logic
+            # This ensures lat/lng <-> latitude/longitude compatibility (Gemini AI Suspect #2)
+            context = self._normalize_location_context(context)
+            logger.info(f"📍 Location context after normalization: {context.get('user_location') if context else None}")
+
             # Assess current service capabilities
             logger.debug("Step 1: Assessing service capabilities...")
             await self._assess_service_capabilities()
