@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from app.services.pam.tools.load_user_profile import LoadUserProfileTool
+from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
 from app.services.ai.ai_orchestrator import ai_orchestrator
 from app.core.travel_domain.vehicle_capability_mapper import VehicleCapabilityMapper
 from app.core.travel_domain.travel_mode_detector import TravelModeDetector
@@ -71,6 +72,9 @@ class PersonalizedPamAgent:
 
         # Context cache for conversation persistence
         self.user_contexts: Dict[str, UserContext] = {}
+
+        # Get tool registry (initialize if needed)
+        self.tool_registry = get_tool_registry()
 
         logger.info(f"🤖 PersonalizedPamAgent initialized {'with user authentication context' if user_jwt else 'with service role fallback'}")
     
@@ -293,30 +297,36 @@ Respond naturally and conversationally, always considering the user's specific c
         travel_mode: str
     ) -> Dict[str, Any]:
         """Process message with AI using personalized system prompt"""
-        
+
         # Prepare messages for AI
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": message}
         ]
-        
+
         # Add recent conversation history
         for hist_msg in user_context.conversation_history[-5:]:  # Last 5 messages
             messages.append({
                 "role": "user" if hist_msg["sender"] == "user" else "assistant",
                 "content": hist_msg["content"]
             })
-        
+
         # Add current message
         messages.append({"role": "user", "content": message})
-        
-        # Process with AI orchestrator
+
+        # CRITICAL FIX: Get tools from tool registry (this was missing!)
+        # This enables PAM to access weather_advisor, manage_finances, and all other registered tools
+        tools = self.tool_registry.get_openai_functions()
+        logger.info(f"🔧 Loaded {len(tools)} tools from registry for Claude: {[t['name'] for t in tools]}")
+
+        # Process with AI orchestrator (now WITH tools!)
         response = await ai_orchestrator.complete(
             messages=messages,
             temperature=0.7,
-            max_tokens=2048
+            max_tokens=2048,
+            functions=tools  # Pass tools to AI orchestrator
         )
-        
+
         return {
             "content": response.content,
             "success": True,
