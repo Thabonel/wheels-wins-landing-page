@@ -74,9 +74,9 @@ jobs:
       run: |
         # Wait a bit more for service to stabilize
         sleep 10
-        
-        # Check health endpoint
-        HEALTH_URL="https://pam-backend.onrender.com/health"
+
+        # Check health endpoint (STAGING, not production)
+        HEALTH_URL="https://wheels-wins-backend-staging.onrender.com/health"
         HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
         
         if [ $HTTP_STATUS -eq 200 ]; then
