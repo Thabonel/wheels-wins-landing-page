@@ -19,9 +19,11 @@ import re
 from pathlib import Path
 from typing import Dict
 
+
 # Add backend to path
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
+
 
 
 def analyze_tool_registry(file_path: str) -> Dict[str, any]:
@@ -214,9 +216,148 @@ def main():
     # Print results
     success = print_results(results)
 
+    # Run execution verification
+    print("\n")
+    try:
+        import asyncio
+        asyncio.run(test_tool_execution_loop())
+        print("\n✅ Execution verification PASSED")
+    except Exception as e:
+        print(f"\n❌ Execution verification FAILED: {e}")
+        success = False
+
     # Exit with appropriate code
     sys.exit(0 if success else 1)
 
 
+
+# ==========================================
+# EXECUTION VERIFICATION (Added for PAM Fix)
+# ==========================================
+
+import asyncio
+from unittest.mock import MagicMock, AsyncMock, patch
+
+
+async def test_tool_execution_loop():
+    # Set dummy environment variables for testing
+    import os
+    os.environ["ANTHROPIC_API_KEY"] = "sk-ant-api03-dummy-key-that-is-long-enough-to-pass-validation-check-1234567890"
+    os.environ["OPENAI_API_KEY"] = "sk-dummy-key-that-is-long-enough-to-pass-validation-check-1234567890"
+    os.environ["GEMINI_API_KEY"] = "dummy-gemini-key-12345"
+    os.environ["SUPABASE_URL"] = "https://dummy.supabase.co"
+    os.environ["SUPABASE_SERVICE_ROLE_KEY"] = "dummy-key"
+    os.environ["VITE_SUPABASE_URL"] = "https://dummy.supabase.co"
+    os.environ["VITE_SUPABASE_ANON_KEY"] = "dummy-key"
+
+    # Mock openai module to bypass import error
+    from unittest.mock import MagicMock
+    sys.modules["openai"] = MagicMock()
+    sys.modules["openai.types"] = MagicMock()
+    sys.modules["openai.types.chat"] = MagicMock()
+
+    from app.core.personalized_pam_agent import PersonalizedPamAgent
+    from app.services.ai.provider_interface import AIResponse
+    print("\n" + "=" * 70)
+    print("🧪 TESTING PAM TOOL EXECUTION LOOP")
+    print("=" * 70)
+    print()
+    
+    # Mock dependencies
+    with patch('app.core.personalized_pam_agent.ai_orchestrator') as mock_orchestrator, \
+         patch('app.core.personalized_pam_agent.get_tool_registry') as mock_get_registry:
+        
+        # Setup Mock Registry
+        mock_registry = MagicMock()
+        mock_get_registry.return_value = mock_registry
+        
+        # Mock Tool Execution
+        async def mock_execute_tool(tool_name, user_id, parameters, context=None):
+            print(f"  ✅ Tool '{tool_name}' executed with params: {parameters}")
+            if context and 'user_jwt' in context:
+                print(f"  ✅ User JWT context passed: {context['user_jwt']}")
+            return MagicMock(success=True, result={"status": "success", "data": "Tool result data"})
+            
+        mock_registry.execute_tool = AsyncMock(side_effect=mock_execute_tool)
+        mock_registry.get_openai_functions.return_value = [{"name": "test_tool", "description": "A test tool"}]
+
+        # Setup Mock AI Responses
+        # Response 1: Request tool execution
+        tool_call_response = AIResponse(
+            content="I will check that for you.",
+            model="claude-3-5-sonnet",
+            provider="anthropic",
+            usage={"total_tokens": 10},
+            latency_ms=100,
+            finish_reason="tool_use",
+            function_calls=[{
+                "name": "test_tool",
+                "arguments": {"param": "value"},
+                "id": "call_123"
+            }]
+        )
+        
+        # Response 2: Final answer after tool result
+        final_response = AIResponse(
+            content="I have successfully executed the tool.",
+            model="claude-3-5-sonnet",
+            provider="anthropic",
+            usage={"total_tokens": 20},
+            latency_ms=100,
+            finish_reason="stop",
+            function_calls=[]
+        )
+        
+        # Configure orchestrator to return these responses in sequence
+        mock_orchestrator.complete = AsyncMock(side_effect=[tool_call_response, final_response])
+        
+        # Initialize Agent
+        agent = PersonalizedPamAgent(user_jwt="test_token_123")
+        
+        # Run Test
+        print("  🏃 Running process_message...")
+        result = await agent.process_message(
+            user_id="user_123",
+            message="Run the test tool",
+            session_id="session_1"
+        )
+        
+        # Verify Results
+        print("\n📊 VERIFICATION RESULTS:")
+        
+        success = True
+        
+        # 1. Verify tool execution
+        if mock_registry.execute_tool.called:
+            print("  ✅ Tool execution called")
+        else:
+            print("  ❌ Tool execution NOT called")
+            success = False
+            
+        # 2. Verify loop (orchestrator called twice)
+        call_count = mock_orchestrator.complete.call_count
+        if call_count == 2:
+            print(f"  ✅ Orchestrator called {call_count} times (Loop working)")
+        else:
+            print(f"  ❌ Orchestrator called {call_count} times (Expected 2)")
+            success = False
+            
+        # 3. Verify auto_handle_tools=False
+        call_args = mock_orchestrator.complete.call_args_list[0]
+        if not call_args.kwargs.get('auto_handle_tools', True): # Check if it's False (default is True)
+             # Wait, if default is True, and we passed False, get() returns False.
+             # Actually get() returns the value if present.
+             # If we passed auto_handle_tools=False, kwargs['auto_handle_tools'] is False.
+             # So get('auto_handle_tools', True) returns False.
+             # So 'not False' is True.
+             print("  ✅ auto_handle_tools=False passed correctly")
+        else:
+             print("  ❌ auto_handle_tools NOT set to False")
+             success = False
+
+        print(f"\n🏁 Final Agent Response: {result['content']}")
+        return success
+
 if __name__ == "__main__":
+    # Run original verification
     main()

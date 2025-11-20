@@ -366,12 +366,72 @@ Respond naturally and conversationally, always considering the user's specific c
         logger.info(f"🔧 Loaded {len(tools)} tools from registry for Claude: {[t['name'] for t in tools]}")
 
         # Process with AI orchestrator (now WITH tools!)
+        # We disable auto_handle_tools to manually execute them with user context
         response = await ai_orchestrator.complete(
             messages=messages,
             temperature=0.7,
             max_tokens=2048,
-            functions=tools  # Pass tools to AI orchestrator
+            functions=tools,  # Pass tools to AI orchestrator
+            auto_handle_tools=False  # CRITICAL: We handle tools manually to pass user context
         )
+
+        # Tool Execution Loop
+        # If the AI wants to call tools, we execute them and feed results back
+        max_tool_iterations = 5
+        iteration = 0
+        
+        while response.function_calls and iteration < max_tool_iterations:
+            iteration += 1
+            logger.info(f"🔄 Tool execution loop iteration {iteration}: {len(response.function_calls)} calls")
+            
+            # Add assistant's tool call message to history
+            messages.append({
+                "role": "assistant",
+                "content": response.content,
+                "function_calls": response.function_calls
+            })
+            
+            # Execute each tool
+            tool_results = []
+            for tool_call in response.function_calls:
+                tool_name = tool_call.get("name")
+                tool_args = tool_call.get("arguments", {})
+                tool_id = tool_call.get("id")
+                
+                logger.info(f"🛠️ Executing tool: {tool_name}")
+                
+                # Execute with user context (CRITICAL FIX)
+                result = await self.tool_registry.execute_tool(
+                    tool_name=tool_name,
+                    user_id=user_context.user_id,
+                    parameters=tool_args,
+                    context={"user_jwt": self.user_jwt} if self.user_jwt else None
+                )
+                
+                # Format result for AI
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tool_id,
+                    "content": str(result.result) if result.success else f"Error: {result.error}",
+                    "is_error": not result.success,
+                    "name": tool_name # Helpful for some providers
+                })
+            
+            # Add tool results to history
+            # Note: Format depends on provider, but orchestrator handles normalization
+            messages.append({
+                "role": "user",
+                "content": tool_results
+            })
+            
+            # Get next response from AI
+            response = await ai_orchestrator.complete(
+                messages=messages,
+                temperature=0.7,
+                max_tokens=2048,
+                functions=tools,
+                auto_handle_tools=False
+            )
 
         return {
             "content": response.content,
