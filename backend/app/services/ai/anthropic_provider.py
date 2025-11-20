@@ -103,6 +103,7 @@ class AnthropicProvider(AIProviderInterface):
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        auto_handle_tools: bool = True,
         **kwargs
     ) -> AIResponse:
         """Generate a completion using Claude"""
@@ -195,8 +196,19 @@ class AnthropicProvider(AIProviderInterface):
             self.record_success(latency_ms)
             
             # Handle tool calls if present
+            function_calls = []
             if response.stop_reason == "tool_use":
-                response = await self._handle_tool_calls(response, anthropic_messages, api_params)
+                if auto_handle_tools:
+                    response = await self._handle_tool_calls(response, anthropic_messages, api_params)
+                else:
+                    # Extract tool calls for manual handling
+                    for content_block in response.content:
+                        if hasattr(content_block, 'type') and content_block.type == 'tool_use':
+                            function_calls.append({
+                                "name": content_block.name,
+                                "arguments": content_block.input,
+                                "id": content_block.id
+                            })
             
             # Extract content (handle both text and tool call responses)
             content = ""
@@ -218,7 +230,8 @@ class AnthropicProvider(AIProviderInterface):
                     "total_tokens": response.usage.input_tokens + response.usage.output_tokens
                 },
                 latency_ms=latency_ms,
-                finish_reason=response.stop_reason
+                finish_reason=response.stop_reason,
+                function_calls=function_calls if function_calls else None
             )
             
         except AnthropicError as e:
