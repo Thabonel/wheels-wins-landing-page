@@ -260,7 +260,65 @@ class VoiceMappingService:
             system_voice_id="default_female",
             supabase_voice_id="nari-dia"
         )
-        
+
+        # ===== REGIONAL MATURE VOICES (Location-based selection) =====
+
+        # Australian mature female voice
+        self.voice_mappings["pam_australian_mature"] = VoiceMapping(
+            generic_id="pam_australian_mature",
+            display_name="PAM Australian (Mature)",
+            description="Mature, warm Australian female voice for Australian users",
+            gender=VoiceCharacteristic.GENDER_FEMALE,
+            age=VoiceCharacteristic.AGE_MIDDLE,
+            accent=VoiceCharacteristic.ACCENT_AUSTRALIAN,
+            style=VoiceCharacteristic.STYLE_FRIENDLY,
+            quality_score=9.2,
+            edge_voice_id="en-AU-ElsieNeural",
+            languages=["en-AU"]
+        )
+
+        # American mature female voice (warmer than Jenny)
+        self.voice_mappings["pam_american_mature"] = VoiceMapping(
+            generic_id="pam_american_mature",
+            display_name="PAM American (Mature)",
+            description="Mature, warm American female voice for US users",
+            gender=VoiceCharacteristic.GENDER_FEMALE,
+            age=VoiceCharacteristic.AGE_MIDDLE,
+            accent=VoiceCharacteristic.ACCENT_AMERICAN,
+            style=VoiceCharacteristic.STYLE_FRIENDLY,
+            quality_score=9.3,
+            edge_voice_id="en-US-AriaNeural",
+            languages=["en-US"]
+        )
+
+        # British mature female voice
+        self.voice_mappings["pam_british_mature"] = VoiceMapping(
+            generic_id="pam_british_mature",
+            display_name="PAM British (Mature)",
+            description="Mature, warm British female voice for UK users",
+            gender=VoiceCharacteristic.GENDER_FEMALE,
+            age=VoiceCharacteristic.AGE_MIDDLE,
+            accent=VoiceCharacteristic.ACCENT_BRITISH,
+            style=VoiceCharacteristic.STYLE_FRIENDLY,
+            quality_score=9.2,
+            edge_voice_id="en-GB-SoniaNeural",
+            languages=["en-GB"]
+        )
+
+        # Canadian mature female voice
+        self.voice_mappings["pam_canadian_mature"] = VoiceMapping(
+            generic_id="pam_canadian_mature",
+            display_name="PAM Canadian (Mature)",
+            description="Mature, warm Canadian female voice for Canadian users",
+            gender=VoiceCharacteristic.GENDER_FEMALE,
+            age=VoiceCharacteristic.AGE_MIDDLE,
+            accent=VoiceCharacteristic.ACCENT_CANADIAN,
+            style=VoiceCharacteristic.STYLE_FRIENDLY,
+            quality_score=9.2,
+            edge_voice_id="en-CA-ClaraNeural",
+            languages=["en-CA"]
+        )
+
         logger.info(f"✅ Initialized {len(self.voice_mappings)} voice mappings")
     
     def _build_indexes(self):
@@ -463,7 +521,80 @@ class VoiceMappingService:
         # Fallback to default
         logger.info("🔄 Using default voice for characteristic search")
         return "pam_default"
-    
+
+    def select_voice_by_region(
+        self,
+        country: Optional[str] = None,
+        region: Optional[str] = None,
+        user_location: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Select voice based on user's geographic region.
+
+        Args:
+            country: ISO country code or country name (e.g., "AU", "Australia")
+            region: Region/state (e.g., "NSW", "California")
+            user_location: Full location dict with country, region, city, etc.
+
+        Returns:
+            Generic voice ID for the user's region
+        """
+
+        # Extract country from user_location if provided
+        if user_location:
+            country = user_location.get("country") or country
+            region = user_location.get("region") or region
+
+        if not country:
+            logger.info("🌍 No country provided, using default voice")
+            return "pam_american_mature"  # Default to American mature voice
+
+        # Normalize country name/code
+        country_lower = country.lower()
+
+        # Regional voice mappings
+        regional_voices = {
+            # Australian variants
+            "au": "pam_australian_mature",
+            "australia": "pam_australian_mature",
+
+            # American variants
+            "us": "pam_american_mature",
+            "usa": "pam_american_mature",
+            "united states": "pam_american_mature",
+            "america": "pam_american_mature",
+
+            # British variants
+            "gb": "pam_british_mature",
+            "uk": "pam_british_mature",
+            "united kingdom": "pam_british_mature",
+            "britain": "pam_british_mature",
+            "england": "pam_british_mature",
+            "scotland": "pam_british_mature",
+            "wales": "pam_british_mature",
+
+            # Canadian variants
+            "ca": "pam_canadian_mature",
+            "canada": "pam_canadian_mature"
+        }
+
+        # Check if country matches any regional voice
+        selected_voice = regional_voices.get(country_lower)
+
+        if selected_voice:
+            logger.info(f"🌍 Selected regional voice: {selected_voice} for country: {country}")
+            return selected_voice
+
+        # Fallback logic based on region patterns
+        # (e.g., New Zealand uses Australian English)
+        if country_lower in ["nz", "new zealand"]:
+            logger.info(f"🌍 Using Australian voice for New Zealand user")
+            return "pam_australian_mature"
+
+        # For other countries, default to American mature voice
+        logger.info(f"🌍 No specific regional voice for {country}, using American mature voice")
+        return "pam_american_mature"
+
     def get_voice_info(self, generic_id: str) -> Optional[Dict[str, Any]]:
         """Get comprehensive information about a voice"""
         
