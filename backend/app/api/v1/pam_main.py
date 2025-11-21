@@ -2115,9 +2115,9 @@ async def chat_endpoint(
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        # Note: Profile loading is now handled internally by PersonalizedPamAgent
+        # Note: Profile loading is now handled internally by PAM Core (with cached context)
         # This eliminates the architectural disconnect between profile loading and AI responses
-        logger.info(f"🔄 PersonalizedPamAgent will handle profile loading and context injection")
+        logger.info(f"🔄 PAM Core will handle profile loading and context injection via get_pam()")
         
         # Log API request
         pam_logger.log_api_request(
@@ -2185,7 +2185,7 @@ async def chat_endpoint(
                 detail="Message contains suspicious content and was rejected"
             )
         
-        # Prepare minimal context - PersonalizedPamAgent handles the rest
+        # Prepare minimal context - PAM Core handles the rest (with get_pam() caching)
         context = request.context or {}
         context["user_id"] = str(user_id)
 
@@ -2195,7 +2195,7 @@ async def chat_endpoint(
             context["user_location"] = context["userLocation"]
             logger.info(f"📍 REST API: User location received: {context['user_location']}")
 
-        logger.info(f"Processing chat request for user {user_id} with PersonalizedPamAgent")
+        logger.info(f"Processing chat request for user {user_id} with PAM Core (40 tools)")
 
         # PRIVACY: classify and create a sanitized version of the message
         try:
@@ -2342,7 +2342,7 @@ async def chat_endpoint(
                     f"✅ AI Router used: provider={routed_provider} model={routed_model} latency={routed.latency_ms:.0f}ms"
                 )
         except Exception as e:
-            logger.warning(f"AI Router execution failed; falling back to PersonalizedPamAgent: {e}")
+            logger.warning(f"AI Router execution failed; falling back to PAM Core: {e}")
 
         # Track user message for analytics (redacted)
         from app.services.analytics.analytics import PamAnalytics
@@ -2353,33 +2353,34 @@ async def chat_endpoint(
             session_id=request.conversation_id or request.session_id
         )
 
-        # 🚀 Existing path: use PersonalizedPamAgent when router not used
+        # 🚀 NEW: Use PAM core brain with 40 working tools (replaced PersonalizedPamAgent)
         pam_response = {"content": None, "actions": []}
         if not used_ai_router:
-            user_jwt = current_user.get("jwt_token")
-            if user_jwt:
-                logger.info(f"🔐 Creating user-context PAM agent for enhanced database authentication")
-                from app.core.personalized_pam_agent import create_user_context_pam_agent
-                user_pam_agent = create_user_context_pam_agent(user_jwt)
-            else:
-                logger.warning(f"⚠️ No JWT token available, using service role fallback")
-                from app.core.personalized_pam_agent import personalized_pam_agent
-                user_pam_agent = personalized_pam_agent
+            logger.info(f"🧠 Using PAM Core Brain (40 tools) - Phase 2 Unification Complete")
 
-            logger.info(f"🤖 Processing with PersonalizedPamAgent - profile loading and context injection with proper RLS authentication")
-
-            # Extract location from context for PersonalizedPamAgent
+            # Extract location from context for PAM
             user_location = context.get("user_location")
             if user_location:
-                logger.info(f"📍 Passing location to PersonalizedPamAgent: {user_location.get('city', 'unknown')} ({user_location.get('lat')}, {user_location.get('lng')})")
+                logger.info(f"📍 Passing location to PAM: {user_location.get('city', 'unknown')} ({user_location.get('lat')}, {user_location.get('lng')})")
 
-            pam_response = await user_pam_agent.process_message(
-                user_id=str(user_id),
+            # Get PAM instance (with cached context)
+            from app.services.pam.core import get_pam
+            user_language = context.get("language", "en")
+            pam_instance = await get_pam(user_id=str(user_id), user_language=user_language)
+
+            # Process message with PAM core brain
+            # PAM.chat() returns str, we wrap it in dict to match expected interface
+            pam_response_text = await pam_instance.chat(
                 message=sanitized_message,
-                session_id=request.conversation_id,
-                additional_context=context,
-                user_location=user_location
+                context=context,  # Pass full context including user_location
+                stream=False
             )
+
+            pam_response = {
+                "content": pam_response_text,
+                "actions": [],  # Actions extracted from Claude tool calls during PAM.chat()
+                "success": True
+            }
             actions = pam_response.get("actions", [])
 
         # Calculate processing time
