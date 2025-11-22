@@ -156,17 +156,15 @@ class PAM:
 
         self.client = AsyncAnthropic(api_key=api_key)
 
-        # Use dynamic model configuration (hot-swappable via environment)
-        from app.config.model_config import get_model_config
-        model_config = get_model_config()
-        primary_model = model_config.get_primary_model()
-        self.model = primary_model.model_id
+        # Use hardcoded Claude Sonnet 4.5 model (fixes gpt-5.1-instant fallback issue)
+        from app.config.ai_providers import ANTHROPIC_MODEL
+        self.model = ANTHROPIC_MODEL  # "claude-sonnet-4-5-20250929"
 
         # Enable intelligent routing (chooses best model per query)
         self.use_intelligent_routing = os.getenv("PAM_INTELLIGENT_ROUTING", "true").lower() == "true"
 
         logger.info(
-            f"PAM using model: {primary_model.name} ({self.model}), "
+            f"🧠 PAM initialized with model: {self.model}, "
             f"Intelligent routing: {'enabled' if self.use_intelligent_routing else 'disabled'}"
         )
 
