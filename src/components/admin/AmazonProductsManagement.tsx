@@ -1,0 +1,775 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/common/AnimatedDialog';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
+import {
+  GripVertical,
+  Plus,
+  Pencil,
+  Trash2,
+  ExternalLink,
+  Package,
+  RefreshCw,
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+
+// Product categories enum
+const CATEGORIES = [
+  { value: 'recovery_gear', label: 'Recovery Gear' },
+  { value: 'camping_expedition', label: 'Camping & Expedition' },
+  { value: 'tools_maintenance', label: 'Tools & Maintenance' },
+  { value: 'parts_upgrades', label: 'Parts & Upgrades' },
+  { value: 'books_manuals', label: 'Books & Manuals' },
+  { value: 'apparel_merchandise', label: 'Apparel & Merchandise' },
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'outdoor_gear', label: 'Outdoor Gear' },
+] as const;
+
+const CURRENCIES = ['USD', 'AUD', 'EUR', 'GBP'] as const;
+
+interface AmazonProduct {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  price: number | null;
+  currency: string;
+  image_url: string | null;
+  asin: string | null;
+  affiliate_url: string;
+  is_active: boolean;
+  sort_order: number;
+  tags: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Extract ASIN from Amazon URL or return as-is if already ASIN
+function extractASINFromUrl(urlOrAsin: string): string {
+  if (!urlOrAsin) return '';
+
+  // Already an ASIN (10 chars, starts with B)
+  if (/^B[0-9A-Z]{9}$/i.test(urlOrAsin.trim())) {
+    return urlOrAsin.trim().toUpperCase();
+  }
+
+  // Extract from URL patterns
+  const patterns = [
+    /\/dp\/([A-Z0-9]{10})/i,
+    /\/gp\/product\/([A-Z0-9]{10})/i,
+    /\/product\/([A-Z0-9]{10})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = urlOrAsin.match(pattern);
+    if (match) return match[1].toUpperCase();
+  }
+
+  return urlOrAsin.trim();
+}
+
+// Detect currency from Amazon URL
+function detectCurrencyFromUrl(urlOrAsin: string): string {
+  if (!urlOrAsin) return 'USD';
+
+  const urlLower = urlOrAsin.toLowerCase();
+
+  if (urlLower.includes('amazon.com.au')) return 'AUD';
+  if (urlLower.includes('amazon.de')) return 'EUR';
+  if (urlLower.includes('amazon.fr')) return 'EUR';
+  if (urlLower.includes('amazon.it')) return 'EUR';
+  if (urlLower.includes('amazon.es')) return 'EUR';
+  if (urlLower.includes('amazon.co.uk')) return 'GBP';
+
+  return 'USD'; // Default for amazon.com
+}
+
+// Build Amazon affiliate link
+function buildAmazonAffiliateLink(asin: string): string {
+  return `https://www.amazon.com/dp/${asin}?tag=unimogcommuni-22`;
+}
+
+// Sortable row component
+function SortableProductRow({
+  product,
+  onEdit,
+  onDelete,
+}: {
+  product: AmazonProduct;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: product.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const categoryLabel =
+    CATEGORIES.find((c) => c.value === product.category)?.label ||
+    product.category;
+
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell>
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical className="h-5 w-5 text-muted-foreground" />
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          {product.image_url && (
+            <img
+              src={product.image_url}
+              alt={product.title}
+              className="h-12 w-12 object-cover rounded"
+            />
+          )}
+          <span className="font-medium truncate max-w-xs">
+            {product.title}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <code className="text-xs bg-muted px-2 py-1 rounded">
+          {product.asin || 'N/A'}
+        </code>
+      </TableCell>
+      <TableCell>{categoryLabel}</TableCell>
+      <TableCell>
+        {product.currency} {product.price?.toFixed(2) || '0.00'}
+      </TableCell>
+      <TableCell>
+        <Badge variant={product.is_active ? 'default' : 'secondary'}>
+          {product.is_active ? 'Active' : 'Inactive'}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <div className="flex gap-2">
+          {product.asin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                window.open(buildAmazonAffiliateLink(product.asin!), '_blank')
+              }
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={onEdit}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onDelete}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+export default function AmazonProductsManagement() {
+  const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<AmazonProduct | null>(
+    null
+  );
+  const [asinInput, setAsinInput] = useState('');
+  const [detectedCurrency, setDetectedCurrency] = useState('USD');
+
+  // Drag & drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to activate drag
+      },
+    })
+  );
+
+  // Fetch products
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['amazon-products-admin'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('affiliate_products')
+        .select('*')
+        .eq('affiliate_provider', 'amazon')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as AmazonProduct[];
+    },
+  });
+
+  // Create product mutation
+  const createMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const asinOrUrl = formData.get('asin') as string;
+      const asin = extractASINFromUrl(asinOrUrl);
+      const affiliateUrl = buildAmazonAffiliateLink(asin);
+      const tagsString = formData.get('tags') as string;
+      const tags = tagsString
+        ? tagsString.split(',').map((t) => t.trim())
+        : null;
+
+      const { data, error } = await supabase
+        .from('affiliate_products')
+        .insert([
+          {
+            title: formData.get('title') as string,
+            description: formData.get('description') as string,
+            category: formData.get('category') as string,
+            price: parseFloat(formData.get('price') as string),
+            currency: formData.get('currency') as string,
+            image_url: formData.get('image_url') as string,
+            asin,
+            affiliate_url: affiliateUrl,
+            affiliate_provider: 'amazon',
+            is_active: formData.get('is_active') === 'true',
+            sort_order: parseInt(formData.get('sort_order') as string) || 0,
+            tags,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['amazon-products-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['amazon-products'] });
+      toast.success('Product created successfully');
+      setDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to create product: ${error.message}`);
+    },
+  });
+
+  // Update product mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({
+      id,
+      formData,
+    }: {
+      id: string;
+      formData: FormData;
+    }) => {
+      const asinOrUrl = formData.get('asin') as string;
+      const asin = extractASINFromUrl(asinOrUrl);
+      const affiliateUrl = buildAmazonAffiliateLink(asin);
+      const tagsString = formData.get('tags') as string;
+      const tags = tagsString
+        ? tagsString.split(',').map((t) => t.trim())
+        : null;
+
+      const { data, error } = await supabase
+        .from('affiliate_products')
+        .update({
+          title: formData.get('title') as string,
+          description: formData.get('description') as string,
+          category: formData.get('category') as string,
+          price: parseFloat(formData.get('price') as string),
+          currency: formData.get('currency') as string,
+          image_url: formData.get('image_url') as string,
+          asin,
+          affiliate_url: affiliateUrl,
+          is_active: formData.get('is_active') === 'true',
+          sort_order: parseInt(formData.get('sort_order') as string) || 0,
+          tags,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['amazon-products-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['amazon-products'] });
+      toast.success('Product updated successfully');
+      setDialogOpen(false);
+      setEditingProduct(null);
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update product: ${error.message}`);
+    },
+  });
+
+  // Delete product mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('affiliate_products')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['amazon-products-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['amazon-products'] });
+      toast.success('Product deleted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to delete product: ${error.message}`);
+    },
+  });
+
+  // Reorder products mutation
+  const reorderMutation = useMutation({
+    mutationFn: async (reorderedProducts: AmazonProduct[]) => {
+      const updates = reorderedProducts.map((product, index) =>
+        supabase
+          .from('affiliate_products')
+          .update({ sort_order: index })
+          .eq('id', product.id)
+      );
+
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      toast.success('Products reordered successfully');
+    },
+    onError: (error: any) => {
+      queryClient.invalidateQueries({ queryKey: ['amazon-products-admin'] });
+      toast.error(`Failed to reorder products: ${error.message}`);
+    },
+  });
+
+  // Drag end handler
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = products.findIndex((p) => p.id === active.id);
+    const newIndex = products.findIndex((p) => p.id === over.id);
+
+    const reordered = arrayMove(products, oldIndex, newIndex);
+
+    // Optimistic update
+    queryClient.setQueryData(['amazon-products-admin'], reordered);
+
+    // Sync to database
+    reorderMutation.mutate(reordered);
+  };
+
+  // Form submit handler
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    if (editingProduct) {
+      updateMutation.mutate({ id: editingProduct.id, formData });
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  // Delete handler
+  const handleDelete = (id: string, title: string) => {
+    if (
+      confirm(
+        `Are you sure you want to delete "${title}"? This cannot be undone.`
+      )
+    ) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  // ASIN input change handler (for currency detection)
+  const handleAsinChange = (value: string) => {
+    setAsinInput(value);
+    const currency = detectCurrencyFromUrl(value);
+    setDetectedCurrency(currency);
+  };
+
+  // Open dialog for editing
+  const handleEdit = (product: AmazonProduct) => {
+    setEditingProduct(product);
+    setAsinInput(product.asin || '');
+    setDetectedCurrency(product.currency);
+    setDialogOpen(true);
+  };
+
+  // Open dialog for creating
+  const handleCreate = () => {
+    setEditingProduct(null);
+    setAsinInput('');
+    setDetectedCurrency('USD');
+    setDialogOpen(true);
+  };
+
+  const activeProducts = products.filter((p) => p.is_active).length;
+  const inactiveProducts = products.length - activeProducts;
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Amazon Products Management</h1>
+          <p className="text-muted-foreground text-sm">
+            Manage Amazon affiliate products with drag & drop ordering
+          </p>
+        </div>
+        <Button
+          onClick={() =>
+            queryClient.invalidateQueries({
+              queryKey: ['amazon-products-admin'],
+            })
+          }
+          disabled={isLoading}
+        >
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`}
+          />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-blue-500" />
+              <div>
+                <p className="text-2xl font-bold">{products.length}</p>
+                <p className="text-sm text-gray-600">Total Products</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-green-500" />
+              <div>
+                <p className="text-2xl font-bold">{activeProducts}</p>
+                <p className="text-sm text-gray-600">Active Products</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-gray-500" />
+              <div>
+                <p className="text-2xl font-bold">{inactiveProducts}</p>
+                <p className="text-sm text-gray-600">Inactive Products</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Products Table */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Products</CardTitle>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" onClick={handleCreate}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </Button>
+              </DialogTrigger>
+              <DialogContent
+                className="max-w-2xl max-h-[90vh] overflow-y-auto"
+                onPointerDownOutside={(e) => e.preventDefault()}
+                onInteractOutside={(e) => e.preventDefault()}
+              >
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingProduct ? 'Edit Product' : 'Add New Product'}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="asin">ASIN or Amazon URL *</Label>
+                    <Input
+                      id="asin"
+                      name="asin"
+                      required
+                      value={asinInput}
+                      onChange={(e) => handleAsinChange(e.target.value)}
+                      defaultValue={editingProduct?.asin || ''}
+                      placeholder="B0DDK8M3CV or full Amazon URL"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter ASIN or paste full Amazon product URL
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="title">Title *</Label>
+                    <Input
+                      id="title"
+                      name="title"
+                      required
+                      defaultValue={editingProduct?.title || ''}
+                      placeholder="Product title"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      defaultValue={editingProduct?.description || ''}
+                      placeholder="Product description"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="category">Category *</Label>
+                      <Select
+                        name="category"
+                        required
+                        defaultValue={editingProduct?.category || ''}
+                      >
+                        <SelectTrigger id="category">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="price">Price *</Label>
+                      <Input
+                        id="price"
+                        name="price"
+                        type="number"
+                        step="0.01"
+                        required
+                        defaultValue={editingProduct?.price || ''}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="currency">Currency *</Label>
+                    <Select
+                      name="currency"
+                      required
+                      value={detectedCurrency}
+                      onValueChange={setDetectedCurrency}
+                    >
+                      <SelectTrigger id="currency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((curr) => (
+                          <SelectItem key={curr} value={curr}>
+                            {curr}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Auto-detected from Amazon URL
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="image_url">Image URL</Label>
+                    <Input
+                      id="image_url"
+                      name="image_url"
+                      type="url"
+                      defaultValue={editingProduct?.image_url || ''}
+                      placeholder="https://..."
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Amazon product image URL
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="tags">Tags</Label>
+                    <Input
+                      id="tags"
+                      name="tags"
+                      defaultValue={editingProduct?.tags?.join(', ') || ''}
+                      placeholder="tire, inflation, tools"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Comma-separated tags
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sort_order">Sort Order</Label>
+                      <Input
+                        id="sort_order"
+                        name="sort_order"
+                        type="number"
+                        defaultValue={editingProduct?.sort_order || 0}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2 pt-8">
+                      <Switch
+                        id="is_active"
+                        name="is_active"
+                        defaultChecked={editingProduct?.is_active ?? true}
+                        value="true"
+                      />
+                      <Label htmlFor="is_active">Active</Label>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={
+                        createMutation.isPending || updateMutation.isPending
+                      }
+                    >
+                      {editingProduct ? 'Update' : 'Create'} Product
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">
+                No products found. Create your first Amazon product!
+              </p>
+            </div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12"></TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>ASIN</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <SortableContext
+                      items={products.map((p) => p.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {products.map((product) => (
+                        <SortableProductRow
+                          key={product.id}
+                          product={product}
+                          onEdit={() => handleEdit(product)}
+                          onDelete={() =>
+                            handleDelete(product.id, product.title)
+                          }
+                        />
+                      ))}
+                    </SortableContext>
+                  </TableBody>
+                </Table>
+              </div>
+            </DndContext>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

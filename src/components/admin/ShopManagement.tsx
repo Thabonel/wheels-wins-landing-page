@@ -49,31 +49,28 @@ const ShopManagement = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      // For now, create mock data structure since we don't have products table
-      const mockProducts: Product[] = [
-        {
-          id: '1',
-          name: 'Travel Backpack Pro',
-          description: 'Professional travel backpack with multiple compartments',
-          price: 89.99,
-          category: 'Travel Gear',
-          status: 'active',
-          inventory_count: 25,
-          created_at: '2024-06-15T10:30:00Z'
-        },
-        {
-          id: '2', 
-          name: 'Camping Tent Deluxe',
-          description: 'Waterproof 4-person camping tent',
-          price: 159.99,
-          category: 'Camping',
-          status: 'active',
-          inventory_count: 12,
-          created_at: '2024-06-20T14:15:00Z'
-        }
-      ];
-      setProducts(mockProducts);
-      toast.success("Products refreshed");
+      // Fetch from affiliate_products table
+      const { data, error } = await supabase
+        .from('affiliate_products')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+
+      // Transform affiliate_products to admin Product format
+      const transformedProducts: Product[] = (data || []).map(product => ({
+        id: product.id,
+        name: product.title,
+        description: product.description || '',
+        price: product.price || 0,
+        category: product.category || 'uncategorized',
+        status: product.is_active ? 'active' : 'inactive',
+        inventory_count: 999, // Affiliate products don't have inventory
+        created_at: product.created_at
+      }));
+
+      setProducts(transformedProducts);
+      toast.success(`Loaded ${transformedProducts.length} products`);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error("Failed to fetch products");
@@ -167,10 +164,18 @@ const ShopManagement = () => {
 
   const handleUpdateProductStatus = async (productId: string, status: string) => {
     try {
-      // Update local state since we don't have products table
-      setProducts(prev => 
-        prev.map(product => 
-          product.id === productId 
+      // Update affiliate_products table
+      const { error } = await supabase
+        .from('affiliate_products')
+        .update({ is_active: status === 'active' })
+        .eq('id', productId);
+
+      if (error) throw error;
+
+      // Update local state
+      setProducts(prev =>
+        prev.map(product =>
+          product.id === productId
             ? { ...product, status }
             : product
         )

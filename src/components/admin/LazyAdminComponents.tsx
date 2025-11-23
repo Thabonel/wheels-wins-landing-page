@@ -16,6 +16,7 @@ export const LazyObservabilityDashboard = lazy(() => import('./observability/Obs
 export const LazyDataCollectorMonitor = lazy(() => import('./DataCollectorMonitor'));
 export const LazyTestingDashboard = lazy(() => import('./TestingDashboard'));
 export const LazyShopManagement = lazy(() => import('./ShopManagement'));
+export const LazyAmazonProductsManagement = lazy(() => import('./AmazonProductsManagement'));
 export const LazyContentModeration = lazy(() => import('./ContentModeration'));
 export const LazyUserFeedback = lazy(() => import('./UserFeedback'));
 export const LazySupportTickets = lazy(() => import('./SupportTickets'));
@@ -57,6 +58,7 @@ export const ObservabilityDashboard = withLazyLoading(LazyObservabilityDashboard
 export const DataCollectorMonitor = withLazyLoading(LazyDataCollectorMonitor, "Data Collector");
 export const TestingDashboard = withLazyLoading(LazyTestingDashboard, "Testing");
 export const ShopManagement = withLazyLoading(LazyShopManagement, "Shop Management");
+export const AmazonProductsManagement = withLazyLoading(LazyAmazonProductsManagement, "Amazon Products");
 export const ContentModeration = withLazyLoading(LazyContentModeration, "Content Moderation");
 export const UserFeedback = withLazyLoading(LazyUserFeedback, "User Feedback");
 export const SupportTickets = withLazyLoading(LazySupportTickets, "Support Tickets");

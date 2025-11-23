@@ -15,6 +15,7 @@ import {
   TestingDashboard,
   AIIndexer,
   ShopManagement,
+  AmazonProductsManagement,
   TripTemplateManagement,
   SupportTickets,
   UserFeedback,
@@ -64,6 +65,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <AuthTestingPanel />;
       case 'Shop Management':
         return <ShopManagement />;
+      case 'Amazon Products':
+        return <AmazonProductsManagement />;
       case 'Trip Templates':
         return <TripTemplateManagement />;
       case 'Support Tickets':
