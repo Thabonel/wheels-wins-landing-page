@@ -244,7 +244,7 @@ export default function AmazonProductsManagement() {
   );
 
   // Fetch products
-  const { data: products = [], isLoading } = useQuery({
+  const { data: products = [], isLoading, error: queryError } = useQuery({
     queryKey: ['amazon-products-admin'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -254,7 +254,11 @@ export default function AmazonProductsManagement() {
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw error;
+      }
+      console.log('Fetched products:', data?.length || 0);
       return data as AmazonProduct[];
     },
   });
@@ -487,6 +491,33 @@ export default function AmazonProductsManagement() {
           Refresh
         </Button>
       </div>
+
+      {/* Error Display */}
+      {queryError && (
+        <Card className="border-destructive">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-destructive">⚠️</div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-destructive mb-1">
+                  Failed to fetch products
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {queryError instanceof Error ? queryError.message : 'Unknown error'}
+                </p>
+                <details className="mt-2">
+                  <summary className="text-xs cursor-pointer text-muted-foreground hover:text-foreground">
+                    Show details
+                  </summary>
+                  <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">
+                    {JSON.stringify(queryError, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
