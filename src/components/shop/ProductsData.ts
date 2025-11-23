@@ -44,29 +44,87 @@ export async function getDigitalProductsFromDB(region: Region): Promise<DigitalP
   }
 }
 
-export async function getAffiliateProductsFromDB(): Promise<AffiliateProduct[]> {
+/**
+ * Get regional affiliate URL based on user's region
+ * Falls back to default affiliate_url if no regional URL available
+ */
+function getRegionalUrl(
+  product: any,
+  userRegion: Region
+): string {
+  const countryCode = REGION_CONFIG[userRegion]?.country;
+
+  // Check if product has regional URLs
+  if (product.regional_urls && typeof product.regional_urls === 'object') {
+    const regionalUrl = product.regional_urls[countryCode];
+    if (regionalUrl) {
+      return regionalUrl;
+    }
+  }
+
+  // Fallback to default affiliate URL
+  return product.affiliate_url || "#";
+}
+
+/**
+ * Determine available regions based on regional_asins
+ */
+function getAvailableRegions(regionalAsins: any): Region[] {
+  if (!regionalAsins || typeof regionalAsins !== 'object') {
+    return ['Rest of the World'];
+  }
+
+  const regions: Region[] = [];
+  const countryToRegion: Record<string, Region> = {
+    'AU': 'Australia',
+    'NZ': 'New Zealand',
+    'US': 'United States',
+    'CA': 'Canada',
+    'GB': 'United Kingdom'
+  };
+
+  Object.keys(regionalAsins).forEach(countryCode => {
+    const region = countryToRegion[countryCode];
+    if (region) {
+      regions.push(region);
+    }
+  });
+
+  return regions.length > 0 ? regions : ['Rest of the World'];
+}
+
+export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<AffiliateProduct[]> {
   try {
     const { data, error } = await supabase
-      .from('v_shop_products')  // Using the view
+      .from('affiliate_products')
       .select('*')
-      .eq('type', 'affiliate')
-      .eq('status', 'active');
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
 
     if (error) {
       console.error('Error fetching affiliate products from database:', error);
       return [];
     }
 
-    console.log('Shop: Using database affiliate products data');
-    return (data || []).map(product => ({
-      id: product.id,
-      title: product.name,
-      description: product.description,
-      image: product.image_url || "/placeholder-product.jpg",
-      externalLink: product.external_url || "#",
-      availableRegions: (product.available_regions || []) as Region[],
-      isPamRecommended: false
-    }));
+    console.log(`Shop: Loaded ${data?.length || 0} affiliate products from database`);
+
+    return (data || []).map(product => {
+      const externalLink = userRegion
+        ? getRegionalUrl(product, userRegion)
+        : product.affiliate_url;
+
+      return {
+        id: product.id,
+        title: product.title,
+        description: product.description || '',
+        image: product.image_url || "/placeholder-product.jpg",
+        externalLink: externalLink,
+        availableRegions: getAvailableRegions(product.regional_asins),
+        isPamRecommended: product.is_featured || false,
+        categories: product.tags || [],
+        brand: product.category // Using category as brand for now
+      };
+    });
   } catch (error) {
     console.error('Unexpected error fetching affiliate products:', error);
     return [];
@@ -133,13 +191,13 @@ export async function getDigitalProducts(region: Region): Promise<DigitalProduct
   });
 }
 
-export async function getAffiliateProducts(): Promise<AffiliateProduct[]> {
-  const dbProducts = await getAffiliateProductsFromDB();
+export async function getAffiliateProducts(region?: Region): Promise<AffiliateProduct[]> {
+  const dbProducts = await getAffiliateProductsFromDB(region);
   if (dbProducts.length > 0) {
     return dbProducts;
   }
-  
-  console.log('Shop: Using static affiliate products data');
+
+  console.log('Shop: No affiliate products found in database, using static fallback');
   return [
     {
       id: "solar-panel-kit",
