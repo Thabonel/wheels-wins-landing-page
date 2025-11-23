@@ -131,99 +131,25 @@ export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<A
   }
 }
 
-// Updated existing functions to try database first
+// Digital products - query database only, no fallback
 export async function getDigitalProducts(region: Region): Promise<DigitalProduct[]> {
   const dbProducts = await getDigitalProductsFromDB(region);
-  if (dbProducts.length > 0) {
-    return dbProducts;
-  }
-  
-  console.log('Shop: Using static digital products data');
-  
-  const staticProducts = [
-    {
-      id: "trip-planner-pro",
-      title: "Advanced Trip Planner Pro",
-      description: "Premium trip planning tools with offline maps, weather integration, and route optimization for RV travelers.",
-      image: "/placeholder-product.jpg",
-      basePrice: 47.00, // AUD base price
-      type: "software",
-      availableRegions: ["United States", "Canada", "Australia"] as Region[],
-      isNew: true
-    },
-    {
-      id: "budget-tracker",
-      title: "RV Budget Tracker & Analytics",
-      description: "Comprehensive financial tracking designed specifically for nomadic lifestyles with expense categorization.",
-      image: "/placeholder-product.jpg",
-      basePrice: 31.00, // AUD base price
-      type: "software",
-      availableRegions: ["United States", "Canada", "Australia"] as Region[]
-    },
-    {
-      id: "maintenance-guide",
-      title: "Complete RV Maintenance Guide",
-      description: "Digital handbook covering all aspects of RV maintenance with step-by-step tutorials and checklists.",
-      image: "/placeholder-product.jpg",
-      basePrice: 39.00, // AUD base price
-      type: "ebook",
-      availableRegions: ["United States", "Canada", "Australia"] as Region[],
-      hasBonus: true
-    }
-  ];
 
-  // Convert prices to user's regional currency
-  return staticProducts.map(product => {
-    const convertedPrice = convertPrice(product.basePrice, region);
-    
-    return {
-      id: product.id,
-      title: product.title,
-      description: product.description,
-      image: product.image,
-      price: convertedPrice.amount,
-      currency: convertedPrice.currency,
-      type: product.type,
-      availableRegions: product.availableRegions,
-      isNew: product.isNew,
-      hasBonus: product.hasBonus
-    };
-  });
+  if (dbProducts.length === 0) {
+    console.log('Shop: No digital products in database');
+  }
+
+  return dbProducts;
 }
 
+// Affiliate products - query database only, no fallback
 export async function getAffiliateProducts(region?: Region): Promise<AffiliateProduct[]> {
   const dbProducts = await getAffiliateProductsFromDB(region);
-  if (dbProducts.length > 0) {
-    return dbProducts;
+
+  if (dbProducts.length === 0) {
+    console.warn('Shop: No affiliate products found in database');
+    throw new Error('No affiliate products available. Please check database connection.');
   }
 
-  console.log('Shop: No affiliate products found in database, using static fallback');
-  return [
-    {
-      id: "solar-panel-kit",
-      title: "Renogy 400W Solar Panel Kit",
-      description: "Complete solar power solution for RVs with high-efficiency panels and charge controller.",
-      image: "/placeholder-product.jpg",
-      externalLink: "https://example.com/solar-kit",
-      availableRegions: ["United States", "Canada"] as Region[],
-      isPamRecommended: true
-    },
-    {
-      id: "portable-generator",
-      title: "Honda EU2200i Portable Generator",
-      description: "Quiet, fuel-efficient generator perfect for boondocking and emergency power needs.",
-      image: "/placeholder-product.jpg",
-      externalLink: "https://example.com/generator",
-      availableRegions: ["United States", "Canada", "Australia"] as Region[]
-    },
-    {
-      id: "water-filter",
-      title: "Berkey Water Filter System",
-      description: "Reliable water filtration for safe drinking water anywhere your travels take you.",
-      image: "/placeholder-product.jpg",
-      externalLink: "https://example.com/water-filter",
-      availableRegions: ["United States", "Canada", "Australia"] as Region[],
-      isPamRecommended: true
-    }
-  ];
+  return dbProducts;
 }
