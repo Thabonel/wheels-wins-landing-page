@@ -13,6 +13,7 @@ import { useShoppingAnalytics } from "@/hooks/useShoppingAnalytics";
 import { getAffiliateProducts, getDigitalProducts } from "@/components/shop/ProductsData";
 import { digistore24Service } from "@/services/digistore24Service";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Shop() {
   const [activeTab, setActiveTab] = useState<TabValue>("all");
@@ -45,7 +46,7 @@ export default function Shop() {
         } else {
           const [digital, affiliate] = await Promise.all([
             getDigitalProducts(region),
-            getAffiliateProducts()
+            getAffiliateProducts(region) // Pass region for regional URL selection
           ]);
           const products = [...digital, ...affiliate].filter(
             product => product.availableRegions.includes(region)
@@ -77,6 +78,39 @@ export default function Shop() {
   
   // Handle external link clicks for affiliate products
   const handleExternalLinkClick = async (url: string, productId?: string) => {
+    // Track affiliate product click in database
+    if (productId) {
+      try {
+        await supabase.from('affiliate_product_clicks').insert({
+          product_id: productId,
+          user_id: user?.id || null,
+          clicked_at: new Date().toISOString(),
+          user_agent: navigator.userAgent,
+          referrer: document.referrer || null,
+          metadata: {
+            screen_resolution: `${window.screen.width}x${window.screen.height}`,
+            viewport: `${window.innerWidth}x${window.innerHeight}`,
+            region: region
+          }
+        });
+
+        // Increment click count using PostgreSQL function
+        await supabase.rpc('increment_product_clicks', {
+          product_uuid: productId
+        });
+      } catch (error) {
+        console.error('Error tracking affiliate click:', error);
+        // Don't block the redirect if tracking fails
+      }
+    }
+
+    // Track in analytics
+    trackProductInteraction({
+      productId: productId || 'unknown',
+      interactionType: 'affiliate_click',
+      contextData: { section: 'main_grid', url }
+    });
+
     // If it's a Digistore24 product, use the service to generate proper affiliate URL
     if (productId && url.includes('digistore24')) {
       const product = allProducts.find(p => p.id === productId);
@@ -91,7 +125,7 @@ export default function Shop() {
         return;
       }
     }
-    
+
     // Default behavior for other affiliate links
     window.open(url, '_blank', 'noopener,noreferrer');
   };
