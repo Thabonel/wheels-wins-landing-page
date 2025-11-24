@@ -1,0 +1,10 @@
+DROP POLICY IF EXISTS "events_select" ON calendar_events;
+DROP POLICY IF EXISTS "events_insert" ON calendar_events;
+DROP POLICY IF EXISTS "events_update" ON calendar_events;
+DROP POLICY IF EXISTS "events_delete" ON calendar_events;
+ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "events_select" ON calendar_events FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "events_insert" ON calendar_events FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "events_update" ON calendar_events FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "events_delete" ON calendar_events FOR DELETE USING (auth.uid() = user_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON calendar_events TO authenticated, anon;

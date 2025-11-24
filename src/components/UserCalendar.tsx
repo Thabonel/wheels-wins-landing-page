@@ -22,7 +22,7 @@ const UserCalendar = () => {
   console.log("🎯 UserCalendar component mounting");
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
-  const { events, setEvents, loading, reloadEvents } = useCalendarEvents();
+  const { events, setEvents, loading, accessStatus, reloadEvents } = useCalendarEvents();
 
   const { toast } = useToast();
   
@@ -80,8 +80,22 @@ const UserCalendar = () => {
     );
   }
 
+  // Show gentle message if no events available (regardless of reason)
+  const showEmptyState = !loading && events.length === 0;
+
   return (
     <>
+      {showEmptyState && (
+        <Card className="mb-4">
+          <CardContent className="flex items-center justify-center py-4">
+            <div className="text-sm text-muted-foreground">
+              {accessStatus === 'forbidden'
+                ? "No calendar events found yet"
+                : "No calendar events found yet"}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       <CalendarContainer
         currentDate={currentDate}
         viewMode={viewMode}
