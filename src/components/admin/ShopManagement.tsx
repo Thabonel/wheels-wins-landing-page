@@ -49,16 +49,43 @@ const ShopManagement = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      // Fetch from affiliate_products table
-      const { data, error } = await supabase
-        .from('affiliate_products')
-        .select('*')
-        .order('sort_order', { ascending: true });
+      // Prefer Edge Function (admin). Includes inactive for full admin view.
+      const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-      if (error) throw error;
+      let rows: any[] = [];
+      try {
+        const res = await fetch(`${baseUrl}?provider=amazon&includeInactive=true`, {
+          headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+        });
+        if (res.ok) {
+          rows = await res.json();
+        } else if (res.status === 401 || res.status === 403) {
+          // Fallback to public-visible products
+          const { data, error } = await supabase
+            .from('affiliate_products')
+            .select('*')
+            .eq('is_active', true)
+            .order('sort_order', { ascending: true });
+          if (error) throw error;
+          rows = data || [];
+        } else {
+          throw new Error(`Failed to load products (${res.status})`);
+        }
+      } catch (err) {
+        console.error('Admin products fetch failed, trying public fallback:', err);
+        const { data, error } = await supabase
+          .from('affiliate_products')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+        if (error) throw error;
+        rows = data || [];
+      }
 
       // Transform affiliate_products to admin Product format
-      const transformedProducts: Product[] = (data || []).map(product => ({
+      const transformedProducts: Product[] = (rows || []).map(product => ({
         id: product.id,
         name: product.title,
         description: product.description || '',
@@ -164,13 +191,18 @@ const ShopManagement = () => {
 
   const handleUpdateProductStatus = async (productId: string, status: string) => {
     try {
-      // Update affiliate_products table
-      const { error } = await supabase
-        .from('affiliate_products')
-        .update({ is_active: status === 'active' })
-        .eq('id', productId);
-
-      if (error) throw error;
+      // Update via Edge Function (admin)
+      const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products/${productId}`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const res = await fetch(baseUrl, {
+        method: 'PATCH',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: status === 'active' })
+      });
+      if (!res.ok) {
+        throw new Error(`Update failed (${res.status})`);
+      }
 
       // Update local state
       setProducts(prev =>
@@ -183,7 +215,7 @@ const ShopManagement = () => {
       toast.success("Product updated successfully");
     } catch (error) {
       console.error('Error updating product:', error);
-      toast.error("Failed to update product");
+      toast.error("Failed to update product (check admin permissions)");
     }
   };
 

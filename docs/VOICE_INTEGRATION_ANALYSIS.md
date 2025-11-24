@@ -1,6 +1,6 @@
 # Voice Integration Analysis - Why It's Working Now
 
-**Date**: November 15, 2025
+**Date**: November 17, 2025 (Updated)
 **Status**: ✅ Production Ready
 **Current Version**: Hybrid OpenAI Realtime + Claude Sonnet 4.5
 
@@ -242,7 +242,7 @@ const tts = useTextToSpeech({ rate: 1.0, pitch: 1.0, volume: 0.8 });
 
 ---
 
-### **Phase 4: Hybrid System** ⭐ (Nov 10-12, 2025) - **CURRENT**
+### **Phase 4: Hybrid System** ⭐ (Nov 10-12, 2025)
 
 **Commit**: `b936cc8e` - **MAJOR UPGRADE**
 **Title**: "feat: hybrid voice system with OpenAI realtime and Claude sonnet"
@@ -344,6 +344,90 @@ expires_at_iso = datetime.fromtimestamp(expires_at).isoformat()
 
 ---
 
+### **Phase 5: Visual Enhancements** (Nov 15-17, 2025) - **CURRENT**
+
+#### **Update 1: PAM Avatar Replacement** (`00722a56`, Nov 15, 2025)
+
+❌ **What Was Wrong**:
+- Generic robot icon (Bot from lucide-react) in chat interface
+- Didn't represent PAM's personality
+- No visual identity for the AI assistant
+
+✅ **What Was Fixed**:
+1. **Replaced Robot Icon with PAM Avatar**:
+   - Location 1: Floating chat bubble (line 1164)
+   - Location 2: Chat window header (line 1178)
+   - Image: `Pam.webp` from Supabase storage
+   - Used `getPublicAssetUrl()` utility function
+
+2. **Styling**:
+   - Rounded circle appearance (`rounded-full`)
+   - Object-fit cover for proper scaling
+   - Maintains connection status indicator (green dot)
+
+**Files Modified**: `src/components/Pam.tsx`
+**User Impact**: PAM now has a recognizable face in the UI
+
+---
+
+#### **Update 2: Conversation Mode Bug Fix** ⭐ (`9982d927`, Nov 17, 2025)
+
+❌ **Critical Bug**:
+- PAM was speaking ALL responses even when user typed questions
+- Voice output triggered by `voice_enabled` setting (not user action)
+- Microphone toggle had no effect on typed messages
+- User report: "pam is still reading her answers to typed questions with the microphone switched off"
+
+**Root Cause**:
+```typescript
+// OLD LOGIC (WRONG):
+if (settings?.pam_preferences?.voice_enabled) {
+  await speakText(responseContent);
+}
+```
+This checks global setting instead of actual conversation mode.
+
+✅ **Solution Implemented**:
+
+1. **Added Conversation Mode State** (line 74):
+   ```typescript
+   const [conversationMode, setConversationMode] = useState<'voice' | 'text'>('text');
+   ```
+   - Defaults to `'text'` (no speech for typed messages)
+   - Independent of global `voice_enabled` setting
+
+2. **Mode Switching Logic**:
+   - **Voice mode starts** (line 529): `setConversationMode('voice')`
+   - **Voice mode stops** (line 602): `setConversationMode('text')`
+   - **User types manually** (lines 1129-1131, 1333-1335): `setConversationMode('text')`
+
+3. **Fixed TTS Trigger** (line 917):
+   ```typescript
+   // NEW LOGIC (CORRECT):
+   if (conversationMode === 'voice') {
+     await speakText(responseContent);
+   }
+   ```
+
+4. **Backend Integration** (line 888):
+   ```typescript
+   context: {
+     conversation_mode: conversationMode, // "voice" or "text"
+     // ... other context fields
+   }
+   ```
+
+**Expected Behavior**:
+- ✅ Typing → Text-only responses (silent)
+- ✅ Voice mode → Responses with speech
+- ✅ Mode persists until explicitly changed
+- ✅ Microphone toggle now controls TTS output
+
+**Files Modified**: `src/components/Pam.tsx` (7 locations)
+**User Impact**: Fixed critical UX bug where PAM wouldn't stop talking
+
+---
+
 ## ✅ What Works Now
 
 ### **Voice Capabilities**:
@@ -355,6 +439,8 @@ expires_at_iso = datetime.fromtimestamp(expires_at).isoformat()
 - ✅ Social features: "Create a post about my trip"
 - ✅ ~500-800ms total latency (speech → response → audio)
 - ✅ Production-ready on all pages (floating bubble)
+- ✅ **Conversation mode switching** (typing = silent, voice = speech)
+- ✅ **PAM avatar** (visual identity in chat interface)
 
 ### **Voice Features**:
 - ✅ Continuous listening mode

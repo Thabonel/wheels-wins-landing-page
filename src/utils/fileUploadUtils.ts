@@ -283,16 +283,42 @@ export async function syncLocalPhotos(userId: string): Promise<void> {
 }
 
 /**
- * Convert base64 to File object
+ * Convert base64 to File object (CSP-safe, no fetch())
  */
 async function base64ToFile(
   base64: string,
   fileName: string,
   mimeType: string
 ): Promise<File> {
-  const response = await fetch(base64);
-  const blob = await response.blob();
-  return new File([blob], fileName, { type: mimeType });
+  // Handle data URLs (e.g., "data:image/jpeg;base64,/9j/4AAQ...")
+  let base64Data = base64;
+  let detectedMimeType = mimeType;
+
+  if (base64.startsWith('data:')) {
+    const matches = base64.match(/^data:([^;]+);base64,(.+)$/);
+    if (matches) {
+      detectedMimeType = matches[1] || mimeType;
+      base64Data = matches[2];
+    } else {
+      // Invalid data URL, try to extract just the base64 part
+      base64Data = base64.split(',')[1] || base64;
+    }
+  }
+
+  // Decode base64 to binary using atob()
+  const binaryString = atob(base64Data);
+
+  // Convert binary string to Uint8Array
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  // Create a Blob from the bytes
+  const blob = new Blob([bytes], { type: detectedMimeType });
+
+  // Create a File from the Blob
+  return new File([blob], fileName, { type: detectedMimeType });
 }
 
 /**

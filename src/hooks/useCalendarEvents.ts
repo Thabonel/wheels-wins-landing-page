@@ -25,6 +25,7 @@ export const useCalendarEvents = () => {
   console.log("🔵 useCalendarEvents hook called");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [accessStatus, setAccessStatus] = useState<'ok' | 'forbidden' | 'error'>('ok');
   const { toast } = useToast();
 
   // Convert database event to CalendarEvent format
@@ -94,18 +95,42 @@ export const useCalendarEvents = () => {
 
       if (error) {
         console.error("Error loading calendar events:", error);
-        toast({
-          title: "Error Loading Events",
-          description: `Failed to load calendar events: ${error.message}`,
-          variant: "destructive",
-        });
+
+        // Check if this is a 403/RLS permission error
+        const is403Error = error.code === 'PGRST301' ||
+                          error.code === '42501' ||
+                          error.message?.toLowerCase().includes('permission') ||
+                          error.message?.toLowerCase().includes('policy') ||
+                          error.message?.toLowerCase().includes('row level security');
+
+        if (is403Error) {
+          // Treat 403 as "no events available" - don't crash, don't spam errors
+          console.log("⚠️ Calendar access restricted (403/RLS) - showing empty calendar");
+          setEvents([]);
+          setAccessStatus('forbidden');
+          // No error toast for 403s - just log it
+        } else {
+          // For other errors, show toast but still set empty events to prevent crashes
+          console.error("❌ Unexpected calendar error:", error);
+          setEvents([]);
+          setAccessStatus('error');
+          toast({
+            title: "Error Loading Events",
+            description: `Failed to load calendar events: ${error.message}`,
+            variant: "destructive",
+          });
+        }
       } else {
         console.log("Loaded events from database:", data?.length || 0);
         const calendarEvents = data ? data.map(convertToCalendarEvent) : [];
         setEvents(calendarEvents);
+        setAccessStatus('ok');
       }
     } catch (error) {
       console.error("Unexpected error loading events:", error);
+      // Set empty events to prevent crashes
+      setEvents([]);
+      setAccessStatus('error');
       toast({
         title: "Unexpected Error",
         description: "An unexpected error occurred while loading events",
@@ -153,5 +178,5 @@ export const useCalendarEvents = () => {
     };
   }, []);
 
-  return { events, setEvents, loading, reloadEvents: loadEvents };
+  return { events, setEvents, loading, accessStatus, reloadEvents: loadEvents };
 };

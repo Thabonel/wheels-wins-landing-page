@@ -1,0 +1,14 @@
+DROP POLICY IF EXISTS "Users can view own emergency info" ON medical_emergency_info;
+DROP POLICY IF EXISTS "Users can create own emergency info" ON medical_emergency_info;
+DROP POLICY IF EXISTS "Users can update own emergency info" ON medical_emergency_info;
+DROP POLICY IF EXISTS "Users can delete own emergency info" ON medical_emergency_info;
+DROP POLICY IF EXISTS "medical_emergency_select" ON medical_emergency_info;
+DROP POLICY IF EXISTS "medical_emergency_insert" ON medical_emergency_info;
+DROP POLICY IF EXISTS "medical_emergency_update" ON medical_emergency_info;
+DROP POLICY IF EXISTS "medical_emergency_delete" ON medical_emergency_info;
+ALTER TABLE medical_emergency_info ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "medical_emergency_select" ON medical_emergency_info FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "medical_emergency_insert" ON medical_emergency_info FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "medical_emergency_update" ON medical_emergency_info FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "medical_emergency_delete" ON medical_emergency_info FOR DELETE USING (auth.uid() = user_id);
+GRANT ALL ON medical_emergency_info TO authenticated, anon;

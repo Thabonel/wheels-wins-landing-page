@@ -1,0 +1,10 @@
+CREATE INDEX IF NOT EXISTS idx_expenses_user_id_date ON expenses(user_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_pam_savings_events_user_date ON pam_savings_events(user_id, saved_date DESC);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_user_date ON calendar_events(user_id, start_date DESC);
+CREATE INDEX IF NOT EXISTS idx_monthly_savings_user_period ON monthly_savings_summary(user_id, billing_period_start, billing_period_end);
+CREATE INDEX IF NOT EXISTS idx_fuel_log_user_date ON fuel_log(user_id, date DESC);
+ANALYZE expenses;
+ANALYZE pam_savings_events;
+ANALYZE calendar_events;
+ANALYZE monthly_savings_summary;
+ANALYZE fuel_log;

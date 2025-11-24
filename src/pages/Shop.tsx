@@ -48,10 +48,8 @@ export default function Shop() {
             getDigitalProducts(region),
             getAffiliateProducts(region) // Pass region for regional URL selection
           ]);
-          const products = [...digital, ...affiliate].filter(
-            product => product.availableRegions.includes(region)
-          );
-          setAllProducts(products);
+          // Show all products (regional URL routing handled in getRegionalUrl)
+          setAllProducts([...digital, ...affiliate]);
         }
       } catch (error) {
         console.error("Error loading products:", error);

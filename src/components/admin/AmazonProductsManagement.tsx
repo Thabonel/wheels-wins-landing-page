@@ -233,6 +233,7 @@ export default function AmazonProductsManagement() {
   );
   const [asinInput, setAsinInput] = useState('');
   const [detectedCurrency, setDetectedCurrency] = useState('USD');
+  const [limitedAccess, setLimitedAccess] = useState(false);
 
   // Drag & drop sensors
   const sensors = useSensors(
@@ -247,21 +248,62 @@ export default function AmazonProductsManagement() {
   const { data: products = [], isLoading, error: queryError } = useQuery({
     queryKey: ['amazon-products-admin'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Prefer Edge Function (admin) first
+      const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      try {
+        const res = await fetch(`${baseUrl}?provider=amazon&includeInactive=true`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+          }
+        });
+        if (res.ok) {
+          setLimitedAccess(false);
+          const rows = (await res.json()) as AmazonProduct[];
+          console.log('Fetched products (edge function):', rows.length);
+          return rows;
+        }
+        if (res.status === 401 || res.status === 403) {
+          console.warn('Edge function denied; falling back to public products');
+          setLimitedAccess(true);
+        } else {
+          const errText = await res.text();
+          throw new Error(`Admin function error (${res.status}): ${errText}`);
+        }
+      } catch (e) {
+        console.warn('Admin function request failed:', e);
+        setLimitedAccess(true);
+      }
+
+      // Fallback to public-visible products so UI remains usable
+      const fallback = await supabase
         .from('affiliate_products')
         .select('*')
         .eq('affiliate_provider', 'amazon')
+        .eq('is_active', true)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Supabase query error:', error);
-        throw error;
+      if (fallback.error) {
+        console.error('Fallback query also failed:', fallback.error);
+        throw fallback.error;
       }
-      console.log('Fetched products:', data?.length || 0);
-      return data as AmazonProduct[];
+      console.log('Fetched products (public fallback):', fallback.data?.length || 0);
+      return (fallback.data || []) as AmazonProduct[];
     },
   });
+
+  // Map common Supabase errors to clearer admin guidance
+  const humanReadableError = (() => {
+    const e = queryError as any;
+    if (!e) return null;
+    if (e.code === '42501') {
+      return 'Permission denied (missing table GRANTs or failing RLS). Please apply the Supabase migration to fix admin access.';
+    }
+    return e.message || 'Unknown error';
+  })();
 
   // Create product mutation
   const createMutation = useMutation({
@@ -274,29 +316,35 @@ export default function AmazonProductsManagement() {
         ? tagsString.split(',').map((t) => t.trim())
         : null;
 
-      const { data, error } = await supabase
-        .from('affiliate_products')
-        .insert([
-          {
-            title: formData.get('title') as string,
-            description: formData.get('description') as string,
-            category: formData.get('category') as string,
-            price: parseFloat(formData.get('price') as string),
-            currency: formData.get('currency') as string,
-            image_url: formData.get('image_url') as string,
-            asin,
-            affiliate_url: affiliateUrl,
-            affiliate_provider: 'amazon',
-            is_active: formData.get('is_active') === 'true',
-            sort_order: parseInt(formData.get('sort_order') as string) || 0,
-            tags,
-          },
-        ])
-        .select()
-        .single();
+      const priceStr = formData.get('price') as string;
+      const priceVal = priceStr ? parseFloat(priceStr) : null;
+      const sortStr = formData.get('sort_order') as string;
+      const sortVal = sortStr ? parseInt(sortStr) : 0;
 
-      if (error) throw error;
-      return data;
+      const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const payload = {
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        category: formData.get('category') as string,
+        price: priceVal,
+        currency: formData.get('currency') as string,
+        image_url: formData.get('image_url') as string,
+        asin,
+        affiliate_url: affiliateUrl,
+        affiliate_provider: 'amazon',
+        is_active: formData.get('is_active') === 'true',
+        sort_order: Number.isFinite(sortVal) ? sortVal : 0,
+        tags,
+      };
+      const res = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return (await res.json()) as AmazonProduct;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['amazon-products-admin'] });
@@ -305,7 +353,12 @@ export default function AmazonProductsManagement() {
       setDialogOpen(false);
     },
     onError: (error: any) => {
-      toast.error(`Failed to create product: ${error.message}`);
+      const msg = error?.message || 'Unknown error';
+      if (msg.includes('permission denied') || error?.code === '42501') {
+        toast.error('You do not have permission to create products. Admin database access required.');
+      } else {
+        toast.error(`Failed to create product: ${msg}`);
+      }
     },
   });
 
@@ -326,27 +379,34 @@ export default function AmazonProductsManagement() {
         ? tagsString.split(',').map((t) => t.trim())
         : null;
 
-      const { data, error } = await supabase
-        .from('affiliate_products')
-        .update({
-          title: formData.get('title') as string,
-          description: formData.get('description') as string,
-          category: formData.get('category') as string,
-          price: parseFloat(formData.get('price') as string),
-          currency: formData.get('currency') as string,
-          image_url: formData.get('image_url') as string,
-          asin,
-          affiliate_url: affiliateUrl,
-          is_active: formData.get('is_active') === 'true',
-          sort_order: parseInt(formData.get('sort_order') as string) || 0,
-          tags,
-        })
-        .eq('id', id)
-        .select()
-        .single();
+      const priceStr2 = formData.get('price') as string;
+      const priceVal2 = priceStr2 ? parseFloat(priceStr2) : null;
+      const sortStr2 = formData.get('sort_order') as string;
+      const sortVal2 = sortStr2 ? parseInt(sortStr2) : 0;
 
-      if (error) throw error;
-      return data;
+      const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products/${id}`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const updates = {
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        category: formData.get('category') as string,
+        price: priceVal2,
+        currency: formData.get('currency') as string,
+        image_url: formData.get('image_url') as string,
+        asin,
+        affiliate_url: affiliateUrl,
+        is_active: formData.get('is_active') === 'true',
+        sort_order: Number.isFinite(sortVal2) ? sortVal2 : 0,
+        tags,
+      };
+      const res = await fetch(baseUrl, {
+        method: 'PATCH',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return (await res.json()) as AmazonProduct;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['amazon-products-admin'] });
@@ -356,19 +416,26 @@ export default function AmazonProductsManagement() {
       setEditingProduct(null);
     },
     onError: (error: any) => {
-      toast.error(`Failed to update product: ${error.message}`);
+      const msg = error?.message || 'Unknown error';
+      if (msg.includes('permission denied') || error?.code === '42501') {
+        toast.error('You do not have permission to update products. Admin database access required.');
+      } else {
+        toast.error(`Failed to update product: ${msg}`);
+      }
     },
   });
 
   // Delete product mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('affiliate_products')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products/${id}`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const res = await fetch(baseUrl, {
+        method: 'DELETE',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      });
+      if (!res.ok) throw new Error(await res.text());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['amazon-products-admin'] });
@@ -376,7 +443,12 @@ export default function AmazonProductsManagement() {
       toast.success('Product deleted successfully');
     },
     onError: (error: any) => {
-      toast.error(`Failed to delete product: ${error.message}`);
+      const msg = error?.message || 'Unknown error';
+      if (msg.includes('permission denied') || error?.code === '42501') {
+        toast.error('You do not have permission to delete products. Admin database access required.');
+      } else {
+        toast.error(`Failed to delete product: ${msg}`);
+      }
     },
   });
 
@@ -503,7 +575,7 @@ export default function AmazonProductsManagement() {
                   Failed to fetch products
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {queryError instanceof Error ? queryError.message : 'Unknown error'}
+                  {humanReadableError}
                 </p>
                 <details className="mt-2">
                   <summary className="text-xs cursor-pointer text-muted-foreground hover:text-foreground">
@@ -563,7 +635,7 @@ export default function AmazonProductsManagement() {
             <CardTitle>Products</CardTitle>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" onClick={handleCreate}>
+                <Button size="sm" onClick={handleCreate} disabled={limitedAccess} title={limitedAccess ? 'Read-only mode: database permissions required' : undefined}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Product
                 </Button>
@@ -737,8 +809,9 @@ export default function AmazonProductsManagement() {
                     <Button
                       type="submit"
                       disabled={
-                        createMutation.isPending || updateMutation.isPending
+                        createMutation.isPending || updateMutation.isPending || limitedAccess
                       }
+                      title={limitedAccess ? 'Read-only mode: database permissions required' : undefined}
                     >
                       {editingProduct ? 'Update' : 'Create'} Product
                     </Button>
@@ -749,6 +822,11 @@ export default function AmazonProductsManagement() {
           </div>
         </CardHeader>
         <CardContent>
+          {limitedAccess && (
+            <div className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+              Admin is in read-only mode due to database permissions. You can view active products, but cannot create, edit, delete, or reorder. Please update database grants/RLS to enable full admin access.
+            </div>
+          )}
           {isLoading ? (
             <div className="flex justify-center py-8">
               <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
@@ -763,7 +841,39 @@ export default function AmazonProductsManagement() {
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
+              onDragEnd={(event: DragEndEvent) => {
+                if (limitedAccess) {
+                  toast.error('Read-only mode: cannot reorder without admin DB permissions');
+                  return;
+                }
+                const { active, over } = event;
+                if (!over || active.id === over.id) return;
+
+                const oldIndex = products.findIndex((p) => p.id === active.id);
+                const newIndex = products.findIndex((p) => p.id === over.id);
+                if (oldIndex < 0 || newIndex < 0) return;
+
+                const reordered = arrayMove(products, oldIndex, newIndex);
+                queryClient.setQueryData(['amazon-products-admin'], reordered);
+
+                const persistOrder = async () => {
+                  const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products/reorder`;
+                  const { data: sessionData } = await supabase.auth.getSession();
+                  const token = sessionData?.session?.access_token;
+                  const order = reordered.map((p, idx) => ({ id: p.id, sort_order: idx }));
+                  const res = await fetch(baseUrl, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order })
+                  });
+                  if (!res.ok) throw new Error(await res.text());
+                };
+                persistOrder().catch((err) => {
+                  console.error('Failed to persist order:', err);
+                  toast.error('Failed to save order');
+                  queryClient.invalidateQueries({ queryKey: ['amazon-products-admin'] });
+                });
+              }}
             >
               <div className="overflow-x-auto">
                 <Table>

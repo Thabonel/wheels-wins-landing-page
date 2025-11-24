@@ -98,6 +98,7 @@ export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<A
     const { data, error } = await supabase
       .from('affiliate_products')
       .select('*')
+      .eq('affiliate_provider', 'amazon')
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
@@ -148,7 +149,8 @@ export async function getAffiliateProducts(region?: Region): Promise<AffiliatePr
 
   if (dbProducts.length === 0) {
     console.warn('Shop: No affiliate products found in database');
-    throw new Error('No affiliate products available. Please check database connection.');
+    // Return empty array; UI will show no products without throwing
+    return [];
   }
 
   return dbProducts;
