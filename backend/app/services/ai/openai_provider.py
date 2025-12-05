@@ -28,7 +28,8 @@ class OpenAIProvider(AIProviderInterface):
     
     def __init__(self, config: ProviderConfig):
         # Set default OpenAI capabilities
-        if not config.capabilities:
+        # Check for both empty and default-only (CHAT) capabilities
+        if not config.capabilities or config.capabilities == [AICapability.CHAT]:
             config.capabilities = [
                 AICapability.CHAT,
                 AICapability.STREAMING,
@@ -122,7 +123,24 @@ class OpenAIProvider(AIProviderInterface):
             # Add system message if present
             if system_message:
                 openai_messages.insert(0, {"role": "system", "content": system_message})
-            
+
+            # ----- TOOL HANDLING -----
+            # Convert "functions" to "tools" for OpenAI's newer Chat Completions API
+            # Newer models (GPT-5.1) use "tools" parameter, not "functions"
+            tools = kwargs.pop("tools", None)
+            functions = kwargs.pop("functions", None)
+
+            # If functions provided, convert to tools format
+            if functions and not tools:
+                tools = self._convert_functions_to_tools(functions)
+                logger.info(f"🔄 Converted {len(functions)} functions to tools format for OpenAI")
+
+            # Add tools to kwargs if present
+            if tools:
+                kwargs["tools"] = tools
+                logger.info(f"🔧 Passing {len(tools)} tools to OpenAI API")
+            # ----- END TOOL HANDLING -----
+
             # Use Chat Completions API for all models (GPT-5.1 uses max_completion_tokens)
             actual_model = model or self.config.default_model
 
@@ -206,6 +224,53 @@ class OpenAIProvider(AIProviderInterface):
             self.record_failure(e)
             logger.error(f"Unexpected error in OpenAI completion: {e}")
             raise
+
+    def _convert_functions_to_tools(self, functions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Convert OpenAI functions format to tools format.
+
+        Functions format (old):
+        {
+            "name": "...",
+            "description": "...",
+            "parameters": {...}
+        }
+
+        Tools format (new):
+        {
+            "type": "function",
+            "function": {
+                "name": "...",
+                "description": "...",
+                "parameters": {...}
+            }
+        }
+
+        Args:
+            functions: List of functions in old format
+
+        Returns:
+            List of tools in new format
+        """
+        tools = []
+        for func in functions:
+            # Check if already in tools format
+            if "type" in func and func["type"] == "function" and "function" in func:
+                tools.append(func)
+                continue
+
+            # Convert from functions format to tools format
+            tool = {
+                "type": "function",
+                "function": {
+                    "name": func.get("name"),
+                    "description": func.get("description", ""),
+                    "parameters": func.get("parameters", {"type": "object", "properties": {}})
+                }
+            }
+            tools.append(tool)
+
+        return tools
 
     def _extract_function_payload(self, function_payload: Any) -> Dict[str, Any]:
         """Normalize OpenAI function payloads into a consistent dictionary."""

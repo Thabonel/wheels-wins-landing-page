@@ -1,0 +1,16 @@
+ALTER TABLE user_login_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own login history" ON user_login_history;
+DROP POLICY IF EXISTS "Authenticated users can insert login history" ON user_login_history;
+DROP POLICY IF EXISTS "login_history_select" ON user_login_history;
+DROP POLICY IF EXISTS "login_history_insert" ON user_login_history;
+CREATE POLICY "login_history_select" ON user_login_history FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "login_history_insert" ON user_login_history FOR INSERT WITH CHECK (auth.uid() = user_id);
+GRANT SELECT, INSERT ON user_login_history TO authenticated;
+ALTER TABLE user_active_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own active sessions" ON user_active_sessions;
+DROP POLICY IF EXISTS "Authenticated users can manage own sessions" ON user_active_sessions;
+DROP POLICY IF EXISTS "sessions_select" ON user_active_sessions;
+DROP POLICY IF EXISTS "sessions_all" ON user_active_sessions;
+CREATE POLICY "sessions_select" ON user_active_sessions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "sessions_all" ON user_active_sessions FOR ALL USING (auth.uid() = user_id);
+GRANT ALL ON user_active_sessions TO authenticated;

@@ -645,7 +645,43 @@ class EnhancedPamOrchestrator:
         except Exception as e:
             logger.error(f"Error routing to {intent} node: {e}")
             return None
-    
+
+    def _normalize_location_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        CRITICAL FIX: Maps frontend 'lat/lng' to tool-expected 'latitude/longitude'.
+        Ensures tools like weather_advisor don't get filtered out due to missing params.
+
+        This addresses Gemini AI's Suspect #2 (Context-Based Exclusion).
+        """
+        if not context:
+            return context or {}
+
+        user_location = context.get("user_location")
+
+        if not user_location:
+            logger.debug("📍 No user_location found in context")
+            return context
+
+        # 1. Check if we have short codes (lat/lng) but miss long codes
+        if "lat" in user_location and "latitude" not in user_location:
+            user_location["latitude"] = user_location["lat"]
+            logger.info(f"📍 Normalized 'lat' {user_location['lat']} -> 'latitude'")
+
+        if "lng" in user_location and "longitude" not in user_location:
+            user_location["longitude"] = user_location["lng"]
+            logger.info(f"📍 Normalized 'lng' {user_location['lng']} -> 'longitude'")
+
+        # 2. Reverse check - ensure short codes exist if tools use them
+        if "latitude" in user_location and "lat" not in user_location:
+            user_location["lat"] = user_location["latitude"]
+
+        if "longitude" in user_location and "lng" not in user_location:
+            user_location["lng"] = user_location["longitude"]
+
+        # Update context in place
+        context["user_location"] = user_location
+        return context
+
     @observe_agent(name="enhanced_pam_process", metadata={"agent_type": "enhanced_pam"})
     async def process_message(
         self,
@@ -670,7 +706,12 @@ class EnhancedPamOrchestrator:
             if not self.is_initialized:
                 logger.error("❌ Enhanced orchestrator not initialized")
                 raise Exception("Enhanced orchestrator not initialized")
-            
+
+            # CRITICAL FIX: Normalize location context BEFORE any tool selection logic
+            # This ensures lat/lng <-> latitude/longitude compatibility (Gemini AI Suspect #2)
+            context = self._normalize_location_context(context)
+            logger.info(f"📍 Location context after normalization: {context.get('user_location') if context else None}")
+
             # Assess current service capabilities
             logger.debug("Step 1: Assessing service capabilities...")
             await self._assess_service_capabilities()
@@ -1074,7 +1115,7 @@ class EnhancedPamOrchestrator:
                 "quality_requirements": enhanced_context.quality_requirements,
                 "pam_mission": {
                     "primary_goal": "Help users save money through intelligent recommendations",
-                    "savings_guarantee": "Users should save at least their subscription cost ($29.99/month)",
+                    "savings_guarantee": "Users should save at least their subscription cost (A$9.99/month)",
                     "savings_approach": "Look for cost-saving alternatives, better deals, and smarter spending choices",
                     "attribution_required": "When suggesting money-saving alternatives, use financial tools with savings attribution"
                 },
@@ -1095,17 +1136,17 @@ class EnhancedPamOrchestrator:
                 try:
                     # Get relevant tool capabilities based on context
                     relevant_capabilities = self._determine_relevant_capabilities(message, enhanced_context)
-                    logger.debug(f"🔧 Relevant capabilities: {relevant_capabilities}")
+                    logger.info(f"🔧 Relevant capabilities: {relevant_capabilities}")
                     tools = self.tool_registry.get_openai_functions(capabilities=relevant_capabilities)
-                    logger.debug(f"🔧 Retrieved {len(tools)} tools")
+                    logger.info(f"🔧 Retrieved {len(tools)} tools from Tool Registry")
                 except Exception as tool_e:
                     logger.warning(f"⚠️ Failed to get tools: {tool_e}")
                     tools = []
             else:
-                logger.debug("🔧 No tool registry available")
-            
+                logger.info("🔧 No tool registry available")
+
             # Call AI orchestrator with tools for function calling
-            logger.debug(f"🤖 Calling AI orchestrator with {len(tools)} tools...")
+            logger.info(f"🤖 Calling AI orchestrator with {len(tools)} tools...")
             messages = [
                 AIMessage(role="system", content="You are PAM, a helpful AI assistant with access to various tools for travel planning and expense management."),
                 AIMessage(role="user", content=f"{message}\n\nContext: {json.dumps(ai_context, cls=DateTimeEncoder)}")

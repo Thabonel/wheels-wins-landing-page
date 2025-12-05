@@ -528,7 +528,6 @@ async def websocket_endpoint(
     websocket: WebSocket,
     user_id: str,
     token: str = Query(...),  # Required parameter
-    orchestrator = Depends(get_pam_orchestrator),
     db = Depends(get_database)
 ):
     """
@@ -903,11 +902,11 @@ async def websocket_endpoint(
                 # Check if streaming is requested
                 if data.get("stream", False) or data.get("streaming", False):
                     logger.info(f"🌊 [DEBUG] Streaming response requested, calling handle_websocket_chat_streaming")
-                    await handle_websocket_chat_streaming(websocket, data, user_id, orchestrator, token)
+                    await handle_websocket_chat_streaming(websocket, data, user_id, token)
                     logger.info(f"✅ [DEBUG] handle_websocket_chat_streaming completed for user {user_id}")
                 else:
                     logger.info(f"💬 [DEBUG] Non-streaming response, calling handle_websocket_chat")
-                    await handle_websocket_chat(websocket, data, user_id, orchestrator, token)
+                    await handle_websocket_chat(websocket, data, user_id, token)
                     logger.info(f"✅ [DEBUG] handle_websocket_chat completed for user {user_id}")
                 
             elif data.get("type") == "context_update":
@@ -1016,9 +1015,8 @@ async def websocket_endpoint(
                                 "message": stt_result.text,
                                 "context": data.get("context", {})
                             }
-                            await process_chat_message(
-                                websocket, chat_data, user_id, orchestrator, 
-                                user_settings, connection_id
+                            await handle_websocket_chat(
+                                websocket, chat_data, user_id, token
                             )
                             
                 except Exception as stt_error:
@@ -1122,8 +1120,8 @@ async def websocket_endpoint(
         except:
             pass
 
-async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, orchestrator, user_jwt: str = None):
-    """Handle chat messages over WebSocket with edge processing integration"""
+async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, user_jwt: str = None):
+    """Handle chat messages over WebSocket with PAM core integration"""
     import time
     start_time = time.time()  # Initialize start_time for processing time tracking
 
@@ -1483,277 +1481,20 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             return
 
         except Exception as claude_error:
-            logger.warning(f"⚠️ [PRIMARY] Claude PAM failed: {claude_error}, falling back to Gemini")
+            logger.error(f"❌ [PRIMARY] Claude PAM failed: {claude_error}")
 
-            # FALLBACK to Gemini if Claude fails
-            try:
-                from app.services.pam.simple_gemini_service import get_simple_gemini_service
-                simple_service = await get_simple_gemini_service()
-
-                if simple_service.is_initialized:
-                    logger.info("✅ [FALLBACK] Using Gemini as fallback...")
-                    response_message = await simple_service.generate_response(message, context, user_id, user_jwt)
-
-                    await safe_send_json(websocket, {
-                        "type": "chat_response",
-                        "message": response_message,
-                        "content": response_message,
-                        "source": "gemini_fallback",
-                        "error": False,
-                        "timestamp": datetime.utcnow().isoformat()
-                    })
-                    return
-            except Exception as gemini_error:
-                logger.warning(f"⚠️ [FALLBACK] Gemini also failed: {gemini_error}, trying orchestrator")
-
-        # FALLBACK: Use enhanced orchestrator only if Simple Gemini Service fails
-        logger.info(f"🔄 [FALLBACK] Using enhanced orchestrator as fallback...")
-
-        # Process through orchestrator with error handling
-        try:
-            logger.info(f"🤖 [DEBUG] Calling orchestrator.process_message with message: '{message}'")
-            logger.debug(f"📋 [DEBUG] Context: {context}")
-            logger.debug(f"👤 [DEBUG] User ID: {user_id}")
-
-            # Check orchestrator initialization status
-            if not hasattr(orchestrator, 'is_initialized') or not orchestrator.is_initialized:
-                logger.error("❌ [DEBUG] Enhanced orchestrator not initialized")
-                raise Exception("Enhanced orchestrator not initialized")
-            
-            # Log orchestrator health before processing
-            try:
-                orchestrator_status = await orchestrator.get_comprehensive_status()
-                logger.debug(f"🔍 [DEBUG] Orchestrator status: {orchestrator_status['enhanced_orchestrator']['initialized']}")
-                logger.debug(f"🔍 [DEBUG] Available capabilities: {orchestrator_status['enhanced_orchestrator']['capabilities']['capabilities_available']}")
-            except Exception as status_e:
-                logger.warning(f"⚠️ [DEBUG] Could not get orchestrator status: {status_e}")
-            
-            # Process message with detailed logging
-            result = await orchestrator.process_message(
-                user_id=user_id,
-                message=message,
-                session_id=str(uuid.uuid4()),
-                context=context
-            )
-            
-            logger.info(f"✅ [DEBUG] Orchestrator processing completed")
-            logger.debug(f"📤 [DEBUG] Orchestrator result keys: {list(result.keys())}")
-            logger.debug(f"📤 [DEBUG] Orchestrator result: {result}")
-            
-            # Extract response from orchestrator result
-            response_message = result.get("content", "")
-            response_context = context
-            
-            # Check if this is an error response
-            if result.get("error") or "technical difficulties" in response_message.lower() or "unable to process" in response_message.lower():
-                logger.warning(f"⚠️ [DEBUG] Orchestrator returned error/fallback response: {response_message[:100]}")
-                logger.warning(f"⚠️ [DEBUG] Error details: {result.get('error', 'No error details')}")
-                logger.warning(f"⚠️ [DEBUG] Error type: {result.get('error_type', 'Unknown')}")
-                logger.warning(f"⚠️ [DEBUG] Service status: {result.get('service_status', 'Unknown')}")
-
-                # 🔄 FALLBACK: Try Simple Gemini Service when orchestrator returns error response
-                logger.info("🔄 [FALLBACK] Orchestrator returned error, trying Simple Gemini Service...")
-                try:
-                    from app.services.pam.simple_gemini_service import get_simple_gemini_service
-
-                    # Get simple Gemini service
-                    simple_service = await get_simple_gemini_service()
-
-                    if simple_service.is_initialized:
-                        logger.info("✅ [FALLBACK] Simple Gemini Service available, generating response...")
-
-                        # Generate response using simple service with profile access
-                        fallback_response = await simple_service.generate_response(message, context, user_id, user_jwt)
-
-                        logger.info(f"✅ [FALLBACK] Simple Gemini response: {fallback_response[:100]}...")
-
-                        # Send successful response from simple service
-                        await safe_send_json(websocket, {
-                            "type": "chat_response",
-                            "message": fallback_response,
-                            "content": fallback_response,
-                            "source": "simple_gemini_fallback",
-                            "error": False,
-                            "fallback_used": True,
-                            "original_error": result.get("error", "Orchestrator error"),
-                            "timestamp": datetime.utcnow().isoformat()
-                        })
-                        return
-                    else:
-                        logger.error("❌ [FALLBACK] Simple Gemini Service not initialized")
-
-                except Exception as fallback_error:
-                    logger.error(f"❌ [FALLBACK] Simple Gemini Service also failed: {fallback_error}")
-
-                # Final fallback: Send the orchestrator's error response
-                await safe_send_json(websocket, {
-                    "type": "chat_response",
-                    "message": response_message,
-                    "content": response_message,
-                    "source": "cloud",
-                    "error": True,
-                    "error_details": result.get("error", "Service error"),
-                    "error_type": result.get("error_type", "Unknown"),
-                    "service_status": result.get("service_status", "degraded"),
-                    "timestamp": datetime.utcnow().isoformat()
-                })
-                return  # IMPORTANT: Return here to prevent duplicate message sending
-        except Exception as e:
-            logger.error(f"❌ [DEBUG] Orchestrator processing failed: {e}")
-            logger.error(f"❌ [DEBUG] Exception type: {type(e).__name__}")
-            logger.error(f"❌ [DEBUG] Exception details: {str(e)}")
-
-            # Get detailed traceback for debugging
-            import traceback
-            logger.error(f"❌ [DEBUG] Full traceback: {traceback.format_exc()}")
-
-            # Try to get orchestrator status for debugging
-            try:
-                if hasattr(orchestrator, '_get_service_status_summary'):
-                    service_status = orchestrator._get_service_status_summary()
-                    logger.error(f"❌ [DEBUG] Service status at failure: {service_status}")
-                else:
-                    logger.error(f"❌ [DEBUG] Orchestrator type: {type(orchestrator)}")
-                    logger.error(f"❌ [DEBUG] Orchestrator attributes: {dir(orchestrator)}")
-            except Exception as status_e:
-                logger.error(f"❌ [DEBUG] Could not get service status: {status_e}")
-
-            # 🔄 FALLBACK: Try Simple Gemini Service when orchestrator fails
-            logger.info("🔄 [FALLBACK] Orchestrator failed, trying Simple Gemini Service...")
-            try:
-                from app.services.pam.simple_gemini_service import get_simple_gemini_service
-
-                # Get simple Gemini service
-                simple_service = await get_simple_gemini_service()
-
-                if simple_service.is_initialized:
-                    logger.info("✅ [FALLBACK] Simple Gemini Service available, generating response...")
-
-                    # Generate response using simple service with profile access
-                    response_message = await simple_service.generate_response(message, context, user_id, user_jwt)
-
-                    logger.info(f"✅ [FALLBACK] Simple Gemini response: {response_message[:100]}...")
-
-                    # Send successful response from simple service
-                    await safe_send_json(websocket, {
-                        "type": "chat_response",
-                        "message": response_message,
-                        "content": response_message,
-                        "source": "simple_gemini_fallback",
-                        "error": False,
-                        "fallback_used": True,
-                        "timestamp": datetime.utcnow().isoformat()
-                    })
-                    return
-                else:
-                    logger.error("❌ [FALLBACK] Simple Gemini Service not initialized")
-
-            except Exception as fallback_error:
-                logger.error(f"❌ [FALLBACK] Simple Gemini Service also failed: {fallback_error}")
-
-            # Final fallback: Send error response
+            # Send error response
             await safe_send_json(websocket, {
                 "type": "chat_response",
                 "message": "I apologize, but I'm having trouble processing your request right now. Please try again.",
                 "content": "I apologize, but I'm having trouble processing your request right now. Please try again.",
-                "source": "cloud",
+                "source": "claude_pam_error",
                 "error": True,
-                "error_details": str(e),
-                "error_type": type(e).__name__,
-                "debug_info": {
-                    "orchestrator_initialized": hasattr(orchestrator, 'is_initialized') and orchestrator.is_initialized,
-                    "message_length": len(message),
-                    "user_id_provided": bool(user_id)
-                },
+                "error_details": str(claude_error),
+                "error_type": type(claude_error).__name__,
                 "timestamp": datetime.utcnow().isoformat()
             })
             return
-        
-        logger.info(f"🎯 [DEBUG] SimplePamService response received: '{response_message[:100]}...'")
-        
-        # Create actions array for compatibility
-        actions = [{
-            "type": "message",
-            "content": response_message
-        }]
-        
-        # Calculate total processing time
-        total_processing_time = (time.time() - start_time) * 1000
-        logger.info(f"⏱️ [DEBUG] Total processing time: {total_processing_time:.1f}ms")
-        
-        # Check for duplicate response before sending
-        if is_duplicate_response(user_id, message, response_message):
-            logger.info(f"🚫 [DEBUG] Duplicate response blocked for user {user_id}")
-            return
-        
-        # Check if WebSocket is still open before sending
-        if websocket.client_state == WebSocketState.CONNECTED:  # WebSocketState.CONNECTED
-            logger.info(f"📡 [DEBUG] WebSocket still connected, sending response...")
-            
-            response_payload = {
-                "type": "chat_response",
-                "message": response_message,
-                "content": response_message,  # Add content field for frontend compatibility
-                "actions": actions,
-                "source": "cloud",
-                "processing_time_ms": total_processing_time,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
-            # Phase 5A: Generate TTS audio for response with Redis optimization
-            tts_start_time = time.time()
-            tts_audio = await generate_tts_audio(
-                response_message, 
-                user_settings=response_context.get("user_settings"),
-                user_id=user_id
-            )
-            if tts_audio and not tts_audio.get('error'):
-                tts_processing_time = (time.time() - tts_start_time) * 1000
-                response_payload["tts"] = tts_audio
-                response_payload["tts_processing_time_ms"] = tts_processing_time
-                logger.info(f"🎵 TTS generated in {tts_processing_time:.1f}ms, engine: {tts_audio['engine_used']}")
-            else:
-                logger.debug("🔇 TTS generation skipped or failed")
-            
-            logger.info(f"📤 [DEBUG] Sending response payload: {response_payload}")
-            
-            # Send response
-            await safe_send_json(websocket, response_payload)
-            logger.info(f"✅ [DEBUG] Response sent successfully to user {user_id}")
-            
-            # Check for visual action from AI function call OR regex pattern matching
-            visual_action = None
-            
-            # First check if AI determined a visual action via function calling
-            if 'visual_action' in response_context:
-                visual_action = response_context['visual_action']
-                logger.info(f"🤖 AI function call generated visual action: {visual_action}")
-            else:
-                # Fallback to regex pattern matching (for backwards compatibility)
-                visual_action = pam_visual_actions.parse_intent_to_visual_action(message, response_context)
-                if visual_action:
-                    logger.info(f"🔍 Regex pattern matched visual action: {visual_action}")
-            
-            # Send visual action if detected (but don't duplicate the response)
-            if visual_action and websocket.client_state == WebSocketState.CONNECTED:
-                # Remove the response text from visual action to avoid duplication
-                if 'response' in visual_action:
-                    del visual_action['response']
-                if 'message' in visual_action:
-                    del visual_action['message']
-                logger.info(f"🎨 Sending visual action to frontend (without duplicating response): {visual_action}")
-                await safe_send_json(websocket, visual_action)
-            
-            # Send UI actions if any (currently none from SimplePamService)
-            ui_actions = [a for a in actions if a.get("type") in ["navigate", "fill_form", "click", "alert"]]
-            if ui_actions and websocket.client_state == WebSocketState.CONNECTED:
-                logger.info(f"🎬 [DEBUG] Sending UI actions: {ui_actions}")
-                await safe_send_json(websocket, {
-                    "type": "ui_actions",
-                    "actions": ui_actions
-                })
-        else:
-            logger.warning(f"❌ [DEBUG] WebSocket closed for user {user_id}, skipping response")
             
     except Exception as e:
         logger.error(f"❌ [DEBUG] Chat handling error: {str(e)}", exc_info=True)
@@ -1763,8 +1504,8 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
                 "message": f"Sorry, I encountered an error: {str(e)}"
             })
 
-async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user_id: str, orchestrator, user_jwt: str = None):
-    """Handle streaming chat messages over WebSocket with token-by-token delivery"""
+async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user_id: str, user_jwt: str = None):
+    """Handle streaming chat messages over WebSocket with PAM core token-by-token delivery"""
     try:
         # Support both 'message' and 'content' fields for backwards compatibility
         message = data.get("message") or data.get("content", "")
@@ -1951,60 +1692,56 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
             else:
                 logger.info(f"🤖 [DEBUG] ENABLE_PAM_AGENTIC disabled for user {user_id} (streaming)")
         
-        # 4. PRIMARY: Use Simple Gemini Service with profile integration (streaming)
-        logger.info(f"🧠 [PRIMARY] Using Simple Gemini Service with profile integration (streaming)...")
+        # 4. PRIMARY: Use Claude PAM Core with streaming (streaming)
+        logger.info(f"🧠 [PRIMARY] Using Claude PAM Core with streaming (streaming)...")
 
         try:
-            from app.services.pam.simple_gemini_service import get_simple_gemini_service
+            from app.services.pam.core import get_pam
 
-            # Get simple Gemini service
-            simple_service = await get_simple_gemini_service()
+            # Get Claude PAM instance for this user
+            pam = await get_pam(user_id, user_language=context.get("language", "en"))
 
-            if simple_service.is_initialized:
-                logger.info("✅ [PRIMARY] Simple Gemini Service available, generating streaming response...")
+            logger.info("✅ [PRIMARY] Claude PAM Core available, generating streaming response...")
 
-                # Generate response using simple service with profile access
-                response_text = await simple_service.generate_response(message, context, user_id, user_jwt)
+            # Generate streaming response using Claude with all tools available
+            stream_generator = await pam.chat(message, context, stream=True)
 
-                logger.info(f"✅ [PRIMARY] Simple Gemini response: {response_text[:100]}...")
+            # Stream chunks to client
+            async for chunk in stream_generator:
+                if websocket.client_state != WebSocketState.CONNECTED:
+                    logger.warning("WebSocket disconnected during streaming")
+                    break
 
-                # Simulate streaming by chunking the response
-                chunks = split_response_into_chunks(response_text)
-                for i, chunk in enumerate(chunks):
-                    chunk_payload = {
-                        "type": "chunk",
-                        "content": chunk,
-                        "chunk_index": i,
-                        "is_final": i == len(chunks) - 1,
-                        "source": "simple_gemini_primary",
-                        "profile_enhanced": True,
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
-                    await safe_send_json(websocket, chunk_payload)
-                    await asyncio.sleep(0.05)  # Small delay for streaming effect
-
-                # Send final completion message
-                await safe_send_json(websocket, {
-                    "type": "response_complete",
-                    "source": "simple_gemini_primary",
-                    "profile_enhanced": True,
+                chunk_payload = {
+                    "type": "chunk",
+                    "content": chunk,
+                    "source": "claude_pam_streaming",
+                    "model": "claude-sonnet-4-5-20250929",
                     "timestamp": datetime.utcnow().isoformat()
-                })
-                return
-            else:
-                logger.warning("⚠️ [PRIMARY] Simple Gemini Service not initialized, falling back to cloud processing")
+                }
+                await safe_send_json(websocket, chunk_payload)
 
-        except Exception as simple_error:
-            logger.warning(f"⚠️ [PRIMARY] Simple Gemini Service failed: {simple_error}, falling back to cloud processing")
+            # Send final completion message
+            await safe_send_json(websocket, {
+                "type": "response_complete",
+                "source": "claude_pam_streaming",
+                "model": "claude-sonnet-4-5-20250929",
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            return
 
-        # FALLBACK: Use cloud processing with streaming only if Simple Gemini Service fails
-        logger.info(f"🔄 [FALLBACK] Starting cloud AI streaming...")
+        except Exception as claude_error:
+            logger.error(f"❌ [PRIMARY] Claude PAM streaming failed: {claude_error}")
 
-        # Get conversation history
-        conversation_history = context.get("conversation_history", [])
-
-        # Stream response from AI service
-        await stream_ai_response_to_websocket(websocket, message, context, conversation_history, start_time)
+            # Send error response
+            await safe_send_json(websocket, {
+                "type": "error",
+                "message": "I apologize, but I'm having trouble processing your streaming request. Please try again.",
+                "error_code": "STREAMING_ERROR",
+                "error_details": str(claude_error),
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            return
         
     except Exception as e:
         logger.error(f"❌ [DEBUG] Streaming chat handling error: {str(e)}", exc_info=True)
@@ -2378,9 +2115,9 @@ async def chat_endpoint(
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        # Note: Profile loading is now handled internally by PersonalizedPamAgent
+        # Note: Profile loading is now handled internally by PAM Core (with cached context)
         # This eliminates the architectural disconnect between profile loading and AI responses
-        logger.info(f"🔄 PersonalizedPamAgent will handle profile loading and context injection")
+        logger.info(f"🔄 PAM Core will handle profile loading and context injection via get_pam()")
         
         # Log API request
         pam_logger.log_api_request(
@@ -2448,7 +2185,7 @@ async def chat_endpoint(
                 detail="Message contains suspicious content and was rejected"
             )
         
-        # Prepare minimal context - PersonalizedPamAgent handles the rest
+        # Prepare minimal context - PAM Core handles the rest (with get_pam() caching)
         context = request.context or {}
         context["user_id"] = str(user_id)
 
@@ -2458,7 +2195,7 @@ async def chat_endpoint(
             context["user_location"] = context["userLocation"]
             logger.info(f"📍 REST API: User location received: {context['user_location']}")
 
-        logger.info(f"Processing chat request for user {user_id} with PersonalizedPamAgent")
+        logger.info(f"Processing chat request for user {user_id} with PAM Core (40 tools)")
 
         # PRIVACY: classify and create a sanitized version of the message
         try:
@@ -2605,7 +2342,7 @@ async def chat_endpoint(
                     f"✅ AI Router used: provider={routed_provider} model={routed_model} latency={routed.latency_ms:.0f}ms"
                 )
         except Exception as e:
-            logger.warning(f"AI Router execution failed; falling back to PersonalizedPamAgent: {e}")
+            logger.warning(f"AI Router execution failed; falling back to PAM Core: {e}")
 
         # Track user message for analytics (redacted)
         from app.services.analytics.analytics import PamAnalytics
@@ -2616,26 +2353,34 @@ async def chat_endpoint(
             session_id=request.conversation_id or request.session_id
         )
 
-        # 🚀 Existing path: use PersonalizedPamAgent when router not used
+        # 🚀 NEW: Use PAM core brain with 40 working tools (replaced PersonalizedPamAgent)
         pam_response = {"content": None, "actions": []}
         if not used_ai_router:
-            user_jwt = current_user.get("jwt_token")
-            if user_jwt:
-                logger.info(f"🔐 Creating user-context PAM agent for enhanced database authentication")
-                from app.core.personalized_pam_agent import create_user_context_pam_agent
-                user_pam_agent = create_user_context_pam_agent(user_jwt)
-            else:
-                logger.warning(f"⚠️ No JWT token available, using service role fallback")
-                from app.core.personalized_pam_agent import personalized_pam_agent
-                user_pam_agent = personalized_pam_agent
+            logger.info(f"🧠 Using PAM Core Brain (40 tools) - Phase 2 Unification Complete")
 
-            logger.info(f"🤖 Processing with PersonalizedPamAgent - profile loading and context injection with proper RLS authentication")
-            pam_response = await user_pam_agent.process_message(
-                user_id=str(user_id),
+            # Extract location from context for PAM
+            user_location = context.get("user_location")
+            if user_location:
+                logger.info(f"📍 Passing location to PAM: {user_location.get('city', 'unknown')} ({user_location.get('lat')}, {user_location.get('lng')})")
+
+            # Get PAM instance (with cached context)
+            from app.services.pam.core import get_pam
+            user_language = context.get("language", "en")
+            pam_instance = await get_pam(user_id=str(user_id), user_language=user_language)
+
+            # Process message with PAM core brain
+            # PAM.chat() returns str, we wrap it in dict to match expected interface
+            pam_response_text = await pam_instance.chat(
                 message=sanitized_message,
-                session_id=request.conversation_id,
-                additional_context=context
+                context=context,  # Pass full context including user_location
+                stream=False
             )
+
+            pam_response = {
+                "content": pam_response_text,
+                "actions": [],  # Actions extracted from Claude tool calls during PAM.chat()
+                "success": True
+            }
             actions = pam_response.get("actions", [])
 
         # Calculate processing time
@@ -3622,7 +3367,7 @@ async def get_monthly_savings_status(
                 # Extract data from function result
                 savings_data = result.data[0]
                 total_savings = float(savings_data.get("total_savings", 0))
-                subscription_cost = float(savings_data.get("subscription_cost", 29.99))
+                subscription_cost = float(savings_data.get("subscription_cost", 9.99))
                 guarantee_met = savings_data.get("guarantee_met", False)
                 percentage_achieved = float(savings_data.get("percentage_achieved", 0))
 
@@ -3658,10 +3403,10 @@ async def get_monthly_savings_status(
             "data": {
                 "total_savings": 0.0,
                 "savings_count": 0,
-                "subscription_cost": 29.99,
+                "subscription_cost": 9.99,
                 "guarantee_met": False,
                 "percentage_achieved": 0.0,
-                "savings_shortfall": 29.99,
+                "savings_shortfall": 9.99,
                 "period": {
                     "year": target_year,
                     "month": target_month
@@ -3719,7 +3464,7 @@ async def get_pam_savings_analytics(current_user: dict = Depends(verify_supabase
                 "current_month": {
                     "total_savings": 0.0,
                     "savings_count": 0,
-                    "subscription_cost": 29.99,
+                    "subscription_cost": 9.99,
                     "guarantee_met": False,
                     "percentage_achieved": 0.0
                 },

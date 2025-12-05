@@ -49,31 +49,55 @@ const ShopManagement = () => {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      // For now, create mock data structure since we don't have products table
-      const mockProducts: Product[] = [
-        {
-          id: '1',
-          name: 'Travel Backpack Pro',
-          description: 'Professional travel backpack with multiple compartments',
-          price: 89.99,
-          category: 'Travel Gear',
-          status: 'active',
-          inventory_count: 25,
-          created_at: '2024-06-15T10:30:00Z'
-        },
-        {
-          id: '2', 
-          name: 'Camping Tent Deluxe',
-          description: 'Waterproof 4-person camping tent',
-          price: 159.99,
-          category: 'Camping',
-          status: 'active',
-          inventory_count: 12,
-          created_at: '2024-06-20T14:15:00Z'
+      // Prefer Edge Function (admin). Includes inactive for full admin view.
+      const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      let rows: any[] = [];
+      try {
+        const res = await fetch(`${baseUrl}?provider=amazon&includeInactive=true`, {
+          headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+        });
+        if (res.ok) {
+          rows = await res.json();
+        } else if (res.status === 401 || res.status === 403) {
+          // Fallback to public-visible products
+          const { data, error } = await supabase
+            .from('affiliate_products')
+            .select('*')
+            .eq('is_active', true)
+            .order('sort_order', { ascending: true });
+          if (error) throw error;
+          rows = data || [];
+        } else {
+          throw new Error(`Failed to load products (${res.status})`);
         }
-      ];
-      setProducts(mockProducts);
-      toast.success("Products refreshed");
+      } catch (err) {
+        console.error('Admin products fetch failed, trying public fallback:', err);
+        const { data, error } = await supabase
+          .from('affiliate_products')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true });
+        if (error) throw error;
+        rows = data || [];
+      }
+
+      // Transform affiliate_products to admin Product format
+      const transformedProducts: Product[] = (rows || []).map(product => ({
+        id: product.id,
+        name: product.title,
+        description: product.description || '',
+        price: product.price || 0,
+        category: product.category || 'uncategorized',
+        status: product.is_active ? 'active' : 'inactive',
+        inventory_count: 999, // Affiliate products don't have inventory
+        created_at: product.created_at
+      }));
+
+      setProducts(transformedProducts);
+      toast.success(`Loaded ${transformedProducts.length} products`);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error("Failed to fetch products");
@@ -167,10 +191,23 @@ const ShopManagement = () => {
 
   const handleUpdateProductStatus = async (productId: string, status: string) => {
     try {
-      // Update local state since we don't have products table
-      setProducts(prev => 
-        prev.map(product => 
-          product.id === productId 
+      // Update via Edge Function (admin)
+      const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products/${productId}`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const res = await fetch(baseUrl, {
+        method: 'PATCH',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: status === 'active' })
+      });
+      if (!res.ok) {
+        throw new Error(`Update failed (${res.status})`);
+      }
+
+      // Update local state
+      setProducts(prev =>
+        prev.map(product =>
+          product.id === productId
             ? { ...product, status }
             : product
         )
@@ -178,7 +215,7 @@ const ShopManagement = () => {
       toast.success("Product updated successfully");
     } catch (error) {
       console.error('Error updating product:', error);
-      toast.error("Failed to update product");
+      toast.error("Failed to update product (check admin permissions)");
     }
   };
 

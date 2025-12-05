@@ -71,6 +71,27 @@ export default function ProductCard({ product, onExternalLinkClick, onBuyProduct
             </span>
           </div>
         )}
+
+        {isAffiliateProduct(product) && (
+          <div className="mt-2">
+            {product.price !== undefined && product.price !== null ? (
+              <>
+                <span className="text-lg font-bold text-blue-600">
+                  {product.currency === regionConfig.currency
+                    ? regionConfig.currencySymbol
+                    : `${product.currency} `}{product.price.toFixed(2)}
+                </span>
+                <span className="text-xs text-gray-400 ml-1">
+                  on Amazon
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-blue-600 font-medium">
+                Check Amazon for current price
+              </span>
+            )}
+          </div>
+        )}
         
         {/* Digistore24 specific badges */}
         {product.commission_percentage && product.commission_percentage > 0 && (

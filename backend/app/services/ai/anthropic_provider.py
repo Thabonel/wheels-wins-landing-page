@@ -43,7 +43,8 @@ class AnthropicProvider(AIProviderInterface):
             raise RuntimeError("Anthropic package is not installed. Install with: pip install anthropic")
         
         # Set default Claude capabilities
-        if not config.capabilities:
+        # Check for both empty and default-only (CHAT) capabilities
+        if not config.capabilities or config.capabilities == [AICapability.CHAT]:
             config.capabilities = [
                 AICapability.CHAT,
                 AICapability.STREAMING,
@@ -102,6 +103,7 @@ class AnthropicProvider(AIProviderInterface):
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        auto_handle_tools: bool = True,
         **kwargs
     ) -> AIResponse:
         """Generate a completion using Claude"""
@@ -123,12 +125,35 @@ class AnthropicProvider(AIProviderInterface):
                     if formatted:
                         anthropic_messages.append(formatted)
             
-            # Get available tools (Mapbox MCP tools)
-            available_tools = mapbox_mcp_tools.get_tool_definitions()
+            # ----- TOOL HANDLING (PAM tools + Mapbox) -----
+            # Get Mapbox MCP tools
+            mapbox_tools = mapbox_mcp_tools.get_tool_definitions() or []
+            
+            # Collect any additional tools passed in (e.g. PAM tools from orchestrator)
+            # Support both "tools" (Claude format) and "functions" (OpenAI format) for compatibility
+            extra_tools = kwargs.pop("tools", None)
+            if not extra_tools:
+                # Fallback to "functions" parameter (OpenAI format)
+                extra_tools = kwargs.pop("functions", None)
+                if extra_tools:
+                    logger.info("🔄 Converting 'functions' parameter to 'tools' for Claude compatibility")
+            extra_tools = extra_tools or []
 
+            # Convert OpenAI format to Claude format if needed
+            if extra_tools:
+                extra_tools = self._convert_openai_to_claude_format(extra_tools)
+            
             # Check if tools should be enabled (remove from kwargs to avoid passing to API)
-            enable_tools = kwargs.pop('enable_tools', True)
-
+            enable_tools = kwargs.pop("enable_tools", True)
+            
+            # Combine tools into a single list
+            combined_tools: List[Dict[str, Any]] = []
+            if extra_tools:
+                combined_tools.extend(extra_tools)
+            if mapbox_tools:
+                combined_tools.extend(mapbox_tools)
+            # ----- END TOOL HANDLING -----
+            
             # Prepare API call parameters
             api_params = {
                 "model": model or self.config.default_model,
@@ -140,10 +165,27 @@ class AnthropicProvider(AIProviderInterface):
             }
 
             # Add tools if available and not explicitly disabled
-            if available_tools and enable_tools:
-                api_params["tools"] = available_tools
-                logger.debug(f"🗺️ Added {len(available_tools)} Mapbox tools to Claude")
-            
+            if combined_tools and enable_tools:
+                api_params["tools"] = combined_tools
+                logger.info(
+                    f"🔧 Added {len(combined_tools)} tools to Claude "
+                    f"({len(extra_tools)} app tools, {len(mapbox_tools)} Mapbox tools)"
+                )
+
+                # DIAGNOSTIC: Log tool names to verify weather_advisor is present
+                tool_names = [t.get('name', 'unnamed') for t in combined_tools]
+                logger.info(f"📋 Tool names in payload: {tool_names}")
+
+                # DIAGNOSTIC: Log full schema of weather_advisor if found
+                weather_tool = next((t for t in combined_tools if 'weather' in t.get('name', '').lower()), None)
+                if weather_tool:
+                    import json
+                    logger.info(f"🌤️ Weather tool schema: {json.dumps(weather_tool, indent=2)}")
+                else:
+                    logger.warning("⚠️ No weather tool found in payload despite registration")
+            else:
+                logger.warning(f"⚠️ CRITICAL: Tool list is EMPTY (combined_tools={len(combined_tools) if combined_tools else 0}, enable_tools={enable_tools})")
+
             # Make the API call
             response = await self.client.messages.create(**api_params)
             
@@ -154,8 +196,19 @@ class AnthropicProvider(AIProviderInterface):
             self.record_success(latency_ms)
             
             # Handle tool calls if present
+            function_calls = []
             if response.stop_reason == "tool_use":
-                response = await self._handle_tool_calls(response, anthropic_messages, api_params)
+                if auto_handle_tools:
+                    response = await self._handle_tool_calls(response, anthropic_messages, api_params)
+                else:
+                    # Extract tool calls for manual handling
+                    for content_block in response.content:
+                        if hasattr(content_block, 'type') and content_block.type == 'tool_use':
+                            function_calls.append({
+                                "name": content_block.name,
+                                "arguments": content_block.input,
+                                "id": content_block.id
+                            })
             
             # Extract content (handle both text and tool call responses)
             content = ""
@@ -177,7 +230,8 @@ class AnthropicProvider(AIProviderInterface):
                     "total_tokens": response.usage.input_tokens + response.usage.output_tokens
                 },
                 latency_ms=latency_ms,
-                finish_reason=response.stop_reason
+                finish_reason=response.stop_reason,
+                function_calls=function_calls if function_calls else None
             )
             
         except AnthropicError as e:
@@ -243,11 +297,56 @@ class AnthropicProvider(AIProviderInterface):
                 return final_response
             
             return response
-            
+
         except Exception as e:
             logger.error(f"❌ Error handling tool calls: {e}")
             return response
-    
+
+    def _convert_openai_to_claude_format(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Convert OpenAI tool format to Claude tool format.
+
+        OpenAI format uses 'parameters', Claude uses 'input_schema'.
+        Also handles OpenAI's nested 'function' structure.
+
+        Args:
+            tools: List of tools in OpenAI format
+
+        Returns:
+            List of tools in Claude format
+        """
+        claude_tools = []
+
+        for tool in tools:
+            # Check if already in Claude format (has 'input_schema')
+            if "input_schema" in tool:
+                claude_tools.append(tool)
+                continue
+
+            # Handle OpenAI nested function structure
+            if "type" in tool and tool["type"] == "function" and "function" in tool:
+                func_def = tool["function"]
+                claude_tool = {
+                    "name": func_def.get("name"),
+                    "description": func_def.get("description", ""),
+                    "input_schema": func_def.get("parameters", {"type": "object", "properties": {}})
+                }
+                claude_tools.append(claude_tool)
+            # Handle flat OpenAI format with 'parameters'
+            elif "parameters" in tool:
+                claude_tool = {
+                    "name": tool.get("name"),
+                    "description": tool.get("description", ""),
+                    "input_schema": tool["parameters"]
+                }
+                claude_tools.append(claude_tool)
+            else:
+                # Unknown format, log warning and skip
+                logger.warning(f"⚠️ Unknown tool format, skipping: {tool.get('name', 'unknown')}")
+
+        logger.info(f"🔄 Converted {len(claude_tools)} tools from OpenAI to Claude format")
+        return claude_tools
+
     async def stream(
         self,
         messages: List[AIMessage],
