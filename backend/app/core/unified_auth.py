@@ -151,11 +151,24 @@ async def verify_admin_token(token: str) -> Optional[UnifiedUser]:
         return None
 
 async def check_admin_status(user_id: str) -> bool:
-    """Check if user has admin privileges - disabled to prevent role permission errors"""
-    # PERMANENT FIX: Remove admin_users table queries that cause "set role admin" errors
-    # This function is disabled to prevent PostgreSQL role switching attempts
-    # For calendar and user operations, admin privileges are not needed
-    return False
+    """Check if user has admin privileges by querying profiles table directly"""
+    try:
+        # Use service role client to bypass RLS for admin check
+        supabase = get_supabase_service()
+
+        # Query profiles table directly - uses 'id' column, not 'user_id'
+        # See docs/DATABASE_SCHEMA_REFERENCE.md for schema
+        result = supabase.table('profiles').select('role').eq('id', user_id).maybe_single().execute()
+
+        if result.data and result.data.get('role') == 'admin':
+            logger.debug(f"User {user_id} is admin")
+            return True
+
+        return False
+    except Exception as e:
+        logger.error(f"Error checking admin status for {user_id}: {e}")
+        # Default to non-admin on error to be safe
+        return False
 
 # FastAPI Dependencies
 async def get_current_user_unified(

@@ -101,21 +101,30 @@ class TTSService:
         user_id: Optional[str] = None,
         context: str = "general_conversation",
         voice_preference: Optional[str] = None,
-        stream: bool = False
+        stream: bool = False,
+        user_location: Optional[Dict[str, Any]] = None
     ) -> Union[TTSResponse, Any]:
         """
         Synthesize speech for PAM responses
         Simplified interface for PAM orchestrator
+
+        Args:
+            text: Text to synthesize
+            user_id: User ID for voice preferences
+            context: Context for voice selection
+            voice_preference: Specific voice preference (overrides regional selection)
+            stream: Whether to stream audio
+            user_location: User's location dict with 'country' field for regional voice selection
         """
-        
+
         if not self.is_initialized:
             logger.error("❌ TTS Service not initialized")
             return None
-        
+
         try:
-            # Get voice profile for context
+            # Get voice profile for context (now with user_location support)
             voice_profile = await self._resolve_voice_preference(
-                voice_preference, user_id, context
+                voice_preference, user_id, context, user_location
             )
             
             # Use streaming service
@@ -297,7 +306,8 @@ class TTSService:
         self,
         voice_preference: Optional[str],
         user_id: Optional[str],
-        context: str
+        context: str,
+        user_location: Optional[Dict[str, Any]] = None
     ) -> Optional[VoiceProfile]:
         """Resolve voice preference string to actual voice profile"""
         try:
@@ -311,9 +321,9 @@ class TTSService:
                     )
                     if user_voice:
                         return user_voice
-                
-                # Fall back to system default for context
-                return await self._get_context_default_voice(context)
+
+                # Fall back to system default for context (with regional voice support)
+                return await self._get_context_default_voice(context, user_location)
             
             # Handle specific voice preference string
             if isinstance(voice_preference, str):
@@ -338,24 +348,50 @@ class TTSService:
                 
             # Fall back to default
             logger.warning(f"Could not resolve voice preference '{voice_preference}', using default")
-            return await self._get_context_default_voice(context)
-            
+            return await self._get_context_default_voice(context, user_location)
+
         except Exception as e:
             logger.error(f"❌ Error resolving voice preference: {e}")
-            return await self._get_context_default_voice(context)
+            return await self._get_context_default_voice(context, user_location)
     
-    async def _get_context_default_voice(self, context: str) -> Optional[VoiceProfile]:
-        """Get default voice for specific context"""
+    async def _get_context_default_voice(
+        self,
+        context: str,
+        user_location: Optional[Dict[str, Any]] = None
+    ) -> Optional[VoiceProfile]:
+        """Get default voice for specific context with regional voice support"""
         try:
-            # Context-specific voice mappings
+            # If user_location available, use regional voice selection
+            if user_location:
+                try:
+                    from app.services.tts.voice_mapping import VoiceMapping
+
+                    voice_mapper = VoiceMapping()
+                    regional_voice_id = voice_mapper.select_voice_by_region(
+                        user_location=user_location
+                    )
+
+                    # Get the actual Edge TTS voice ID for the regional voice
+                    edge_voice_id = voice_mapper.get_engine_voice_id(regional_voice_id, "edge")
+
+                    if edge_voice_id:
+                        # Try to find the voice profile for this Edge TTS voice
+                        voice_profile = await self._find_voice_by_id(edge_voice_id)
+                        if voice_profile:
+                            logger.info(f"🌍 Using regional voice: {regional_voice_id} ({edge_voice_id}) for user location")
+                            return voice_profile
+                except Exception as e:
+                    logger.warning(f"⚠️ Regional voice selection failed: {e}, falling back to context default")
+
+            # Fallback: Context-specific voice mappings (original logic)
             context_voices = {
                 "professional": "p267",  # Professional female voice
-                "casual": "p225",        # Casual female voice  
+                "casual": "p225",        # Casual female voice
                 "formal": "p376",        # Formal male voice
                 "friendly": "p225",      # Friendly female voice
                 "general_conversation": "p225"  # Default
             }
-            
+
             voice_id = context_voices.get(context, "p225")  # Default to p225
             return await self._find_voice_by_id(voice_id)
             

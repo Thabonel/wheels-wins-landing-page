@@ -76,9 +76,9 @@ class PamSavingsCalculator:
         """Initialize the savings calculator with Supabase client"""
         self.supabase = get_supabase_client()
         self.logger = logger
-        # Default subscription costs
-        self.MONTHLY_SUBSCRIPTION = Decimal("29.99")
-        self.ANNUAL_SUBSCRIPTION = Decimal("299.99")
+        # Default subscription costs (Australian dollars)
+        self.MONTHLY_SUBSCRIPTION = Decimal("9.99")  # A$9.99/month
+        self.ANNUAL_SUBSCRIPTION = Decimal("99.00")  # A$99/year
     
     async def record_savings_event(self, savings_event: SavingsEvent) -> str:
         """

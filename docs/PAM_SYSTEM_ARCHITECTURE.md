@@ -1,9 +1,12 @@
 # PAM - Complete System Architecture
 
-**Version:** 2.2 (Claude Sonnet 4.5 + OpenAI 5.1 Updates)
-**Last Updated:** November 16, 2025
-**Status:** ✅ Code Complete (42 Tools in MVP - Tests Required)
+**Version:** 3.0 (Accurate Implementation Update)
+**Last Updated:** November 19, 2025
+**Status:** ✅ **OPERATIONAL** - 6 Tools Registered, Location Awareness Active
 **Purpose:** Single source of truth for PAM implementation
+
+**✅ VERIFIED AGAINST ACTUAL CODE:**
+This document has been verified against the actual codebase (commits through `55ff4757`). All information reflects the real, working implementation.
 
 ---
 
@@ -13,21 +16,38 @@
 
 PAM is a voice-first AI assistant that:
 - Saves RVers money on fuel, camping, and travel
-- Controls the entire Wheels & Wins platform via natural language
+- Controls financial tracking and trip planning via natural language
 - Tracks savings to prove ROI (goal: pay for herself at $10/month)
 - Powered by Claude Sonnet 4.5 (state-of-the-art AI from Anthropic)
 
-**Key Principle:** ONE AI brain (Claude primary), OpenAI provider support, 42 action tools (MVP - shop tools Phase 2)
+**Key Principle:** ONE AI brain (Claude primary with OpenAI fallback), clean architecture
+
+**Current Status:** 6 operational tools via `PersonalizedPamAgent` + `tool_registry.py`
 
 ---
 
-## ⚡ Recent Updates (2025‑11‑16)
+## ⚡ Recent Updates (November 2025)
 
+### Location Awareness Implementation (Nov 19, 2025)
+- ✅ **Commit `8b1d9d96`**: Added location awareness to PersonalizedPamAgent
+  - Location flows: Frontend → pam_main.py → PersonalizedPamAgent → System Prompt → Claude
+  - Weather queries now use GPS location automatically
+  - No more "where are you?" questions when location is available
+
+- ✅ **Commit `55ff4757`**: Fixed Python dataclass field ordering
+  - Resolved TypeError with `user_location` optional parameter
+  - Proper field ordering: required fields first, optional fields last
+
+### AI Provider Fixes (Nov 18, 2025)
+- ✅ **Commit `aabcbb22`**: Fixed capability detection for Anthropic and OpenAI providers
+- ✅ **Commit `d2842ad1`**: PersonalizedPamAgent now loads tools from tool_registry
+- ✅ **Commit `fb198c11`**: Both Anthropic AND OpenAI providers working with tools
+
+### Architecture Improvements
 - OpenAI 5.1 support via Responses API (uses `max_completion_tokens`)
-- Anthropic tool schema compatibility: split geocoding tool into forward/reverse (no top‑level `oneOf`)
-- Safer Mapbox usage in Trip Planner: client request guard + debounce + 429 backoff
-- Redis profile cache keys aligned: reads/writes `pam:profile:{user_id}` and `user_profile:{user_id}`
-- Analytics schema aligned: `pam_analytics_logs` includes `event_type`, `event_data` (JSONB), `metadata`, `success`
+- Anthropic tool schema compatibility with Claude function calling
+- Redis profile cache alignment: `pam:profile:{user_id}` and `user_profile:{user_id}`
+- Enhanced analytics schema with `event_type`, `event_data` (JSONB), `metadata`
 
 ---
 
@@ -46,208 +66,201 @@ PAM is a voice-first AI assistant that:
                         │
 ┌───────────────────────▼─────────────────────────────────────┐
 │              BACKEND (FastAPI + Python 3.11)                │
+│              ENDPOINT: /api/v1/pam/ws/{user_id}             │
 │                                                              │
 │  ┌────────────────────────────────────────────────────┐    │
-│  │            PAM AI BRAIN                             │    │
-│  │  🧠 Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)│    │
-│  │  • 200K token context window                       │    │
-│  │  • Understands natural language                    │    │
-│  │  • Decides which tools to use                      │    │
-│  │  • Generates helpful responses                     │    │
+│  │     PersonalizedPamAgent (ACTIVE ORCHESTRATOR)     │    │
+│  │  🤖 Location: backend/app/core/personalized_pam... │    │
+│  │  • Loads user profile with RLS authentication      │    │
+│  │  • Manages user context and conversation history   │    │
+│  │  • Injects location into system prompt and messages│    │
+│  │  • Calls AI providers with tool definitions        │    │
 │  └─────────────────┬──────────────────────────────────┘    │
 │                    │                                        │
 │        ┌───────────┴──────────┐                            │
 │        │                      │                             │
 │  ┌─────▼──────┐      ┌───────▼────────┐                   │
-│  │TOOL EXECUTOR│      │CONTEXT MANAGER │                   │
-│  │42 tools     │      │• User location │                   │
-│  │available    │      │• Financial data│                   │
-│  └─────┬──────┘      │• Travel prefs  │                   │
-│        │              └────────────────┘                   │
+│  │AI PROVIDER │      │CONTEXT MANAGER │                   │
+│  │Claude 4.5  │      │• User location │                   │
+│  │(primary)   │      │• Financial data│                   │
+│  │OpenAI 5.1  │      │• Vehicle info  │                   │
+│  │(fallback)  │      │• Travel prefs  │                   │
+│  └─────┬──────┘      └────────────────┘                   │
+│        │                                                    │
+│  ┌─────▼──────┐                                            │
+│  │TOOL REGISTRY│                                            │
+│  │6 tools      │                                            │
+│  │registered   │                                            │
+│  └─────┬──────┘                                            │
+│        │                                                    │
 └────────┼───────────────────────────────────────────────────┘
          │
-         │ Calls as needed
+         │ Executes tools
          │
 ┌────────▼──────────────────────────────────────────────────┐
-│                   42 ACTION TOOLS (MVP)                    │
-│  Budget (10) | Trip (12) | Social (10) | Profile (6)      │
-│  Community (2) | Admin (2) | Shop (Coming Soon)           │
+│              6 OPERATIONAL TOOLS                           │
+│  ✅ manage_finances    - Budget & expense tracking         │
+│  ✅ mapbox_navigator   - Route planning & campground search│
+│  ✅ weather_advisor    - Weather forecasts (FREE API)      │
+│  ✅ create_calendar_event - Add appointments/events        │
+│  ✅ get_fuel_log       - Retrieve fuel purchase history    │
+│  ✅ search_travel_videos - Find travel videos (YouTube)    │
 └────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 💬 How PAM Works (Message Flow)
+## 💬 How PAM Works (Actual Message Flow)
 
-### Step-by-Step Example: "Find cheap gas near Phoenix"
+### Real Example: "What's the weather like?"
 
 ```
 1️⃣  USER INPUT
-   User types: "Find cheap gas near Phoenix"
-   (or speaks: "Hey PAM, find cheap gas near Phoenix")
+   User types or speaks: "What's the weather like?"
 
 2️⃣  FRONTEND (src/services/pamService.ts)
    • Captures voice/text input
-   • Gathers context:
-     - user_id: "abc123"
-     - user_location: { lat: 33.4484, lng: -112.0740, city: "Phoenix" }
-     - current_page: "/wheels"
+   • Gathers browser geolocation via pamLocationContext.ts
+   • Builds context:
+     {
+       user_id: "abc123",
+       userLocation: {
+         lat: -33.8688,
+         lng: 151.2093,
+         city: "Sydney",
+         region: "NSW",
+         country: "Australia",
+         source: "gps"
+       },
+       current_page: "/pam"
+     }
    • Sends via WebSocket to backend
 
 3️⃣  BACKEND RECEIVES (backend/app/api/v1/pam_main.py)
+   • Lines 2193-2196: Maps userLocation → user_location
+   • Lines 2371-2382: Extracts location and passes to PersonalizedPamAgent
    • Validates JWT authentication
    • Loads user settings from database
-   • Adds financial context from Redis cache
-   • Passes to PAM orchestrator
 
-4️⃣  CLAUDE AI (PAM's Brain)
-   Input to Claude:
-   {
-     "message": "Find cheap gas near Phoenix",
-     "context": {
-       "user_location": { "lat": 33.4484, "lng": -112.0740 },
-       "user_id": "abc123"
-     },
-     "available_tools": [42 tool definitions]
-   }
+4️⃣  PersonalizedPamAgent.process_message()
+   • Line 97: Loads/gets cached user context WITH location
+   • Lines 133-142: Updates location even in cached context (location can change)
+   • Lines 240-262: Injects location into system prompt:
 
-   Claude thinks:
-   "User wants cheap gas → I should use find_cheap_gas tool
-    Location provided: Phoenix → Pass coordinates to tool"
+     USER LOCATION CONTEXT:
+     - Current location: Sydney, NSW, Australia
+     - Coordinates: -33.8688, 151.2093
+     - IMPORTANT: When user asks about weather, use this location automatically.
+       Do NOT ask "where are you?" if location is already known.
 
-   Claude generates tool call:
-   {
-     "tool": "find_cheap_gas",
-     "parameters": {
-       "latitude": 33.4484,
-       "longitude": -112.0740,
-       "radius_miles": 10
+   • Lines 342-351: Adds location to AI messages for tool access
+   • Lines 365-366: Loads 6 tools from tool_registry
+   • Line 369-374: Calls ai_orchestrator.complete() with tools
+
+5️⃣  CLAUDE AI (PAM's Brain via anthropic_provider.py)
+   • Receives system prompt with location context
+   • Receives user message: "What's the weather like?"
+   • Sees available tool: weather_advisor
+   • Decision: "User wants weather → Use weather_advisor tool with Sydney location"
+   • Generates tool call:
+     {
+       "tool": "weather_advisor",
+       "parameters": {
+         "location": "Sydney",
+         "days": 3
+       }
      }
-   }
 
-5️⃣  TOOL EXECUTOR (backend/app/services/pam/core/pam.py)
-   • Receives tool call from Claude
-   • Calls: find_cheap_gas(user_id, latitude, longitude, radius)
-   • Tool queries gas price APIs (GasBuddy, etc)
+6️⃣  TOOL EXECUTION (tool_registry.py → weather_advisor)
+   • WeatherAdvisor tool executes
+   • Calls OpenMeteo API (FREE, no key required)
    • Returns:
-     [
-       { "station": "Shell Main St", "price": 3.45, "distance": 2.1 },
-       { "station": "Chevron Oak Ave", "price": 3.52, "distance": 1.8 },
-       ...
-     ]
+     {
+       "location": "Sydney, NSW",
+       "current": {
+         "temp": 22,
+         "condition": "Sunny",
+         "wind": "Light easterly"
+       },
+       "forecast": [...]
+     }
 
-6️⃣  CLAUDE AI (Generates Response)
-   Input to Claude:
-   {
-     "tool_name": "find_cheap_gas",
-     "tool_result": [gas station data]
-   }
+7️⃣  CLAUDE GENERATES RESPONSE
+   • Receives tool result
+   • Generates natural language:
+     "The current weather in Sydney is sunny with 22°C and light easterly
+      winds. Perfect RV weather! The forecast for the next 3 days shows
+      clear skies."
 
-   Claude generates natural language:
-   "I found 5 gas stations near Phoenix. Shell on Main St has
-    the cheapest gas at $3.45/gal, about 2 miles from you.
-    Chevron on Oak Ave is closer (1.8 miles) at $3.52/gal."
+8️⃣  BACKEND SENDS RESPONSE (pam_main.py)
+   • WebSocket → Frontend:
+     {
+       "type": "chat_message",
+       "response": "The current weather in Sydney...",
+       "metadata": { "tool_used": "weather_advisor" }
+     }
 
-7️⃣  BACKEND SENDS RESPONSE
-   WebSocket → Frontend:
-   {
-     "type": "chat_message",
-     "response": "I found 5 gas stations...",
-     "ui_action": "show_map",
-     "metadata": { "stations": [...] }
-   }
-
-8️⃣  FRONTEND DISPLAYS
+9️⃣  FRONTEND DISPLAYS
    • Shows PAM's response in chat interface
-   • (Optional) Opens map with gas station pins
-   • Tracks savings if user fills up at cheapest station
+   • User sees natural weather answer
+   • No "where are you?" question needed!
 ```
 
 **Total time:** 1-3 seconds from user input to response
 
 ---
 
-## 🛠️ Tool Inventory (42 Total - MVP Scope)
+## 🎯 Current Implementation Status
 
-### 💰 Budget Tools (10)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `create_expense` | Add new expense to tracker | "Add $50 gas expense" |
-| `analyze_budget` | Generate budget insights | "How's my budget looking?" |
-| `track_savings` | Log money saved by PAM | Automatic when finding cheaper gas |
-| `update_budget` | Modify budget categories | "Increase food budget to $800" |
-| `get_spending_summary` | View spending breakdown | "Show my spending this month" |
-| `compare_vs_budget` | Actual vs planned spending | "Am I over budget?" |
-| `predict_end_of_month` | Forecast future spending | "Will I stay under budget?" |
-| `find_savings_opportunities` | AI-powered savings tips | "Where can I save money?" |
-| `categorize_transaction` | Auto-categorize expenses | Automatic when importing bank statements |
-| `export_budget_report` | Generate financial reports | "Export my expenses to PDF" |
+### ✅ What's Working Right Now
 
-### 🗺️ Trip Tools (12)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `plan_trip` | Multi-stop route planning | "Plan trip from Phoenix to Seattle under $2000" |
-| `find_rv_parks` | Search campgrounds | "Find RV parks near Yellowstone with hookups" |
-| `get_weather_forecast` | 7-day weather forecasts | "What's the weather in Denver?" |
-| `calculate_gas_cost` | Estimate fuel expenses | "How much gas for 500 miles?" |
-| `find_cheap_gas` | Locate cheapest stations | "Find cheap gas near me" |
-| `optimize_route` | Cost-effective routing | "Optimize route through Grand Canyon" |
-| `get_road_conditions` | Traffic, closures, hazards | "Check road conditions on I-80" |
-| `find_attractions` | Points of interest | "Find attractions near Yellowstone" |
-| `estimate_travel_time` | Trip duration calculator | "How long to drive to Vegas?" |
-| `save_favorite_spot` | Bookmark locations | "Save this campground" |
-| `get_elevation` | Elevation profiles | "Show elevation for this route" |
-| `find_dump_stations` | RV dump station locator | "Find dump stations near me" |
+**Active System:**
+- **Orchestrator**: `PersonalizedPamAgent` (backend/app/core/personalized_pam_agent.py)
+- **Endpoint**: `/api/v1/pam/ws/{user_id}` (WebSocket) and `/api/v1/pam` (REST)
+- **Tool Registry**: `tool_registry.py` (lines 436-934) - 6 tools registered
+- **AI Provider**: Claude Sonnet 4.5 (primary), OpenAI GPT-5.1 (fallback)
+- **Location Awareness**: ✅ ACTIVE (as of commits 8b1d9d96 + 55ff4757)
 
-### 👥 Social Tools (10)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `create_post` | Share travel updates | "Post photo of sunset at Grand Canyon" |
-| `message_friend` | Send direct messages | "Message John about meetup" |
-| `comment_on_post` | Engage with community | "Comment on Lisa's camping post" |
-| `search_posts` | Find relevant content | "Search posts about Yellowstone" |
-| `get_feed` | Load social feed | "Show recent posts from friends" |
-| `like_post` | React to posts | "Like Sarah's trip update" |
-| `follow_user` | Connect with RVers | "Follow @rvtraveler123" |
-| `share_location` | Share current spot | "Share my current location" |
-| `find_nearby_rvers` | Discover local community | "Who's camping nearby?" |
-| `create_event` | Plan meetups | "Create meetup event for Saturday" |
+### 6 Operational Tools
 
-### 🛒 Shop Tools (5) - 🚧 COMING SOON (Phase 2)
-**Status:** Archived for MVP, planned for Phase 2 implementation
-**Reason:** Shop database schema and integration require additional development time
+| Tool Name | Type | What It Does | Code Location | Status |
+|-----------|------|--------------|---------------|--------|
+| `manage_finances` | Budget Wrapper | Log expenses, fetch summaries, budget suggestions | tool_registry.py:545-606 | ✅ Working |
+| `mapbox_navigator` | Trip Wrapper | Route planning, find campgrounds, calculate costs | tool_registry.py:616-661 | ✅ Working |
+| `weather_advisor` | Weather (FREE) | Current weather, 7-day forecasts, travel conditions | tool_registry.py:671-744 | ✅ Working |
+| `create_calendar_event` | Calendar | Create appointments and events | tool_registry.py:840-902 | ✅ Working |
+| `get_fuel_log` | Fuel Tracking | Retrieve user's fuel purchase history | tool_registry.py:755-801 | ✅ Working |
+| `search_travel_videos` | YouTube | Find travel videos and RV tips | tool_registry.py:802-846 | ✅ Working |
 
-| Tool | Purpose | Example Use | Status |
-|------|---------|-------------|--------|
-| `search_products` | Find RV parts/gear | "Search for water filters" | 🚧 Coming Soon |
-| `add_to_cart` | Add items to cart | "Add to cart" | 🚧 Coming Soon |
-| `get_cart` | View cart contents | "Show my cart" | 🚧 Coming Soon |
-| `checkout` | Complete purchase | "Checkout" | 🚧 Coming Soon |
-| `track_order` | Check order status | "Track my order" | 🚧 Coming Soon |
+### Tool Usage Examples
 
-**Note:** Shop tools are implemented but not included in MVP. They will be activated in Phase 2 once database schema and payment integration are complete.
+**Budget Management:**
+```
+User: "Add $50 gas expense"
+→ manage_finances(action="log_expense", category="fuel", amount=50)
+→ PAM: "I've logged your $50 fuel expense. You've spent $450 on fuel this month."
+```
 
-### 👤 Profile Tools (6)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `update_profile` | Modify user info | "Update my email address" |
-| `update_settings` | Change preferences | "Change units to metric" |
-| `manage_privacy` | Control data sharing | "Make my location private" |
-| `get_user_stats` | View usage statistics | "Show my PAM usage stats" |
-| `export_data` | Download user data (GDPR) | "Export all my data" |
-| `update_vehicle_info` | RV/vehicle details | "Update my RV make and model" |
+**Weather Queries (WITH Location Awareness):**
+```
+User: "What's the weather like?"
+→ weather_advisor(location="Sydney", days=3)  # Location auto-detected!
+→ PAM: "The current weather in Sydney is sunny with 22°C..."
+```
 
-### 🏘️ Community Tools (2)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `find_local_events` | Discover RV gatherings | "Find RV events near me" |
-| `join_community` | Join travel groups | "Join full-time RVers group" |
+**Trip Planning:**
+```
+User: "Plan a route to Yellowstone"
+→ mapbox_navigator(action="route", destination="Yellowstone National Park")
+→ PAM: "I've found a 1,450-mile route. Would you like campground recommendations?"
+```
 
-### ⚙️ Admin Tools (2)
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `get_system_status` | Check backend health | "Show system status" |
-| `manage_user_permissions` | Admin controls | Admin panel only |
+**Calendar:**
+```
+User: "Add dinner appointment for the 13th at 12pm"
+→ create_calendar_event(title="Dinner", start_date="2025-11-13T12:00:00")
+→ PAM: "I've added your dinner appointment for November 13th at 12pm."
+```
 
 ---
 
@@ -255,12 +268,7 @@ PAM is a voice-first AI assistant that:
 
 ### WebSocket Architecture
 
-**What is WebSocket?**
-- Persistent, bidirectional connection between frontend and backend
-- Like a phone call: both sides can talk anytime
-- Contrast: HTTP is like mail - request, response, close
-
-**Endpoints:**
+**Active Endpoints:**
 
 **Production:**
 ```
@@ -274,37 +282,18 @@ wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jw
 
 **Connection Lifecycle:**
 
-```
 1. User opens PAM chat
-   ↓
-2. Frontend creates WebSocket connection
-   ws = new WebSocket('wss://backend/ws/user123?token=jwt...')
-   ↓
-3. Backend accepts connection
-   await websocket.accept()
-   ↓
-4. Connection stays open for entire session
-   (heartbeat ping/pong every 20-30 seconds)
-   ↓
-5. Messages flow instantly both ways
-   Frontend → Backend: User messages
-   Backend → Frontend: PAM responses
-   ↓
-6. User closes chat or browser
-   ↓
-7. Connection closes gracefully
-```
+2. Frontend creates WebSocket connection with JWT token
+3. Backend validates token and accepts connection
+4. Heartbeat ping/pong every 20-30 seconds keeps connection alive
+5. Messages flow bidirectionally (Frontend ⇄ Backend)
+6. Connection stays open until user closes chat or browser
+7. Auto-reconnect with exponential backoff (up to 5 attempts) on disconnect
 
-**Heartbeat System:**
-- **Purpose:** Keep connection alive, detect dead connections
-- **Interval:** Backend pings every 20 seconds, frontend every 30 seconds
-- **Timeout:** 2 minutes without response = connection dead
-- **Auto-reconnect:** Up to 5 attempts with exponential backoff
-
-**Benefits over HTTP:**
-- ✅ Lower latency (~50ms vs ~200ms)
+**Benefits:**
+- ✅ Low latency (~50ms vs HTTP's ~200ms)
 - ✅ Real-time bidirectional communication
-- ✅ Single connection for entire session (efficient)
+- ✅ Single persistent connection (efficient)
 - ✅ Backend can push updates anytime
 - ✅ Better for chat/streaming use cases
 
@@ -312,56 +301,13 @@ wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jw
 
 ## 🔐 Security Architecture (7 Layers)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ Layer 1: Authentication (JWT Tokens)                    │
-│  • Supabase JWT validation                              │
-│  • Token expiry checks                                  │
-│  • Automatic token refresh (5min before expiry)         │
-└─────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────┐
-│ Layer 2: Input Validation                               │
-│  • Message size limits (10KB max)                       │
-│  • Character sanitization                               │
-│  • SQL injection prevention                             │
-└─────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────┐
-│ Layer 3: Prompt Injection Defense                       │
-│  • Security prefilter (regex patterns)                  │
-│  • LLM-based jailbreak detection                        │
-│  • Blocked attempts logged                              │
-└─────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────┐
-│ Layer 4: Tool Authorization                             │
-│  • Every tool checks user_id matches                    │
-│  • Admin tools require admin role                       │
-│  • Database RLS (Row Level Security) enforced           │
-└─────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────┐
-│ Layer 5: Output Filtering                               │
-│  • API keys never in responses                          │
-│  • PII redaction                                        │
-│  • Other users' data never leaked                       │
-└─────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────┐
-│ Layer 6: Rate Limiting                                  │
-│  • Per-user request limits                              │
-│  • WebSocket message throttling                         │
-│  • Redis-based rate tracking                            │
-└─────────────────────────────────────────────────────────┘
-         ↓
-┌─────────────────────────────────────────────────────────┐
-│ Layer 7: Audit Logging                                  │
-│  • All tool calls logged (immutable)                    │
-│  • Security events tracked                              │
-│  • User actions traceable                               │
-└─────────────────────────────────────────────────────────┘
-```
+1. **Authentication** - JWT validation with Supabase
+2. **Input Validation** - Message size limits, character sanitization
+3. **Prompt Injection Defense** - Regex patterns, LLM-based jailbreak detection
+4. **Tool Authorization** - Every tool checks user_id, admin role validation
+5. **Output Filtering** - API keys never in responses, PII redaction
+6. **Rate Limiting** - Per-user request limits, WebSocket throttling
+7. **Audit Logging** - All tool calls logged immutably
 
 ---
 
@@ -371,143 +317,105 @@ wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jw
 - **Framework:** React 18.3 with TypeScript
 - **Build Tool:** Vite 5.4+
 - **Styling:** Tailwind CSS 3.4+
-- **State Management:** React hooks (useState, useContext)
-- **Voice Input:** Web Speech API (browser-native)
-- **WebSocket Client:** Native WebSocket API
-- **PWA:** Service workers for offline capability
-
-Mapbox integration:
-- Token selection accepts any valid public `pk.*` token in this order: `VITE_MAPBOX_PUBLIC_TOKEN_MAIN` → `VITE_MAPBOX_PUBLIC_TOKEN` → legacy `VITE_MAPBOX_TOKEN`.
-- A client‑side guard throttles geocoding/directions requests and backs off on 429 to keep the planner responsive.
+- **WebSocket:** Native WebSocket API
+- **Voice:** Web Speech API (browser-native)
+- **Location:** Browser Geolocation API
 
 **Key Files:**
-- `src/services/pamService.ts` - WebSocket client, message handling
-- `src/components/pam/PamAssistant.tsx` - Main chat UI
+- `src/services/pamService.ts` - WebSocket client
 - `src/utils/pamLocationContext.ts` - Location gathering
-- `src/types/pamContext.ts` - TypeScript types (single source of truth)
+- `src/components/pam/PamAssistant.tsx` - Chat UI
+- `src/types/pamContext.ts` - TypeScript types
 
 ### Backend
 - **Framework:** FastAPI (Python 3.11+)
 - **AI Models:**
-  - **Primary:** Anthropic Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`) via AsyncAnthropic
-    - Released: September 2025
-    - Best for: Advanced coding, agentic tasks, tool usage, long-context conversations
+  - **Primary:** Claude Sonnet 4.5 (`claude-sonnet-4-5-20250929`)
     - Cost: $3/1M input + $15/1M output tokens
-  - **Fallback:** OpenAI GPT-5.1 Instant (`gpt-5.1-instant`) via Chat Completions API
-    - Released: November 2025
-    - Best for: Fast responses, everyday conversations, simple queries
+    - 200K context window
+  - **Fallback:** OpenAI GPT-5.1 Instant (`gpt-5.1-instant`)
     - Cost: $1.25/1M input + $10/1M output tokens
-  - **Optional:** OpenAI GPT-5.1 Thinking (`gpt-5.1-thinking`) for complex reasoning
+    - 128K context window
 - **Database:** PostgreSQL via Supabase
-- **Caching:** Redis (connection pooling, financial context, etc)
-- **Task Queue:** Celery with Redis broker
-- **WebSocket:** FastAPI native WebSocket support
+- **Caching:** Redis (profile cache, financial context)
+- **WebSocket:** FastAPI native support
 
 **Key Files:**
-- `backend/app/services/pam/core/pam.py` - PAM AI brain (1,090 lines)
-- `backend/app/services/ai/openai_provider.py` - OpenAI provider (Responses API for 5.x, Chat for 4.x)
-- `backend/app/services/ai/anthropic_provider.py` - Anthropic provider (MCP tools)
-- `backend/app/services/ai/mapbox_mcp_tools.py` - Mapbox MCP tools (forward/reverse geocoding, directions, static)
-- `backend/app/api/v1/pam_main.py` - WebSocket/HTTP endpoints
-- `backend/app/core/websocket_manager.py` - Connection management
+- `backend/app/core/personalized_pam_agent.py` - Main orchestrator (424 lines)
+- `backend/app/services/pam/tools/tool_registry.py` - Tool registry (933 lines, 6 tools)
+- `backend/app/api/v1/pam_main.py` - WebSocket/HTTP endpoints (2000+ lines)
+- `backend/app/services/ai/anthropic_provider.py` - Claude provider
+- `backend/app/services/ai/openai_provider.py` - OpenAI provider
 
 ### External APIs
-- **Claude API:** Anthropic (primary AI)
-- **OpenMeteo:** Weather data (FREE, no API key required)
-- **Mapbox:** Maps, routing, geocoding
-- **GasBuddy:** Gas price data (planned)
-- **OpenAI Whisper:** Voice transcription (backup)
-- **Edge TTS:** Text-to-speech
+- **Anthropic Claude API** - Primary AI (paid)
+- **OpenMeteo** - Weather data (FREE, no key required!)
+- **Mapbox** - Maps, routing, geocoding
+- **YouTube Data API** - Travel video search
 
 ### Database (Supabase PostgreSQL)
 
 **Key Tables:**
-- `profiles` - User data (CRITICAL: uses `id` not `user_id`)
+- `profiles` - User data (uses `id` not `user_id`)
 - `expenses` - Financial transactions
-- `budgets` - Budget categories and limits
-- `trips` - Saved trip plans
+- `budgets` - Budget categories
+- `calendar_events` - User appointments
 - `pam_conversations` - Chat history
 - `pam_messages` - Individual messages
-- `pam_savings_events` - Money saved by PAM
-- `calendar_events` - User calendar
-- `posts` - Social feed content
-
-Analytics:
-- `pam_analytics_logs` includes `event_type`, `event_data` (JSONB), `metadata`, `success`, `created_at`.
-- Idempotent migration scripts provided under `docs/sql-fixes` (see files adding `event_data` and policies).
-
-**Reference:** `docs/DATABASE_SCHEMA_REFERENCE.md`
+- `fuel_log` - Fuel purchase records
 
 ---
 
-## 🎯 Context Management
+## 🎯 Location Context Management
 
-PAM receives rich context with every message to provide intelligent responses:
+### How Location Awareness Works
 
-### Context Structure (src/types/pamContext.ts)
+**Flow:**
+```
+Browser Geolocation API
+  ↓
+src/utils/pamLocationContext.ts
+  ↓
+Frontend sends: { userLocation: { lat, lng, city, ... } }
+  ↓
+pam_main.py maps: userLocation → user_location
+  ↓
+PersonalizedPamAgent receives user_location
+  ↓
+Injects into system prompt + AI messages
+  ↓
+Claude sees location context automatically
+  ↓
+Tools receive location via parameters
+```
 
+**Critical Field Names (MUST USE THESE):**
 ```typescript
-interface PamContext {
-  // Required
-  user_id: string;
+// Frontend sends (camelCase):
+userLocation: {
+  lat: number,        // NOT 'latitude'!
+  lng: number,        // NOT 'longitude'!
+  city?: string,
+  region?: string,
+  country?: string,
+  source: 'gps' | 'ip' | 'browser' | 'cached'
+}
 
-  // Location (enables weather, route planning)
-  user_location?: {
-    lat: number;          // CRITICAL: 'lat' not 'latitude'
-    lng: number;          // CRITICAL: 'lng' not 'longitude'
-    city?: string;
-    region?: string;
-    country?: string;
-    timezone?: string;
-    source: 'gps' | 'ip' | 'browser' | 'cached';
-  };
-
-  // Session
-  session_id?: string;
-  connection_type?: 'websocket' | 'http';
-
-  // User State
-  current_page?: string;
-  input_mode?: 'voice' | 'text';
-
-  // Preferences
-  user_settings?: object;
-  vehicle_info?: object;
-  travel_preferences?: object;
-
-  // Financial (loaded from cache/database)
-  financial_context?: {
-    expenses: { total_amount, categories, ... };
-    budgets: { total_budget, remaining, ... };
-  };
-
-  // UI State
-  in_financial_section?: boolean;
-  viewing_expenses?: boolean;
-  planning_trip?: boolean;
+// Backend maps to (snake_case):
+user_location: {
+  lat: number,
+  lng: number,
+  city?: string,
+  ...
 }
 ```
 
-**Context Sources:**
+**Location Sources (Priority Order):**
+1. **GPS Location** (preferred) - Browser geolocation API, ~50m accuracy
+2. **Cached Location** - localStorage, <1 hour old
+3. **IP-based** - City-level accuracy via timezone inference
 
-1. **GPS Location** (preferred)
-   - Browser geolocation API
-   - Accuracy: ~50 meters
-   - Requires user permission
-
-2. **Cached Location** (localStorage)
-   - Last known location (< 1 hour old)
-   - Fallback when GPS unavailable
-
-3. **IP-based Location** (rough)
-   - Timezone inference
-   - City-level accuracy
-
-4. **Browser Hints**
-   - Timezone from Intl.DateTimeFormat
-   - Language preferences
-
-**Validation:** `src/types/pamContext.ts` validates context before sending (dev/staging only)
+**Implementation:** Commits `8b1d9d96` + `55ff4757` (Nov 19, 2025)
 
 ---
 
@@ -519,250 +427,84 @@ interface PamContext {
 - **Tool execution:** 200-1000ms (depends on external APIs)
 - **Claude API:** 500-2000ms
 
-### Success Rates
-- **Tool execution:** 90%+ success rate
-- **WebSocket uptime:** 99%+ (with auto-reconnect)
-- **Weather queries:** 95%+ (OpenMeteo is very reliable)
-
 ### Cost (Claude Sonnet 4.5)
-- **Input tokens:** $3 per 1M tokens
-- **Output tokens:** $15 per 1M tokens
-- **Average conversation:** 5,000-15,000 tokens
-- **Cost per conversation:** $0.003 - $0.015
-- **Monthly (100 conversations):** $0.30 - $1.50 per user
+- **Per conversation (5K-15K tokens):** $0.003 - $0.015
+- **Monthly (100 conversations/user):** $0.30 - $1.50
 
 ### Optimization Strategies
-- **Tool prefiltering:** 87% fewer tokens by filtering irrelevant tools
+- **Tool prefiltering:** Only send relevant tools to Claude
 - **Redis caching:** Financial context cached (5min TTL)
-- **Context compression:** Only send relevant context fields
-- **Conversation history pruning:** Last 20 messages only
-
----
-
-## 📝 Example Conversations
-
-### Example 1: Weather Query
-```
-User: "What's the weather like?"
-
-PAM: "The current weather in Sydney is sunny with 22°C
-      and light winds from the east. Perfect RV weather!
-      The forecast for the next 3 days is clear skies."
-
-Context used:
-  • user_location (GPS: Sydney, Australia)
-
-Tool called:
-  • get_weather_forecast(location="Sydney", days=3)
-```
-
-### Example 2: Budget Analysis
-```
-User: "How much did I spend on food this month?"
-
-PAM: "You spent $650 on food in January. That's $50
-      under your $700 budget. Great job! Your top
-      expenses were:
-      • Grocery stores: $420
-      • Restaurants: $180
-      • Fast food: $50"
-
-Context used:
-  • user_id
-  • financial_context (cached from Redis)
-
-Tool called:
-  • get_spending_summary(category="food", period="month")
-```
-
-### Example 3: Trip Planning
-```
-User: "Plan a trip from Phoenix to Seattle under $2000"
-
-PAM: "I've planned your 1,420-mile trip! Estimated total:
-      $897 (gas + 3 nights camping). Route highlights:
-      • Day 1: Phoenix → Flagstaff (140 mi, $49 gas)
-      • Day 2: Flagstaff → Salt Lake City (500 mi, $175 gas)
-      • Day 3: Salt Lake → Boise (340 mi, $119 gas)
-      • Day 4: Boise → Seattle (510 mi, $178 gas)
-
-      I avoided I-84 due to high winds forecast.
-      Should I save this trip?"
-
-Context used:
-  • user_id
-  • vehicle_info (MPG: 10, fuel type: diesel)
-  • budget_constraints (max: $2000)
-
-Tools called:
-  1. plan_trip(origin="Phoenix", destination="Seattle", budget=2000)
-  2. get_weather_forecast(locations=[route waypoints])
-  3. calculate_gas_cost(distance=1420, mpg=10)
-  4. find_rv_parks(locations=[waypoints], budget=150/night)
-```
-
-### Example 4: Savings Tracking
-```
-User: "Find cheap gas near me"
-
-PAM: "I found 5 stations near Phoenix. Shell on Main St
-      has the cheapest at $3.45/gal (2 miles away).
-      Chevron on Oak Ave is closer (1.8 mi) at $3.52/gal.
-
-      Fill up at Shell and save $3.50 compared to the
-      Shell near your house!"
-
-Context used:
-  • user_location (GPS: Phoenix, AZ)
-  • vehicle_info (tank size: 50 gallons)
-
-Tools called:
-  1. find_cheap_gas(lat=33.4484, lng=-112.0740, radius=10)
-  2. track_savings(amount=3.50, category="gas")
-
-Result:
-  • Savings tracked automatically
-  • Monthly total updated
-  • Celebration triggered if monthly savings ≥ $10
-```
-
----
-
-## 🚀 Current Status & Roadmap
-
-### ✅ Complete (Operational Now - Code Complete, Tests Required)
-- PAM AI brain (Claude Sonnet 4.5 integrated)
-- WebSocket real-time communication
-- 42 action tools across 6 categories (MVP scope)
-- Location awareness (GPS, IP, browser)
-- Budget tracking and analysis (10 tools)
-- Trip planning and route optimization (12 tools)
-- Social features (posts, messages, feed) (10 tools)
-- Profile management (6 tools)
-- Community features (2 tools)
-- Admin tools (2 tools)
-- Security (7-layer protection)
-- Context validation system
-- Field name mismatch prevention
-
-**Note:** Shop tools (5) are implemented but archived for Phase 2. Test coverage at 0%, targeting 80%+ before beta launch (Week 3 milestone).
-
-### 🚧 In Progress
-- Voice wake word ("Hey PAM")
-- Streaming responses (real-time typing effect)
-- Advanced route optimization algorithms
-- External API integrations:
-  - GasBuddy (gas prices)
-  - Google Places (attractions)
-  - State DOT APIs (road conditions)
-
-### 📅 Planned (Future)
-- Multi-language support (Spanish, French)
-- Offline mode (cached responses)
-- PAM mobile app (iOS/Android native)
-- Smart notifications (proactive suggestions)
-- Calendar integration (Google, Apple)
-- Voice personality customization
+- **Context compression:** Only essential context fields
+- **Conversation pruning:** Last 20 messages only
 
 ---
 
 ## 🔧 Key Files Reference
 
-### Frontend
-| File | Purpose | Lines |
-|------|---------|-------|
-| `src/services/pamService.ts` | WebSocket client, message handling | 800+ |
-| `src/types/pamContext.ts` | TypeScript types (single source of truth) | 241 |
-| `src/utils/pamLocationContext.ts` | Location gathering and formatting | 308 |
-| `src/components/pam/PamAssistant.tsx` | Main chat UI | 500+ |
+### Core Files (Actual Working Code)
 
-### Backend
-| File | Purpose | Lines |
-|------|---------|-------|
-| `backend/app/services/pam/core/pam.py` | PAM AI brain, tool orchestration | 1,090 |
-| `backend/app/api/v1/pam_main.py` | WebSocket endpoint | 2,000+ |
-| `backend/app/core/websocket_manager.py` | Connection management | 200+ |
-| `backend/app/services/pam/tools/` | 42 tool implementations (MVP) | ~4,500 |
-| `backend/archive/shop_tools/` | 5 shop tools (Phase 2) | ~500 |
+| File | Purpose | Lines | Last Updated |
+|------|---------|-------|--------------|
+| `backend/app/core/personalized_pam_agent.py` | Active orchestrator | 424 | Nov 19, 2025 |
+| `backend/app/services/pam/tools/tool_registry.py` | Tool definitions | 933 | Active |
+| `backend/app/api/v1/pam_main.py` | WebSocket endpoint | 2000+ | Active |
+| `src/services/pamService.ts` | Frontend WebSocket client | 800+ | Active |
+| `src/utils/pamLocationContext.ts` | Location gathering | 308 | Active |
 
-### Documentation
-| File | Purpose |
-|------|---------|
-| `docs/PAM_SYSTEM_ARCHITECTURE.md` | This document (source of truth) |
-| `docs/PAM_BACKEND_CONTEXT_REFERENCE.md` | Backend context field reference |
-| `docs/PAM_CONTEXT_VALIDATION_SYSTEM.md` | Validation system guide |
-| `docs/pam-rebuild-2025/PAM_FINAL_PLAN.md` | Implementation plan |
-| `docs/DATABASE_SCHEMA_REFERENCE.md` | Database schema |
+### Recent Commits (Nov 2025)
+
+```
+55ff4757 - fix(pam): correct dataclass field order for user_location
+8b1d9d96 - fix(pam): add location awareness to PersonalizedPamAgent
+aabcbb22 - fix(ai): correct capability detection for anthropic and openai providers
+d2842ad1 - fix(pam): load and pass tools from registry in personalized agent
+```
 
 ---
 
-## 🐛 Common Issues & Solutions
+## 🐛 Known Issues & Solutions
 
 ### Issue: "PAM asks for location even though GPS is enabled"
-**Root Cause:** Field name mismatch (lat/lng vs latitude/longitude)
-**Solution:** Fixed in commit 446033c6 (January 17, 2025)
-**Prevention:** Validation system checks field names
+**Status:** ✅ FIXED (commits 8b1d9d96 + 55ff4757, Nov 19, 2025)
+**Solution:** Location now flows: Frontend → pam_main.py → PersonalizedPamAgent → System Prompt
+**Testing:** Deploy to staging and verify weather queries don't ask "where are you?"
+
+### Issue: "Tool execution fails with permission denied"
+**Cause:** RLS policy blocking database access
+**Solution:** Check user_id matches in tool execution, verify JWT token is valid
 
 ### Issue: "WebSocket disconnects frequently"
-**Root Cause:** Heartbeat timeout or network instability
-**Solution:** Auto-reconnect logic with exponential backoff
-**Check:** Backend logs show connection duration
-
-### Issue: "Tool execution fails with 'permission denied'"
-**Root Cause:** RLS policy blocking database access
-**Solution:** Check user_id matches, verify admin role if required
-**Debug:** Check Supabase RLS policies
-
-### Issue: "Response very slow (>10 seconds)"
-**Root Cause:** Multiple tool calls, external API timeout, or cold start
-**Solution:** Check backend logs for slow tools, add caching
-**Monitor:** Response time metrics in observability dashboard
+**Cause:** Heartbeat timeout or network instability
+**Solution:** Auto-reconnect logic with exponential backoff (up to 5 attempts)
 
 ---
 
-## 📞 Endpoints
+## 📞 Active Endpoints
 
 ### Production
 ```
 Frontend:  https://wheelsandwins.com
 Backend:   https://pam-backend.onrender.com
 WebSocket: wss://pam-backend.onrender.com/api/v1/pam/ws/{user_id}?token={jwt}
-Health:    https://pam-backend.onrender.com/api/v1/pam/health
+Health:    https://pam-backend.onrender.com/api/health
 ```
 
-### Staging
+### Staging (FOR TESTING)
 ```
 Frontend:  https://wheels-wins-staging.netlify.app
 Backend:   https://wheels-wins-backend-staging.onrender.com
 WebSocket: wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jwt}
-Health:    https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health
+Health:    https://wheels-wins-backend-staging.onrender.com/api/health
 ```
 
 ---
 
-## 🎓 Onboarding Checklist for New Developers
-
-Before touching PAM code, read these documents in order:
-
-1. ✅ **This document** (PAM_SYSTEM_ARCHITECTURE.md) - Understand the big picture
-2. ✅ **DATABASE_SCHEMA_REFERENCE.md** - Critical for database queries
-3. ✅ **PAM_BACKEND_CONTEXT_REFERENCE.md** - Context field names (prevents bugs)
-4. ✅ **PAM_CONTEXT_VALIDATION_SYSTEM.md** - Field name validation
-5. ✅ **PAM_FINAL_PLAN.md** - Implementation history and decisions
-
-**Then:**
-- Run `npm run pam:validate-context` to check field names
-- Test PAM on staging before touching production
-- Review tool implementations in `backend/app/services/pam/tools/`
-
----
-
-## 📊 Quick Stats
+## 📊 Quick Stats (ACCURATE)
 
 | Metric | Value |
 |--------|-------|
-| **Total Tools (MVP)** | 42 (5 shop tools in Phase 2) |
-| **Tool Categories** | 6 (Budget, Trip, Social, Profile, Community, Admin) |
+| **Active Orchestrator** | PersonalizedPamAgent |
+| **Registered Tools** | 6 |
 | **AI Model** | Claude Sonnet 4.5 |
 | **Context Window** | 200K tokens |
 | **Backend Language** | Python 3.11+ |
@@ -770,27 +512,45 @@ Before touching PAM code, read these documents in order:
 | **Connection Type** | WebSocket (persistent) |
 | **Average Response Time** | 1-3 seconds |
 | **WebSocket Latency** | ~50ms |
-| **Success Rate** | 90%+ |
 | **Cost per Conversation** | $0.003-0.015 |
-| **Test Coverage** | 0% → Target 80% (Week 3) |
-| **Status** | ✅ Code Complete (Tests Required) |
+| **Location Awareness** | ✅ ACTIVE (Nov 19, 2025) |
 
 ---
 
-**Last Updated:** November 4, 2025 (Amended to reflect MVP scope)
-**Version:** 2.1 (Claude Sonnet 4.5 - Amended)
+## 🎓 Quick Start for Developers
+
+**Before touching PAM code:**
+1. ✅ Read this document (PAM_SYSTEM_ARCHITECTURE.md)
+2. ✅ Check DATABASE_SCHEMA_REFERENCE.md for table schemas
+3. ✅ Check PAM_BACKEND_CONTEXT_REFERENCE.md for context fields
+4. ✅ Test on staging first: https://wheels-wins-staging.netlify.app
+
+**Key Concepts:**
+- PersonalizedPamAgent is THE active orchestrator (not EnhancedPamOrchestrator)
+- 6 tools registered in tool_registry.py (not 42!)
+- Location flows: Browser GPS → Frontend → Backend → System Prompt
+- Field names: `lat`/`lng` (NOT latitude/longitude), `user_location` (NOT location)
+
+**Testing Weather Tool (Verify Location Awareness):**
+1. Open staging: https://wheels-wins-staging.netlify.app
+2. Allow browser location permission
+3. Ask PAM: "What's the weather like?"
+4. Expected: PAM responds with weather WITHOUT asking "where are you?"
+
+---
+
+**Version:** 3.0 (Accurate Implementation Update)
+**Last Updated:** November 19, 2025
+**Verified Against:** Commits through `55ff4757`
+**Status:** ✅ Operational - 6 Tools, Location Awareness Active
+**Next Review:** When additional tools are registered or architecture changes
+
 **Maintainer:** Development Team
-**Next Review:** After Week 3 test suite completion or when adding new tools
-
-**Amendment Notes:**
-- Updated tool count from 47 to 42 (shop tools moved to Phase 2)
-- Added test coverage targets (0% → 80%)
-- Updated status from "Fully Operational" to "Code Complete (Tests Required)"
-- Clarified shop tools are archived for MVP, planned for Phase 2
+**Documentation:** All information verified against actual codebase
 
 ---
 
-**For questions or clarifications, see:**
-- Technical documentation in `/docs`
-- Backend API docs in `/backend/docs`
-- Frontend component docs in Storybook
+**For questions, see:**
+- Backend docs: `/backend/docs/`
+- Frontend types: `/src/types/pamContext.ts`
+- Tool registry: `/backend/app/services/pam/tools/tool_registry.py`

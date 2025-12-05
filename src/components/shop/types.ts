@@ -22,6 +22,8 @@ export interface BaseProduct {
 export interface AffiliateProduct extends BaseProduct {
   externalLink: string;
   isPamRecommended?: boolean;
+  price?: number;
+  currency?: string;
 }
 
 export interface DigitalProduct extends BaseProduct {
@@ -37,9 +39,11 @@ export type TabValue = "all" | "digital" | "affiliate";
 export type ShopProduct = AffiliateProduct | DigitalProduct;
 
 export const isDigitalProduct = (product: ShopProduct): product is DigitalProduct => {
-  return 'price' in product;
+  // Digital products have 'type' field and NO externalLink
+  return 'type' in product && !('externalLink' in product);
 };
 
 export const isAffiliateProduct = (product: ShopProduct): product is AffiliateProduct => {
+  // Affiliate products have externalLink
   return 'externalLink' in product;
 };

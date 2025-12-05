@@ -76,21 +76,42 @@ export const MedicalProvider: React.FC<MedicalProviderProps> = ({ children }) =>
   // Fetch emergency info
   const fetchEmergencyInfo = async () => {
     if (!user?.id) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('medical_emergency_info')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 or 1 rows gracefully
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        throw error;
+      // Handle 406 (Not Acceptable) and other common errors gracefully
+      if (error) {
+        // Check if this is a 406 or "no rows" scenario - treat as "not configured yet"
+        const is406or404 = error.code === 'PGRST116' || // No rows returned
+                          error.code === 'PGRST301' || // 406 Not Acceptable
+                          error.message?.includes('406') ||
+                          error.message?.toLowerCase().includes('not acceptable');
+
+        if (is406or404) {
+          // Not an error - just no emergency info configured yet
+          console.log('⚠️ No emergency info configured (406/404) - showing empty state');
+          setEmergencyInfo(null);
+          return;
+        }
+
+        // For other errors, log but don't break the UI
+        console.error('Error fetching emergency info:', error);
+        setEmergencyInfo(null);
+        // Don't set global error state - let the UI show empty state
+        return;
       }
+
       setEmergencyInfo(data);
     } catch (err) {
-      console.error('Error fetching emergency info:', err);
-      setError('Failed to load emergency information');
+      console.error('Unexpected error fetching emergency info:', err);
+      // Set to null to show empty state instead of crashing
+      setEmergencyInfo(null);
+      // Don't set error state to avoid breaking the dashboard
     }
   };
 

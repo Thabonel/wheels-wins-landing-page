@@ -150,7 +150,7 @@ export default function MedicalEmergency() {
             Emergency Information
           </CardTitle>
           <CardDescription>
-            Set up your emergency medical information for quick access in case of emergencies
+            Add your medical emergency info so it's available when you need it
           </CardDescription>
         </CardHeader>
         <CardContent>

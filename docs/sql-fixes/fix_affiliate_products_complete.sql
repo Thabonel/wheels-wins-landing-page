@@ -1,0 +1,12 @@
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT USAGE ON SCHEMA public TO anon;
+GRANT SELECT ON public.affiliate_products TO authenticated;
+GRANT SELECT ON public.affiliate_products TO anon;
+DROP POLICY IF EXISTS "Anyone can view active products" ON public.affiliate_products;
+DROP POLICY IF EXISTS "admin_select_all" ON public.affiliate_products;
+DROP POLICY IF EXISTS "admin_full_access" ON public.affiliate_products;
+DROP POLICY IF EXISTS "Public can view active products" ON public.affiliate_products;
+DROP POLICY IF EXISTS "Admins can view all products" ON public.affiliate_products;
+DROP POLICY IF EXISTS "public_select_active" ON public.affiliate_products;
+ALTER TABLE public.affiliate_products ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can view active products" ON public.affiliate_products AS PERMISSIVE FOR SELECT TO authenticated, anon USING (is_active = true);

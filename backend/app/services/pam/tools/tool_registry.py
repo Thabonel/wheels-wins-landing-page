@@ -718,7 +718,77 @@ async def _register_all_tools(registry: ToolRegistry):
     except Exception as e:
         logger.error(f"❌ Weather tool registration failed: {e}")
         failed_count += 1
-    
+
+    # Fuel Log Tool - Access user's fuel log entries
+    try:
+        logger.debug("🔄 Attempting to register Fuel Log tool...")
+        get_fuel_log = lazy_import("app.services.pam.tools.trip.get_fuel_log", "get_fuel_log")
+
+        if get_fuel_log is None:
+            raise ImportError("get_fuel_log not available")
+
+        # Create wrapper class for fuel log function
+        class FuelLogToolWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_fuel_log",
+                    "Retrieve user's fuel log entries from database"
+                )
+                self.get_fuel_log_func = get_fuel_log
+
+            async def initialize(self):
+                self.is_initialized = True
+
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                limit = params.get("limit", 10)
+                start_date = params.get("start_date")
+                end_date = params.get("end_date")
+
+                result = await self.get_fuel_log_func(
+                    user_id=user_id,
+                    limit=limit,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+                return result
+
+        registry.register_tool(
+            tool=FuelLogToolWrapper(),
+            function_definition={
+                "name": "get_fuel_log",
+                "description": "Retrieve user's fuel log entries with date, litres/gallons, cost, and location. Use when user asks about fuel purchases, gas logs, or fuel consumption history.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "number",
+                            "description": "Maximum number of entries to return (default 10)"
+                        },
+                        "start_date": {
+                            "type": "string",
+                            "description": "Start date for filtering (YYYY-MM-DD format, optional)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "End date for filtering (YYYY-MM-DD format, optional)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Fuel Log tool registered")
+        registered_count += 1
+
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Fuel Log tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Fuel Log tool registration failed: {e}")
+        failed_count += 1
+
     # Google Places Tool removed - ChatGPT handles place recommendations with user location context
     
     # YouTube Trip Tool
@@ -830,7 +900,556 @@ async def _register_all_tools(registry: ToolRegistry):
     except Exception as e:
         logger.error(f"❌ Calendar Event tool registration failed: {e}")
         failed_count += 1
-    
+
+    # ============================================================
+    # PHASE 1 TOOLS - Budget, Trip, Calendar (Week 1)
+    # ============================================================
+
+    # Budget Tool: Track Savings
+    try:
+        logger.debug("🔄 Attempting to register Track Savings tool...")
+        track_savings = lazy_import("app.services.pam.tools.budget.track_savings", "track_savings")
+
+        if track_savings is None:
+            raise ImportError("track_savings function not available")
+
+        class TrackSavingsTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await track_savings(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=TrackSavingsTool(),
+            function_definition={
+                "name": "track_savings",
+                "description": "Log money saved by PAM for the user (cheaper gas, better campground deals, route optimization, etc.). Critical for ROI tracking - PAM aims to pay for herself at $10/month.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "amount": {
+                            "type": "number",
+                            "description": "Amount of money saved in dollars (must be positive)"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Category of savings (gas, campground, route, shopping, food, etc.)"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Description of what was saved (e.g., 'Shell station $0.15/gal cheaper')"
+                        },
+                        "event_type": {
+                            "type": "string",
+                            "enum": ["gas", "campground", "route", "other"],
+                            "description": "Type of savings event"
+                        }
+                    },
+                    "required": ["amount", "category"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Track Savings tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Track Savings tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Track Savings tool registration failed: {e}")
+        failed_count += 1
+
+    # Budget Tool: Analyze Budget
+    try:
+        logger.debug("🔄 Attempting to register Analyze Budget tool...")
+        analyze_budget = lazy_import("app.services.pam.tools.budget.analyze_budget", "analyze_budget")
+
+        if analyze_budget is None:
+            raise ImportError("analyze_budget function not available")
+
+        class AnalyzeBudgetTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await analyze_budget(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=AnalyzeBudgetTool(),
+            function_definition={
+                "name": "analyze_budget",
+                "description": "Analyze user's budget and provide insights (spending trends, budget adherence, category breakdowns, recommendations). Use when user asks about budget status or financial health.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "period": {
+                            "type": "string",
+                            "enum": ["week", "month", "quarter", "year"],
+                            "description": "Time period to analyze (default: month)"
+                        },
+                        "categories": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Specific categories to analyze (leave empty for all)"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Analyze Budget tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Analyze Budget tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Analyze Budget tool registration failed: {e}")
+        failed_count += 1
+
+    # Budget Tool: Compare vs Budget
+    try:
+        logger.debug("🔄 Attempting to register Compare vs Budget tool...")
+        compare_vs_budget = lazy_import("app.services.pam.tools.budget.compare_vs_budget", "compare_vs_budget")
+
+        if compare_vs_budget is None:
+            raise ImportError("compare_vs_budget function not available")
+
+        class CompareVsBudgetTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await compare_vs_budget(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=CompareVsBudgetTool(),
+            function_definition={
+                "name": "compare_vs_budget",
+                "description": "Compare actual spending vs planned budget. Shows if user is over/under budget by category. Use when user asks 'am I on track?' or 'am I over budget?'",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "period": {
+                            "type": "string",
+                            "enum": ["week", "month", "quarter", "year"],
+                            "description": "Time period to compare (default: month)"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Specific category to compare (leave empty for all categories)"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Compare vs Budget tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Compare vs Budget tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Compare vs Budget tool registration failed: {e}")
+        failed_count += 1
+
+    # Budget Tool: Predict End of Month
+    try:
+        logger.debug("🔄 Attempting to register Predict End of Month tool...")
+        predict_end_of_month = lazy_import("app.services.pam.tools.budget.predict_end_of_month", "predict_end_of_month")
+
+        if predict_end_of_month is None:
+            raise ImportError("predict_end_of_month function not available")
+
+        class PredictEndOfMonthTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await predict_end_of_month(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=PredictEndOfMonthTool(),
+            function_definition={
+                "name": "predict_end_of_month",
+                "description": "Forecast spending through end of month based on current trends. Predicts if user will stay under budget. Use when user asks 'will I stay under budget?' or 'what will I spend this month?'",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "description": "Specific category to predict (leave empty for overall prediction)"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Predict End of Month tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Predict End of Month tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Predict End of Month tool registration failed: {e}")
+        failed_count += 1
+
+    # Budget Tool: Find Savings Opportunities
+    try:
+        logger.debug("🔄 Attempting to register Find Savings Opportunities tool...")
+        find_savings_opportunities = lazy_import("app.services.pam.tools.budget.find_savings_opportunities", "find_savings_opportunities")
+
+        if find_savings_opportunities is None:
+            raise ImportError("find_savings_opportunities function not available")
+
+        class FindSavingsOpportunitiesTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await find_savings_opportunities(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=FindSavingsOpportunitiesTool(),
+            function_definition={
+                "name": "find_savings_opportunities",
+                "description": "AI-powered analysis to find money-saving opportunities based on spending patterns. Suggests where user can cut costs. Use when user asks 'where can I save money?' or 'how can I reduce spending?'",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_amount": {
+                            "type": "number",
+                            "description": "Target amount to save per month (optional, helps prioritize suggestions)"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Find Savings Opportunities tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Find Savings Opportunities tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Find Savings Opportunities tool registration failed: {e}")
+        failed_count += 1
+
+    # Trip Tool: Find Cheap Gas
+    try:
+        logger.debug("🔄 Attempting to register Find Cheap Gas tool...")
+        find_cheap_gas = lazy_import("app.services.pam.tools.trip.find_cheap_gas", "find_cheap_gas")
+
+        if find_cheap_gas is None:
+            raise ImportError("find_cheap_gas function not available")
+
+        class FindCheapGasTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await find_cheap_gas(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=FindCheapGasTool(),
+            function_definition={
+                "name": "find_cheap_gas",
+                "description": "Find cheapest gas stations near a location. Returns prices, distances, and station details. Critical for user savings - gas is major RV expense. Use when user asks about gas prices or fuel.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "latitude": {
+                            "type": "number",
+                            "description": "Latitude of search location"
+                        },
+                        "longitude": {
+                            "type": "number",
+                            "description": "Longitude of search location"
+                        },
+                        "radius_miles": {
+                            "type": "number",
+                            "description": "Search radius in miles (default: 10)"
+                        },
+                        "fuel_type": {
+                            "type": "string",
+                            "enum": ["regular", "midgrade", "premium", "diesel"],
+                            "description": "Type of fuel (default: diesel for RVs)"
+                        }
+                    },
+                    "required": ["latitude", "longitude"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Find Cheap Gas tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Find Cheap Gas tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Find Cheap Gas tool registration failed: {e}")
+        failed_count += 1
+
+    # Trip Tool: Optimize Route
+    try:
+        logger.debug("🔄 Attempting to register Optimize Route tool...")
+        optimize_route = lazy_import("app.services.pam.tools.trip.optimize_route", "optimize_route")
+
+        if optimize_route is None:
+            raise ImportError("optimize_route function not available")
+
+        class OptimizeRouteTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await optimize_route(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=OptimizeRouteTool(),
+            function_definition={
+                "name": "optimize_route",
+                "description": "Find most cost-effective route between multiple stops. Minimizes fuel costs and considers RV constraints (height, weight, tolls). Use for multi-stop trip planning.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "waypoints": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of locations to visit in order (addresses or coordinates)"
+                        },
+                        "optimize_for": {
+                            "type": "string",
+                            "enum": ["cost", "time", "distance"],
+                            "description": "Optimization priority (default: cost)"
+                        },
+                        "avoid": {
+                            "type": "array",
+                            "items": {"type": "string", "enum": ["tolls", "highways", "ferries"]},
+                            "description": "Route features to avoid"
+                        }
+                    },
+                    "required": ["waypoints"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Optimize Route tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Optimize Route tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Optimize Route tool registration failed: {e}")
+        failed_count += 1
+
+    # Trip Tool: Get Road Conditions
+    try:
+        logger.debug("🔄 Attempting to register Get Road Conditions tool...")
+        get_road_conditions = lazy_import("app.services.pam.tools.trip.get_road_conditions", "get_road_conditions")
+
+        if get_road_conditions is None:
+            raise ImportError("get_road_conditions function not available")
+
+        class GetRoadConditionsTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await get_road_conditions(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=GetRoadConditionsTool(),
+            function_definition={
+                "name": "get_road_conditions",
+                "description": "Check road conditions, closures, traffic, and hazards for a route. Critical for RV safety. Use when user asks about road status or travel safety.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "route": {
+                            "type": "string",
+                            "description": "Route identifier (e.g., 'I-80', 'US-101') or location"
+                        },
+                        "origin": {
+                            "type": "string",
+                            "description": "Starting location (address or coordinates)"
+                        },
+                        "destination": {
+                            "type": "string",
+                            "description": "Ending location (address or coordinates)"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Get Road Conditions tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Get Road Conditions tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Get Road Conditions tool registration failed: {e}")
+        failed_count += 1
+
+    # Trip Tool: Estimate Travel Time
+    try:
+        logger.debug("🔄 Attempting to register Estimate Travel Time tool...")
+        estimate_travel_time = lazy_import("app.services.pam.tools.trip.estimate_travel_time", "estimate_travel_time")
+
+        if estimate_travel_time is None:
+            raise ImportError("estimate_travel_time function not available")
+
+        class EstimateTravelTimeTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await estimate_travel_time(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=EstimateTravelTimeTool(),
+            function_definition={
+                "name": "estimate_travel_time",
+                "description": "Calculate travel duration between locations, accounting for RV speed limits, breaks, and traffic. Use when user asks 'how long will it take?' or 'when will I arrive?'",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "origin": {
+                            "type": "string",
+                            "description": "Starting location (address or coordinates)"
+                        },
+                        "destination": {
+                            "type": "string",
+                            "description": "Ending location (address or coordinates)"
+                        },
+                        "departure_time": {
+                            "type": "string",
+                            "description": "Departure time (ISO format, optional - defaults to now)"
+                        },
+                        "include_breaks": {
+                            "type": "boolean",
+                            "description": "Whether to include recommended breaks (default: true)"
+                        }
+                    },
+                    "required": ["origin", "destination"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Estimate Travel Time tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Estimate Travel Time tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Estimate Travel Time tool registration failed: {e}")
+        failed_count += 1
+
+    # ===============================
+    # CALENDAR TOOLS (Phase 1: 2 tools)
+    # Critical for: Calendar management
+    # ===============================
+
+    # Calendar Tool: Update Calendar Event
+    try:
+        logger.debug("🔄 Attempting to register Update Calendar Event tool...")
+        update_calendar_event = lazy_import("app.services.pam.tools.update_calendar_event", "update_calendar_event")
+
+        if update_calendar_event is None:
+            raise ImportError("update_calendar_event function not available")
+
+        class UpdateCalendarEventTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await update_calendar_event(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=UpdateCalendarEventTool(),
+            function_definition={
+                "name": "update_calendar_event",
+                "description": "Modify an existing calendar event (change time, location, description, etc.). User must provide event ID or enough details to identify the event.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "event_id": {
+                            "type": "string",
+                            "description": "UUID of the event to update (required)"
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "New event title"
+                        },
+                        "start_date": {
+                            "type": "string",
+                            "description": "New start date/time in ISO format (YYYY-MM-DDTHH:MM:SS)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "New end date/time in ISO format (YYYY-MM-DDTHH:MM:SS)"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "New event description"
+                        },
+                        "event_type": {
+                            "type": "string",
+                            "enum": ["reminder", "trip", "booking", "maintenance", "inspection"],
+                            "description": "New event type"
+                        },
+                        "all_day": {
+                            "type": "boolean",
+                            "description": "Whether this is an all-day event"
+                        },
+                        "location_name": {
+                            "type": "string",
+                            "description": "New location name"
+                        },
+                        "reminder_minutes": {
+                            "type": "integer",
+                            "description": "New reminder time in minutes before event"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "New color hex code for calendar display (e.g., #FF5733)"
+                        }
+                    },
+                    "required": ["event_id"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=1
+        )
+        logger.info("✅ Update Calendar Event tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Update Calendar Event tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Update Calendar Event tool registration failed: {e}")
+        failed_count += 1
+
+    # Calendar Tool: Delete Calendar Event
+    try:
+        logger.debug("🔄 Attempting to register Delete Calendar Event tool...")
+        delete_calendar_event = lazy_import("app.services.pam.tools.delete_calendar_event", "delete_calendar_event")
+
+        if delete_calendar_event is None:
+            raise ImportError("delete_calendar_event function not available")
+
+        class DeleteCalendarEventTool:
+            async def execute(self, user_id: str, **kwargs):
+                return await delete_calendar_event(user_id=user_id, **kwargs)
+
+        registry.register_tool(
+            tool=DeleteCalendarEventTool(),
+            function_definition={
+                "name": "delete_calendar_event",
+                "description": "Delete a calendar event permanently. User must provide event ID or enough details to identify the event to delete.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "event_id": {
+                            "type": "string",
+                            "description": "UUID of the event to delete (required)"
+                        }
+                    },
+                    "required": ["event_id"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=1
+        )
+        logger.info("✅ Delete Calendar Event tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Delete Calendar Event tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Delete Calendar Event tool registration failed: {e}")
+        failed_count += 1
+
     # Web Scraper Tool removed - ChatGPT handles general information with its knowledge base
     
     # Memory Tools
@@ -838,13 +1457,1184 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register Memory tools...")
         load_recent_memory = lazy_import("app.services.pam.tools.load_recent_memory", "load_recent_memory")
         load_user_profile = lazy_import("app.services.pam.tools.load_user_profile", "load_user_profile")
-        
+
         # Note: These are functions, not classes, so we need wrapper tools
         # This would require creating wrapper tool classes or converting them
-        
+
     except ImportError as e:
         logger.debug(f"Memory tools not available: {e}")
-    
+
+    # ===============================
+    # SOCIAL TOOLS (10 tools)
+    # Critical for: Community features
+    # ===============================
+
+    # Social Tool: Create Post
+    try:
+        logger.debug("🔄 Attempting to register Create Post tool...")
+        create_post = lazy_import("app.services.pam.tools.social.create_post", "create_post")
+
+        if create_post is None:
+            raise ImportError("create_post function not available")
+
+        class CreatePostTool:
+            tool_name = "create_post"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await create_post(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=CreatePostTool(),
+            function_definition={
+                "name": "create_post",
+                "description": "Create a social post to share with the RV community. Use when user wants to share travel updates, photos, or tips.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "Post content (required)"
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Optional post title"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Location tag"
+                        },
+                        "image_url": {
+                            "type": "string",
+                            "description": "URL of image to attach"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Tags for the post"
+                        }
+                    },
+                    "required": ["content"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=2
+        )
+        logger.info("✅ Create Post tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Create Post tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Create Post tool registration failed: {e}")
+        failed_count += 1
+
+    # Social Tool: Get Feed
+    try:
+        logger.debug("🔄 Attempting to register Get Feed tool...")
+        get_feed = lazy_import("app.services.pam.tools.social.get_feed", "get_feed")
+
+        if get_feed is None:
+            raise ImportError("get_feed function not available")
+
+        class GetFeedTool:
+            tool_name = "get_feed"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await get_feed(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=GetFeedTool(),
+            function_definition={
+                "name": "get_feed",
+                "description": "Get the social feed showing posts from followed users and the community. Use when user wants to see what others are posting.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "limit": {
+                            "type": "integer",
+                            "description": "Number of posts to return (default: 20)"
+                        },
+                        "offset": {
+                            "type": "integer",
+                            "description": "Pagination offset"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Get Feed tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Get Feed tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Get Feed tool registration failed: {e}")
+        failed_count += 1
+
+    # Social Tool: Like Post
+    try:
+        logger.debug("🔄 Attempting to register Like Post tool...")
+        like_post = lazy_import("app.services.pam.tools.social.like_post", "like_post")
+
+        if like_post is None:
+            raise ImportError("like_post function not available")
+
+        class LikePostTool:
+            tool_name = "like_post"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await like_post(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=LikePostTool(),
+            function_definition={
+                "name": "like_post",
+                "description": "Like or unlike a social post. Use when user wants to show appreciation for content.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {
+                            "type": "string",
+                            "description": "ID of the post to like"
+                        }
+                    },
+                    "required": ["post_id"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=2
+        )
+        logger.info("✅ Like Post tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Like Post tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Like Post tool registration failed: {e}")
+        failed_count += 1
+
+    # Social Tool: Comment on Post
+    try:
+        logger.debug("🔄 Attempting to register Comment on Post tool...")
+        comment_on_post = lazy_import("app.services.pam.tools.social.comment_on_post", "comment_on_post")
+
+        if comment_on_post is None:
+            raise ImportError("comment_on_post function not available")
+
+        class CommentOnPostTool:
+            tool_name = "comment_on_post"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await comment_on_post(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=CommentOnPostTool(),
+            function_definition={
+                "name": "comment_on_post",
+                "description": "Add a comment to a social post. Use when user wants to respond to someone's content.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {
+                            "type": "string",
+                            "description": "ID of the post to comment on"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Comment content"
+                        }
+                    },
+                    "required": ["post_id", "content"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=2
+        )
+        logger.info("✅ Comment on Post tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Comment on Post tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Comment on Post tool registration failed: {e}")
+        failed_count += 1
+
+    # Social Tool: Find Nearby RVers
+    try:
+        logger.debug("🔄 Attempting to register Find Nearby RVers tool...")
+        find_nearby_rvers = lazy_import("app.services.pam.tools.social.find_nearby_rvers", "find_nearby_rvers")
+
+        if find_nearby_rvers is None:
+            raise ImportError("find_nearby_rvers function not available")
+
+        class FindNearbyRversTool:
+            tool_name = "find_nearby_rvers"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await find_nearby_rvers(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=FindNearbyRversTool(),
+            function_definition={
+                "name": "find_nearby_rvers",
+                "description": "Find other RV travelers near the user's location. Great for meetups and community connections.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "latitude": {
+                            "type": "number",
+                            "description": "User's latitude"
+                        },
+                        "longitude": {
+                            "type": "number",
+                            "description": "User's longitude"
+                        },
+                        "radius_miles": {
+                            "type": "number",
+                            "description": "Search radius in miles (default: 50)"
+                        }
+                    },
+                    "required": ["latitude", "longitude"]
+                }
+            },
+            capability=ToolCapability.LOCATION_SEARCH,
+            priority=2
+        )
+        logger.info("✅ Find Nearby RVers tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Find Nearby RVers tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Find Nearby RVers tool registration failed: {e}")
+        failed_count += 1
+
+    # ===============================
+    # SHOP TOOLS (3 tools)
+    # Critical for: Product recommendations
+    # ===============================
+
+    # Shop Tool: Search Products
+    try:
+        logger.debug("🔄 Attempting to register Search Products tool...")
+        search_products = lazy_import("app.services.pam.tools.shop.search_products", "search_products")
+
+        if search_products is None:
+            raise ImportError("search_products function not available")
+
+        class SearchProductsTool:
+            tool_name = "search_products"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await search_products(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=SearchProductsTool(),
+            function_definition={
+                "name": "search_products",
+                "description": "Search for RV products and gear. Returns Amazon affiliate products with prices and links.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query for products"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Product category (tools_maintenance, camping_expedition, recovery_gear, etc)",
+                            "enum": ["tools_maintenance", "camping_expedition", "recovery_gear", "parts_upgrades", "safety_equipment", "power_electronics", "comfort_living", "navigation_tech"]
+                        },
+                        "max_price": {
+                            "type": "number",
+                            "description": "Maximum price filter"
+                        },
+                        "min_price": {
+                            "type": "number",
+                            "description": "Minimum price filter"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum results (default: 20)"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            capability=ToolCapability.EXTERNAL_API,
+            priority=2
+        )
+        logger.info("✅ Search Products tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Search Products tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Search Products tool registration failed: {e}")
+        failed_count += 1
+
+    # Shop Tool: Get Product Details
+    try:
+        logger.debug("🔄 Attempting to register Get Product Details tool...")
+        get_product_details = lazy_import("app.services.pam.tools.shop.get_product_details", "get_product_details")
+
+        if get_product_details is None:
+            raise ImportError("get_product_details function not available")
+
+        class GetProductDetailsTool:
+            tool_name = "get_product_details"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await get_product_details(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=GetProductDetailsTool(),
+            function_definition={
+                "name": "get_product_details",
+                "description": "Get detailed information about a specific product including description, price, and purchase link.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "product_id": {
+                            "type": "string",
+                            "description": "ID of the product to get details for"
+                        }
+                    },
+                    "required": ["product_id"]
+                }
+            },
+            capability=ToolCapability.EXTERNAL_API,
+            priority=2
+        )
+        logger.info("✅ Get Product Details tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Get Product Details tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Get Product Details tool registration failed: {e}")
+        failed_count += 1
+
+    # Shop Tool: Recommend Products
+    try:
+        logger.debug("🔄 Attempting to register Recommend Products tool...")
+        recommend_products = lazy_import("app.services.pam.tools.shop.recommend_products", "recommend_products")
+
+        if recommend_products is None:
+            raise ImportError("recommend_products function not available")
+
+        class RecommendProductsTool:
+            tool_name = "recommend_products"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await recommend_products(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=RecommendProductsTool(),
+            function_definition={
+                "name": "recommend_products",
+                "description": "Get personalized product recommendations based on user's vehicle, travel style, and past purchases.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "description": "Product category for recommendations"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Number of recommendations (default: 5)"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Recommend Products tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Recommend Products tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Recommend Products tool registration failed: {e}")
+        failed_count += 1
+
+    # ===============================
+    # PROFILE TOOLS (6 tools)
+    # Critical for: User management
+    # ===============================
+
+    # Profile Tool: Update Profile
+    try:
+        logger.debug("🔄 Attempting to register Update Profile tool...")
+        update_profile = lazy_import("app.services.pam.tools.profile.update_profile", "update_profile")
+
+        if update_profile is None:
+            raise ImportError("update_profile function not available")
+
+        class UpdateProfileTool:
+            tool_name = "update_profile"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await update_profile(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=UpdateProfileTool(),
+            function_definition={
+                "name": "update_profile",
+                "description": "Update user's profile information (username, bio, avatar, RV details). Use when user wants to change their profile.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "username": {
+                            "type": "string",
+                            "description": "New username"
+                        },
+                        "bio": {
+                            "type": "string",
+                            "description": "Profile bio"
+                        },
+                        "avatar_url": {
+                            "type": "string",
+                            "description": "Avatar image URL"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Home location"
+                        },
+                        "rv_type": {
+                            "type": "string",
+                            "description": "Type of RV"
+                        },
+                        "rv_year": {
+                            "type": "integer",
+                            "description": "Year of RV"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Update Profile tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Update Profile tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Update Profile tool registration failed: {e}")
+        failed_count += 1
+
+    # Profile Tool: Get User Stats
+    try:
+        logger.debug("🔄 Attempting to register Get User Stats tool...")
+        get_user_stats = lazy_import("app.services.pam.tools.profile.get_user_stats", "get_user_stats")
+
+        if get_user_stats is None:
+            raise ImportError("get_user_stats function not available")
+
+        class GetUserStatsTool:
+            tool_name = "get_user_stats"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await get_user_stats(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=GetUserStatsTool(),
+            function_definition={
+                "name": "get_user_stats",
+                "description": "Get user's activity statistics including trips taken, miles traveled, money saved, posts made, etc.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "period": {
+                            "type": "string",
+                            "description": "Time period for stats (week, month, year, all)",
+                            "enum": ["week", "month", "year", "all"]
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Get User Stats tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Get User Stats tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Get User Stats tool registration failed: {e}")
+        failed_count += 1
+
+    # ===============================
+    # ADMIN TOOLS (2 tools)
+    # Critical for: Knowledge management
+    # ===============================
+
+    # Admin Tool: Add Knowledge
+    try:
+        logger.debug("🔄 Attempting to register Add Knowledge tool...")
+        add_knowledge = lazy_import("app.services.pam.tools.admin.add_knowledge", "add_knowledge")
+
+        if add_knowledge is None:
+            raise ImportError("add_knowledge function not available")
+
+        class AddKnowledgeTool:
+            tool_name = "add_knowledge"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await add_knowledge(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=AddKnowledgeTool(),
+            function_definition={
+                "name": "add_knowledge",
+                "description": "ADMIN ONLY: Add knowledge to PAM's memory. Use when admin wants to teach PAM new information.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Short title for the knowledge"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The knowledge content"
+                        },
+                        "knowledge_type": {
+                            "type": "string",
+                            "description": "Type of knowledge",
+                            "enum": ["location_tip", "travel_rule", "seasonal_advice", "general_knowledge", "policy", "warning"]
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Category",
+                            "enum": ["travel", "budget", "social", "shop", "general"]
+                        },
+                        "location_context": {
+                            "type": "string",
+                            "description": "Location this applies to"
+                        },
+                        "priority": {
+                            "type": "integer",
+                            "description": "Priority 1-10 (10=highest)"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Searchable tags"
+                        }
+                    },
+                    "required": ["title", "content", "knowledge_type", "category"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=1
+        )
+        logger.info("✅ Add Knowledge tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Add Knowledge tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Add Knowledge tool registration failed: {e}")
+        failed_count += 1
+
+    # Admin Tool: Search Knowledge
+    try:
+        logger.debug("🔄 Attempting to register Search Knowledge tool...")
+        search_knowledge = lazy_import("app.services.pam.tools.admin.search_knowledge", "search_knowledge")
+
+        if search_knowledge is None:
+            raise ImportError("search_knowledge function not available")
+
+        class SearchKnowledgeTool:
+            tool_name = "search_knowledge"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await search_knowledge(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=SearchKnowledgeTool(),
+            function_definition={
+                "name": "search_knowledge",
+                "description": "Search PAM's knowledge base for relevant information. Use to find tips, rules, and advice.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Filter by category"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Filter by location"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Max results (default: 10)"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Search Knowledge tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Search Knowledge tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Search Knowledge tool registration failed: {e}")
+        failed_count += 1
+
+    # ===============================
+    # COMMUNITY TOOLS (2 tools)
+    # Critical for: Community tips
+    # ===============================
+
+    # Community Tool: Submit Tip
+    try:
+        logger.debug("🔄 Attempting to register Submit Tip tool...")
+        submit_community_tip = lazy_import("app.services.pam.tools.community.submit_tip", "submit_community_tip")
+
+        if submit_community_tip is None:
+            raise ImportError("submit_community_tip function not available")
+
+        class SubmitTipTool:
+            tool_name = "submit_community_tip"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await submit_community_tip(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=SubmitTipTool(),
+            function_definition={
+                "name": "submit_community_tip",
+                "description": "Submit a tip to help other RV travelers. Tips become part of PAM's knowledge base.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Short title for the tip"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Full tip content"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Category (camping, gas_savings, route_planning, etc)"
+                        },
+                        "location_name": {
+                            "type": "string",
+                            "description": "Location this tip applies to"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Searchable tags"
+                        }
+                    },
+                    "required": ["title", "content", "category"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=2
+        )
+        logger.info("✅ Submit Tip tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Submit Tip tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Submit Tip tool registration failed: {e}")
+        failed_count += 1
+
+    # Community Tool: Search Tips
+    try:
+        logger.debug("🔄 Attempting to register Search Tips tool...")
+        search_tips = lazy_import("app.services.pam.tools.community.search_tips", "search_tips")
+
+        if search_tips is None:
+            raise ImportError("search_tips function not available")
+
+        class SearchTipsTool:
+            tool_name = "search_tips"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await search_tips(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=SearchTipsTool(),
+            function_definition={
+                "name": "search_tips",
+                "description": "Search community tips for helpful advice. Use to find recommendations from other RVers.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Filter by category"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Filter by location"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Max results (default: 10)"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Search Tips tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Search Tips tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Search Tips tool registration failed: {e}")
+        failed_count += 1
+
+    # ===============================
+    # ADDITIONAL TRIP TOOLS (4 tools)
+    # Critical for: Trip planning
+    # ===============================
+
+    # Trip Tool: Find RV Parks
+    try:
+        logger.debug("🔄 Attempting to register Find RV Parks tool...")
+        find_rv_parks = lazy_import("app.services.pam.tools.trip.find_rv_parks", "find_rv_parks")
+
+        if find_rv_parks is None:
+            raise ImportError("find_rv_parks function not available")
+
+        class FindRVParksTool:
+            tool_name = "find_rv_parks"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await find_rv_parks(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=FindRVParksTool(),
+            function_definition={
+                "name": "find_rv_parks",
+                "description": "Search for RV parks and campgrounds near a location. Filter by amenities, price, and ratings.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "Location to search near"
+                        },
+                        "latitude": {
+                            "type": "number",
+                            "description": "Latitude for search"
+                        },
+                        "longitude": {
+                            "type": "number",
+                            "description": "Longitude for search"
+                        },
+                        "radius_miles": {
+                            "type": "number",
+                            "description": "Search radius in miles (default: 50)"
+                        },
+                        "amenities": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Required amenities (hookups, wifi, pool, etc)"
+                        },
+                        "max_price": {
+                            "type": "number",
+                            "description": "Maximum price per night"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.LOCATION_SEARCH,
+            priority=1
+        )
+        logger.info("✅ Find RV Parks tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Find RV Parks tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Find RV Parks tool registration failed: {e}")
+        failed_count += 1
+
+    # Trip Tool: Plan Trip
+    try:
+        logger.debug("🔄 Attempting to register Plan Trip tool...")
+        plan_trip = lazy_import("app.services.pam.tools.trip.plan_trip", "plan_trip")
+
+        if plan_trip is None:
+            raise ImportError("plan_trip function not available")
+
+        class PlanTripTool:
+            tool_name = "plan_trip"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await plan_trip(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=PlanTripTool(),
+            function_definition={
+                "name": "plan_trip",
+                "description": "Create a comprehensive trip plan with routes, stops, budget estimates, and campground suggestions.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "origin": {
+                            "type": "string",
+                            "description": "Starting location"
+                        },
+                        "destination": {
+                            "type": "string",
+                            "description": "Destination"
+                        },
+                        "budget": {
+                            "type": "number",
+                            "description": "Total budget for the trip"
+                        },
+                        "start_date": {
+                            "type": "string",
+                            "description": "Trip start date (YYYY-MM-DD)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "Trip end date (YYYY-MM-DD)"
+                        },
+                        "waypoints": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Stops along the way"
+                        }
+                    },
+                    "required": ["origin", "destination"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Plan Trip tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Plan Trip tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Plan Trip tool registration failed: {e}")
+        failed_count += 1
+
+    # Trip Tool: Find Attractions
+    try:
+        logger.debug("🔄 Attempting to register Find Attractions tool...")
+        find_attractions = lazy_import("app.services.pam.tools.trip.find_attractions", "find_attractions")
+
+        if find_attractions is None:
+            raise ImportError("find_attractions function not available")
+
+        class FindAttractionsTool:
+            tool_name = "find_attractions"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await find_attractions(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=FindAttractionsTool(),
+            function_definition={
+                "name": "find_attractions",
+                "description": "Discover points of interest, national parks, scenic routes, and activities near a location.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "Location to search near"
+                        },
+                        "latitude": {
+                            "type": "number",
+                            "description": "Latitude"
+                        },
+                        "longitude": {
+                            "type": "number",
+                            "description": "Longitude"
+                        },
+                        "radius_miles": {
+                            "type": "number",
+                            "description": "Search radius (default: 50)"
+                        },
+                        "types": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Types of attractions (national_park, scenic_route, museum, etc)"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.LOCATION_SEARCH,
+            priority=2
+        )
+        logger.info("✅ Find Attractions tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Find Attractions tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Find Attractions tool registration failed: {e}")
+        failed_count += 1
+
+    # Trip Tool: Calculate Gas Cost
+    try:
+        logger.debug("🔄 Attempting to register Calculate Gas Cost tool...")
+        calculate_gas_cost = lazy_import("app.services.pam.tools.trip.calculate_gas_cost", "calculate_gas_cost")
+
+        if calculate_gas_cost is None:
+            raise ImportError("calculate_gas_cost function not available")
+
+        class CalculateGasCostTool:
+            tool_name = "calculate_gas_cost"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await calculate_gas_cost(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=CalculateGasCostTool(),
+            function_definition={
+                "name": "calculate_gas_cost",
+                "description": "Calculate estimated fuel costs for a trip based on distance, MPG, and current gas prices.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "distance_miles": {
+                            "type": "number",
+                            "description": "Distance in miles"
+                        },
+                        "mpg": {
+                            "type": "number",
+                            "description": "Vehicle MPG (uses profile default if not specified)"
+                        },
+                        "gas_price": {
+                            "type": "number",
+                            "description": "Gas price per gallon (uses current average if not specified)"
+                        }
+                    },
+                    "required": ["distance_miles"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Calculate Gas Cost tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Calculate Gas Cost tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Calculate Gas Cost tool registration failed: {e}")
+        failed_count += 1
+
+    # ===============================
+    # ADDITIONAL BUDGET TOOLS (3 tools)
+    # Critical for: Financial management
+    # ===============================
+
+    # Budget Tool: Create Expense
+    try:
+        logger.debug("🔄 Attempting to register Create Expense tool...")
+        create_expense = lazy_import("app.services.pam.tools.budget.create_expense", "create_expense")
+
+        if create_expense is None:
+            raise ImportError("create_expense function not available")
+
+        class CreateExpenseTool:
+            tool_name = "create_expense"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await create_expense(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=CreateExpenseTool(),
+            function_definition={
+                "name": "create_expense",
+                "description": "Log a new expense. Use when user mentions spending money or buying something.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "amount": {
+                            "type": "number",
+                            "description": "Expense amount in dollars"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Category (fuel, food, accommodation, maintenance, etc)"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Description of the expense"
+                        },
+                        "date": {
+                            "type": "string",
+                            "description": "Date of expense (YYYY-MM-DD, defaults to today)"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Where the expense occurred"
+                        }
+                    },
+                    "required": ["amount", "category"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Create Expense tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Create Expense tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Create Expense tool registration failed: {e}")
+        failed_count += 1
+
+    # Budget Tool: Get Spending Summary
+    try:
+        logger.debug("🔄 Attempting to register Get Spending Summary tool...")
+        get_spending_summary = lazy_import("app.services.pam.tools.budget.get_spending_summary", "get_spending_summary")
+
+        if get_spending_summary is None:
+            raise ImportError("get_spending_summary function not available")
+
+        class GetSpendingSummaryTool:
+            tool_name = "get_spending_summary"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await get_spending_summary(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=GetSpendingSummaryTool(),
+            function_definition={
+                "name": "get_spending_summary",
+                "description": "Get a summary of spending by category and time period. Use when user asks about their spending.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "period": {
+                            "type": "string",
+                            "description": "Time period (week, month, quarter, year)",
+                            "enum": ["week", "month", "quarter", "year"]
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Filter by specific category"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Get Spending Summary tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Get Spending Summary tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Get Spending Summary tool registration failed: {e}")
+        failed_count += 1
+
+    # Budget Tool: Update Budget
+    try:
+        logger.debug("🔄 Attempting to register Update Budget tool...")
+        update_budget = lazy_import("app.services.pam.tools.budget.update_budget", "update_budget")
+
+        if update_budget is None:
+            raise ImportError("update_budget function not available")
+
+        class UpdateBudgetTool:
+            tool_name = "update_budget"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await update_budget(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=UpdateBudgetTool(),
+            function_definition={
+                "name": "update_budget",
+                "description": "Update or set budget limits for spending categories. Use when user wants to set or change budget.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "description": "Category to set budget for"
+                        },
+                        "amount": {
+                            "type": "number",
+                            "description": "Budget amount"
+                        },
+                        "period": {
+                            "type": "string",
+                            "description": "Budget period (monthly, weekly, yearly)",
+                            "enum": ["monthly", "weekly", "yearly"]
+                        }
+                    },
+                    "required": ["category", "amount"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ Update Budget tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Update Budget tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Update Budget tool registration failed: {e}")
+        failed_count += 1
+
     # Registration summary
     total_attempted = registered_count + failed_count
     success_rate = (registered_count / total_attempted * 100) if total_attempted > 0 else 0
