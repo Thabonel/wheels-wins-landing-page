@@ -154,12 +154,16 @@ export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<A
     // Debug: Log first product's price fields
     if (data && data.length > 0) {
       const sample = data[0];
+      const countryCode = userRegion ? REGION_CONFIG[userRegion]?.country : 'NO_REGION';
       console.log('Shop: Sample product price fields:', {
         id: sample.id,
         title: sample.title,
-        price: sample.price,
+        basePrice: sample.price,
+        baseCurrency: sample.currency,
         regional_prices: sample.regional_prices,
-        region: userRegion
+        userRegion: userRegion,
+        countryCode: countryCode,
+        regionalPriceForCountry: sample.regional_prices?.[countryCode]
       });
     }
 
@@ -168,8 +172,27 @@ export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<A
         ? getRegionalUrl(product, userRegion)
         : product.affiliate_url;
 
-      // Get regional price if region is provided
-      const priceInfo = userRegion ? getRegionalPrice(product, userRegion) : null;
+      // Get regional price if region is provided, otherwise use base price
+      let priceInfo: { price: number; currency: string } | null = null;
+      if (userRegion) {
+        priceInfo = getRegionalPrice(product, userRegion);
+      } else if (product.price !== null && product.price !== undefined) {
+        // No region provided - use base price with default currency
+        priceInfo = {
+          price: Number(product.price),
+          currency: product.currency || 'USD'
+        };
+      }
+
+      // Debug first product's price resolution
+      if (product === data[0]) {
+        console.log('Shop: Price resolution for first product:', {
+          productTitle: product.title,
+          userRegion: userRegion,
+          priceInfo: priceInfo,
+          productBasePrice: product.price
+        });
+      }
 
       // Build base product object
       const affiliateProduct: AffiliateProduct = {
