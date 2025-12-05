@@ -3367,7 +3367,7 @@ async def get_monthly_savings_status(
                 # Extract data from function result
                 savings_data = result.data[0]
                 total_savings = float(savings_data.get("total_savings", 0))
-                subscription_cost = float(savings_data.get("subscription_cost", 29.99))
+                subscription_cost = float(savings_data.get("subscription_cost", 9.99))
                 guarantee_met = savings_data.get("guarantee_met", False)
                 percentage_achieved = float(savings_data.get("percentage_achieved", 0))
 
@@ -3403,10 +3403,10 @@ async def get_monthly_savings_status(
             "data": {
                 "total_savings": 0.0,
                 "savings_count": 0,
-                "subscription_cost": 29.99,
+                "subscription_cost": 9.99,
                 "guarantee_met": False,
                 "percentage_achieved": 0.0,
-                "savings_shortfall": 29.99,
+                "savings_shortfall": 9.99,
                 "period": {
                     "year": target_year,
                     "month": target_month
@@ -3464,7 +3464,7 @@ async def get_pam_savings_analytics(current_user: dict = Depends(verify_supabase
                 "current_month": {
                     "total_savings": 0.0,
                     "savings_count": 0,
-                    "subscription_cost": 29.99,
+                    "subscription_cost": 9.99,
                     "guarantee_met": False,
                     "percentage_achieved": 0.0
                 },

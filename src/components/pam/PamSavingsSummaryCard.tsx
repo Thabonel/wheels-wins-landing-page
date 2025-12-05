@@ -112,10 +112,10 @@ export const PamSavingsSummaryCard = () => {
   const mockSavingsData = {
     guarantee_met: true,
     total_savings: 18.50,
-    subscription_cost: 14.00,
+    subscription_cost: 9.99, // Updated to match actual monthly price A$9.99
     savings_shortfall: 0,
     savings_events_count: 3,
-    percentage_achieved: 132,
+    percentage_achieved: 185,
     billing_period_start: new Date().toISOString().split('T')[0],
     billing_period_end: new Date().toISOString().split('T')[0]
   };
