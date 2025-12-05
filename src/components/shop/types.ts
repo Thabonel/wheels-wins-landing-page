@@ -22,6 +22,8 @@ export interface BaseProduct {
 export interface AffiliateProduct extends BaseProduct {
   externalLink: string;
   isPamRecommended?: boolean;
+  price?: number;
+  currency?: string;
 }
 
 export interface DigitalProduct extends BaseProduct {

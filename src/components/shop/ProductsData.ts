@@ -4,38 +4,44 @@ import { AffiliateProduct, DigitalProduct } from "./types";
 import { supabase } from "@/integrations/supabase/client";
 import { convertPrice } from "@/services/currencyService";
 
-// New database functions
+// Digital products function - queries affiliate_products table
+// Note: Digital products are stored in affiliate_products with category containing 'digital' or 'software'
 export async function getDigitalProductsFromDB(region: Region): Promise<DigitalProduct[]> {
   try {
+    // Query affiliate_products table - the actual table that exists
+    // Filter for digital/software categories
     const { data, error } = await supabase
-      .from('v_shop_products')  // Using the view
+      .from('affiliate_products')
       .select('*')
-      .eq('type', 'digital')
-      .eq('status', 'active');
+      .eq('is_active', true)
+      .or('category.ilike.%digital%,category.ilike.%software%,category.ilike.%ebook%')
+      .order('sort_order', { ascending: true });
 
     if (error) {
       console.error('Error fetching digital products from database:', error);
       return [];
     }
 
-    console.log('Shop: Using database digital products data');
+    console.log(`Shop: Loaded ${data?.length || 0} digital products from database`);
+
     return (data || []).map(product => {
       const audPrice = product.price || 0;
       const convertedPrice = convertPrice(audPrice, region);
-      
+      const availableRegions = getAvailableRegions(product.regional_asins);
+
       return {
         id: product.id,
-        title: product.name,
-        description: product.description,
+        title: product.title || product.name || 'Unknown Product',
+        description: product.description || '',
         image: product.image_url || "/placeholder-product.jpg",
         price: convertedPrice.amount,
         currency: convertedPrice.currency,
         type: product.category || "software",
-        availableRegions: (product.available_regions || []) as Region[],
+        availableRegions: availableRegions,
         isNew: false,
         hasBonus: false
       };
-    }).filter(product => 
+    }).filter(product =>
       product.availableRegions.includes(region) || product.availableRegions.length === 0
     );
   } catch (error) {
@@ -64,6 +70,42 @@ function getRegionalUrl(
 
   // Fallback to default affiliate URL
   return product.affiliate_url || "#";
+}
+
+/**
+ * Get regional price based on user's region
+ * Falls back to default price if no regional price available
+ *
+ * Regional prices structure: {"AU":{"amount":169.83,"currency":"AUD"},"US":{"amount":79.99,"currency":"USD"}}
+ */
+function getRegionalPrice(
+  product: any,
+  userRegion: Region
+): { price: number; currency: string } | null {
+  const countryCode = REGION_CONFIG[userRegion]?.country;
+  const regionConfig = REGION_CONFIG[userRegion];
+
+  // Check if product has regional prices with nested amount/currency structure
+  if (product.regional_prices && typeof product.regional_prices === 'object') {
+    const regionalPriceData = product.regional_prices[countryCode];
+    if (regionalPriceData && typeof regionalPriceData === 'object' && regionalPriceData.amount !== undefined) {
+      return {
+        price: Number(regionalPriceData.amount),
+        currency: regionalPriceData.currency || regionConfig?.currency || 'USD'
+      };
+    }
+  }
+
+  // Fallback to base price with currency conversion
+  if (product.price !== null && product.price !== undefined) {
+    const convertedPrice = convertPrice(Number(product.price), userRegion);
+    return {
+      price: convertedPrice.amount,
+      currency: convertedPrice.currency
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -109,12 +151,28 @@ export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<A
 
     console.log(`Shop: Loaded ${data?.length || 0} affiliate products from database`);
 
+    // Debug: Log first product's price fields
+    if (data && data.length > 0) {
+      const sample = data[0];
+      console.log('Shop: Sample product price fields:', {
+        id: sample.id,
+        title: sample.title,
+        price: sample.price,
+        regional_prices: sample.regional_prices,
+        region: userRegion
+      });
+    }
+
     return (data || []).map(product => {
       const externalLink = userRegion
         ? getRegionalUrl(product, userRegion)
         : product.affiliate_url;
 
-      return {
+      // Get regional price if region is provided
+      const priceInfo = userRegion ? getRegionalPrice(product, userRegion) : null;
+
+      // Build base product object
+      const affiliateProduct: AffiliateProduct = {
         id: product.id,
         title: product.title,
         description: product.description || '',
@@ -123,8 +181,16 @@ export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<A
         availableRegions: getAvailableRegions(product.regional_asins),
         isPamRecommended: product.is_featured || false,
         categories: product.tags || [],
-        brand: product.category // Using category as brand for now
+        brand: product.category
       };
+
+      // Only add price/currency if we have valid price data
+      if (priceInfo && priceInfo.price !== undefined && priceInfo.price !== null) {
+        affiliateProduct.price = priceInfo.price;
+        affiliateProduct.currency = priceInfo.currency;
+      }
+
+      return affiliateProduct;
     });
   } catch (error) {
     console.error('Unexpected error fetching affiliate products:', error);
