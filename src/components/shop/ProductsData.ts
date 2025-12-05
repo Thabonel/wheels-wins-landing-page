@@ -151,21 +151,6 @@ export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<A
 
     console.log(`Shop: Loaded ${data?.length || 0} affiliate products from database`);
 
-    // Debug: Log first product's price fields
-    if (data && data.length > 0) {
-      const sample = data[0];
-      const countryCode = userRegion ? REGION_CONFIG[userRegion]?.country : 'NO_REGION';
-      console.log('Shop: Sample product price fields:', {
-        id: sample.id,
-        title: sample.title,
-        basePrice: sample.price,
-        baseCurrency: sample.currency,
-        regional_prices: sample.regional_prices,
-        userRegion: userRegion,
-        countryCode: countryCode,
-        regionalPriceForCountry: sample.regional_prices?.[countryCode]
-      });
-    }
 
     return (data || []).map(product => {
       const externalLink = userRegion
@@ -182,16 +167,6 @@ export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<A
           price: Number(product.price),
           currency: product.currency || 'USD'
         };
-      }
-
-      // Debug first product's price resolution
-      if (product === data[0]) {
-        console.log('Shop: Price resolution for first product:', {
-          productTitle: product.title,
-          userRegion: userRegion,
-          priceInfo: priceInfo,
-          productBasePrice: product.price
-        });
       }
 
       // Build base product object
