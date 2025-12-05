@@ -5,16 +5,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { convertPrice } from "@/services/currencyService";
 
 // Digital products function - queries affiliate_products table
-// Note: Digital products are stored in affiliate_products with category containing 'digital' or 'software'
+// Note: The category column is an enum type, so we use 'in' filter with valid enum values
+// Digital-like categories: 'books_manuals', 'electronics'
 export async function getDigitalProductsFromDB(region: Region): Promise<DigitalProduct[]> {
   try {
-    // Query affiliate_products table - the actual table that exists
-    // Filter for digital/software categories
+    // Query affiliate_products table for digital-like categories
+    // Using 'in' filter since category is an enum type (not text - ILIKE won't work)
     const { data, error } = await supabase
       .from('affiliate_products')
       .select('*')
       .eq('is_active', true)
-      .or('category.ilike.%digital%,category.ilike.%software%,category.ilike.%ebook%')
+      .in('category', ['books_manuals', 'electronics'])
       .order('sort_order', { ascending: true });
 
     if (error) {
