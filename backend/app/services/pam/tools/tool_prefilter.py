@@ -29,13 +29,14 @@ class ToolPrefilter:
     """Intelligent tool prefiltering to reduce token usage by 87%"""
 
     # Core tools that should ALWAYS be included
+    # UPDATED: December 2025 - Use ACTUAL tool names from pam.py
     CORE_TOOLS = {
-        "get_time",
-        "get_location",
-        "think",
-        "load_user_profile",
-        "get_user_context",
-        "save_user_preference"
+        "analyze_budget",           # Core financial tool
+        "get_spending_summary",     # Quick spending overview
+        "get_weather_forecast",     # Location-aware weather
+        "create_calendar_event",    # Calendar management
+        "search_knowledge",         # Knowledge base access
+        "create_expense"            # Common expense logging
     }
 
     # Keyword patterns for detecting user intent (case-insensitive regex)
@@ -103,68 +104,66 @@ class ToolPrefilter:
     }
 
     # Map tool names to categories
+    # UPDATED: December 2025 - Use ACTUAL tool names from pam.py
     TOOL_CATEGORIES = {
-        # Budget tools
-        "add_expense": "budget",
-        "get_expenses": "budget",
-        "update_expense": "budget",
-        "delete_expense": "budget",
-        "get_budget": "budget",
+        # Budget tools (10 tools from pam.py)
+        "create_expense": "budget",
+        "track_savings": "budget",
+        "analyze_budget": "budget",
+        "get_spending_summary": "budget",
         "update_budget": "budget",
-        "get_budget_utilization": "budget",
-        "add_income": "budget",
-        "get_income": "budget",
-        "get_savings_summary": "budget",
-        "get_financial_overview": "budget",
-        "categorize_expense": "budget",
+        "compare_vs_budget": "budget",
+        "predict_end_of_month": "budget",
+        "find_savings_opportunities": "budget",
+        "categorize_transaction": "budget",
+        "export_budget_report": "budget",
 
-        # Trip tools
+        # Trip tools (11 tools from pam.py)
         "plan_trip": "trip",
-        "get_trips": "trip",
-        "update_trip": "trip",
-        "delete_trip": "trip",
+        "find_rv_parks": "trip",
+        "get_weather_forecast": "trip",
+        "calculate_gas_cost": "trip",
+        "find_cheap_gas": "trip",
         "optimize_route": "trip",
-        "add_waypoint": "trip",
-        "get_route_details": "trip",
-        "calculate_trip_cost": "trip",
-        "get_upcoming_trips": "trip",
-        "save_favorite_route": "trip",
-        "get_saved_routes": "trip",
-        "share_trip": "trip",
-        "get_trip_history": "trip",
-        "estimate_fuel_cost": "trip",
-        "get_traffic_info": "trip",
+        "get_road_conditions": "trip",
+        "find_attractions": "trip",
+        "estimate_travel_time": "trip",
+        "save_favorite_spot": "trip",
+        "update_vehicle_fuel_consumption": "trip",
 
-        # Social tools
-        "get_friends": "social",
-        "add_friend": "social",
-        "remove_friend": "social",
-        "share_trip_with_friend": "social",
-        "get_shared_trips": "social",
-        "invite_friend": "social",
-        "get_friend_activity": "social",
-        "send_message": "social",
-        "get_messages": "social",
-        "create_group": "social",
+        # Social tools (10 tools from pam.py)
+        "create_post": "social",
+        "message_friend": "social",
+        "comment_on_post": "social",
+        "search_posts": "social",
+        "get_feed": "social",
+        "like_post": "social",
+        "follow_user": "social",
+        "share_location": "social",
+        "find_nearby_rvers": "social",
+        "create_event": "social",
 
-        # Shop tools
-        "search_nearby_stores": "shop",
-        "get_store_details": "shop",
-        "get_product_recommendations": "shop",
-        "compare_prices": "shop",
-        "add_to_wishlist": "shop",
-        "get_wishlist": "shop",
-        "get_deals": "shop",
-        "save_shopping_preference": "shop",
+        # Shop tools (3 tools from pam.py)
+        "search_products": "shop",
+        "get_product_details": "shop",
+        "recommend_products": "shop",
 
-        # RV tools
-        "find_campsite": "rv",
-        "get_campsite_details": "rv",
-        "check_campsite_availability": "rv",
-        "reserve_campsite": "rv",
-        "get_rv_parks": "rv",
-        "find_dump_stations": "rv",
-        "get_rv_amenities": "rv"
+        # Profile tools (6 tools from pam.py)
+        "update_profile": "profile",
+        "update_settings": "profile",
+        "manage_privacy": "profile",
+        "get_user_stats": "profile",
+        "export_data": "profile",
+        "create_vehicle": "profile",
+
+        # Calendar tools (3 tools from pam.py)
+        "create_calendar_event": "calendar",
+        "update_calendar_event": "calendar",
+        "delete_calendar_event": "calendar",
+
+        # Admin tools (2 tools from pam.py)
+        "add_knowledge": "admin",
+        "search_knowledge": "admin"
     }
 
     # Context page to category mapping

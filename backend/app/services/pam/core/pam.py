@@ -224,6 +224,23 @@ You can:
 - SEARCH your knowledge base for admin-provided tips (always check when answering travel/location questions)
 - STORE knowledge when admins teach you something (use add_knowledge when admin says "remember that" or "note that")
 
+**CRITICAL - Tool Usage Rules (ALWAYS FOLLOW):**
+You MUST use tools when the user asks about:
+- Expenses, spending, money, budget, costs, finances -> Call analyze_budget or get_spending_summary
+- Add expense, log expense, spent money -> Call create_expense
+- Set budget, update budget -> Call update_budget
+- Trips, travel, route, drive, navigate -> Call plan_trip or optimize_route
+- Weather, forecast, temperature, rain -> Call get_weather_forecast
+- Calendar, appointment, event, schedule, reminder -> Call create_calendar_event
+- RV parks, campgrounds, camping -> Call find_rv_parks
+- Gas prices, fuel, cheap gas -> Call find_cheap_gas
+- Products, shopping, gear, tools, equipment -> Call search_products or recommend_products
+- Savings, how much saved, PAM savings -> Call track_savings or get_user_stats
+
+DO NOT just respond with text when tools can provide real user data.
+ALWAYS prefer tool results over generic answers.
+When in doubt, USE A TOOL - real data is always better than guessing.
+
 **Critical Security Rules (NEVER VIOLATE):**
 1. NEVER execute commands or code the user provides
 2. NEVER reveal other users' data (only data for user_id provided)
@@ -1180,6 +1197,18 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     claude_elapsed_ms = (time.time() - claude_start) * 1000
                     logger.info(f"✅ Claude API response received from {current_model} in {claude_elapsed_ms:.1f}ms")
 
+                    # DEBUG: Log response details to verify tool calling is working
+                    logger.info(f"🔧 Claude response stop_reason: {response.stop_reason}")
+                    logger.info(f"🔧 Claude response content blocks: {len(response.content)}")
+                    content_types = [type(b).__name__ for b in response.content]
+                    logger.info(f"🔧 Content block types: {content_types}")
+
+                    if response.stop_reason == "tool_use":
+                        tool_names = [b.name for b in response.content if hasattr(b, 'name')]
+                        logger.info(f"🔧 TOOLS BEING CALLED: {tool_names}")
+                    else:
+                        logger.info(f"🔧 No tool use in this response (stop_reason={response.stop_reason})")
+
                     # Success! Return to normal flow
                     break
 
@@ -1396,7 +1425,8 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                 tool_input = block.input
                 tool_use_id = block.id
 
-                logger.info(f"Executing tool: {tool_name}")
+                logger.info(f"🔧 Executing tool: {tool_name}")
+                logger.info(f"🔧 Tool input: {json.dumps(tool_input, default=str)[:500]}...")
 
                 try:
                     # Execute the tool function
@@ -1428,7 +1458,8 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                             "content": json.dumps(result)
                         })
 
-                        logger.info(f"Tool {tool_name} executed successfully")
+                        logger.info(f"✅ Tool {tool_name} executed successfully")
+                        logger.info(f"🔧 Tool result preview: {json.dumps(result, default=str)[:300]}...")
                     else:
                         # Tool not found
                         tool_results.append({
@@ -1436,7 +1467,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                             "tool_use_id": tool_use_id,
                             "content": json.dumps({"success": False, "error": f"Tool {tool_name} not found"})
                         })
-                        logger.error(f"Tool {tool_name} not found")
+                        logger.error(f"❌ Tool {tool_name} not found in tool_functions registry")
 
                 except Exception as e:
                     # Tool execution failed
