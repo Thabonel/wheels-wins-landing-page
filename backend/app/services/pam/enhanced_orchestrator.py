@@ -1115,7 +1115,7 @@ class EnhancedPamOrchestrator:
                 "quality_requirements": enhanced_context.quality_requirements,
                 "pam_mission": {
                     "primary_goal": "Help users save money through intelligent recommendations",
-                    "savings_guarantee": "Users should save at least their subscription cost ($29.99/month)",
+                    "savings_guarantee": "Users should save at least their subscription cost (A$9.99/month)",
                     "savings_approach": "Look for cost-saving alternatives, better deals, and smarter spending choices",
                     "attribution_required": "When suggesting money-saving alternatives, use financial tools with savings attribution"
                 },

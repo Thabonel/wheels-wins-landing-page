@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useRegion } from '@/context/RegionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { ShopProduct } from '@/components/shop/types';
 import { getAffiliateProducts, getDigitalProducts } from '@/components/shop/ProductsData';
@@ -15,6 +16,7 @@ interface PersonalizedRecommendation {
 
 export function usePersonalizedRecommendations() {
   const { user } = useAuth();
+  const { region } = useRegion();
   const [personalizedProducts, setPersonalizedProducts] = useState<ShopProduct[]>([]);
   const [recommendations, setRecommendations] = useState<PersonalizedRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,8 +26,8 @@ export function usePersonalizedRecommendations() {
       // Fallback to static products when not authenticated
       try {
         const [digitalProducts, affiliateProducts] = await Promise.all([
-          getDigitalProducts('United States'),
-          getAffiliateProducts()
+          getDigitalProducts(region),
+          getAffiliateProducts(region)
         ]);
         const fallbackProducts = [...digitalProducts, ...affiliateProducts];
         setPersonalizedProducts(fallbackProducts.slice(0, 9));
@@ -39,15 +41,15 @@ export function usePersonalizedRecommendations() {
 
     setIsLoading(true);
     try {
-      // Mock implementation - function doesn't exist yet  
+      // Mock implementation - function doesn't exist yet
       console.log('Getting personalized recommendations (mock) - returning empty array');
-      
+
       const dbRecommendations = [];
 
       if (dbRecommendations && dbRecommendations.length > 0) {
         const [digitalProducts, affiliateProducts] = await Promise.all([
-          getDigitalProducts('United States'),
-          getAffiliateProducts()
+          getDigitalProducts(region),
+          getAffiliateProducts(region)
         ]);
         const productMap = new Map(
           [...digitalProducts, ...affiliateProducts].map(p => [p.id, p])
@@ -71,8 +73,8 @@ export function usePersonalizedRecommendations() {
 
       // If no recommendations were returned, fall back to static products
       const [digitalProducts, affiliateProducts] = await Promise.all([
-        getDigitalProducts('United States'),
-        getAffiliateProducts()
+        getDigitalProducts(region),
+        getAffiliateProducts(region)
       ]);
       const allProducts = [...digitalProducts, ...affiliateProducts];
       setPersonalizedProducts(allProducts.slice(0, 9));
@@ -81,8 +83,8 @@ export function usePersonalizedRecommendations() {
       console.error('Error fetching personalized recommendations:', error);
       try {
         const [digitalProducts, affiliateProducts] = await Promise.all([
-          getDigitalProducts('United States'),
-          getAffiliateProducts()
+          getDigitalProducts(region),
+          getAffiliateProducts(region)
         ]);
         const allProducts = [...digitalProducts, ...affiliateProducts];
         setPersonalizedProducts(allProducts.slice(0, 9));
@@ -94,7 +96,7 @@ export function usePersonalizedRecommendations() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, region]);
 
   return {
     personalizedProducts,

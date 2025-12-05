@@ -91,7 +91,10 @@ from app.services.pam.tools.social.share_location import share_location
 from app.services.pam.tools.social.find_nearby_rvers import find_nearby_rvers
 from app.services.pam.tools.social.create_event import create_event
 
-# Shop tools (AMENDMENT #3): Archived to backend/archive/shop_tools/ for Phase 2
+# Shop tools - NOW ACTIVE with affiliate_products table
+from app.services.pam.tools.shop.search_products import search_products
+from app.services.pam.tools.shop.get_product_details import get_product_details
+from app.services.pam.tools.shop.recommend_products import recommend_products
 
 # Import profile tools
 from app.services.pam.tools.profile.update_profile import update_profile
@@ -866,6 +869,53 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     },
                     "required": ["event_id"]
                 }
+            },
+            # Shop tools (affiliate products)
+            {
+                "name": "search_products",
+                "description": "Search for Amazon affiliate products for RV travelers. Use when user asks about products, gear, tools, or shopping.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query for products"},
+                        "category": {
+                            "type": "string",
+                            "description": "Product category filter",
+                            "enum": ["tools_maintenance", "camping_expedition", "recovery_gear", "parts_upgrades", "safety_equipment", "power_electronics", "comfort_living", "navigation_tech"]
+                        },
+                        "max_price": {"type": "number", "description": "Maximum price filter"},
+                        "min_price": {"type": "number", "description": "Minimum price filter"},
+                        "limit": {"type": "integer", "description": "Maximum number of results (default: 20)"}
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "get_product_details",
+                "description": "Get detailed information about a specific product. Use when user wants more info about a product.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "product_id": {"type": "string", "description": "UUID of the product"},
+                        "product_title": {"type": "string", "description": "Partial title to search for the product"}
+                    }
+                }
+            },
+            {
+                "name": "recommend_products",
+                "description": "Recommend products based on user needs. Use when user asks for suggestions or recommendations.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "use_case": {
+                            "type": "string",
+                            "description": "Type of recommendation",
+                            "enum": ["tire_maintenance", "boondocking", "recovery", "maintenance", "camping", "safety", "power"]
+                        },
+                        "budget": {"type": "number", "description": "Maximum budget for recommendations"},
+                        "limit": {"type": "integer", "description": "Maximum number of recommendations (default: 10)"}
+                    }
+                }
             }
         ]
 
@@ -1332,7 +1382,11 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             # Calendar tools
             "create_calendar_event": create_calendar_event,
             "update_calendar_event": update_calendar_event,
-            "delete_calendar_event": delete_calendar_event
+            "delete_calendar_event": delete_calendar_event,
+            # Shop tools (affiliate products)
+            "search_products": search_products,
+            "get_product_details": get_product_details,
+            "recommend_products": recommend_products
             # Transition tools (AMENDMENT #5): Archived (not in official architecture)
         }
 
