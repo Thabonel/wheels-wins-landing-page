@@ -42,7 +42,7 @@ tiktoken==0.5.1
 # HTTP clients
 httpx==0.27.0
 requests==2.32.4
-urllib3==2.1.0
+urllib3==2.6.0
 
 # Parsing and scraping
 beautifulsoup4==4.12.3
