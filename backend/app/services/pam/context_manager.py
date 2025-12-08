@@ -13,11 +13,16 @@ class ContextManager:
         self.default_context = {
             "user_id": None,
             "session_id": None,
-            "location": {
-                "latitude": None,
-                "longitude": None,
-                "address": None,
-                "timezone": None
+            # CRITICAL: Use user_location with lat/lng keys (NOT latitude/longitude)
+            # See docs/NAMING_CONVENTIONS_MASTER.md for field naming rules
+            "user_location": {
+                "lat": None,      # NOT latitude - weather tool checks 'lat'
+                "lng": None,      # NOT longitude - weather tool checks 'lng'
+                "city": None,
+                "region": None,
+                "country": None,
+                "timezone": None,
+                "source": None    # 'gps', 'ip', 'browser', 'cached'
             },
             "vehicle_info": {
                 "make": None,
@@ -68,14 +73,19 @@ class ContextManager:
                 enriched_context["session_id"] = raw_context.get("session_id")
                 enriched_context["current_page"] = raw_context.get("current_page")
                 
-                # Location data
-                location = raw_context.get("location", {})
-                if isinstance(location, dict):
-                    enriched_context["location"].update({
-                        "latitude": self._safe_float(location.get("latitude")),
-                        "longitude": self._safe_float(location.get("longitude")),
-                        "address": location.get("address"),
-                        "timezone": location.get("timezone")
+                # Location data - prefer user_location, fall back to location (deprecated)
+                # See docs/NAMING_CONVENTIONS_MASTER.md Section 2 for field mapping
+                user_loc = raw_context.get("user_location") or raw_context.get("location", {})
+                if isinstance(user_loc, dict):
+                    enriched_context["user_location"].update({
+                        # Support both lat/lng (correct) and latitude/longitude (deprecated)
+                        "lat": self._safe_float(user_loc.get("lat") or user_loc.get("latitude")),
+                        "lng": self._safe_float(user_loc.get("lng") or user_loc.get("longitude")),
+                        "city": user_loc.get("city"),
+                        "region": user_loc.get("region"),
+                        "country": user_loc.get("country"),
+                        "timezone": user_loc.get("timezone"),
+                        "source": user_loc.get("source")
                     })
                 
                 # Vehicle information
@@ -171,10 +181,11 @@ class ContextManager:
         
         user_id = context.get("user_id", "Unknown")
         summary_parts.append(f"User: {user_id}")
-        
-        location = context.get("location", {})
-        if location.get("latitude") and location.get("longitude"):
-            summary_parts.append(f"Location: {location['latitude']:.4f}, {location['longitude']:.4f}")
+
+        # Use user_location with lat/lng keys
+        user_loc = context.get("user_location", {})
+        if user_loc.get("lat") and user_loc.get("lng"):
+            summary_parts.append(f"Location: {user_loc['lat']:.4f}, {user_loc['lng']:.4f}")
         
         vehicle = context.get("vehicle_info", {})
         if vehicle.get("type"):
@@ -201,30 +212,30 @@ class ContextManager:
         if node_type == "wheels":
             base_context.update({
                 "vehicle_info": context.get("vehicle_info"),
-                "location": context.get("location"),
+                "user_location": context.get("user_location"),  # Correct field name
                 "budget_constraints": {
                     "fuel_budget": context.get("budget_constraints", {}).get("fuel_budget"),
                     "daily_budget": context.get("budget_constraints", {}).get("daily_budget")
                 }
             })
-        
+
         elif node_type == "wins":
             base_context.update({
                 "budget_constraints": context.get("budget_constraints"),
-                "location": context.get("location")
+                "user_location": context.get("user_location")  # Correct field name
             })
-        
+
         elif node_type == "social":
             base_context.update({
-                "location": context.get("location"),
+                "user_location": context.get("user_location"),  # Correct field name
                 "travel_preferences": context.get("travel_preferences")
             })
-        
+
         elif node_type == "you":
             base_context.update({
                 "vehicle_info": context.get("vehicle_info"),
                 "travel_preferences": context.get("travel_preferences"),
-                "location": context.get("location")
+                "user_location": context.get("user_location")  # Correct field name
             })
         
         else:

@@ -32,7 +32,10 @@ export interface Pam2ChatRequest {
     region?: string;
     current_page?: string;
     session_data?: any;
+    // DEPRECATED: Use userLocation instead. Backend maps userLocation -> user_location
     location?: any;
+    // PREFERRED: Contains { lat, lng, city?, region?, country?, source }
+    // Backend auto-maps this to user_location (snake_case)
     userLocation?: any;
   };
   session_id?: string;

@@ -1,10 +1,14 @@
-
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { withRetry, shouldRetry, clearErrorCache, logError, getUserFriendlyMessage } from '@/utils/errorHandling';
 import { getAuthDebugInfo, testDatabaseAccess } from '@/utils/authDebug';
+
+// Singleton to prevent duplicate fetches across components
+const fetchPromises: Record<string, Promise<any> | null> = {};
+const lastFetchTime: Record<string, number> = {};
+const FETCH_COOLDOWN_MS = 5000; // 5 second cooldown between fetches
 
 interface UserSettings {
   notification_preferences: {
@@ -68,36 +72,54 @@ export const useUserSettings = () => {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  const fetchSettings = async () => {
-    console.log('fetchSettings called, user:', user);
-
+  const fetchSettings = useCallback(async () => {
     if (!user) {
-      console.log('No user found, setting loading to false');
       setLoading(false);
       return;
     }
 
     const operationKey = `fetch-settings-${user.id}`;
-    console.log('User found, fetching settings for user ID:', user.id);
+    const now = Date.now();
+
+    // Check cooldown to prevent rapid re-fetches (React 18 StrictMode protection)
+    if (lastFetchTime[operationKey] && (now - lastFetchTime[operationKey]) < FETCH_COOLDOWN_MS) {
+      console.log('Skipping fetch - within cooldown period');
+      return;
+    }
+
+    // Deduplicate concurrent requests using singleton promise
+    if (fetchPromises[operationKey]) {
+      console.log('Reusing existing fetch promise');
+      try {
+        const result = await fetchPromises[operationKey];
+        if (result) setSettings(result as UserSettings);
+      } catch (err) {
+        // Error already handled by original promise
+      }
+      return;
+    }
+
     setLoading(true);
+    lastFetchTime[operationKey] = now;
 
     // Debug authentication state before making database calls
     if (import.meta.env.MODE !== 'production') {
       const authInfo = await getAuthDebugInfo();
-      console.log('🔍 Auth Debug Info before DB call:', authInfo);
-
       if (!authInfo.isAuthenticated) {
-        console.error('❌ User not authenticated - this will cause auth.uid() to return null');
+        console.error('User not authenticated - auth.uid() will return null');
         toast.error('Authentication expired. Please sign in again.');
         setLoading(false);
         return;
       }
     }
 
+    // Create and store the fetch promise for deduplication
     try {
-      const result = await withRetry(
-        operationKey,
-        async () => {
+      fetchPromises[operationKey] = (async () => {
+        try {
+          const result = await withRetry(
+          operationKey,
+          async () => {
           // Use Supabase directly for better reliability
           // Try both approaches - with and without explicit user_id filter
           let { data, error } = await supabase
@@ -256,10 +278,19 @@ export const useUserSettings = () => {
         toast.error('Authentication failed. Please log in again.');
       }
       // Silently handle other errors by using defaults
+      return null;
     } finally {
       setLoading(false);
     }
-  };
+      })();
+
+      const result = await fetchPromises[operationKey];
+      if (result) setSettings(result as UserSettings);
+    } finally {
+      // Clear the promise after completion to allow future fetches
+      fetchPromises[operationKey] = null;
+    }
+  }, [user]);
 
   const updateSettings = async (newSettings: Partial<UserSettings>, isRetry = false): Promise<boolean> => {
     if (!user || !settings) return false;
@@ -374,7 +405,14 @@ export const useUserSettings = () => {
 
   useEffect(() => {
     fetchSettings();
-  }, [user?.id]);
+    // Cleanup for React 18 StrictMode double-mount
+    return () => {
+      // Clear any pending promises for this user on unmount
+      if (user?.id) {
+        fetchPromises[`fetch-settings-${user.id}`] = null;
+      }
+    };
+  }, [user?.id, fetchSettings]);
 
   return {
     settings,

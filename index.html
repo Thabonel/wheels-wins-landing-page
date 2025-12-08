@@ -50,11 +50,12 @@
     <meta name="twitter:description" content="Plan RV trips, track expenses & connect with 50,000+ RVers. Free AI assistant PAM." />
     <meta name="twitter:image" content="https://wheelsandwins.com/WheelsnadwinsHero.jpg" />
     
-    <!-- Preconnect to external domains -->
-    <!-- Supabase URL will be dynamically set via environment variable -->
-    <link rel="preconnect" href="https://api.mapbox.com" />
+    <!-- Preconnect to external domains for faster resource loading -->
+    <link rel="preconnect" href="https://api.mapbox.com" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="dns-prefetch" href="https://api.mapbox.com" />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     
     <!-- Preload critical assets -->
     <link rel="preload" href="/src/main.tsx" as="script" crossorigin />
