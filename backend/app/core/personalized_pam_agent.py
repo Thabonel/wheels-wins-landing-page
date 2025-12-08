@@ -399,13 +399,19 @@ Respond naturally and conversationally, always considering the user's specific c
                 tool_id = tool_call.get("id")
                 
                 logger.info(f"🛠️ Executing tool: {tool_name}")
-                
-                # Execute with user context (CRITICAL FIX)
+
+                # Build context with ALL required fields for tools
+                # CRITICAL: Include user_location so weather/location tools work automatically
+                tool_context = {"user_location": user_context.user_location}
+                if self.user_jwt:
+                    tool_context["user_jwt"] = self.user_jwt
+
+                # Execute with user context including location
                 result = await self.tool_registry.execute_tool(
                     tool_name=tool_name,
                     user_id=user_context.user_id,
                     parameters=tool_args,
-                    context={"user_jwt": self.user_jwt} if self.user_jwt else None
+                    context=tool_context
                 )
                 
                 # Format result for AI
