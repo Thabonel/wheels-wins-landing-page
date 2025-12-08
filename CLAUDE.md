@@ -34,6 +34,27 @@ When implementing production hardening, read `docs/PAM_SCAFFOLDING_PLAN.md`
 - **Example:** Backend expects `user_location` NOT `location` (most common bug)
 - **Validation:** Run `npm run pam:validate-context` to check field name mismatches
 
+### Master Naming Conventions (NEW - December 2025)
+**Before writing ANY code that handles field names, read:**
+- **@docs/NAMING_CONVENTIONS_MASTER.md** - THE SINGLE SOURCE OF TRUTH for all field names
+- **Contains:**
+  - Critical bug-causing fields (`lat`/`lng` NOT `latitude`/`longitude`)
+  - Frontend→Backend field mapping (camelCase→snake_case)
+  - All 45 PAM tool input schemas
+  - Database table quick reference (`profiles.id` NOT `profiles.user_id`)
+  - Deprecated field names to avoid
+  - Validation rules and enums
+- **Quick Reference Card** at bottom for printing
+- **Living Document:** Update when adding new fields/tools
+
+**Critical Fields to Memorize:**
+```
+Location coords:  lat, lng (NOT latitude/longitude)
+Location object:  user_location (NOT location)
+Profile table:    id (NOT user_id)
+All other tables: user_id
+```
+
 ## Memory-Keeper Protocol (CRITICAL)
 
 **USE MEMORY-KEEPER FOR ALL SESSION CONTEXT** - This is your persistent knowledge base across ALL sessions.

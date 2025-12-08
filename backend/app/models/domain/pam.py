@@ -78,7 +78,7 @@ class PamIntent(BaseModel):
 
 class PamContext(BaseModel):
     user_id: str
-    current_location: Optional[Dict[str, float]] = None
+    user_location: Optional[Dict[str, float]] = None  # Uses lat/lng keys, NOT latitude/longitude
     recent_expenses: List[Dict[str, Any]] = Field(default_factory=list)
     budget_status: Dict[str, Any] = Field(default_factory=dict)
     travel_plans: Dict[str, Any] = Field(default_factory=dict)
