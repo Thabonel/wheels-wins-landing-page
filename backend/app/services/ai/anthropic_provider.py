@@ -97,6 +97,31 @@ class AnthropicProvider(AIProviderInterface):
         })
         logger.info(f"Added MCP server for PAM: {server_url}")
     
+    def _validate_anthropic_model(self, model: Optional[str]) -> str:
+        """
+        Validate that the model is Anthropic-compatible.
+        Falls back to default Claude model if not.
+
+        Args:
+            model: Requested model ID or None
+
+        Returns:
+            Valid Anthropic model ID
+        """
+        if model is None:
+            return self.config.default_model
+
+        # Check if model starts with "claude-" (Anthropic models)
+        if model.startswith("claude-"):
+            return model
+
+        # Non-Anthropic model requested, fall back to default
+        logger.warning(
+            f"Non-Anthropic model '{model}' requested for Anthropic provider, "
+            f"falling back to {self.config.default_model}"
+        )
+        return self.config.default_model
+
     async def complete(
         self,
         messages: List[AIMessage],
@@ -109,6 +134,9 @@ class AnthropicProvider(AIProviderInterface):
         """Generate a completion using Claude"""
         if not self.client:
             raise RuntimeError("Anthropic client not initialized")
+
+        # CRITICAL: Validate model is Anthropic-compatible before API call
+        model = self._validate_anthropic_model(model)
         
         start_time = time.time()
         
