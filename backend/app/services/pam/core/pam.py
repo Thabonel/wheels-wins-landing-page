@@ -162,6 +162,7 @@ class PAM:
         # Use hardcoded Claude Sonnet 4.5 model (fixes gpt-5.1-instant fallback issue)
         from app.config.ai_providers import ANTHROPIC_MODEL
         self.model = ANTHROPIC_MODEL  # "claude-sonnet-4-5-20250929"
+        self.default_anthropic_model = ANTHROPIC_MODEL  # Store for fallback validation
 
         # Enable intelligent routing (chooses best model per query)
         self.use_intelligent_routing = os.getenv("PAM_INTELLIGENT_ROUTING", "true").lower() == "true"
@@ -183,6 +184,51 @@ class PAM:
 
         init_time_ms = (time.time() - init_start) * 1000
         logger.info(f"PAM initialized for user {user_id} with {len(self.tools)} tools, language: {user_language} ({init_time_ms:.1f}ms)")
+
+    def _is_anthropic_model(self, model_id: str) -> bool:
+        """
+        Check if a model is Anthropic-compatible (can be used with Anthropic client).
+
+        This prevents sending OpenAI/Gemini model IDs to the Anthropic API.
+
+        Args:
+            model_id: Model identifier to check
+
+        Returns:
+            True if model can be used with Anthropic client
+        """
+        # Simple check: Anthropic models start with "claude-"
+        if model_id.startswith("claude-"):
+            return True
+
+        # Double-check using MODEL_REGISTRY if available
+        try:
+            from app.config.model_config import MODEL_REGISTRY
+            if model_id in MODEL_REGISTRY:
+                return MODEL_REGISTRY[model_id].provider == "anthropic"
+        except ImportError:
+            pass
+
+        return False
+
+    def _get_valid_anthropic_model(self, model_id: str) -> str:
+        """
+        Get a valid Anthropic model, falling back to default if provided model is not Anthropic-compatible.
+
+        Args:
+            model_id: Requested model ID
+
+        Returns:
+            Valid Anthropic model ID
+        """
+        if self._is_anthropic_model(model_id):
+            return model_id
+
+        logger.warning(
+            f"Model {model_id} is not Anthropic-compatible, "
+            f"falling back to {self.default_anthropic_model}"
+        )
+        return self.default_anthropic_model
 
     def _build_system_prompt(self) -> str:
         """
@@ -1168,8 +1214,10 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     message=str(last_message),
                     context={}
                 )
-                current_model = selection.model.model_id
-                logger.info(f"🎯 Intelligent routing: {selection.reasoning}")
+                # CRITICAL: Validate model is Anthropic-compatible before using
+                # This prevents sending OpenAI model IDs (e.g., gpt-5.1-instant) to Anthropic API
+                current_model = self._get_valid_anthropic_model(selection.model.model_id)
+                logger.info(f"🎯 Intelligent routing: {selection.reasoning} -> using {current_model}")
 
             max_retries = 3  # Try selected + 2 fallbacks max
 
@@ -1218,12 +1266,19 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     # Mark model as unhealthy temporarily
                     model_config.mark_model_unhealthy(current_model, duration_minutes=5)
 
-                    # Try next model in fallback chain
+                    # Try next model in fallback chain (only Anthropic-compatible models)
                     if attempt < max_retries - 1:
                         next_model_config = model_config.get_next_model(current_model)
                         if next_model_config:
-                            current_model = next_model_config.model_id
-                            logger.info(f"🔄 Failing over to {next_model_config.name} ({current_model})")
+                            # CRITICAL: Validate fallback model is Anthropic-compatible
+                            validated_model = self._get_valid_anthropic_model(next_model_config.model_id)
+                            if validated_model == next_model_config.model_id:
+                                current_model = validated_model
+                                logger.info(f"🔄 Failing over to {next_model_config.name} ({current_model})")
+                            else:
+                                # Fallback model wasn't Anthropic-compatible, use default
+                                current_model = validated_model
+                                logger.info(f"🔄 Fallback {next_model_config.model_id} not Anthropic-compatible, using {current_model}")
                         else:
                             logger.error("❌ No fallback models available, using last attempted model")
                             raise api_error
