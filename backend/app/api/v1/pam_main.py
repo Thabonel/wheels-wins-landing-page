@@ -1010,10 +1010,12 @@ async def websocket_endpoint(
                         
                         # If auto_send is enabled, send the transcribed text as a chat message
                         if data.get("auto_send", False) and stt_result.text:
-                            # Process as chat message
+                            # Process as chat message with voice input mode marker
+                            voice_context = data.get("context", {})
+                            voice_context["input_mode"] = "voice"  # Mark as voice input for Domain Memory routing
                             chat_data = {
                                 "message": stt_result.text,
-                                "context": data.get("context", {})
+                                "context": voice_context
                             }
                             await handle_websocket_chat(
                                 websocket, chat_data, user_id, token
