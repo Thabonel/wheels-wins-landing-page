@@ -21,7 +21,7 @@ bleach==6.2.0
 supabase==2.17.0
 httpx==0.28.1
 requests==2.32.4
-urllib3>=2.6.0  # Security fix: CVE-2025-66471 (streaming API compression DoS)
+urllib3>=2.6.2  # Security fix: CVE-2025-66471, CVE-2025-66476 (compression DoS)
 elevenlabs>=1.0.0  # Premium TTS for PAM voice
 
 # Database essentials

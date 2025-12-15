@@ -1,19 +1,28 @@
 """
 PersonalizedPamAgent - Unified AI agent with profile-aware context
 
-This replaces all competing PAM implementations with a single, 
+This replaces all competing PAM implementations with a single,
 profile-aware agent that maintains user context and provides
 personalized responses based on vehicle preferences and travel history.
 
 Based on proven patterns from Claude Projects, LangChain agents, and OpenAI Assistants.
+
+Enhanced with Agentic Context Engineering (Dec 2025):
+- 4-tier memory system (working context, session logs, durable memory, artifacts)
+- Schema-driven session compaction
+- Sub-agent orchestration for complex tasks
+- Context compilation as runtime projection
 """
 
 import asyncio
 import logging
+import os
+import re
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
+from uuid import UUID
 
 from app.services.pam.tools.load_user_profile import LoadUserProfileTool
 from app.services.pam.tools.tool_registry import get_tool_registry, initialize_tool_registry
@@ -21,6 +30,18 @@ from app.services.ai.ai_orchestrator import ai_orchestrator
 from app.core.travel_domain.vehicle_capability_mapper import VehicleCapabilityMapper
 from app.core.travel_domain.travel_mode_detector import TravelModeDetector
 from app.core.travel_domain.travel_response_personalizer import TravelResponsePersonalizer
+from app.services.pam.domain_memory.router import DomainMemoryRouter
+from app.services.pam.domain_memory.models import TaskType, TaskScope
+
+# Context Engineering imports (optional - graceful fallback if not available)
+try:
+    from app.services.pam.context_engineering.integration import (
+        ContextEngineeringManager,
+        create_context_engineering_manager,
+    )
+    CONTEXT_ENGINEERING_AVAILABLE = True
+except ImportError:
+    CONTEXT_ENGINEERING_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +86,28 @@ class PersonalizedPamAgent:
     5. Personalized response generation
     """
     
-    def __init__(self, user_jwt: str = None):
+    # Patterns that indicate complex multi-step requests requiring Domain Memory
+    COMPLEX_REQUEST_PATTERNS = [
+        # Trip planning with budget/multi-day
+        r"plan\s+(?:a\s+)?(?:\d+[-\s]?day|\d+\s*night)?\s*(?:trip|journey|road\s*trip)",
+        r"plan\s+(?:a\s+)?trip\s+(?:from|to)\s+.+\s+(?:under|within|for)\s+\$?\d+",
+        r"(?:multi[-\s]?stop|route)\s+(?:trip|journey|itinerary)",
+        # Budget analysis requiring research
+        r"analyze\s+(?:my\s+)?(?:budget|spending|expenses?)\s+(?:for|over|in)\s+(?:the\s+)?(?:last\s+)?(?:\d+\s+)?(?:month|week|year)",
+        r"create\s+(?:a\s+)?(?:monthly|weekly|yearly|annual)\s+budget\s+plan",
+        r"compare\s+(?:my\s+)?(?:spending|expenses?)\s+(?:to|with|vs)",
+        # Complex travel research
+        r"find\s+(?:the\s+)?(?:best|cheapest|optimal)\s+(?:route|way|path)\s+(?:from|to)",
+        r"optimize\s+(?:my\s+)?(?:route|trip|itinerary)",
+        r"research\s+(?:rv\s+)?(?:parks?|campgrounds?|camping)\s+(?:in|near|around)",
+    ]
+
+    def __init__(
+        self,
+        user_jwt: str = None,
+        enable_context_engineering: bool = None,
+        embeddings_service=None,
+    ):
         # Initialize tools with user JWT for proper database authentication
         self.user_jwt = user_jwt
         self.profile_tool = LoadUserProfileTool(user_jwt=user_jwt)
@@ -79,8 +121,154 @@ class PersonalizedPamAgent:
         # Get tool registry (initialize if needed)
         self.tool_registry = get_tool_registry()
 
-        logger.info(f"🤖 PersonalizedPamAgent initialized {'with user authentication context' if user_jwt else 'with service role fallback'}")
-    
+        # Domain Memory router for complex multi-step tasks
+        self._domain_memory_router: Optional[DomainMemoryRouter] = None
+
+        # Compile complex request patterns for efficiency
+        self._complex_patterns = [re.compile(p, re.IGNORECASE) for p in self.COMPLEX_REQUEST_PATTERNS]
+
+        # Context Engineering integration (Agentic Context Engineering)
+        # Enable via env var ENABLE_CONTEXT_ENGINEERING=true or constructor param
+        if enable_context_engineering is None:
+            enable_context_engineering = os.getenv("ENABLE_CONTEXT_ENGINEERING", "false").lower() == "true"
+
+        self.enable_context_engineering = enable_context_engineering and CONTEXT_ENGINEERING_AVAILABLE
+        self._context_manager: Optional["ContextEngineeringManager"] = None
+        self._embeddings_service = embeddings_service
+
+        if self.enable_context_engineering:
+            logger.info("Context Engineering ENABLED - using 4-tier memory system")
+        else:
+            reason = "not available" if not CONTEXT_ENGINEERING_AVAILABLE else "disabled"
+            logger.info(f"Context Engineering {reason} - using standard context management")
+
+        logger.info(f"PersonalizedPamAgent initialized {'with user authentication context' if user_jwt else 'with service role fallback'}")
+
+    @property
+    def domain_memory_router(self) -> DomainMemoryRouter:
+        """Lazy-initialize Domain Memory router."""
+        if self._domain_memory_router is None:
+            self._domain_memory_router = DomainMemoryRouter()
+        return self._domain_memory_router
+
+    @property
+    def context_manager(self) -> Optional["ContextEngineeringManager"]:
+        """Lazy-initialize Context Engineering Manager."""
+        if not self.enable_context_engineering:
+            return None
+
+        if self._context_manager is None:
+            self._context_manager = create_context_engineering_manager(
+                embeddings_service=self._embeddings_service,
+                enable_all=True,
+            )
+        return self._context_manager
+
+    def _is_complex_request(self, message: str) -> bool:
+        """
+        Detect if a message requires multi-step processing via Domain Memory.
+
+        Returns True for requests like:
+        - "Plan a 3-day trip from Phoenix to Seattle under $2000"
+        - "Analyze my spending over the last 3 months"
+        - "Find the best route with multiple stops"
+        """
+        for pattern in self._complex_patterns:
+            if pattern.search(message):
+                logger.info(f"🎯 Complex request detected: matched pattern")
+                return True
+        return False
+
+    def _detect_task_type(self, message: str) -> TaskType:
+        """Detect appropriate task type from message content."""
+        message_lower = message.lower()
+
+        if any(word in message_lower for word in ["trip", "route", "travel", "journey", "drive"]):
+            return TaskType.TRIP_PLANNING
+        elif any(word in message_lower for word in ["budget", "spending", "expense", "money", "cost"]):
+            return TaskType.BUDGET_ANALYSIS
+        elif any(word in message_lower for word in ["research", "find", "search", "compare"]):
+            return TaskType.RESEARCH
+        else:
+            return TaskType.CUSTOM
+
+    async def _handle_complex_request(
+        self,
+        user_id: str,
+        message: str,
+        additional_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Handle complex multi-step requests via Domain Memory system.
+
+        Creates a background task and returns appropriate feedback:
+        - Voice mode: Verbal message "This will take a few steps..."
+        - Text mode: Informative message with task ID
+        """
+        try:
+            # Detect task type from message
+            task_type = self._detect_task_type(message)
+
+            # Create Domain Memory task
+            response = await self.domain_memory_router.create_task(
+                user_id=UUID(user_id),
+                request=message,
+                task_type=task_type,
+                scope=TaskScope.USER,
+                priority=7,  # Higher priority for user-initiated tasks
+            )
+
+            if not response.success:
+                logger.error(f"Failed to create Domain Memory task: {response.errors}")
+                return {
+                    "content": "I understand this is a complex request, but I'm having trouble setting it up. Let me try to help you directly instead.",
+                    "success": False,
+                    "error": "Failed to create background task"
+                }
+
+            # Check if user is in voice mode
+            is_voice_mode = additional_context.get("input_mode") == "voice"
+
+            # Build response based on input mode
+            if is_voice_mode:
+                # Verbal feedback for voice users
+                content = "This will take a few steps. I'll work on it and you can check back anytime."
+            else:
+                # More detailed feedback for text users
+                task_data = response.data or {}
+                work_items = task_data.get("work_items_count", 0)
+                goal = task_data.get("goal", message[:50] + "...")
+                content = (
+                    f"I've started working on your request: {goal}\n\n"
+                    f"This involves {work_items} steps. I'll process them in the background. "
+                    f"You can ask me about the progress anytime by saying 'check my task status'."
+                )
+
+            logger.info(
+                f"📋 Created Domain Memory task {response.task_id} for user {user_id} "
+                f"(voice_mode={is_voice_mode}, type={task_type.value})"
+            )
+
+            return {
+                "content": content,
+                "success": True,
+                "domain_memory_task": {
+                    "task_id": str(response.task_id),
+                    "task_type": task_type.value,
+                    "is_background": True,
+                    "work_items_count": response.data.get("work_items_count", 0) if response.data else 0
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error handling complex request: {e}", exc_info=True)
+            # Fall back to normal processing message
+            return {
+                "content": "I'll help you with that. Let me work through the details.",
+                "success": False,
+                "error": str(e)
+            }
+
     async def process_message(
         self,
         user_id: str,
@@ -91,44 +279,151 @@ class PersonalizedPamAgent:
     ) -> Dict[str, Any]:
         """
         Main entry point - processes user message with full personalization
+
+        If Context Engineering is enabled:
+        - Creates/retrieves session from database
+        - Tracks events in the session
+        - Uses 4-tier context compilation
+        - Routes complex requests through sub-agent orchestration
         """
         try:
+            # Convert user_id to UUID for context engineering
+            user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+
+            # Context Engineering: Get or create session
+            ce_session_id = None
+            if self.context_manager:
+                ce_session_id = await self.context_manager.get_or_create_session(user_uuid)
+
+                # Track user message event
+                await self.context_manager.track_user_message(
+                    session_id=ce_session_id,
+                    user_id=user_uuid,
+                    message=message,
+                )
+
+                # Check if this should be handled by sub-agent orchestration
+                if await self.context_manager.should_use_sub_agents(message):
+                    logger.info(f"Routing to sub-agent orchestration for user {user_id}")
+                    tools = self.tool_registry.get_openai_functions()
+
+                    result = await self.context_manager.process_with_sub_agents(
+                        user_id=user_uuid,
+                        session_id=ce_session_id,
+                        message=message,
+                        available_tools=tools,
+                        tool_executor=self._execute_tool_for_orchestrator,
+                    )
+
+                    # Track assistant response
+                    await self.context_manager.track_assistant_message(
+                        session_id=ce_session_id,
+                        user_id=user_uuid,
+                        message=result.response,
+                        metadata={
+                            "orchestration_mode": "sub_agent",
+                            "steps_executed": result.steps_executed,
+                            "tools_used": result.tools_used,
+                        },
+                    )
+
+                    return {
+                        "content": result.response,
+                        "success": True,
+                        "orchestration_mode": "sub_agent",
+                        "steps_executed": result.steps_executed,
+                        "tools_used": result.tools_used,
+                    }
+
+            # Step 0: Check for complex multi-step requests that need Domain Memory
+            # (Only if Context Engineering sub-agents didn't handle it)
+            if self._is_complex_request(message) and not self.enable_context_engineering:
+                return await self._handle_complex_request(
+                    user_id=user_id,
+                    message=message,
+                    additional_context=additional_context or {}
+                )
+
             # Step 1: Load or get cached user context
             user_context = await self._get_user_context(user_id, user_location)
-            
+
             # Step 2: Detect intent and travel mode
             travel_mode = await self.travel_detector.detect_mode(
                 message, user_context.vehicle_info
             )
-            
+
             # Step 3: Generate personalized system prompt
-            system_prompt = self._build_personalized_prompt(user_context, travel_mode)
-            
+            # If Context Engineering enabled, use compiled context; otherwise use standard prompt
+            if self.context_manager and ce_session_id:
+                compiled_context = await self.context_manager.compile_context(
+                    user_id=user_uuid,
+                    session_id=ce_session_id,
+                    current_task=message,
+                    agent_scope="default",
+                )
+                # Merge compiled context with vehicle-specific prompt
+                system_prompt = self._build_personalized_prompt_with_compiled_context(
+                    user_context, travel_mode, compiled_context
+                )
+            else:
+                system_prompt = self._build_personalized_prompt(user_context, travel_mode)
+
             # Step 4: Process with AI using personalized context
             ai_response = await self._process_with_ai(
                 message, system_prompt, user_context, travel_mode
             )
-            
+
             # Step 5: Personalize response with vehicle context
             personalized_response = await self.response_personalizer.enhance_response(
                 ai_response, user_context, travel_mode
             )
-            
+
             # Step 6: Update conversation history
             await self._update_conversation_history(
                 user_context, message, personalized_response
             )
-            
-            logger.info(f"✅ Processed message for {user_id}: {travel_mode.value} mode")
+
+            # Context Engineering: Track assistant response
+            if self.context_manager and ce_session_id:
+                await self.context_manager.track_assistant_message(
+                    session_id=ce_session_id,
+                    user_id=user_uuid,
+                    message=personalized_response.get("content", ""),
+                    metadata={
+                        "travel_mode": travel_mode.value if hasattr(travel_mode, "value") else str(travel_mode),
+                        "conversation_mode": user_context.conversation_mode.value,
+                    },
+                )
+
+            logger.info(f"Processed message for {user_id}: {travel_mode.value if hasattr(travel_mode, 'value') else travel_mode} mode")
             return personalized_response
-            
+
         except Exception as e:
-            logger.error(f"❌ Error processing message for {user_id}: {e}")
+            logger.error(f"Error processing message for {user_id}: {e}")
             return {
                 "content": "I'm having trouble processing your request. Please try again.",
                 "error": str(e),
                 "success": False
             }
+
+    async def _execute_tool_for_orchestrator(
+        self,
+        tool_name: str,
+        parameters: Dict[str, Any],
+        user_id: UUID,
+    ) -> Dict[str, Any]:
+        """Execute a tool for the sub-agent orchestrator."""
+        result = await self.tool_registry.execute_tool(
+            tool_name=tool_name,
+            user_id=str(user_id),
+            parameters=parameters,
+            context={"user_jwt": self.user_jwt} if self.user_jwt else {},
+        )
+        return {
+            "success": result.success,
+            "result": result.result,
+            "error": result.error,
+        }
     
     async def _get_user_context(self, user_id: str, user_location: Optional[Dict[str, Any]] = None) -> UserContext:
         """Load or retrieve cached user context"""
@@ -284,12 +579,126 @@ OVERLAND VEHICLE TRAVEL DETECTED:
             """
         
         base_prompt += """
-        
+
 Respond naturally and conversationally, always considering the user's specific context and vehicle capabilities.
         """
-        
+
         return base_prompt
-    
+
+    def _build_personalized_prompt_with_compiled_context(
+        self,
+        user_context: UserContext,
+        travel_mode: str,
+        compiled_context: "CompiledContext",
+    ) -> str:
+        """
+        Build personalized system prompt enhanced with compiled context from 4-tier memory.
+
+        This merges:
+        1. Base PAM personality and instructions (from compiled_context.system_prompt)
+        2. Vehicle-specific context (from user_context)
+        3. Session summaries (from compiled_context.session_summary)
+        4. Retrieved memories (from compiled_context.retrieved_memories)
+        5. User profile summary (from compiled_context.user_profile_summary)
+        """
+        parts = []
+
+        # Start with compiled system prompt (includes agent instructions)
+        if compiled_context.system_prompt:
+            parts.append(compiled_context.system_prompt)
+
+        if compiled_context.agent_instructions:
+            parts.append(f"\n{compiled_context.agent_instructions}")
+
+        # Add user profile summary from compiled context
+        if compiled_context.user_profile_summary:
+            parts.append(f"\n\nUSER PROFILE:\n{compiled_context.user_profile_summary}")
+
+        # Add vehicle-specific context (critical for PAM)
+        if user_context.vehicle_info:
+            vehicle_type = user_context.vehicle_info.get("type", "unknown")
+            vehicle_name = user_context.vehicle_info.get("make_model_year", "")
+
+            if user_context.is_rv_traveler:
+                parts.append(f"""
+
+VEHICLE CONTEXT:
+- User owns a {vehicle_type.upper()} ({vehicle_name})
+- This is an overland-capable vehicle suitable for RV/expedition travel
+- Prioritize overland routes and ferry connections over flights
+- Consider fuel stops, vehicle maintenance, and road conditions""")
+            elif vehicle_name:
+                parts.append(f"""
+
+VEHICLE CONTEXT:
+- User owns a {vehicle_type} ({vehicle_name})
+- Consider their vehicle capabilities when making recommendations""")
+
+        # Add location context
+        if user_context.user_location:
+            location = user_context.user_location
+            city = location.get("city", "unknown")
+            region = location.get("region", "")
+            country = location.get("country", "")
+            location_str = ", ".join(filter(None, [city, region, country]))
+
+            parts.append(f"""
+
+CURRENT LOCATION:
+- Location: {location_str}
+- Coordinates: {location.get('lat', 'N/A')}, {location.get('lng', 'N/A')}
+Use this location automatically for weather and location-dependent queries.""")
+
+        # Add session summary from compiled context (Tier 2)
+        if compiled_context.session_summary:
+            summary = compiled_context.session_summary
+            session_parts = []
+
+            if summary.get("goals"):
+                session_parts.append(f"Goals: {', '.join(summary['goals'])}")
+            if summary.get("open_threads"):
+                session_parts.append(f"Open threads: {', '.join(summary['open_threads'])}")
+            if summary.get("topics_discussed"):
+                session_parts.append(f"Recent topics: {', '.join(summary['topics_discussed'])}")
+
+            if session_parts:
+                parts.append(f"\n\nSESSION CONTEXT:\n" + "\n".join(session_parts))
+
+        # Add retrieved memories (Tier 3)
+        if compiled_context.retrieved_memories:
+            memory_lines = []
+            for mem in compiled_context.retrieved_memories[:5]:  # Top 5 most relevant
+                memory_lines.append(f"- {mem.get('content', '')}")
+
+            if memory_lines:
+                parts.append(f"\n\nRELEVANT MEMORIES:\n" + "\n".join(memory_lines))
+
+        # Add artifact handles (Tier 4) - just summaries, not full content
+        if compiled_context.artifact_handles:
+            artifact_lines = []
+            for artifact in compiled_context.artifact_handles[:3]:
+                artifact_lines.append(
+                    f"- [{artifact.get('handle', 'unknown')}]: {artifact.get('summary', 'No summary')}"
+                )
+
+            if artifact_lines:
+                parts.append(f"\n\nAVAILABLE ARTIFACTS:\n" + "\n".join(artifact_lines))
+
+        # Add travel mode context
+        if travel_mode == "OVERLAND_VEHICLE":
+            parts.append("""
+
+OVERLAND VEHICLE MODE:
+- User is planning travel with their overland vehicle
+- Prioritize ferry connections, RV parks, and vehicle-friendly routes
+- Include fuel planning and road condition information""")
+
+        parts.append("""
+
+Respond naturally and conversationally, leveraging all context available.""")
+
+        return "\n".join(parts)
+
     def _determine_conversation_mode(
         self, 
         profile_data: Dict[str, Any], 
@@ -473,18 +882,54 @@ Respond naturally and conversationally, always considering the user's specific c
     
     async def get_health_status(self) -> Dict[str, Any]:
         """Health check for the unified agent"""
-        return {
+        status = {
             "status": "healthy",
             "agent": "PersonalizedPamAgent",
             "cached_users": len(self.user_contexts),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
+            "context_engineering": {
+                "enabled": self.enable_context_engineering,
+                "available": CONTEXT_ENGINEERING_AVAILABLE,
+            },
         }
+
+        # Add context engineering stats if enabled
+        if self.context_manager:
+            status["context_engineering"]["active_sessions"] = len(
+                self.context_manager._active_sessions
+            )
+
+        return status
+
+    async def end_session(self, user_id: str) -> bool:
+        """
+        End the current session for a user.
+
+        This triggers session compaction if context engineering is enabled.
+        """
+        if self.context_manager:
+            user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+            user_id_str = str(user_uuid)
+
+            if user_id_str in self.context_manager._active_sessions:
+                session_id = self.context_manager._active_sessions[user_id_str]
+                return await self.context_manager.end_session(session_id, force_compact=True)
+
+        return True
 
 
 # Global instance (service role fallback)
 personalized_pam_agent = PersonalizedPamAgent()
 
 
-def create_user_context_pam_agent(user_jwt: str) -> PersonalizedPamAgent:
+def create_user_context_pam_agent(
+    user_jwt: str,
+    enable_context_engineering: bool = None,
+    embeddings_service=None,
+) -> PersonalizedPamAgent:
     """Create a PersonalizedPamAgent with user authentication context"""
-    return PersonalizedPamAgent(user_jwt=user_jwt)
+    return PersonalizedPamAgent(
+        user_jwt=user_jwt,
+        enable_context_engineering=enable_context_engineering,
+        embeddings_service=embeddings_service,
+    )

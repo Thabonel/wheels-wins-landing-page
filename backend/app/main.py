@@ -807,6 +807,15 @@ except ImportError as e:
     print(f"⚠️  Intent classification routes not available: {e}")
 except Exception as e:
     print(f"❌ Failed to add intent classification routes: {e}")
+
+# Domain Memory Agent System - Long-running task management (December 2025)
+try:
+    from app.api.v1 import domain_memory
+    app.include_router(domain_memory.router, prefix="/api/v1", tags=["Domain Memory"])
+    logger.info("✅ Domain Memory API loaded successfully")
+except Exception as dm_error:
+    logger.error(f"❌ Failed to load Domain Memory API: {dm_error}")
+
 app.include_router(profiles.router, prefix="/api/v1", tags=["Profiles"])
 app.include_router(user_settings.router, prefix="/api/v1", tags=["User Settings"])
 app.include_router(products.router, prefix="/api/v1", tags=["Products"])
