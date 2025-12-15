@@ -1,5 +1,28 @@
 # Claude Code Instructions for Wheels & Wins
 
+## Claude Code Rules
+
+### Defaults
+- Prefer implementing changes over suggesting them.
+- Use tools only when clearly helpful.
+- Avoid over-engineering. Change only what is necessary.
+- Keep the repository clean. Remove temporary files.
+- Write general-purpose solutions. Do not hard-code for tests.
+
+### Code Safety
+- Always open and read relevant files before editing.
+- Never speculate about code you have not inspected.
+- Follow existing style and abstractions.
+
+### Execution
+- Use parallel tool calls when tasks are independent.
+- Run tools sequentially only when outputs are required.
+
+### UI Work
+- Avoid generic UI. Use intentional color, typography, and restrained animation.
+
+---
+
 ## 🚨 CRITICAL: Read BEFORE Any PAM or Database Work
 
 ### PAM System Architecture (START HERE!)
