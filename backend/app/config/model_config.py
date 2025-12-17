@@ -4,9 +4,9 @@
 This file contains deprecated model configurations.
 For CURRENT AI models, see: /backend/app/config/ai_providers.py
 
-CURRENT MODELS (November 2025):
+CURRENT MODELS (December 2025):
   - Primary: Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
-  - Fallback: GPT-5.1 Instant (gpt-5.1-instant)
+  - Fallback: Gemini 1.5 Flash (gemini-1.5-flash-latest) - free tier available
 
 DEPRECATED MODELS (Do Not Use):
   - Claude 3.5 variants (claude-3-5-*)
@@ -211,10 +211,10 @@ class ModelConfigManager:
             "claude-sonnet-4-5-20250929"
         )
 
-        # Fallback chain (default: GPT-5.1 Instant only)
+        # Fallback chain (default: Gemini Flash - free tier available)
         # ⚠️ DEPRECATED: Use /backend/app/config/ai_providers.py instead
-        # Gemini disabled (unstable API), GPT-4 deprecated
-        fallback_1 = os.getenv("PAM_FALLBACK_MODEL_1", "gpt-5.1-instant")
+        # Changed from GPT-5.1-instant to Gemini (free tier) on Dec 2025
+        fallback_1 = os.getenv("PAM_FALLBACK_MODEL_1", "gemini-1.5-flash-latest")
         self.fallback_chain = [fallback_1] if fallback_1 else []
 
         # Remove empty strings and duplicates
