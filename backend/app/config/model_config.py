@@ -6,7 +6,7 @@ For CURRENT AI models, see: /backend/app/config/ai_providers.py
 
 CURRENT MODELS (December 2025):
   - Primary: Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
-  - Fallback: Gemini 1.5 Flash (gemini-1.5-flash-latest) - free tier available
+  - Fallback: Gemini 3.0 Flash (gemini-3.0-flash) - latest fast model (Dec 16, 2025)
 
 DEPRECATED MODELS (Do Not Use):
   - Claude 3.5 variants (claude-3-5-*)
@@ -115,9 +115,32 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         description="Most powerful, very expensive, use sparingly"
     ),
 
-    # Google Gemini Models
+    # Google Gemini Models (December 2025)
+    "gemini-3.0-flash": ModelConfig(
+        name="Gemini 3.0 Flash",
+        provider="google",
+        model_id="gemini-3.0-flash",
+        cost_per_1m_input=0.10,  # Estimated pricing
+        cost_per_1m_output=0.40,
+        max_tokens=1000000,
+        supports_tools=True,
+        supports_streaming=True,
+        description="Latest fast model (Dec 16, 2025) - speed optimized"
+    ),
+    "gemini-3-pro": ModelConfig(
+        name="Gemini 3 Pro",
+        provider="google",
+        model_id="gemini-3-pro",
+        cost_per_1m_input=1.50,  # Estimated pricing
+        cost_per_1m_output=6.0,
+        max_tokens=2000000,
+        supports_tools=True,
+        supports_streaming=True,
+        description="Flagship model (Nov 18, 2025) - complex reasoning"
+    ),
+    # Legacy Gemini models (being deprecated)
     "gemini-1.5-flash-latest": ModelConfig(
-        name="Gemini 1.5 Flash",
+        name="Gemini 1.5 Flash (Legacy)",
         provider="google",
         model_id="gemini-1.5-flash-latest",
         cost_per_1m_input=0.075,
@@ -125,10 +148,10 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_tokens=1000000,
         supports_tools=True,
         supports_streaming=True,
-        description="Extremely cheap, good fallback"
+        description="Legacy - use gemini-3.0-flash instead"
     ),
     "gemini-1.5-pro-latest": ModelConfig(
-        name="Gemini 1.5 Pro",
+        name="Gemini 1.5 Pro (Legacy)",
         provider="google",
         model_id="gemini-1.5-pro-latest",
         cost_per_1m_input=1.25,
@@ -136,7 +159,7 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_tokens=2000000,
         supports_tools=True,
         supports_streaming=True,
-        description="Good quality, cheap, huge context"
+        description="Legacy - use gemini-3-pro instead"
     ),
 
     # OpenAI Models
@@ -211,10 +234,10 @@ class ModelConfigManager:
             "claude-sonnet-4-5-20250929"
         )
 
-        # Fallback chain (default: Gemini Flash - free tier available)
+        # Fallback chain (default: Gemini 3.0 Flash - latest fast model)
         # ⚠️ DEPRECATED: Use /backend/app/config/ai_providers.py instead
-        # Changed from GPT-5.1-instant to Gemini (free tier) on Dec 2025
-        fallback_1 = os.getenv("PAM_FALLBACK_MODEL_1", "gemini-1.5-flash-latest")
+        # Updated to Gemini 3.0 Flash (Dec 16, 2025 release)
+        fallback_1 = os.getenv("PAM_FALLBACK_MODEL_1", "gemini-3.0-flash")
         self.fallback_chain = [fallback_1] if fallback_1 else []
 
         # Remove empty strings and duplicates
