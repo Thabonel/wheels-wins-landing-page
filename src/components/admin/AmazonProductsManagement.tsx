@@ -641,7 +641,7 @@ export default function AmazonProductsManagement() {
                 </Button>
               </DialogTrigger>
               <DialogContent
-                className="max-w-2xl max-h-[85vh] flex flex-col"
+                className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
                 onPointerDownOutside={(e) => e.preventDefault()}
                 onInteractOutside={(e) => e.preventDefault()}
               >
@@ -650,7 +650,7 @@ export default function AmazonProductsManagement() {
                     {editingProduct ? 'Edit Product' : 'Add New Product'}
                   </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2">
                   <div>
                     <Label htmlFor="asin">ASIN or Amazon URL *</Label>
                     <Input
