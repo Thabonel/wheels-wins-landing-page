@@ -641,7 +641,7 @@ export default function AmazonProductsManagement() {
                 </Button>
               </DialogTrigger>
               <DialogContent
-                className="max-w-2xl max-h-[90vh] overflow-y-auto"
+                className="max-w-2xl max-h-[85vh] flex flex-col"
                 onPointerDownOutside={(e) => e.preventDefault()}
                 onInteractOutside={(e) => e.preventDefault()}
               >
