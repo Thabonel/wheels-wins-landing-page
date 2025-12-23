@@ -11,12 +11,15 @@ export async function getDigitalProductsFromDB(region: Region): Promise<DigitalP
   try {
     // Query affiliate_products table for digital-like categories
     // Using 'in' filter since category is an enum type (not text - ILIKE won't work)
+    // Only show products that are available (filters out unavailable products)
+    // Note: Explicit 'any' type to bypass type inference issues with new availability_status field
     const { data, error } = await supabase
       .from('affiliate_products')
       .select('*')
       .eq('is_active', true)
+      .eq('availability_status', 'available')
       .in('category', ['books_manuals', 'electronics'])
-      .order('sort_order', { ascending: true });
+      .order('sort_order', { ascending: true }) as { data: any[] | null; error: any };
 
     if (error) {
       console.error('Error fetching digital products from database:', error);
@@ -32,7 +35,7 @@ export async function getDigitalProductsFromDB(region: Region): Promise<DigitalP
 
       return {
         id: product.id,
-        title: product.title || product.name || 'Unknown Product',
+        title: product.title || 'Unknown Product',
         description: product.description || '',
         image: product.image_url || "/placeholder-product.jpg",
         price: convertedPrice.amount,
@@ -138,12 +141,15 @@ function getAvailableRegions(regionalAsins: any): Region[] {
 
 export async function getAffiliateProductsFromDB(userRegion?: Region): Promise<AffiliateProduct[]> {
   try {
-    const { data, error } = await supabase
+    // Only show products that are available (filters out unavailable products)
+    // Note: Explicit 'any' type to bypass type inference issues with new availability_status field
+    const { data, error} = await supabase
       .from('affiliate_products')
       .select('*')
       .eq('affiliate_provider', 'amazon')
       .eq('is_active', true)
-      .order('sort_order', { ascending: true });
+      .eq('availability_status', 'available')
+      .order('sort_order', { ascending: true }) as { data: any[] | null; error: any };
 
     if (error) {
       console.error('Error fetching affiliate products from database:', error);
