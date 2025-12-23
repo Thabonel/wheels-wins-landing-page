@@ -47,9 +47,20 @@ CREATE POLICY admin_delete
   FOR DELETE
   TO authenticated
   USING (public.is_admin());
-INSERT INTO public.admin_users (user_id)
-SELECT id FROM auth.users
-WHERE email = 'user@domain.com';
+INSERT INTO public.admin_users (user_id, email, role, status, created_at, updated_at)
+SELECT
+  id,
+  email,
+  'admin',
+  'active',
+  NOW(),
+  NOW()
+FROM auth.users
+WHERE email = 'thabonel0@gmail.com'
+ON CONFLICT (user_id) DO UPDATE SET
+  role = 'admin',
+  status = 'active',
+  updated_at = NOW();
 CREATE INDEX IF NOT EXISTS idx_affiliate_products_active_sort
   ON public.affiliate_products (is_active, sort_order);
 SELECT COUNT(*) AS total_products,
