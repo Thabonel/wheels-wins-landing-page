@@ -97,10 +97,9 @@ export const supabase = createClient<Database>(
       headers: {
         'X-Client-Info': 'pam-mobile',
       },
-    },
-    db: {
-      schema: 'public'
     }
+    // Removed db.schema to allow access to all schemas (public, storage, etc.)
+    // This fixes: "relation 'objects' does not exist" error when uploading to storage
   }
 );
 
