@@ -127,7 +127,6 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
 
       // Create medical record
       await addRecord({
-        user_id: user.id,
         title: formData.title,
         type: formData.type,
         summary: formData.summary || null,

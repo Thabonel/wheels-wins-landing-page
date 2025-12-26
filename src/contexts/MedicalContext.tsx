@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { createMedicalRecord, type MedicalRecordInput } from '@/services/MedicalService';
 import type {
   MedicalRecord,
   MedicalMedication,
@@ -130,21 +131,14 @@ export const MedicalProvider: React.FC<MedicalProviderProps> = ({ children }) =>
   };
 
   // Add medical record
-  const addRecord = async (record: Omit<MedicalRecord, 'id' | 'created_at' | 'updated_at'>) => {
+  const addRecord = async (record: MedicalRecordInput) => {
     if (!user?.id) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('medical_records')
-        .insert({ ...record, user_id: user.id })
-        .select()
-        .single();
 
-      if (error) throw error;
-      
-      setRecords(prev => [data, ...prev]);
+    try {
+      const newRecord = await createMedicalRecord(user.id, record);
+      setRecords(prev => [newRecord as any, ...prev]);
       toast.success('Medical record added successfully');
-      return data;
+      return newRecord;
     } catch (err) {
       console.error('Error adding medical record:', err);
       toast.error('Failed to add medical record');
