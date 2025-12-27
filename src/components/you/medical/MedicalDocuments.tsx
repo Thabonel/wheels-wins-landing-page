@@ -106,6 +106,21 @@ export default function MedicalDocuments() {
     return /\.pdf$/i.test(url);
   };
 
+  // Check if a URL is an Office document (Word, Excel, PowerPoint)
+  const isOfficeDoc = (url: string) => {
+    return /\.(doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp)$/i.test(url);
+  };
+
+  // Check if a URL is a text file
+  const isTextFile = (url: string) => {
+    return /\.(txt|csv|md|json|xml|html|htm)$/i.test(url);
+  };
+
+  // Get Google Docs Viewer URL for universal document viewing
+  const getGoogleViewerUrl = (signedUrl: string) => {
+    return `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`;
+  };
+
   // Filter records based on search and type
   const filteredRecords = records.filter(record => {
     const matchesSearch = record.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -358,27 +373,50 @@ export default function MedicalDocuments() {
                 ) : previewUrl ? (
                   <>
                     {isImageUrl(previewRecord.document_url) ? (
+                      // Native image display - best quality and performance
                       <img
                         src={previewUrl}
                         alt={previewRecord.title}
                         className="max-w-full h-auto mx-auto"
                       />
                     ) : isPdfUrl(previewRecord.document_url) ? (
+                      // PDF - try native first, fallback to Google Viewer
                       <iframe
                         src={previewUrl}
-                        className="w-full h-[500px]"
+                        className="w-full h-[600px]"
                         title={previewRecord.title}
                       />
+                    ) : isOfficeDoc(previewRecord.document_url) ? (
+                      // Office documents (Word, Excel, PowerPoint) - use Google Docs Viewer
+                      <iframe
+                        src={getGoogleViewerUrl(previewUrl)}
+                        className="w-full h-[600px]"
+                        title={previewRecord.title}
+                        sandbox="allow-scripts allow-same-origin"
+                      />
+                    ) : isTextFile(previewRecord.document_url) ? (
+                      // Text files - use Google Docs Viewer
+                      <iframe
+                        src={getGoogleViewerUrl(previewUrl)}
+                        className="w-full h-[600px]"
+                        title={previewRecord.title}
+                        sandbox="allow-scripts allow-same-origin"
+                      />
                     ) : (
-                      <div className="p-8 text-center">
-                        <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Preview not available for this file type
+                      // Unknown format - try Google Docs Viewer as universal fallback
+                      <div className="space-y-4">
+                        <iframe
+                          src={getGoogleViewerUrl(previewUrl)}
+                          className="w-full h-[600px]"
+                          title={previewRecord.title}
+                          sandbox="allow-scripts allow-same-origin"
+                          onError={() => {
+                            // If iframe fails, show download option
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground text-center">
+                          If the preview doesn't load, use the download button below
                         </p>
-                        <Button onClick={() => handleDownload(previewRecord)}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Download to View
-                        </Button>
                       </div>
                     )}
                   </>
