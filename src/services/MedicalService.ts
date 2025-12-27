@@ -15,6 +15,9 @@ export async function createMedicalRecord(
   userId: string,
   record: MedicalRecordInput
 ) {
+  // date_recorded is NOT NULL in database - use test_date if available, otherwise today
+  const dateRecorded = record.test_date || new Date().toISOString().split('T')[0];
+
   const { data, error } = await supabase
     .from('medical_records')
     .insert({
@@ -24,6 +27,7 @@ export async function createMedicalRecord(
       summary: record.summary,
       tags: record.tags,
       test_date: record.test_date,
+      date_recorded: dateRecorded,  // Required NOT NULL column
       document_url: record.document_url,
       content_json: record.content_json,
       ocr_text: record.ocr_text
