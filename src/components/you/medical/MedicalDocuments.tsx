@@ -96,9 +96,9 @@ export default function MedicalDocuments() {
     }
   };
 
-  // Check if a URL is an image
+  // Check if a URL is an image (including iPhone formats)
   const isImageUrl = (url: string) => {
-    return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
+    return /\.(jpg|jpeg|png|gif|webp|svg|heic|heif|bmp|tiff|tif|ico)$/i.test(url);
   };
 
   // Check if a URL is a PDF
@@ -106,19 +106,28 @@ export default function MedicalDocuments() {
     return /\.pdf$/i.test(url);
   };
 
-  // Check if a URL is an Office document (Word, Excel, PowerPoint)
-  const isOfficeDoc = (url: string) => {
-    return /\.(doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp)$/i.test(url);
+  // Get file extension from URL
+  const getFileExtension = (url: string) => {
+    const match = url.match(/\.([a-zA-Z0-9]+)$/);
+    return match ? match[1].toUpperCase() : 'FILE';
   };
 
-  // Check if a URL is a text file
-  const isTextFile = (url: string) => {
-    return /\.(txt|csv|md|json|xml|html|htm)$/i.test(url);
-  };
-
-  // Get Google Docs Viewer URL for universal document viewing
-  const getGoogleViewerUrl = (signedUrl: string) => {
-    return `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`;
+  // Get friendly file type name
+  const getFileTypeName = (url: string) => {
+    const ext = getFileExtension(url).toLowerCase();
+    const typeNames: Record<string, string> = {
+      'doc': 'Word Document',
+      'docx': 'Word Document',
+      'xls': 'Excel Spreadsheet',
+      'xlsx': 'Excel Spreadsheet',
+      'ppt': 'PowerPoint',
+      'pptx': 'PowerPoint',
+      'txt': 'Text File',
+      'csv': 'CSV File',
+      'heic': 'iPhone Photo',
+      'heif': 'iPhone Photo',
+    };
+    return typeNames[ext] || `${ext.toUpperCase()} File`;
   };
 
   // Filter records based on search and type
@@ -378,44 +387,48 @@ export default function MedicalDocuments() {
                         src={previewUrl}
                         alt={previewRecord.title}
                         className="max-w-full h-auto mx-auto"
+                        onError={(e) => {
+                          // If image fails to load, show download option
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement?.classList.add('image-load-failed');
+                        }}
                       />
                     ) : isPdfUrl(previewRecord.document_url) ? (
-                      // PDF - try native first, fallback to Google Viewer
+                      // PDF - native browser viewer
                       <iframe
                         src={previewUrl}
                         className="w-full h-[600px]"
                         title={previewRecord.title}
                       />
-                    ) : isOfficeDoc(previewRecord.document_url) ? (
-                      // Office documents (Word, Excel, PowerPoint) - use Google Docs Viewer
-                      <iframe
-                        src={getGoogleViewerUrl(previewUrl)}
-                        className="w-full h-[600px]"
-                        title={previewRecord.title}
-                        sandbox="allow-scripts allow-same-origin"
-                      />
-                    ) : isTextFile(previewRecord.document_url) ? (
-                      // Text files - use Google Docs Viewer
-                      <iframe
-                        src={getGoogleViewerUrl(previewUrl)}
-                        className="w-full h-[600px]"
-                        title={previewRecord.title}
-                        sandbox="allow-scripts allow-same-origin"
-                      />
                     ) : (
-                      // Unknown format - try Google Docs Viewer as universal fallback
-                      <div className="space-y-4">
-                        <iframe
-                          src={getGoogleViewerUrl(previewUrl)}
-                          className="w-full h-[600px]"
-                          title={previewRecord.title}
-                          sandbox="allow-scripts allow-same-origin"
-                          onError={() => {
-                            // If iframe fails, show download option
-                          }}
-                        />
-                        <p className="text-xs text-muted-foreground text-center">
-                          If the preview doesn't load, use the download button below
+                      // All other formats - show file info and download option
+                      <div className="p-8 text-center bg-muted/30">
+                        <div className="w-20 h-20 mx-auto mb-4 bg-primary/10 rounded-2xl flex items-center justify-center">
+                          <FileText className="h-10 w-10 text-primary" />
+                        </div>
+                        <h4 className="text-lg font-semibold mb-2">{previewRecord.title}</h4>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          {getFileTypeName(previewRecord.document_url)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-6">
+                          .{getFileExtension(previewRecord.document_url)} file
+                        </p>
+                        <div className="flex justify-center gap-3">
+                          <Button
+                            variant="outline"
+                            onClick={() => window.open(previewUrl, '_blank')}
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Open in Browser
+                          </Button>
+                          <Button onClick={() => handleDownload(previewRecord)}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-4">
+                          This file type requires an external app to view
                         </p>
                       </div>
                     )}
