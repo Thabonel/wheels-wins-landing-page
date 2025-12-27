@@ -2913,6 +2913,174 @@ export type Database = {
           },
         ]
       }
+      medical_emergency_info: {
+        Row: {
+          id: string
+          user_id: string
+          blood_type: string | null
+          allergies: string[] | null
+          medical_conditions: string[] | null
+          emergency_contacts: {
+            name: string
+            phone: string
+            relationship: string
+            isPrimary: boolean
+          }[] | null
+          primary_doctor: {
+            name?: string
+            phone?: string
+            practice?: string
+          } | null
+          insurance_info: {
+            provider?: string
+            policyNumber?: string
+            groupNumber?: string
+            phone?: string
+          } | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          blood_type?: string | null
+          allergies?: string[] | null
+          medical_conditions?: string[] | null
+          emergency_contacts?: {
+            name: string
+            phone: string
+            relationship: string
+            isPrimary: boolean
+          }[] | null
+          primary_doctor?: {
+            name?: string
+            phone?: string
+            practice?: string
+          } | null
+          insurance_info?: {
+            provider?: string
+            policyNumber?: string
+            groupNumber?: string
+            phone?: string
+          } | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          blood_type?: string | null
+          allergies?: string[] | null
+          medical_conditions?: string[] | null
+          emergency_contacts?: {
+            name: string
+            phone: string
+            relationship: string
+            isPrimary: boolean
+          }[] | null
+          primary_doctor?: {
+            name?: string
+            phone?: string
+            practice?: string
+          } | null
+          insurance_info?: {
+            provider?: string
+            policyNumber?: string
+            groupNumber?: string
+            phone?: string
+          } | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      medical_medications: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          dosage: string | null
+          frequency: Database["public"]["Enums"]["medication_frequency"] | null
+          refill_date: string | null
+          prescribed_by: string | null
+          notes: string | null
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          dosage?: string | null
+          frequency?: Database["public"]["Enums"]["medication_frequency"] | null
+          refill_date?: string | null
+          prescribed_by?: string | null
+          notes?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          dosage?: string | null
+          frequency?: Database["public"]["Enums"]["medication_frequency"] | null
+          refill_date?: string | null
+          prescribed_by?: string | null
+          notes?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      medical_records: {
+        Row: {
+          id: string
+          user_id: string
+          type: Database["public"]["Enums"]["medical_record_type"]
+          title: string
+          summary: string | null
+          tags: string[] | null
+          test_date: string | null
+          document_url: string | null
+          content_json: Json | null
+          ocr_text: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: Database["public"]["Enums"]["medical_record_type"]
+          title: string
+          summary?: string | null
+          tags?: string[] | null
+          test_date?: string | null
+          document_url?: string | null
+          content_json?: Json | null
+          ocr_text?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: Database["public"]["Enums"]["medical_record_type"]
+          title?: string
+          summary?: string | null
+          tags?: string[] | null
+          test_date?: string | null
+          document_url?: string | null
+          content_json?: Json | null
+          ocr_text?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       manual_chunks: {
         Row: {
           blurb_lex: unknown
@@ -11529,6 +11697,23 @@ export type Database = {
     Enums: {
       affiliate_provider: "amazon" | "ebay" | "custom"
       app_role: "admin" | "user"
+      medication_frequency:
+        | "once_daily"
+        | "twice_daily"
+        | "three_times_daily"
+        | "four_times_daily"
+        | "as_needed"
+        | "weekly"
+        | "monthly"
+      medical_record_type:
+        | "document"
+        | "lab_result"
+        | "prescription"
+        | "insurance_card"
+        | "doctor_note"
+        | "vaccination"
+        | "imaging"
+        | "other"
       procedure_relationship_type:
         | "prerequisite"
         | "follow_up"
