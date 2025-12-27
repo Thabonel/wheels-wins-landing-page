@@ -44,7 +44,7 @@ export const MedicalDashboard: React.FC = () => {
   }).length;
 
   const recentDocuments = records
-    .sort((a, b) => new Date(b.upload_date || b.created_at).getTime() - new Date(a.upload_date || a.created_at).getTime())
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 3);
 
   if (isLoading) {
@@ -183,11 +183,11 @@ export const MedicalDashboard: React.FC = () => {
                         <div>
                           <p className="font-medium">{doc.title}</p>
                           <p className="text-sm text-muted-foreground">
-                            {format(new Date(doc.upload_date || doc.created_at), 'MMM d, yyyy')}
+                            {format(new Date(doc.created_at), 'MMM d, yyyy')}
                           </p>
                         </div>
                       </div>
-                      <Badge variant="outline">{doc.category}</Badge>
+                      <Badge variant="outline">{doc.type?.replace('_', ' ') || 'document'}</Badge>
                     </div>
                   ))}
                 </div>

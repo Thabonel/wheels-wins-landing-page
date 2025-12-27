@@ -1,5 +1,46 @@
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * Get a signed URL to view/download a medical document from Supabase Storage
+ * @param documentPath - The path stored in document_url field
+ * @returns Signed URL valid for 1 hour, or null if error
+ */
+export async function getDocumentSignedUrl(documentPath: string): Promise<string | null> {
+  if (!documentPath) return null;
+
+  const { data, error } = await supabase.storage
+    .from('medical-documents')
+    .createSignedUrl(documentPath, 3600); // 1 hour expiry
+
+  if (error) {
+    console.error('Error getting signed URL:', error);
+    return null;
+  }
+
+  return data?.signedUrl || null;
+}
+
+/**
+ * Download a medical document
+ * @param documentPath - The path stored in document_url field
+ * @param filename - Optional filename for download
+ */
+export async function downloadDocument(documentPath: string, filename?: string): Promise<void> {
+  const signedUrl = await getDocumentSignedUrl(documentPath);
+  if (!signedUrl) {
+    throw new Error('Could not get download URL');
+  }
+
+  // Create a temporary link and click it to download
+  const link = document.createElement('a');
+  link.href = signedUrl;
+  link.download = filename || documentPath.split('/').pop() || 'document';
+  link.target = '_blank';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 export interface MedicalRecordInput {
   title: string;
   type: string;

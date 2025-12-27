@@ -3,15 +3,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  FileText, 
-  Upload, 
+import {
+  FileText,
+  Upload,
   Search,
   Download,
   Trash2,
   Eye,
   Filter,
-  Calendar
+  Calendar,
+  X,
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { useMedical } from '@/contexts/MedicalContext';
 import { format } from 'date-fns';
@@ -33,7 +36,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { MedicalRecordType } from '@/types/medical';
+import { getDocumentSignedUrl, downloadDocument } from '@/services/MedicalService';
+import { toast } from 'sonner';
 
 export default function MedicalDocuments() {
   const { records, deleteRecord } = useMedical();
@@ -42,6 +53,58 @@ export default function MedicalDocuments() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
+  // Preview dialog state
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewRecord, setPreviewRecord] = useState<any>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  // Handle viewing a document
+  const handleView = async (record: any) => {
+    setPreviewRecord(record);
+    setPreviewDialogOpen(true);
+    setPreviewUrl(null);
+
+    if (record.document_url) {
+      setIsLoadingPreview(true);
+      try {
+        const url = await getDocumentSignedUrl(record.document_url);
+        setPreviewUrl(url);
+      } catch (error) {
+        console.error('Error loading preview:', error);
+        toast.error('Could not load document preview');
+      } finally {
+        setIsLoadingPreview(false);
+      }
+    }
+  };
+
+  // Handle downloading a document
+  const handleDownload = async (record: any) => {
+    if (!record.document_url) {
+      toast.error('No document file attached');
+      return;
+    }
+
+    try {
+      await downloadDocument(record.document_url, `${record.title}.${record.document_url.split('.').pop()}`);
+      toast.success('Download started');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download document');
+    }
+  };
+
+  // Check if a URL is an image
+  const isImageUrl = (url: string) => {
+    return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
+  };
+
+  // Check if a URL is a PDF
+  const isPdfUrl = (url: string) => {
+    return /\.pdf$/i.test(url);
+  };
 
   // Filter records based on search and type
   const filteredRecords = records.filter(record => {
@@ -157,17 +220,26 @@ export default function MedicalDocuments() {
                   )}
                 </div>
                 <div className="flex gap-2 mt-4">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleView(record)}
+                  >
                     <Eye className="h-3 w-3 mr-1" />
                     View
                   </Button>
                   {record.document_url && (
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownload(record)}
+                    >
                       <Download className="h-3 w-3" />
                     </Button>
                   )}
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => {
                       setSelectedRecordId(record.id);
@@ -220,10 +292,144 @@ export default function MedicalDocuments() {
       </AlertDialog>
 
       {/* Upload Document Dialog */}
-      <DocumentUploadDialog 
-        open={uploadDialogOpen} 
-        onOpenChange={setUploadDialogOpen} 
+      <DocumentUploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
       />
+
+      {/* Document Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              {previewRecord?.title || 'Document Preview'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Document metadata */}
+            <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+              {previewRecord?.type && (
+                <Badge className={getTypeColor(previewRecord.type)}>
+                  {previewRecord.type.replace('_', ' ')}
+                </Badge>
+              )}
+              {previewRecord?.test_date && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Test date: {format(new Date(previewRecord.test_date), 'MMM d, yyyy')}
+                </span>
+              )}
+              {previewRecord?.created_at && (
+                <span>
+                  Added: {format(new Date(previewRecord.created_at), 'MMM d, yyyy')}
+                </span>
+              )}
+            </div>
+
+            {/* Summary */}
+            {previewRecord?.summary && (
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">Summary</h4>
+                <p className="text-sm">{previewRecord.summary}</p>
+              </div>
+            )}
+
+            {/* Tags */}
+            {previewRecord?.tags && previewRecord.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {previewRecord.tags.map((tag: string, index: number) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* Document preview */}
+            {previewRecord?.document_url ? (
+              <div className="border rounded-lg overflow-hidden">
+                {isLoadingPreview ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-muted-foreground">Loading preview...</span>
+                  </div>
+                ) : previewUrl ? (
+                  <>
+                    {isImageUrl(previewRecord.document_url) ? (
+                      <img
+                        src={previewUrl}
+                        alt={previewRecord.title}
+                        className="max-w-full h-auto mx-auto"
+                      />
+                    ) : isPdfUrl(previewRecord.document_url) ? (
+                      <iframe
+                        src={previewUrl}
+                        className="w-full h-[500px]"
+                        title={previewRecord.title}
+                      />
+                    ) : (
+                      <div className="p-8 text-center">
+                        <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Preview not available for this file type
+                        </p>
+                        <Button onClick={() => handleDownload(previewRecord)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download to View
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-8 text-center text-muted-foreground">
+                    Could not load preview
+                  </div>
+                )}
+
+                {/* Open in new tab button */}
+                {previewUrl && (
+                  <div className="p-3 border-t bg-muted/50 flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(previewUrl, '_blank')}
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Open in New Tab
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleDownload(previewRecord)}
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      Download
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-8 text-center border rounded-lg">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">
+                  No document file attached to this record
+                </p>
+              </div>
+            )}
+
+            {/* OCR text if available */}
+            {previewRecord?.ocr_text && (
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">Extracted Text (OCR)</h4>
+                <pre className="text-sm whitespace-pre-wrap font-mono">
+                  {previewRecord.ocr_text}
+                </pre>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
