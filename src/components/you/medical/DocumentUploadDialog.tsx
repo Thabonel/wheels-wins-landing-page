@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -18,12 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, FileText, X } from 'lucide-react';
+import { Upload, FileText, X, Loader2 } from 'lucide-react';
 import { useMedical } from '@/contexts/MedicalContext';
 import { MedicalRecordType } from '@/types/medical';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import * as pdfjsLib from 'pdfjs-dist';
+import Tesseract from 'tesseract.js';
+
+// Set the worker source for PDF.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface DocumentUploadDialogProps {
   open: boolean;
@@ -36,6 +42,8 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [extractionProgress, setExtractionProgress] = useState(0);
+  const [extractionStatus, setExtractionStatus] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     type: MedicalRecordType.DOCUMENT,
@@ -43,6 +51,82 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
     tags: '',
     test_date: ''
   });
+
+  // Check file type helpers
+  const isTextFile = (filename: string) => /\.(txt|csv)$/i.test(filename);
+  const isMarkdownFile = (filename: string) => /\.(md|markdown)$/i.test(filename);
+  const isPdfFile = (filename: string) => /\.pdf$/i.test(filename);
+  const isImageFile = (filename: string) => /\.(jpg|jpeg|png|gif|webp|bmp|tiff|tif)$/i.test(filename);
+
+  // Extract text from PDF using pdf.js
+  const extractPdfText = async (file: File): Promise<string> => {
+    setExtractionStatus('Extracting text from PDF...');
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        setExtractionProgress(Math.round((i / pdf.numPages) * 100));
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += pageText + '\n\n';
+      }
+
+      return fullText.trim();
+    } catch (error) {
+      console.error('PDF extraction error:', error);
+      return '';
+    }
+  };
+
+  // Extract text from image using Tesseract.js OCR
+  const extractImageText = async (file: File): Promise<string> => {
+    setExtractionStatus('Running OCR on image...');
+    try {
+      const result = await Tesseract.recognize(file, 'eng', {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            setExtractionProgress(Math.round(m.progress * 100));
+          }
+        }
+      });
+      return result.data.text.trim();
+    } catch (error) {
+      console.error('OCR error:', error);
+      return '';
+    }
+  };
+
+  // Main text extraction function
+  const extractTextContent = async (file: File): Promise<string | null> => {
+    const filename = file.name;
+
+    // Plain text files - read directly
+    if (isTextFile(filename) || isMarkdownFile(filename)) {
+      setExtractionStatus('Reading text file...');
+      setExtractionProgress(50);
+      const text = await file.text();
+      setExtractionProgress(100);
+      return text;
+    }
+
+    // PDF files - use pdf.js
+    if (isPdfFile(filename)) {
+      return await extractPdfText(file);
+    }
+
+    // Image files - use Tesseract OCR
+    if (isImageFile(filename)) {
+      return await extractImageText(file);
+    }
+
+    // Other file types - no extraction
+    return null;
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,14 +167,17 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
     }
 
     setIsUploading(true);
+    setExtractionProgress(0);
+    setExtractionStatus(null);
     let documentUrl = null;
+    let extractedText: string | null = null;
 
     try {
       // Upload file to Supabase Storage if selected
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-        
+
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('medical-documents')
           .upload(fileName, selectedFile);
@@ -103,12 +190,12 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
               public: false,
               allowedMimeTypes: ['image/*', 'application/pdf', 'text/*']
             });
-            
+
             // Retry upload
             const { data: retryData, error: retryError } = await supabase.storage
               .from('medical-documents')
               .upload(fileName, selectedFile);
-            
+
             if (retryError) throw retryError;
             documentUrl = retryData?.path;
           } else {
@@ -116,6 +203,12 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
           }
         } else {
           documentUrl = uploadData?.path;
+        }
+
+        // Extract text content from the file for AI search
+        extractedText = await extractTextContent(selectedFile);
+        if (extractedText) {
+          setExtractionStatus('Text extracted successfully');
         }
       }
 
@@ -125,7 +218,7 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
 
-      // Create medical record
+      // Create medical record with extracted text
       await addRecord({
         title: formData.title,
         type: formData.type,
@@ -134,7 +227,7 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
         test_date: formData.test_date || null,
         document_url: documentUrl,
         content_json: null,
-        ocr_text: null
+        ocr_text: extractedText
       });
 
       // Reset form
@@ -146,13 +239,20 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
         test_date: ''
       });
       setSelectedFile(null);
+      setExtractionProgress(0);
+      setExtractionStatus(null);
       onOpenChange(false);
-      toast.success('Document uploaded successfully');
+
+      const successMsg = extractedText
+        ? 'Document uploaded with text extraction'
+        : 'Document uploaded successfully';
+      toast.success(successMsg);
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload document');
     } finally {
       setIsUploading(false);
+      setExtractionStatus(null);
     }
   };
 
@@ -179,7 +279,7 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
               type="file"
               className="hidden"
               onChange={handleFileSelect}
-              accept="image/*,application/pdf,.doc,.docx,.txt"
+              accept="image/*,application/pdf,.doc,.docx,.txt,.md,.markdown,.csv"
             />
             {selectedFile ? (
               <div className="flex items-center justify-center gap-2">
@@ -274,15 +374,35 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
           </div>
         </div>
 
+        {/* Extraction Progress */}
+        {isUploading && extractionStatus && (
+          <div className="space-y-2 py-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>{extractionStatus}</span>
+            </div>
+            {extractionProgress > 0 && extractionProgress < 100 && (
+              <Progress value={extractionProgress} className="h-2" />
+            )}
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUploading}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleUpload} 
+          <Button
+            onClick={handleUpload}
             disabled={!formData.title || isUploading}
           >
-            {isUploading ? 'Uploading...' : 'Upload Document'}
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              'Upload Document'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

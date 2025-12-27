@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,8 +14,12 @@ import {
   Calendar,
   X,
   ExternalLink,
-  Loader2
+  Loader2,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { cn } from '@/lib/utils';
 import { useMedical } from '@/contexts/MedicalContext';
 import { format } from 'date-fns';
 import { DocumentUploadDialog } from './DocumentUploadDialog';
@@ -59,18 +63,53 @@ export default function MedicalDocuments() {
   const [previewRecord, setPreviewRecord] = useState<any>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [textContent, setTextContent] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Listen for fullscreen changes (e.g., user presses Escape)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Toggle fullscreen mode
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement && dialogRef.current) {
+      await dialogRef.current.requestFullscreen();
+      setIsFullscreen(true);
+    } else if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
 
   // Handle viewing a document
   const handleView = async (record: any) => {
     setPreviewRecord(record);
     setPreviewDialogOpen(true);
     setPreviewUrl(null);
+    setTextContent(null);
 
     if (record.document_url) {
       setIsLoadingPreview(true);
       try {
         const url = await getDocumentSignedUrl(record.document_url);
         setPreviewUrl(url);
+
+        // Fetch text content for text/markdown files
+        if (url && (isTextUrl(record.document_url) || isMarkdownUrl(record.document_url))) {
+          try {
+            const response = await fetch(url);
+            const text = await response.text();
+            setTextContent(text);
+          } catch (textError) {
+            console.error('Error fetching text content:', textError);
+          }
+        }
       } catch (error) {
         console.error('Error loading preview:', error);
         toast.error('Could not load document preview');
@@ -104,6 +143,21 @@ export default function MedicalDocuments() {
   // Check if a URL is a PDF
   const isPdfUrl = (url: string) => {
     return /\.pdf$/i.test(url);
+  };
+
+  // Check if a URL is a text file
+  const isTextUrl = (url: string) => {
+    return /\.(txt|csv)$/i.test(url);
+  };
+
+  // Check if a URL is a markdown file
+  const isMarkdownUrl = (url: string) => {
+    return /\.(md|markdown)$/i.test(url);
+  };
+
+  // Check if a URL is an Office document (Word, Excel, PowerPoint)
+  const isOfficeUrl = (url: string) => {
+    return /\.(doc|docx|xls|xlsx|ppt|pptx)$/i.test(url);
   };
 
   // Get file extension from URL
@@ -323,34 +377,56 @@ export default function MedicalDocuments() {
 
       {/* Document Preview Dialog */}
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              {previewRecord?.title || 'Document Preview'}
-            </DialogTitle>
+        <DialogContent
+          ref={dialogRef}
+          className={cn(
+            "max-h-[90vh] overflow-auto",
+            isFullscreen ? "max-w-full h-full" : "max-w-4xl"
+          )}
+        >
+          {/* Enhanced Header */}
+          <DialogHeader className="border-b pb-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <FileText className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">{previewRecord?.title || 'Document Preview'}</DialogTitle>
+                  <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                    {previewRecord?.type && (
+                      <Badge className={getTypeColor(previewRecord.type)}>
+                        {previewRecord.type.replace('_', ' ')}
+                      </Badge>
+                    )}
+                    {previewRecord?.created_at && (
+                      <>
+                        <span>|</span>
+                        <Calendar className="h-3 w-3" />
+                        <span>{format(new Date(previewRecord.created_at), 'MMM d, yyyy')}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={toggleFullscreen} className="ml-2">
+                {isFullscreen ? (
+                  <Minimize2 className="h-4 w-4" />
+                ) : (
+                  <Maximize2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Document metadata */}
-            <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-              {previewRecord?.type && (
-                <Badge className={getTypeColor(previewRecord.type)}>
-                  {previewRecord.type.replace('_', ' ')}
-                </Badge>
-              )}
-              {previewRecord?.test_date && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Test date: {format(new Date(previewRecord.test_date), 'MMM d, yyyy')}
-                </span>
-              )}
-              {previewRecord?.created_at && (
-                <span>
-                  Added: {format(new Date(previewRecord.created_at), 'MMM d, yyyy')}
-                </span>
-              )}
-            </div>
+          <div className="space-y-4 pt-4">
+            {/* Test date if different from created date */}
+            {previewRecord?.test_date && (
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                Test date: {format(new Date(previewRecord.test_date), 'MMM d, yyyy')}
+              </div>
+            )}
 
             {/* Summary */}
             {previewRecord?.summary && (
@@ -382,13 +458,12 @@ export default function MedicalDocuments() {
                 ) : previewUrl ? (
                   <>
                     {isImageUrl(previewRecord.document_url) ? (
-                      // Native image display - best quality and performance
+                      // Native image display
                       <img
                         src={previewUrl}
                         alt={previewRecord.title}
                         className="max-w-full h-auto mx-auto"
                         onError={(e) => {
-                          // If image fails to load, show download option
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
                           target.parentElement?.classList.add('image-load-failed');
@@ -398,11 +473,39 @@ export default function MedicalDocuments() {
                       // PDF - native browser viewer
                       <iframe
                         src={previewUrl}
-                        className="w-full h-[600px]"
+                        className={cn("w-full", isFullscreen ? "h-[calc(100vh-200px)]" : "h-[600px]")}
                         title={previewRecord.title}
                       />
+                    ) : isMarkdownUrl(previewRecord.document_url) && textContent ? (
+                      // Markdown - rendered with styling
+                      <div className="prose prose-sm max-w-none p-6 dark:prose-invert">
+                        <ReactMarkdown>{textContent}</ReactMarkdown>
+                      </div>
+                    ) : isTextUrl(previewRecord.document_url) && textContent ? (
+                      // Plain text - monospace display
+                      <pre className="p-6 bg-muted/30 whitespace-pre-wrap font-mono text-sm overflow-auto max-h-[500px]">
+                        {textContent}
+                      </pre>
+                    ) : isOfficeUrl(previewRecord.document_url) ? (
+                      // Office documents - clean download UI
+                      <div className="p-8 text-center bg-muted/30">
+                        <div className="w-20 h-20 mx-auto mb-4 bg-primary/10 rounded-2xl flex items-center justify-center">
+                          <FileText className="h-10 w-10 text-primary" />
+                        </div>
+                        <h4 className="text-lg font-semibold mb-2">{previewRecord.title}</h4>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          {getFileTypeName(previewRecord.document_url)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-6">
+                          Preview not available - click to download
+                        </p>
+                        <Button onClick={() => handleDownload(previewRecord)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download File
+                        </Button>
+                      </div>
                     ) : (
-                      // All other formats - show file info and download option
+                      // Unknown format - fallback download
                       <div className="p-8 text-center bg-muted/30">
                         <div className="w-20 h-20 mx-auto mb-4 bg-primary/10 rounded-2xl flex items-center justify-center">
                           <FileText className="h-10 w-10 text-primary" />
@@ -414,49 +517,16 @@ export default function MedicalDocuments() {
                         <p className="text-xs text-muted-foreground mb-6">
                           .{getFileExtension(previewRecord.document_url)} file
                         </p>
-                        <div className="flex justify-center gap-3">
-                          <Button
-                            variant="outline"
-                            onClick={() => window.open(previewUrl, '_blank')}
-                          >
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Open in Browser
-                          </Button>
-                          <Button onClick={() => handleDownload(previewRecord)}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-4">
-                          This file type requires an external app to view
-                        </p>
+                        <Button onClick={() => handleDownload(previewRecord)}>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download File
+                        </Button>
                       </div>
                     )}
                   </>
                 ) : (
                   <div className="p-8 text-center text-muted-foreground">
                     Could not load preview
-                  </div>
-                )}
-
-                {/* Open in new tab button */}
-                {previewUrl && (
-                  <div className="p-3 border-t bg-muted/50 flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(previewUrl, '_blank')}
-                    >
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      Open in New Tab
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleDownload(previewRecord)}
-                    >
-                      <Download className="h-3 w-3 mr-1" />
-                      Download
-                    </Button>
                   </div>
                 )}
               </div>
@@ -472,10 +542,24 @@ export default function MedicalDocuments() {
             {/* OCR text if available */}
             {previewRecord?.ocr_text && (
               <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">Extracted Text (OCR)</h4>
-                <pre className="text-sm whitespace-pre-wrap font-mono">
+                <h4 className="font-medium mb-2">Extracted Text</h4>
+                <pre className="text-sm whitespace-pre-wrap font-mono max-h-[300px] overflow-auto">
                   {previewRecord.ocr_text}
                 </pre>
+              </div>
+            )}
+
+            {/* Consolidated Action Buttons - Single row at bottom */}
+            {previewUrl && previewRecord?.document_url && (
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button variant="outline" size="sm" onClick={() => window.open(previewUrl, '_blank')}>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open in New Tab
+                </Button>
+                <Button size="sm" onClick={() => handleDownload(previewRecord)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
               </div>
             )}
           </div>
