@@ -165,7 +165,7 @@ async def check_celebration(
             "should_celebrate": should_celebrate,
             "total_savings": total_savings,
             "threshold": celebration_threshold,
-            "message": f"🎉 PAM saved you ${total_savings:.2f} this month!" if should_celebrate else None
+            "message": f"PAM saved you ${total_savings:.2f} this month!" if should_celebrate else None
         }
 
     except Exception as e:
@@ -174,3 +174,82 @@ async def check_celebration(
             status_code=500,
             detail="Failed to check celebration status"
         )
+
+
+@router.get("/guarantee-status")
+async def get_guarantee_status(
+    month: Optional[str] = None,
+    current_user: dict = Depends(verify_supabase_jwt_token)
+):
+    """
+    Get guarantee status for current billing period
+
+    This endpoint is called by PamSavingsSummaryCard component.
+    Returns whether the user has saved enough to meet their subscription cost.
+    """
+    try:
+        user_id = current_user.get("sub")
+        supabase = get_supabase_client()
+
+        # Parse month or use current
+        if month:
+            month_start = datetime.fromisoformat(month.replace('Z', '+00:00'))
+        else:
+            now = datetime.now()
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # Calculate end of month
+        if month_start.month == 12:
+            month_end = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            month_end = month_start.replace(month=month_start.month + 1)
+
+        # Get all savings events for the month
+        response = supabase.table("pam_savings_events").select("*").eq("user_id", user_id).gte("created_at", month_start.isoformat()).lt("created_at", month_end.isoformat()).execute()
+
+        savings_events = response.data if response.data else []
+        total_savings = sum(float(event.get("amount_saved", 0)) for event in savings_events)
+
+        # Subscription cost
+        subscription_cost = 14.00  # AU$14/month for PAM
+
+        # Calculate metrics
+        guarantee_met = total_savings >= subscription_cost
+        savings_shortfall = max(0, subscription_cost - total_savings)
+        percentage_achieved = min(100, (total_savings / subscription_cost * 100)) if subscription_cost > 0 else 0
+
+        logger.info(f"Guarantee status for user {user_id}: ${total_savings:.2f} saved, guarantee_met={guarantee_met}")
+
+        return {
+            "guarantee_status": {
+                "guarantee_met": guarantee_met,
+                "total_savings": total_savings,
+                "subscription_cost": subscription_cost,
+                "savings_shortfall": savings_shortfall,
+                "savings_events_count": len(savings_events),
+                "billing_period_start": month_start.isoformat(),
+                "billing_period_end": month_end.isoformat(),
+                "percentage_achieved": percentage_achieved
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting guarantee status: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to get guarantee status"
+        )
+
+
+@router.get("/recent", response_model=List[SavingsEvent])
+async def get_recent_savings(
+    limit: int = 10,
+    current_user: dict = Depends(verify_supabase_jwt_token)
+):
+    """
+    Get recent savings events for current user
+
+    Alias for /events endpoint with default 30-day lookback.
+    Called by PamSavingsSummaryCard component.
+    """
+    return await get_savings_events(limit=limit, days=30, current_user=current_user)
