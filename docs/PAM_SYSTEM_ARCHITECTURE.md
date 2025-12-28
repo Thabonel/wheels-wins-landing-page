@@ -26,7 +26,21 @@ PAM is a voice-first AI assistant that:
 
 ---
 
-## ⚡ Recent Updates (November 2025)
+## ⚡ Recent Updates
+
+### Medical Document Viewer + AI Integration (December 2025)
+- ✅ **Commit `4e1f4f5c`**: Document viewer redesign with text extraction
+  - In-app preview for markdown, PDF, images, and text files
+  - Fullscreen document viewing mode
+  - PDF text extraction via pdfjs-dist during upload
+  - Image OCR via Tesseract.js with progress indicator
+  - **`ocr_text` column now populated** - PAM can search medical document contents
+  - Enhanced header with document metadata and type badges
+
+**PAM AI Integration:**
+- Medical documents now have searchable text content
+- PAM can reference document contents when answering health questions
+- Future: Full-text search on `ocr_text` column for medical queries
 
 ### Location Awareness Implementation (Nov 19, 2025)
 - ✅ **Commit `8b1d9d96`**: Added location awareness to PersonalizedPamAgent
@@ -363,6 +377,7 @@ wss://wheels-wins-backend-staging.onrender.com/api/v1/pam/ws/{user_id}?token={jw
 - `pam_conversations` - Chat history
 - `pam_messages` - Individual messages
 - `fuel_log` - Fuel purchase records
+- `medical_records` - Medical documents with `ocr_text` for AI search (December 2025)
 
 ---
 

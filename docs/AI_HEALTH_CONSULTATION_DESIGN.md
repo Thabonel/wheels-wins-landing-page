@@ -143,8 +143,12 @@ const healthTools = {
 - Medication reminders
 - Emergency detection
 
-#### Phase 2: Advanced Features
-- Document analysis (OCR integration)
+#### Phase 2: Advanced Features ✅ PARTIALLY COMPLETE (December 2025)
+- **Document analysis (OCR integration)** ✅ IMPLEMENTED
+  - PDF text extraction via pdfjs-dist (during upload)
+  - Image OCR via Tesseract.js with progress indicator
+  - Extracted text stored in `ocr_text` column
+  - Available for AI context building
 - Test result interpretation
 - Drug interaction checking
 - Travel health advisories
@@ -206,16 +210,25 @@ const MEDICAL_DISCLAIMER = {
 interface HealthContext {
   // From medical_records table
   recentDocuments: MedicalRecord[];
-  
+
+  // ✅ NEW: Extracted document text (December 2025)
+  // The ocr_text field is now populated during upload
+  documentContents: {
+    recordId: string;
+    title: string;
+    ocrText: string | null;  // PDF text, image OCR, or plain text
+    extractedAt: Date;
+  }[];
+
   // From medical_medications table
   currentMedications: MedicalMedication[];
   upcomingRefills: MedicalMedication[];
-  
+
   // From medical_emergency_info table
   allergies: string[];
   conditions: string[];
   bloodType: string;
-  
+
   // Computed insights
   medicationAdherence: number;
   healthTrends: HealthTrend[];
@@ -345,7 +358,7 @@ function selectModel(query: string, userTier: string): string {
 - [ ] Deploy to staging
 
 ### Phase 2 (Enhanced) - 3 weeks
-- [ ] Add document analysis
+- [x] Add document analysis ✅ (December 2025 - OCR/PDF extraction implemented)
 - [ ] Implement drug interaction checker
 - [ ] Create health insights engine
 - [ ] Add voice input support
