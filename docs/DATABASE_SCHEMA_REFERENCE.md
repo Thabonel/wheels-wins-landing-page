@@ -347,6 +347,133 @@ const { data } = await supabase
 
 ---
 
+## Medical Tables (December 2025)
+
+### `medical_records` table
+**Primary table for medical document storage with OCR text extraction**
+
+```sql
+CREATE TABLE medical_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,                  -- ✅ Uses 'user_id'
+    title TEXT NOT NULL,
+    type TEXT NOT NULL,                     -- 'document', 'lab_result', 'prescription', etc.
+    summary TEXT,
+    tags TEXT[],
+    test_date DATE,
+    document_url TEXT,                      -- Path in Supabase Storage
+    content_json JSONB,                     -- Structured data (future use)
+    ocr_text TEXT,                          -- ✅ EXTRACTED TEXT for AI search (December 2025)
+                                            -- Populated during upload via:
+                                            -- - pdfjs-dist (PDF files)
+                                            -- - Tesseract.js (image OCR)
+                                            -- - Direct read (text/markdown files)
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Query Pattern:**
+```typescript
+// ✅ CORRECT
+const { data } = await supabase
+  .from('medical_records')
+  .select('*')
+  .eq('user_id', userId);
+
+// Search document contents (via ocr_text)
+const { data: searchResults } = await supabase
+  .from('medical_records')
+  .select('*')
+  .eq('user_id', userId)
+  .ilike('ocr_text', '%cholesterol%');
+```
+
+**References:**
+- `user_id` → `auth.users(id)`
+
+**Text Extraction Sources:**
+| File Type | Extraction Method | Library |
+|-----------|-------------------|---------|
+| PDF | Text layer extraction | pdfjs-dist |
+| Images (jpg, png, etc.) | OCR | Tesseract.js |
+| Text files (.txt, .csv) | Direct read | Native |
+| Markdown (.md) | Direct read | Native |
+| Word/Excel | Not extracted | N/A |
+
+---
+
+### `medical_medications` table
+
+```sql
+CREATE TABLE medical_medications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,                  -- ✅ Uses 'user_id'
+    name TEXT NOT NULL,
+    dosage TEXT,
+    frequency TEXT,
+    prescribing_doctor TEXT,
+    pharmacy TEXT,
+    refill_date DATE,
+    active BOOLEAN DEFAULT true,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Query Pattern:**
+```typescript
+// ✅ CORRECT
+const { data } = await supabase
+  .from('medical_medications')
+  .select('*')
+  .eq('user_id', userId)
+  .eq('active', true);
+```
+
+**References:**
+- `user_id` → `auth.users(id)`
+
+---
+
+### `medical_emergency_info` table
+
+```sql
+CREATE TABLE medical_emergency_info (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID UNIQUE NOT NULL,           -- ✅ One per user
+    blood_type TEXT,
+    allergies TEXT[],
+    medical_conditions TEXT[],
+    emergency_contact_name TEXT,
+    emergency_contact_phone TEXT,
+    emergency_contact_relationship TEXT,
+    insurance_provider TEXT,
+    insurance_policy_number TEXT,
+    primary_physician TEXT,
+    primary_physician_phone TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Query Pattern:**
+```typescript
+// ✅ CORRECT
+const { data } = await supabase
+  .from('medical_emergency_info')
+  .select('*')
+  .eq('user_id', userId)
+  .single();
+```
+
+**References:**
+- `user_id` → `auth.users(id)`
+
+---
+
 ## Social/Community Tables
 
 ### `posts` table
@@ -482,6 +609,9 @@ CREATE TABLE storage_locations (
 | `maintenance_records` | `user_id` | ✅ |
 | `pam_conversations` | `user_id` | ✅ |
 | `pam_savings_events` | `user_id` | ✅ |
+| `medical_records` | `user_id` | ✅ Has `ocr_text` for AI search |
+| `medical_medications` | `user_id` | ✅ |
+| `medical_emergency_info` | `user_id` | ✅ One per user (UNIQUE) |
 | `posts` | `user_id` | ✅ |
 | `comments` | `user_id` | ✅ |
 | `likes` | `user_id` | ✅ |

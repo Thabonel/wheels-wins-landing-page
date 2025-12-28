@@ -11,13 +11,23 @@ Based on Doctor Dok's record management approach:
 - Recent activity timeline
 - Quick actions (upload document, add medication)
 
-#### 2. **MedicalDocuments.tsx**
+#### 2. **MedicalDocuments.tsx** ✅ ENHANCED (December 2025)
 Inspired by `record-form.tsx` and `record-item.tsx`:
-- Document upload with drag & drop
-- Document categorization (lab results, prescriptions, etc.)
-- List view with search/filter
-- Document preview
-- OCR text extraction (using Tesseract.js)
+- Document upload with drag & drop ✅
+- Document categorization (lab results, prescriptions, etc.) ✅
+- List view with search/filter ✅
+- **In-app document preview** ✅ (NEW - December 2025)
+  - Markdown files render with formatting (react-markdown)
+  - Text/CSV files display in monospace
+  - PDF files in native iframe viewer
+  - Images with native display
+  - Office documents show clean download UI
+- **Fullscreen document viewing mode** ✅ (NEW)
+- **OCR text extraction during upload** ✅ (IMPLEMENTED)
+  - PDF text extraction via pdfjs-dist
+  - Image OCR via Tesseract.js with progress indicator
+  - Plain text/markdown direct reading
+  - Extracted text stored in `ocr_text` column for PAM AI search
 
 #### 3. **MedicalMedications.tsx**
 Simplified medication tracking:
@@ -74,14 +84,17 @@ User → You Page → Medical Section
 5. **Error Handling**: Use our existing error boundaries
 6. **Loading States**: Follow our existing patterns
 
-### Dependencies Needed
+### Dependencies ✅ INSTALLED (December 2025)
 
 ```json
 {
-  "tesseract.js": "^5.1.0",  // OCR capabilities
-  "pdf-parse": "^1.1.1"       // PDF text extraction
+  "tesseract.js": "^5.1.1",   // OCR for images ✅ INSTALLED
+  "pdfjs-dist": "^4.x",       // PDF text extraction ✅ INSTALLED
+  "react-markdown": "^9.x"    // Markdown rendering ✅ INSTALLED
 }
 ```
+
+**Note:** `pdf-parse` replaced with `pdfjs-dist` for better browser compatibility.
 
 ### File Structure
 
@@ -136,14 +149,20 @@ src/
 4. **Touch Targets**: Large buttons for RV use
 5. **Quick Actions**: One-tap medication logging
 
-### MVP Features (Phase 1)
+### MVP Features (Phase 1) - COMPLETE ✅
 
 1. ✅ Basic document upload and viewing
 2. ✅ Simple medication list
 3. ✅ Emergency contact card
-4. ❌ OCR (Phase 2)
-5. ❌ AI consultation (Phase 3)
-6. ❌ Reminders (Phase 2)
+4. ✅ **OCR text extraction** (IMPLEMENTED December 2025)
+   - PDF text extraction with pdfjs-dist
+   - Image OCR with Tesseract.js
+   - Progress indicator during extraction
+5. ✅ **In-app document preview** (IMPLEMENTED December 2025)
+   - Markdown, text, PDF, image rendering
+   - Fullscreen mode
+6. ✅ **AI Health Consultation** (IMPLEMENTED)
+7. ❌ Reminders (Future enhancement)
 
 ### Testing Strategy
 
