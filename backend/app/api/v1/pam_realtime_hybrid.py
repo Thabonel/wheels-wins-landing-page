@@ -296,16 +296,27 @@ async def voice_to_claude_bridge(
                 )
 
                 # Forward to Claude (existing PAM system)
-                claude_response = await pam.chat(
+                # PAM.chat() now returns dict: {"text": str, "ui_actions": list}
+                pam_result = await pam.chat(
                     message=user_text,
                     context=context,
                     stream=False  # Get complete response
                 )
 
+                # Extract text from dict response
+                if isinstance(pam_result, dict):
+                    claude_response = pam_result.get("text", "")
+                    ui_actions = pam_result.get("ui_actions", [])
+                else:
+                    # Fallback for old string response format
+                    claude_response = pam_result
+                    ui_actions = []
+
                 # Send Claude's response back to browser
                 await websocket.send_json({
                     "type": "assistant_response",
                     "text": claude_response,
+                    "ui_actions": ui_actions,  # Include UI actions for voice mode
                     "timestamp": data.get("timestamp")
                 })
 
