@@ -45,8 +45,14 @@ export interface Pam2ChatRequest {
  * PAM 2.0 Chat Response - matches backend ChatResponse model
  */
 export interface Pam2ChatResponse {
-  response: string;
-  ui_action?: string;
+  response?: string;
+  message?: string;
+  content?: string;
+  type?: string;
+  timestamp?: string;
+  error?: boolean;
+  ui_action?: string; // DEPRECATED: Legacy single action
+  ui_actions?: UIAction[]; // NEW: Array of UI actions from tool execution
   metadata?: {
     user_id: string;
     session_id: string;
@@ -82,4 +88,14 @@ export interface Pam2Config {
     websocket: string;
     health: string;
   };
+}
+
+/**
+ * UI Action - Instructions from PAM backend to update frontend UI
+ */
+export interface UIAction {
+  type: 'reload_calendar' | 'reload_expenses' | 'reload_trips' | 'open_map';
+  entity_id?: string;
+  entity_type?: 'calendar_event' | 'expense' | 'trip';
+  entity_title?: string;
 }

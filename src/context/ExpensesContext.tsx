@@ -109,6 +109,17 @@ export function ExpensesProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Listen for reload-expenses event from PAM tool execution
+  useEffect(() => {
+    const handleReload = () => {
+      logger.info('📊 Reloading expenses due to PAM action');
+      loadExpenses();
+    };
+
+    window.addEventListener('reload-expenses', handleReload);
+    return () => window.removeEventListener('reload-expenses', handleReload);
+  }, [user?.id]);
+
   const addExpense = async (expense: ExpenseInput) => {
     if (!user) return;
     try {

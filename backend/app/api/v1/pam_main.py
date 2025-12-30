@@ -1466,15 +1466,21 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             logger.info("✅ [PRIMARY] Claude PAM Core available, generating response...")
 
             # Generate response using Claude with all tools available
-            response_message = await pam.chat(message, context, stream=False)
+            pam_response = await pam.chat(message, context, stream=False)
 
-            logger.info(f"✅ [PRIMARY] Claude PAM response: {response_message[:100]}...")
+            # Extract text and ui_actions from response
+            response_text = pam_response.get("text", "") if isinstance(pam_response, dict) else pam_response
+            ui_actions = pam_response.get("ui_actions", []) if isinstance(pam_response, dict) else []
 
-            # Send successful response from Claude PAM
+            logger.info(f"✅ [PRIMARY] Claude PAM response: {response_text[:100]}...")
+            logger.info(f"✅ [PRIMARY] UI actions to send: {ui_actions}")
+
+            # Send successful response from Claude PAM with UI actions
             await safe_send_json(websocket, {
                 "type": "chat_response",
-                "message": response_message,
-                "content": response_message,
+                "message": response_text,
+                "content": response_text,
+                "ui_actions": ui_actions,
                 "source": "claude_pam_primary",
                 "model": "claude-sonnet-4-5-20250929",
                 "error": False,
