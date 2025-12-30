@@ -25,9 +25,10 @@
 
 import { getPamLocationContext, formatLocationForPam } from '@/utils/pamLocationContext';
 import { logger } from '@/lib/logger';
-import type { Pam2ChatRequest, Pam2ChatResponse, Pam2HealthResponse } from '@/types/pamTypes';
+import type { Pam2ChatRequest, Pam2ChatResponse, Pam2HealthResponse, UIAction } from '@/types/pamTypes';
 import { MessageQueue, type QueuedMessage } from '@/utils/messageQueue';
 import { type PamContext, type PamApiMessage, validatePamContext } from '@/types/pamContext';
+import { toast } from 'sonner';
 
 // =====================================================
 // TYPES & INTERFACES
@@ -40,7 +41,8 @@ export interface PamApiResponse {
   message?: string;
   content?: string;
   error?: string;
-  ui_action?: string;
+  ui_action?: string; // DEPRECATED: Legacy single action (kept for compatibility)
+  ui_actions?: UIAction[]; // NEW: Array of UI actions from backend tools
   metadata?: any;
 }
 
@@ -752,12 +754,18 @@ class PamService {
               backend: this.getEnvironment()
             });
 
+            // Handle UI actions from backend (if any)
+            if (response.ui_actions && Array.isArray(response.ui_actions)) {
+              this.handleUIActions(response.ui_actions);
+            }
+
             // Convert PAM 2.0 response to compatible format
             const legacyResponse: PamApiResponse = {
               response: content,
               message: content,
               content,
               ui_action: response.ui_action,
+              ui_actions: response.ui_actions,
               metadata: response.metadata
             };
 
@@ -918,6 +926,92 @@ class PamService {
 
       throw new Error(`PAM service unavailable: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Handle UI actions from PAM backend
+   * Dispatches custom events to trigger UI updates and shows success toasts
+   */
+  private handleUIActions(actions: UIAction[]): void {
+    if (!actions || actions.length === 0) return;
+
+    actions.forEach(action => {
+      console.log(`🎯 Handling UI action:`, action);
+
+      // Dispatch custom events for React components to listen to
+      switch (action.type) {
+        case 'reload_calendar':
+          window.dispatchEvent(new CustomEvent('reload-calendar', {
+            detail: { entityId: action.entity_id, entityTitle: action.entity_title }
+          }));
+          if (action.entity_title) {
+            toast.success('Calendar Updated', {
+              description: `Added "${action.entity_title}" to your calendar`,
+              action: {
+                label: 'View',
+                onClick: () => {
+                  // Navigate to calendar view
+                  if (window.location.pathname !== '/you') {
+                    window.location.href = '/you#calendar';
+                  } else {
+                    // Already on You page, just scroll to calendar
+                    document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }
+              }
+            });
+          }
+          break;
+
+        case 'reload_expenses':
+          window.dispatchEvent(new CustomEvent('reload-expenses', {
+            detail: { entityId: action.entity_id, entityTitle: action.entity_title }
+          }));
+          if (action.entity_title) {
+            toast.success('Expense Added', {
+              description: `Logged "${action.entity_title}"`,
+              action: {
+                label: 'View',
+                onClick: () => {
+                  // Navigate to budget/expenses view
+                  if (window.location.pathname !== '/wins') {
+                    window.location.href = '/wins#expenses';
+                  }
+                }
+              }
+            });
+          }
+          break;
+
+        case 'reload_trips':
+          window.dispatchEvent(new CustomEvent('reload-trips', {
+            detail: { entityId: action.entity_id, entityTitle: action.entity_title }
+          }));
+          if (action.entity_title) {
+            toast.success('Trip Planned', {
+              description: `Added trip to ${action.entity_title}`,
+              action: {
+                label: 'View',
+                onClick: () => {
+                  // Navigate to trips view
+                  if (window.location.pathname !== '/wheels') {
+                    window.location.href = '/wheels#trips';
+                  }
+                }
+              }
+            });
+          }
+          break;
+
+        case 'open_map':
+          // Future: Navigate to map view with specific location
+          console.log('Map navigation deferred for future implementation');
+          break;
+
+        default:
+          console.warn(`Unknown UI action type: ${action.type}`);
+      }
+    });
   }
 
   private async enhanceMessageWithLocation(message: PamApiMessage): Promise<PamApiMessage> {

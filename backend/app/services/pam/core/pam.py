@@ -987,7 +987,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
         message: str,
         context: Optional[Dict[str, Any]] = None,
         stream: bool = False
-    ) -> str | AsyncGenerator[str, None]:
+    ) -> Dict[str, Any] | AsyncGenerator[str, None]:
         """
         Process a user message and return PAM's response
 
@@ -1296,6 +1296,9 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                 # Execute tools and get results
                 tool_results = await self._execute_tools(response.content)
 
+                # Extract UI actions from tool results
+                ui_actions = self._extract_ui_actions(tool_results)
+
                 # Convert Anthropic objects to dicts for storage
                 content_dicts = []
                 for block in response.content:
@@ -1363,7 +1366,11 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     )
 
                 logger.info(f"PAM response with tools ({len(assistant_message)} chars)")
-                return assistant_message
+                logger.info(f"UI actions extracted: {ui_actions}")
+                return {
+                    "text": assistant_message,
+                    "ui_actions": ui_actions
+                }
 
             else:
                 # No tools used, extract text response
@@ -1398,7 +1405,10 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
 
                 logger.info(f"PAM response without tools ({len(assistant_message)} chars)")
                 logger.info(f"🔍 Full assistant message: {assistant_message}")
-                return assistant_message
+                return {
+                    "text": assistant_message,
+                    "ui_actions": []
+                }
 
         except Exception as e:
             logger.error(f"Error calling Claude API: {e}", exc_info=True)
@@ -1534,6 +1544,63 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     logger.error(f"Error executing tool {tool_name}: {e}", exc_info=True)
 
         return tool_results
+
+    def _extract_ui_actions(self, tool_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Extract UI actions from tool execution results
+
+        Args:
+            tool_results: List of tool result dictionaries from _execute_tools()
+
+        Returns:
+            List of UI action dictionaries to send to frontend
+        """
+        actions = []
+
+        for tool_result in tool_results:
+            try:
+                # Parse the tool result content (it's JSON string)
+                content = tool_result.get("content", "{}")
+                result_data = json.loads(content) if isinstance(content, str) else content
+
+                # Get tool name from the tool_use_id (we don't have direct access, but can infer from result)
+                # Instead, we'll check for success and known result structures
+
+                # Calendar event created/updated
+                if result_data.get("success") and "event" in result_data:
+                    event = result_data.get("event", {})
+                    actions.append({
+                        "type": "reload_calendar",
+                        "entity_id": event.get("id"),
+                        "entity_type": "calendar_event",
+                        "entity_title": event.get("title")
+                    })
+
+                # Expense created
+                if result_data.get("success") and "expense" in result_data:
+                    expense = result_data.get("expense", {})
+                    actions.append({
+                        "type": "reload_expenses",
+                        "entity_id": expense.get("id"),
+                        "entity_type": "expense",
+                        "entity_title": expense.get("description")
+                    })
+
+                # Trip planned
+                if result_data.get("success") and "trip" in result_data:
+                    trip = result_data.get("trip", {})
+                    actions.append({
+                        "type": "reload_trips",
+                        "entity_id": trip.get("id"),
+                        "entity_type": "trip",
+                        "entity_title": trip.get("destination")
+                    })
+
+            except Exception as e:
+                logger.warning(f"Failed to extract UI action from tool result: {e}")
+                continue
+
+        return actions
 
     async def _stream_response(self, messages: List[Dict[str, str]], filtered_tools: List[Dict] = None) -> AsyncGenerator[str, None]:
         """
