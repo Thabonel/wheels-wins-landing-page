@@ -483,11 +483,19 @@ class SimplePamService:
                 pam = await get_pam(user_id, user_language)
 
                 # Call PAM with the message
-                response_text = await pam.chat(
+                # PAM.chat() now returns dict: {"text": str, "ui_actions": list}
+                pam_result = await pam.chat(
                     message=message,
                     context=enhanced_context,
                     stream=stream
                 )
+
+                # Extract text from dict response
+                if isinstance(pam_result, dict):
+                    response_text = pam_result.get("text", "")
+                else:
+                    # Fallback for old string response format
+                    response_text = pam_result
 
                 logger.info(f"⏱️ [TIMING] PAM chat took: {time.time() - pam_start:.3f}s")
                 logger.info(f"✅ PAM response: {len(response_text)} chars")
