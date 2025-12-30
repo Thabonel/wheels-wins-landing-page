@@ -528,8 +528,11 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       setIsContinuousMode(true);
       setConversationMode('voice'); // Enable voice responses when voice mode starts
 
-      // Get API base URL from environment
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      // Get API base URL from environment - environment-aware detection
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ||
+        (window.location.hostname === 'wheelsandwins.com'
+          ? 'https://pam-backend.onrender.com'  // Production
+          : 'https://wheels-wins-backend-staging.onrender.com');  // Staging
 
       // Get JWT token from Supabase session
       const authToken = session.access_token;
@@ -871,8 +874,11 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       // SIMPLE REST API CHAT (production-ready)
       logger.info('💬 Sending message via simple REST API');
 
-      // Call production PAM chat endpoint
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      // Call production PAM chat endpoint - environment-aware detection
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ||
+        (window.location.hostname === 'wheelsandwins.com'
+          ? 'https://pam-backend.onrender.com'  // Production
+          : 'https://wheels-wins-backend-staging.onrender.com');  // Staging
       const response = await fetch(`${apiBaseUrl}/api/v1/pam/chat`, {
         method: 'POST',
         headers: {

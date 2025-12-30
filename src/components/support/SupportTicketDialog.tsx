@@ -54,7 +54,10 @@ export function SupportTicketDialog({ trigger }: SupportTicketDialogProps) {
 
     try {
       // Use backend API instead of direct Supabase to bypass RLS issues
-      const backendUrl = import.meta.env.VITE_API_BASE_URL || 'https://wheels-wins-backend-staging.onrender.com';
+      const backendUrl = import.meta.env.VITE_API_BASE_URL ||
+        (window.location.hostname === 'wheelsandwins.com'
+          ? 'https://pam-backend.onrender.com'  // Production
+          : 'https://wheels-wins-backend-staging.onrender.com');  // Staging
       const response = await fetch(`${backendUrl}/api/v1/support/tickets`, {
         method: 'POST',
         headers: {
