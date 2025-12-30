@@ -2377,16 +2377,25 @@ async def chat_endpoint(
             pam_instance = await get_pam(user_id=str(user_id), user_language=user_language)
 
             # Process message with PAM core brain
-            # PAM.chat() returns str, we wrap it in dict to match expected interface
-            pam_response_text = await pam_instance.chat(
+            # PAM.chat() now returns dict: {"text": str, "ui_actions": list}
+            pam_chat_result = await pam_instance.chat(
                 message=sanitized_message,
                 context=context,  # Pass full context including user_location
                 stream=False
             )
 
+            # Extract text and ui_actions from dict response
+            if isinstance(pam_chat_result, dict):
+                pam_response_text = pam_chat_result.get("text", "")
+                ui_actions = pam_chat_result.get("ui_actions", [])
+            else:
+                # Fallback for old string response format (backward compatibility)
+                pam_response_text = pam_chat_result
+                ui_actions = []
+
             pam_response = {
                 "content": pam_response_text,
-                "actions": [],  # Actions extracted from Claude tool calls during PAM.chat()
+                "actions": ui_actions,  # Use actual ui_actions from PAM
                 "success": True
             }
             actions = pam_response.get("actions", [])
