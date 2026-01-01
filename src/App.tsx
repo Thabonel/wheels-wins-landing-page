@@ -22,6 +22,7 @@ const Shop = lazyWithRetry(() => import('./pages/Shop'));
 const AdminDashboard = lazyWithRetry(() => import('./pages/AdminDashboard'));
 const KnowledgeCenter = lazyWithRetry(() => import('./pages/KnowledgeCenter'));
 const KnowledgeArticle = lazyWithRetry(() => import('./pages/KnowledgeArticle'));
+const KnowledgeSubmit = lazyWithRetry(() => import('./pages/KnowledgeSubmit'));
 import ScrollToTop from './components/ScrollToTop';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
@@ -104,6 +105,7 @@ function App() {
                                   <Route path="/wheels" element={<ProtectedRoute><Wheels /></ProtectedRoute>} />
                                   <Route path="/knowledge" element={<KnowledgeCenter />} />
                                   <Route path="/knowledge/:id" element={<KnowledgeArticle />} />
+                                  <Route path="/knowledge/submit" element={<ProtectedRoute><KnowledgeSubmit /></ProtectedRoute>} />
                                   <Route path="/you" element={<ProtectedRoute><You /></ProtectedRoute>} />
                                   <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                                   <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
