@@ -121,7 +121,7 @@ export default function KnowledgeCenter() {
             <div>
               <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
                 <BookOpen className="h-10 w-10 text-blue-600" />
-                Knowledge Center
+                Wisdom
               </h1>
               <p className="mt-2 text-lg text-gray-600">
                 Community-contributed guides, tips, and resources for overlanders
