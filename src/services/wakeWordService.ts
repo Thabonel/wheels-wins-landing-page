@@ -24,6 +24,8 @@ class WakeWordService {
   private isListening: boolean = false;
   private options: WakeWordOptions | null = null;
   private restartTimeout: NodeJS.Timeout | null = null;
+  private shouldRestart: boolean = true;
+  private lastError: string | null = null;
 
   /**
    * Check if wake word detection is supported in this browser
@@ -49,6 +51,8 @@ class WakeWordService {
     }
 
     this.options = options;
+    this.shouldRestart = true; // Enable automatic restart for continuous listening
+    this.lastError = null; // Clear any previous errors
 
     try {
       // Create speech recognition instance
@@ -81,23 +85,43 @@ class WakeWordService {
 
       // Handle errors
       this.recognition.onerror = (event: any) => {
-        logger.error(`Wake word recognition error: ${event.error}`);
+        const errorType = event.error;
+        this.lastError = errorType;
 
-        // Don't treat "no-speech" as error - it's normal
-        if (event.error !== 'no-speech') {
-          this.options?.onError?.(`Recognition error: ${event.error}`);
+        // Log error (debug level for expected errors)
+        if (errorType === 'no-speech') {
+          logger.debug('Wake word: no speech detected (normal)');
+        } else if (errorType === 'aborted') {
+          logger.debug('Wake word: recognition aborted (expected when stopping)');
+        } else {
+          logger.error(`Wake word recognition error: ${errorType}`);
         }
 
-        // Auto-restart on certain errors
-        if (event.error === 'no-speech' || event.error === 'audio-capture') {
+        // Don't treat "no-speech" or "aborted" as critical errors
+        if (errorType !== 'no-speech' && errorType !== 'aborted') {
+          this.options?.onError?.(`Recognition error: ${errorType}`);
+        }
+
+        // Auto-restart on recoverable errors (but not "aborted")
+        if ((errorType === 'no-speech' || errorType === 'audio-capture') && this.shouldRestart) {
           this.scheduleRestart();
+        }
+
+        // Don't restart on "aborted" - it means we're stopping intentionally
+        if (errorType === 'aborted') {
+          this.shouldRestart = false;
         }
       };
 
       // Handle end (auto-restart for continuous listening)
       this.recognition.onend = () => {
-        logger.debug('Wake word recognition ended, restarting...');
-        this.scheduleRestart();
+        // Only restart if shouldRestart is true (not explicitly stopped)
+        if (this.shouldRestart && this.isListening) {
+          logger.debug('Wake word recognition ended, restarting...');
+          this.scheduleRestart();
+        } else {
+          logger.debug('Wake word recognition ended (no restart - explicitly stopped)');
+        }
       };
 
       // Start recognition
@@ -118,10 +142,16 @@ class WakeWordService {
    * Stop listening for wake word
    */
   public stop(): void {
+    // Prevent automatic restart when explicitly stopped
+    this.shouldRestart = false;
+
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);
       this.restartTimeout = null;
     }
+
+    // Set isListening false BEFORE calling recognition.stop() to prevent race conditions
+    this.isListening = false;
 
     if (this.recognition) {
       try {
@@ -132,7 +162,6 @@ class WakeWordService {
       this.recognition = null;
     }
 
-    this.isListening = false;
     this.options?.onStatusChange?.(false);
     logger.info('🔇 Wake word listening stopped');
   }
