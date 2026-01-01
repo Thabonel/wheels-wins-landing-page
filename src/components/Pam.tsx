@@ -138,6 +138,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownWelcomeRef = useRef(false);
   const tokenRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const conversationEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const connectionStartTimeRef = useRef<number>(0);
   const reconnectAttemptsRef = useRef<number>(0);
   
@@ -725,6 +726,32 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         onStatusChange: (status) => {
           setIsSpeaking(status.isSpeaking);
           setIsListening(status.isListening);
+
+          // Automatic conversation end detection
+          // When PAM finishes speaking AND user is silent → start 5-second timeout
+          // If user speaks again → clear timeout
+          const bothSilent = !status.isSpeaking && !status.isListening;
+
+          if (bothSilent) {
+            // Clear any existing timeout
+            if (conversationEndTimeoutRef.current) {
+              clearTimeout(conversationEndTimeoutRef.current);
+            }
+
+            // Start 5-second silence timeout
+            logger.debug('🔇 Both silent - starting 5s conversation end timer');
+            conversationEndTimeoutRef.current = setTimeout(() => {
+              logger.info('⏱️ Conversation ended (5s silence) - auto-switching to wake word');
+              stopContinuousVoiceMode();
+            }, 5000); // 5 seconds of silence
+          } else {
+            // User is speaking or PAM is speaking - clear timeout
+            if (conversationEndTimeoutRef.current) {
+              logger.debug('🎤 Activity detected - clearing conversation end timer');
+              clearTimeout(conversationEndTimeoutRef.current);
+              conversationEndTimeoutRef.current = null;
+            }
+          }
         }
       });
 
@@ -745,6 +772,12 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   const stopContinuousVoiceMode = async () => {
     logger.debug('🔇 Stopping continuous voice mode');
+
+    // Clear conversation end timeout
+    if (conversationEndTimeoutRef.current) {
+      clearTimeout(conversationEndTimeoutRef.current);
+      conversationEndTimeoutRef.current = null;
+    }
 
     // Update UI state IMMEDIATELY for instant visual feedback
     setIsContinuousMode(false);
