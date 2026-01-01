@@ -75,27 +75,27 @@ const Wheels = () => {
   const tabs = [
     {
       id: "trip-planner",
-      label: t('wheels.tabs.tripPlanner')
+      label: "Planner"
     },
     {
       id: "trips",
-      label: t('wheels.tabs.trips')
+      label: "My Trips"
     },
     {
       id: "fuel-log",
-      label: t('wheels.tabs.fuelLog')
+      label: "Fuel"
     },
     {
       id: "vehicle-maintenance",
-      label: t('wheels.tabs.maintenance')
+      label: "Maintenance"
     },
     {
       id: "rv-storage",
-      label: t('wheels.tabs.storage')
+      label: "Storage"
     },
     {
       id: "caravan-safety",
-      label: t('wheels.tabs.safety')
+      label: "Safety"
     },
     {
       id: "wisdom",
@@ -138,12 +138,12 @@ const Wheels = () => {
             </div>
             
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full justify-start flex-wrap mb-6">
+              <TabsList className="w-full justify-start mb-6 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-hide">
                 {isMobile ? (
                   <div className="w-full p-2">
-                    <select 
-                      value={activeTab} 
-                      onChange={e => setActiveTab(e.target.value)} 
+                    <select
+                      value={activeTab}
+                      onChange={e => setActiveTab(e.target.value)}
                       className="w-full bg-white border border-gray-200 rounded-md py-2 px-3 text-sm"
                     >
                       {tabs.map(tab => (
@@ -155,7 +155,11 @@ const Wheels = () => {
                   </div>
                 ) : (
                   tabs.map(tab => (
-                    <TabsTrigger key={tab.id} value={tab.id} className="text-base py-3 px-6">
+                    <TabsTrigger
+                      key={tab.id}
+                      value={tab.id}
+                      className="text-sm sm:text-base py-2 px-3 sm:py-3 sm:px-4 whitespace-nowrap flex-shrink-0"
+                    >
                       {tab.label}
                     </TabsTrigger>
                   ))
