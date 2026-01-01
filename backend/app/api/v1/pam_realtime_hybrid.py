@@ -276,6 +276,14 @@ async def voice_to_claude_bridge(
                 user_text = data.get("text", "")
                 context = data.get("context", {})
 
+                # DIAGNOSTIC: Log voice context for calendar appointments
+                pam_logger.info(f"🔍 DIAGNOSTIC: Voice context received={context}")
+                pam_logger.info(f"🔍 DIAGNOSTIC: Has timezone? {('timezone' in context)}")
+                pam_logger.info(f"🔍 DIAGNOSTIC: Has location? {('user_location' in context)}")
+                if 'user_location' in context:
+                    loc = context['user_location']
+                    pam_logger.info(f"🔍 DIAGNOSTIC: Location complete? lat={loc.get('lat')}, lng={loc.get('lng')}")
+
                 # Get or update PAM instance with user's language preference
                 # Prefer context language if explicitly provided; otherwise read from cached profile
                 user_language = context.get("language")

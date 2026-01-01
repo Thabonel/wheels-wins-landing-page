@@ -14,10 +14,11 @@ celery_app = Celery(
     backend=settings.REDIS_URL,
     include=[
         "app.workers.tasks.email_tasks",
-        "app.workers.tasks.maintenance_tasks", 
+        "app.workers.tasks.maintenance_tasks",
         "app.workers.tasks.analytics_tasks",
         "app.workers.tasks.cleanup_tasks",
-        "app.workers.tasks.notification_tasks"
+        "app.workers.tasks.notification_tasks",
+        "app.workers.tasks.reset_quotas"
     ]
 )
 
@@ -30,6 +31,7 @@ celery_app.conf.update(
         "app.workers.tasks.analytics_tasks.*": {"queue": "analytics"},
         "app.workers.tasks.cleanup_tasks.*": {"queue": "cleanup"},
         "app.workers.tasks.notification_tasks.*": {"queue": "notifications"},
+        "app.workers.tasks.reset_quotas.*": {"queue": "maintenance"},
     },
     
     # Queue definitions
@@ -79,6 +81,16 @@ celery_app.conf.update(
         "send-daily-digest": {
             "task": "app.workers.tasks.notification_tasks.send_daily_digest",
             "schedule": 86400.0,  # Daily at midnight
+        },
+        "reset-monthly-quotas": {
+            "task": "reset_monthly_quotas",
+            "schedule": 2592000.0,  # Monthly (30 days)
+            # Note: In production, use crontab schedule for 1st of month
+            # "schedule": crontab(day_of_month=1, hour=0, minute=0),
+        },
+        "check-quota-health-daily": {
+            "task": "check_quota_health",
+            "schedule": 86400.0,  # Daily
         },
     },
     beat_schedule_filename="celerybeat-schedule",

@@ -1,5 +1,13 @@
 # Session Context - [Date]
 
+## Supabase Project
+
+This project uses the **"Wheels and Wins"** Supabase project.
+- **Project URL:** https://kycoklimpzkyrecbjecn.supabase.co
+- **Project Ref:** kycoklimpzkyrecbjecn
+
+---
+
 ## Current Session Goals
 - [ ] Goal 1
 - [ ] Goal 2
