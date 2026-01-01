@@ -67,7 +67,7 @@ interface PamProps {
 // The actual PAM implementation
 const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const { user, session } = useAuth();
-  const { settings, updateSettings } = useUserSettings();
+  const { settings, updateSettings, loading } = useUserSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [shouldAutoSend, setShouldAutoSend] = useState(false);
@@ -238,9 +238,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
   // Auto-start wake word listening if enabled in settings
   useEffect(() => {
-    if (!pamEnabled || !user || !settings) return;
+    if (!pamEnabled || !user || loading) return;  // Wait for settings to finish loading
 
-    const wakeWordEnabled = settings.pam_preferences?.wake_word_enabled ?? true;
+    const wakeWordEnabled = settings?.pam_preferences?.wake_word_enabled ?? true;
 
     if (wakeWordEnabled && !isWakeWordListening) {
       logger.info('⚙️ Auto-starting wake word listening (enabled in settings)');
@@ -254,7 +254,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         wakeWordService.stop();
       }
     };
-  }, [user, settings?.pam_preferences?.wake_word_enabled]);
+  }, [user, loading, settings?.pam_preferences?.wake_word_enabled]);
 
   // Update location context when tracking state changes
   useEffect(() => {
