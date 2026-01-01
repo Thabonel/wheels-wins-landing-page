@@ -22,9 +22,9 @@ class ArticleSubmission(BaseModel):
     title: str = Field(..., min_length=5, max_length=200)
     content: str = Field(..., min_length=100)
     excerpt: Optional[str] = Field(None, max_length=500)
-    category: str = Field(..., regex="^(shipping|maintenance|travel_tips|camping|routes|general)$")
+    category: str = Field(..., pattern="^(shipping|maintenance|travel_tips|camping|routes|general)$")
     tags: List[str] = Field(default_factory=list, max_items=10)
-    difficulty_level: Optional[str] = Field(None, regex="^(beginner|intermediate|advanced)$")
+    difficulty_level: Optional[str] = Field(None, pattern="^(beginner|intermediate|advanced)$")
     estimated_read_time: Optional[int] = Field(None, ge=1, le=120)
 
 
@@ -33,7 +33,7 @@ class ArticleUpdate(BaseModel):
     content: Optional[str] = Field(None, min_length=100)
     excerpt: Optional[str] = Field(None, max_length=500)
     tags: Optional[List[str]] = Field(None, max_items=10)
-    difficulty_level: Optional[str] = Field(None, regex="^(beginner|intermediate|advanced)$")
+    difficulty_level: Optional[str] = Field(None, pattern="^(beginner|intermediate|advanced)$")
     estimated_read_time: Optional[int] = Field(None, ge=1, le=120)
 
 
@@ -50,12 +50,12 @@ class ApprovalAction(BaseModel):
 
 @router.get("")
 async def list_articles(
-    category: Optional[str] = Query(None, regex="^(shipping|maintenance|travel_tips|camping|routes|general)$"),
+    category: Optional[str] = Query(None, pattern="^(shipping|maintenance|travel_tips|camping|routes|general)$"),
     tags: Optional[str] = Query(None, description="Comma-separated tags"),
     search: Optional[str] = Query(None, description="Search in title and excerpt"),
-    difficulty: Optional[str] = Query(None, regex="^(beginner|intermediate|advanced)$"),
-    sort_by: str = Query("created_at", regex="^(created_at|views|helpful_count|title)$"),
-    order: str = Query("desc", regex="^(asc|desc)$"),
+    difficulty: Optional[str] = Query(None, pattern="^(beginner|intermediate|advanced)$"),
+    sort_by: str = Query("created_at", pattern="^(created_at|views|helpful_count|title)$"),
+    order: str = Query("desc", pattern="^(asc|desc)$"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0)
 ):
