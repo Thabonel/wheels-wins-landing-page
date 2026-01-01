@@ -2230,6 +2230,154 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Search Tips tool registration failed: {e}")
         failed_count += 1
 
+    # Community Tool: Search Knowledge
+    try:
+        logger.debug("🔄 Attempting to register Search Knowledge tool...")
+        search_knowledge_func = lazy_import("app.services.pam.tools.community.search_knowledge", "search_knowledge")
+
+        if search_knowledge_func is None:
+            raise ImportError("search_knowledge function not available")
+
+        class SearchKnowledgeTool:
+            tool_name = "search_knowledge"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await search_knowledge_func(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=SearchKnowledgeTool(),
+            function_definition={
+                "name": "search_knowledge",
+                "description": "Search approved community knowledge articles and guides. Use to find in-depth guides on shipping, maintenance, travel tips, camping, and routes.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query (keywords)"
+                        },
+                        "category": {
+                            "type": "string",
+                            "enum": ["shipping", "maintenance", "travel_tips", "camping", "routes", "general"],
+                            "description": "Filter by category"
+                        },
+                        "difficulty": {
+                            "type": "string",
+                            "enum": ["beginner", "intermediate", "advanced"],
+                            "description": "Filter by difficulty level"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Max results (default: 5)"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Search Knowledge tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Search Knowledge tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Search Knowledge tool registration failed: {e}")
+        failed_count += 1
+
+    # Community Tool: Get Knowledge Article
+    try:
+        logger.debug("🔄 Attempting to register Get Knowledge Article tool...")
+        get_knowledge_article_func = lazy_import("app.services.pam.tools.community.search_knowledge", "get_knowledge_article")
+
+        if get_knowledge_article_func is None:
+            raise ImportError("get_knowledge_article function not available")
+
+        class GetKnowledgeArticleTool:
+            tool_name = "get_knowledge_article"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await get_knowledge_article_func(**params)
+
+        registry.register_tool(
+            tool=GetKnowledgeArticleTool(),
+            function_definition={
+                "name": "get_knowledge_article",
+                "description": "Get full details of a specific knowledge article by ID. Use after search_knowledge to get complete content.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "article_id": {
+                            "type": "string",
+                            "description": "UUID of the article"
+                        }
+                    },
+                    "required": ["article_id"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=3
+        )
+        logger.info("✅ Get Knowledge Article tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Get Knowledge Article tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Get Knowledge Article tool registration failed: {e}")
+        failed_count += 1
+
+    # Community Tool: Get Knowledge by Category
+    try:
+        logger.debug("🔄 Attempting to register Get Knowledge by Category tool...")
+        get_knowledge_by_category_func = lazy_import("app.services.pam.tools.community.search_knowledge", "get_knowledge_by_category")
+
+        if get_knowledge_by_category_func is None:
+            raise ImportError("get_knowledge_by_category function not available")
+
+        class GetKnowledgeByCategoryTool:
+            tool_name = "get_knowledge_by_category"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await get_knowledge_by_category_func(**params)
+
+        registry.register_tool(
+            tool=GetKnowledgeByCategoryTool(),
+            function_definition={
+                "name": "get_knowledge_by_category",
+                "description": "Browse top knowledge articles in a specific category. Use to show popular guides in shipping, maintenance, etc.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "enum": ["shipping", "maintenance", "travel_tips", "camping", "routes", "general"],
+                            "description": "Category to browse"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Max results (default: 10)"
+                        }
+                    },
+                    "required": ["category"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=3
+        )
+        logger.info("✅ Get Knowledge by Category tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Get Knowledge by Category tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Get Knowledge by Category tool registration failed: {e}")
+        failed_count += 1
+
     # ===============================
     # ADDITIONAL TRIP TOOLS (4 tools)
     # Critical for: Trip planning
