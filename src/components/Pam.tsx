@@ -25,6 +25,7 @@ import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { pamAgenticService } from "@/services/pamAgenticService";
 import { logger } from '../lib/logger';
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
+import { wakeWordService } from "@/services/wakeWordService";
 
 // Using Backend PersonalizedPamAgent API for proper authentication and tool execution
 
@@ -504,13 +505,42 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     logger.debug('🔇 Audio level monitoring stopped');
   };
 
-  const startWakeWordListening = () => {
-    logger.debug('👂 Wake word listening started');
-    setIsWakeWordListening(true);
+  const startWakeWordListening = async () => {
+    try {
+      logger.debug('👂 Starting wake word listening for "Hey Pam"');
+
+      await wakeWordService.start({
+        wakeWord: 'hey pam',
+        confidence: 0.6, // Slightly lower threshold for better detection
+        onWakeWordDetected: () => {
+          logger.info('✨ Wake word "Hey Pam" detected - activating microphone');
+
+          // Auto-activate voice mode when wake word is detected
+          if (!isContinuousMode) {
+            startContinuousVoiceMode();
+          }
+        },
+        onError: (error) => {
+          logger.error(`Wake word error: ${error}`);
+          setIsWakeWordListening(false);
+        },
+        onStatusChange: (listening) => {
+          setIsWakeWordListening(listening);
+        }
+      });
+
+      setIsWakeWordListening(true);
+      logger.info('✅ Wake word listening active - say "Hey Pam" to activate');
+
+    } catch (error) {
+      logger.error('Failed to start wake word listening:', error);
+      setIsWakeWordListening(false);
+    }
   };
 
   const stopWakeWordListening = () => {
-    logger.debug('🔇 Wake word listening stopped');
+    logger.debug('🔇 Stopping wake word listening');
+    wakeWordService.stop();
     setIsWakeWordListening(false);
   };
 
@@ -1143,6 +1173,33 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
               disabled={connectionStatus !== "Connected"}
             />
+            {/* Wake word toggle - "Hey Pam" activation */}
+            <button
+              onClick={isWakeWordListening ? stopWakeWordListening : startWakeWordListening}
+              className={`p-2 rounded-lg transition-all ${
+                isWakeWordListening
+                  ? "bg-green-600 text-white hover:bg-green-700 animate-pulse"
+                  : "text-gray-400 hover:bg-gray-100"
+              }`}
+              disabled={connectionStatus !== "Connected"}
+              title={isWakeWordListening ? 'Listening for "Hey Pam" - click to stop' : 'Enable "Hey Pam" wake word'}
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.536a5 5 0 001.414 0M4.222 18.364a9 9 0 01-2.222-2.828"
+                />
+              </svg>
+            </button>
+
+            {/* Voice mode toggle */}
             <button
               onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
               className={`p-2 rounded-lg transition-colors ${
@@ -1350,6 +1407,33 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
                 disabled={connectionStatus !== "Connected"}
               />
+              {/* Wake word toggle - "Hey Pam" activation */}
+              <button
+                onClick={isWakeWordListening ? stopWakeWordListening : startWakeWordListening}
+                className={`p-2 rounded-lg transition-all ${
+                  isWakeWordListening
+                    ? "bg-green-600 text-white hover:bg-green-700 animate-pulse"
+                    : "text-gray-400 hover:bg-gray-100"
+                }`}
+                disabled={connectionStatus !== "Connected"}
+                title={isWakeWordListening ? 'Listening for "Hey Pam" - click to stop' : 'Enable "Hey Pam" wake word'}
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.536a5 5 0 001.414 0M4.222 18.364a9 9 0 01-2.222-2.828"
+                  />
+                </svg>
+              </button>
+
+              {/* Voice mode toggle */}
               <button
                 onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
                 className={`p-2 rounded-lg transition-colors ${
