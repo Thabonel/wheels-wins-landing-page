@@ -7,6 +7,11 @@ from .submit_tip import (
     get_user_contribution_stats,
     get_community_stats
 )
+from .search_knowledge import (
+    search_knowledge,
+    get_knowledge_article,
+    get_knowledge_by_category
+)
 
 __all__ = [
     'search_community_tips',
@@ -15,5 +20,8 @@ __all__ = [
     'submit_community_tip',
     'get_user_tips',
     'get_user_contribution_stats',
-    'get_community_stats'
+    'get_community_stats',
+    'search_knowledge',
+    'get_knowledge_article',
+    'get_knowledge_by_category'
 ]
