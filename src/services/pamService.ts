@@ -1030,7 +1030,8 @@ class PamService {
           ...locationData,  // Now adds user_location directly (correct field name)
           // Add environment context
           environment: this.getEnvironment(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // User's browser timezone
         };
 
         // Validate context before sending (development/staging only)
@@ -1057,7 +1058,8 @@ class PamService {
           context: {
             ...message.context,
             environment: this.getEnvironment(),
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // User's browser timezone
           }
         };
       }
@@ -1068,7 +1070,8 @@ class PamService {
         context: {
           ...message.context,
           environment: this.getEnvironment(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // User's browser timezone
         }
       };
     }

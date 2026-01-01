@@ -71,6 +71,9 @@ export interface PamContext {
   /** Optional: User's region/timezone */
   region?: string;
 
+  /** Optional: User's IANA timezone (e.g., "Australia/Sydney") */
+  timezone?: string;
+
   /** Optional: Connection type */
   connection_type?: 'websocket' | 'websocket_streaming' | 'http';
 
