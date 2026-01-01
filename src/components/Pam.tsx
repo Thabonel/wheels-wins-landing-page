@@ -535,6 +535,11 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         onWakeWordDetected: () => {
           logger.info('✨ Wake word "Hey Pam" detected - activating microphone');
 
+          // CRITICAL: Stop wake word IMMEDIATELY to prevent double-detection
+          // (interimResults can trigger multiple times for same phrase)
+          wakeWordService.stop();
+          setIsWakeWordListening(false);
+
           // Auto-activate voice mode when wake word is detected
           if (!isContinuousMode) {
             startContinuousVoiceMode();
