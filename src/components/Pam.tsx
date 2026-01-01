@@ -236,6 +236,26 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   }, [user, session?.access_token, messages.length]);
 
+  // Auto-start wake word listening if enabled in settings
+  useEffect(() => {
+    if (!pamEnabled || !user || !settings) return;
+
+    const wakeWordEnabled = settings.pam_preferences?.wake_word_enabled ?? true;
+
+    if (wakeWordEnabled && !isWakeWordListening) {
+      logger.info('⚙️ Auto-starting wake word listening (enabled in settings)');
+      startWakeWordListening();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (isWakeWordListening) {
+        logger.debug('🧹 Cleanup: Stopping wake word listening');
+        wakeWordService.stop();
+      }
+    };
+  }, [user, settings?.pam_preferences?.wake_word_enabled]);
+
   // Update location context when tracking state changes
   useEffect(() => {
     const updateLocationContext = async () => {
@@ -523,6 +543,16 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         onError: (error) => {
           logger.error(`Wake word error: ${error}`);
           setIsWakeWordListening(false);
+
+          // Update settings to reflect failure
+          if (settings?.pam_preferences) {
+            updateSettings({
+              pam_preferences: {
+                ...settings.pam_preferences,
+                wake_word_enabled: false
+              }
+            });
+          }
         },
         onStatusChange: (listening) => {
           setIsWakeWordListening(listening);
@@ -530,11 +560,32 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       });
 
       setIsWakeWordListening(true);
+
+      // Save preference to settings
+      if (settings?.pam_preferences) {
+        updateSettings({
+          pam_preferences: {
+            ...settings.pam_preferences,
+            wake_word_enabled: true
+          }
+        });
+      }
+
       logger.info('✅ Wake word listening active - say "Hey Pam" to activate');
 
     } catch (error) {
       logger.error('Failed to start wake word listening:', error);
       setIsWakeWordListening(false);
+
+      // Update settings to reflect failure
+      if (settings?.pam_preferences) {
+        updateSettings({
+          pam_preferences: {
+            ...settings.pam_preferences,
+            wake_word_enabled: false
+          }
+        });
+      }
     }
   };
 
@@ -542,6 +593,16 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     logger.debug('🔇 Stopping wake word listening');
     wakeWordService.stop();
     setIsWakeWordListening(false);
+
+    // Save preference to settings
+    if (settings?.pam_preferences) {
+      updateSettings({
+        pam_preferences: {
+          ...settings.pam_preferences,
+          wake_word_enabled: false
+        }
+      });
+    }
   };
 
   const startContinuousVoiceMode = async () => {
