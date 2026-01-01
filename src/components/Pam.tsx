@@ -648,6 +648,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       setIsContinuousMode(true);
       setConversationMode('voice'); // Enable voice responses when voice mode starts
 
+      // Show connecting feedback
+      logger.info('🔄 Connecting to PAM voice system...');
+
       // Get API base URL from environment - environment-aware detection
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ||
         (window.location.hostname === 'wheelsandwins.com'
@@ -757,9 +760,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
     // Restart wake word listening if enabled in settings
     const wakeWordEnabled = settings?.pam_preferences?.wake_word_enabled ?? true;
+    logger.info(`🔍 Wake word restart check: enabled=${wakeWordEnabled}, isListening=${isWakeWordListening}`);
+
     if (wakeWordEnabled && !isWakeWordListening) {
       logger.info('🔊 Restarting wake word (voice mode stopped)');
       await startWakeWordListening();
+    } else {
+      logger.warn(`⚠️ Wake word NOT restarted: enabled=${wakeWordEnabled}, already listening=${isWakeWordListening}`);
     }
 
     logger.debug('✅ Continuous voice mode stopped');
