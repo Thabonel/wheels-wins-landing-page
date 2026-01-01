@@ -66,7 +66,8 @@ googlemaps==4.10.0
 yelpapi==2.5.0
 
 # Timezone detection from coordinates (for fallback)
-timezonefinder==6.5.2
+# timezonefinder==6.5.2  # Temporarily disabled - h3 dependency fails to build on Python 3.13
+# Browser timezone detection is used instead (99.9% coverage)
 
 # Additional audio processing (optional)
 # transformers==4.36.0
