@@ -613,7 +613,31 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         return;
       }
 
+      // Prevent multiple instances - stop existing service first
+      if (realtimeService) {
+        logger.warn('⚠️ Voice service already active - stopping before restart');
+        try {
+          await realtimeService.stop();
+        } catch (error) {
+          logger.error('Error stopping old voice service:', error);
+        }
+        setRealtimeService(null);
+      }
+
+      // Prevent double-activation
+      if (isContinuousMode) {
+        logger.warn('⚠️ Voice mode already active - ignoring duplicate activation');
+        return;
+      }
+
       logger.debug('🎙️ Starting PAM Hybrid voice mode');
+
+      // CRITICAL: Stop wake word listening to prevent re-triggering
+      if (isWakeWordListening) {
+        logger.info('🔇 Stopping wake word (voice mode active)');
+        wakeWordService.stop();
+        setIsWakeWordListening(false);
+      }
 
       // Update UI state IMMEDIATELY for instant visual feedback
       setIsContinuousMode(true);
@@ -647,10 +671,33 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         } : undefined,
         currentPage: 'pam_chat',
         onTranscript: (text) => {
+          // Filter out wake word activation phrases
+          const wakeWords = ['hey pam', 'hey, pam', 'hi pam', 'hi, pam'];
+          const cleanedText = text.toLowerCase().trim();
+
+          // Ignore if text is ONLY the wake word
+          if (wakeWords.some(ww => cleanedText === ww)) {
+            logger.debug('🔇 Ignoring wake word only:', text);
+            return;
+          }
+
+          // If text STARTS with wake word, remove it
+          let filteredText = text;
+          wakeWords.forEach(wakeWord => {
+            const regex = new RegExp(`^${wakeWord}[,\\s]+`, 'i');
+            filteredText = filteredText.replace(regex, '').trim();
+          });
+
+          // Skip if nothing left after filtering
+          if (filteredText.length === 0) {
+            logger.debug('🔇 Empty after filter:', text);
+            return;
+          }
+
           // Add user's transcribed speech as a message
           const newMessage: PamMessage = {
             id: Date.now().toString(),
-            content: text,
+            content: filteredText,
             sender: "user",
             timestamp: new Date().toISOString(),
           };
@@ -701,6 +748,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (realtimeService) {
       await realtimeService.stop();
       setRealtimeService(null);
+    }
+
+    // Restart wake word listening if enabled in settings
+    const wakeWordEnabled = settings?.pam_preferences?.wake_word_enabled ?? true;
+    if (wakeWordEnabled && !isWakeWordListening) {
+      logger.info('🔊 Restarting wake word (voice mode stopped)');
+      await startWakeWordListening();
     }
 
     logger.debug('✅ Continuous voice mode stopped');

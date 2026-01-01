@@ -547,9 +547,9 @@ export class PAMVoiceHybridService {
       this.processorNode = null;
     }
 
-    // Close audio
+    // Stop audio processor
     if (this.audioProcessor) {
-      this.audioProcessor.close();
+      this.audioProcessor.stop();
       this.audioProcessor = null;
     }
 
