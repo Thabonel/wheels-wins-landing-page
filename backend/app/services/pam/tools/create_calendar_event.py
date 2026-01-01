@@ -18,6 +18,9 @@ from uuid import UUID
 from pydantic import ValidationError
 from zoneinfo import ZoneInfo
 
+# Initialize logger first (before using it)
+logger = logging.getLogger(__name__)
+
 # Coordinate-based timezone detection (fallback)
 try:
     from timezonefinder import TimezoneFinder
@@ -32,8 +35,6 @@ if TYPE_CHECKING:
 
 from .base_tool import BaseTool, ToolResult, ToolCapability
 from app.services.pam.schemas import CreateCalendarEventInput
-
-logger = logging.getLogger(__name__)
 
 
 def detect_user_timezone(context: Dict[str, Any]) -> tuple[ZoneInfo, str, str]:
