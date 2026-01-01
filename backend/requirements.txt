@@ -65,6 +65,9 @@ openai-whisper>=20240930
 googlemaps==4.10.0
 yelpapi==2.5.0
 
+# Timezone detection from coordinates (for fallback)
+timezonefinder==6.5.2
+
 # Additional audio processing (optional)
 # transformers==4.36.0
 

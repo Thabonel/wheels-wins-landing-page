@@ -894,7 +894,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             conversation_mode: conversationMode, // "voice" or "text" - controls TTS
             location: locationObj || undefined,
             userLocation: locationObj || undefined,
-            conversation_history: conversationHistory.slice(-3)
+            conversation_history: conversationHistory.slice(-3),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // User's browser timezone (e.g., "Australia/Sydney")
           }
         })
       });
