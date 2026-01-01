@@ -230,8 +230,21 @@ async def get_current_user_optional(credentials: Optional[HTTPAuthorizationCrede
     """
     if not credentials:
         return None
-    
+
     try:
         return await get_current_user(credentials)
     except HTTPException:
         return None
+
+
+async def require_admin(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
+    """
+    FastAPI dependency to require admin authentication.
+    Verifies the user has admin privileges.
+    """
+    if not current_user.get("is_admin", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_user
