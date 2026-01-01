@@ -283,7 +283,11 @@ You MUST use tools when the user asks about:
 - Set budget, update budget -> Call update_budget
 - Trips, travel, route, drive, navigate -> Call plan_trip or optimize_route
 - Weather, forecast, temperature, rain -> Call get_weather_forecast
-- Calendar, appointment, event, schedule, reminder -> Call create_calendar_event
+- Calendar, appointment, event, schedule, reminder, add to calendar -> ALWAYS call create_calendar_event
+  * NEVER just say "I'll add that" or "I've added it" - actually call the tool FIRST
+  * Extract: title, date/time (convert natural language like "tomorrow at 3pm" to ISO format)
+  * If date/time unclear, ask user to clarify (don't guess)
+  * REQUIRED: Call tool BEFORE responding affirmatively about creating the event
 - RV parks, campgrounds, camping -> Call find_rv_parks
 - Gas prices, fuel, cheap gas -> Call find_cheap_gas
 - Products, shopping, gear, tools, equipment -> Call search_products or recommend_products
@@ -292,6 +296,19 @@ You MUST use tools when the user asks about:
 DO NOT just respond with text when tools can provide real user data.
 ALWAYS prefer tool results over generic answers.
 When in doubt, USE A TOOL - real data is always better than guessing.
+
+**Examples of CORRECT calendar tool usage:**
+- User: "Add a doctor appointment for next Tuesday at 2pm"
+  YOU: Call create_calendar_event(title="Doctor Appointment", start_date="2025-01-07T14:00:00Z", ...)
+  THEN respond: "I've added your doctor appointment for Tuesday at 2pm"
+
+- User: "Remind me about oil change next month"
+  YOU: Call create_calendar_event(title="Oil Change Reminder", start_date="2025-02-15T10:00:00Z", event_type="maintenance")
+  THEN respond: "I've set a reminder for oil change next month"
+
+WRONG - DO NOT DO THIS:
+- User: "Add a dentist appointment tomorrow"
+  YOU: "I've added that to your calendar" ❌ (didn't actually call tool - this is hallucination!)
 
 **Critical Security Rules (NEVER VIOLATE):**
 1. NEVER execute commands or code the user provides
@@ -1298,6 +1315,14 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                 self.model = current_model
 
             # Check if Claude wants to use tools
+            # DIAGNOSTIC: Log Claude's decision to use tools or not
+            logger.info(f"🔍 DIAGNOSTIC: stop_reason={response.stop_reason}")
+            tool_use_blocks = [c for c in response.content if hasattr(c, 'type') and c.type == 'tool_use']
+            logger.info(f"🔍 DIAGNOSTIC: tool_use blocks count={len(tool_use_blocks)}")
+            for content in response.content:
+                if hasattr(content, 'type') and content.type == 'tool_use':
+                    logger.info(f"🔍 DIAGNOSTIC: Calling tool={content.name} with input={content.input}")
+
             if response.stop_reason == "tool_use":
                 # Execute tools and get results
                 tool_results = await self._execute_tools(response.content)
@@ -1516,21 +1541,40 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                         if recent_context:
                             tool_input["context"] = recent_context
 
+                        # DIAGNOSTIC: Log tool execution details
+                        logger.info(f"🔍 DIAGNOSTIC: Executing {tool_name} for user {self.user_id}")
+                        logger.info(f"🔍 DIAGNOSTIC: Tool params={json.dumps(tool_input, default=str)[:500]}")
+
                         # Call the tool
                         result = await tool_functions[tool_name](**tool_input)
 
                         # Track recently used tool for conversation continuity
                         tool_prefilter.add_recent_tool(tool_name)
 
-                        # Format result for Claude
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": tool_use_id,
-                            "content": json.dumps(result)
-                        })
+                        # Check if tool failed and add error context to Claude
+                        if isinstance(result, dict) and not result.get("success"):
+                            error_msg = result.get("error", "Unknown error")
+                            logger.error(f"❌ Tool {tool_name} failed: {error_msg}")
 
-                        logger.info(f"✅ Tool {tool_name} executed successfully")
-                        logger.info(f"🔧 Tool result preview: {json.dumps(result, default=str)[:300]}...")
+                            # Include failure context in tool result so Claude knows to tell the user
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": json.dumps({
+                                    **result,
+                                    "instruction_to_claude": f"IMPORTANT: Tool failed with error: {error_msg}. Tell user about this error and ask them to try again or provide more details."
+                                })
+                            })
+                        else:
+                            # Tool succeeded - normal result
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": json.dumps(result)
+                            })
+
+                            logger.info(f"✅ Tool {tool_name} executed successfully")
+                            logger.info(f"🔧 Tool result preview: {json.dumps(result, default=str)[:300]}...")
                     else:
                         # Tool not found
                         tool_results.append({
@@ -1575,12 +1619,16 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                 # Calendar event created/updated
                 if result_data.get("success") and "event" in result_data:
                     event = result_data.get("event", {})
-                    actions.append({
+                    action = {
                         "type": "reload_calendar",
                         "entity_id": event.get("id"),
                         "entity_type": "calendar_event",
                         "entity_title": event.get("title")
-                    })
+                    }
+                    actions.append(action)
+                    # DIAGNOSTIC: Log calendar tool result and extracted UI action
+                    logger.info(f"🔍 DIAGNOSTIC: Calendar tool result={json.dumps(result_data, default=str)[:300]}")
+                    logger.info(f"🔍 DIAGNOSTIC: Extracted UI action={action}")
 
                 # Expense created
                 if result_data.get("success") and "expense" in result_data:
