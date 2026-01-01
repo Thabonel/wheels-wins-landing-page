@@ -4,6 +4,7 @@ import DashboardOverview from './DashboardOverview';
 import AuthDebugAdmin from './AuthDebugAdmin';
 import AuthTestingPanel from './AuthTestingPanel';
 import IntegrationTestingDashboard from './IntegrationTestingDashboard';
+import { KnowledgeApproval } from './KnowledgeApproval';
 import {
   LearningDashboard,
   AIRouterMetrics,
@@ -37,6 +38,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <UserManagement />;
       case 'Content Moderation':
         return <ContentModeration />;
+      case 'Knowledge Approval':
+        return <KnowledgeApproval />;
       case 'Analytics':
         return <ReportsAnalytics />;
       case 'Data Collector':
