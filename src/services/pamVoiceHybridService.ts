@@ -422,7 +422,7 @@ export class PAMVoiceHybridService {
           switch (action.type) {
             case 'reload_calendar':
               // Dispatch event for calendar component to reload
-              window.dispatchEvent(new CustomEvent('pam-calendar-updated', {
+              window.dispatchEvent(new CustomEvent('reload-calendar', {
                 detail: {
                   entity_id: action.entity_id,
                   entity_type: action.entity_type,
@@ -434,7 +434,7 @@ export class PAMVoiceHybridService {
 
             case 'reload_expenses':
               // Dispatch event for expenses component to reload
-              window.dispatchEvent(new CustomEvent('pam-expenses-updated', {
+              window.dispatchEvent(new CustomEvent('reload-expenses', {
                 detail: {
                   entity_id: action.entity_id
                 }
