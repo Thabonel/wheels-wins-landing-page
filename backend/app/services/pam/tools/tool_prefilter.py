@@ -221,6 +221,11 @@ class ToolPrefilter:
         filtered_tools = []
         tool_names_included = set()
 
+        # DIAGNOSTIC: Log what we're filtering
+        logger.info(f"🔍 PREFILTER: Message: {user_message[:100]}...")
+        logger.info(f"🔍 PREFILTER: Total tools: {len(all_tools)}")
+        logger.info(f"🔍 PREFILTER: CORE_TOOLS: {self.CORE_TOOLS}")
+
         # 1. Add core tools
         for tool in all_tools:
             # Support both formats: {"function": {"name": "..."}} and {"name": "..."}
@@ -278,6 +283,10 @@ class ToolPrefilter:
 
         # Store stats for monitoring
         self.last_filter_stats = self.get_filtering_stats(all_tools, filtered_tools)
+
+        # DIAGNOSTIC: Log final result
+        logger.info(f"🔍 PREFILTER: Returning {len(filtered_tools)} tools")
+        logger.info(f"🔍 PREFILTER: Tool names: {[t.get('name', t.get('function', {}).get('name', 'UNKNOWN')) for t in filtered_tools]}")
 
         return filtered_tools
 

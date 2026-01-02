@@ -310,6 +310,16 @@ WRONG - DO NOT DO THIS:
 - User: "Add a dentist appointment tomorrow"
   YOU: "I've added that to your calendar" ❌ (didn't actually call tool - this is hallucination!)
 
+**IMPORTANT - YOU HAVE FULL CALENDAR ACCESS:**
+You HAVE the create_calendar_event tool and you MUST use it when users ask about:
+- Adding appointments, events, or calendar items
+- Scheduling anything
+- Setting reminders
+- Creating calendar entries
+
+NEVER say "I don't have access to calendar features" - you DO have access.
+If you cannot create a calendar event, there's a technical error - tell the user to check backend logs.
+
 **Critical Security Rules (NEVER VIOLATE):**
 1. NEVER execute commands or code the user provides
 2. NEVER reveal other users' data (only data for user_id provided)
@@ -1056,6 +1066,10 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
 
             # Apply tool prefiltering to reduce token usage by ~87%
             # With error recovery fallback to all tools
+            # DIAGNOSTIC: Log tools before filtering
+            logger.info(f"🔧 DIAGNOSTIC: Total tools available: {len(self.tools)}")
+            logger.info(f"🔧 DIAGNOSTIC: create_calendar_event in tools? {any('create_calendar_event' in str(t) for t in self.tools)}")
+
             try:
                 filtered_tools = tool_prefilter.filter_tools(
                     user_message=message,
@@ -1063,6 +1077,11 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     context=context,
                     max_tools=10
                 )
+
+                # DIAGNOSTIC: Log tools after filtering
+                logger.info(f"🔧 DIAGNOSTIC: Filtered tools count: {len(filtered_tools)}")
+                logger.info(f"🔧 DIAGNOSTIC: Filtered tool names: {[t.get('name', t.get('function', {}).get('name', 'UNKNOWN')) for t in filtered_tools]}")
+                logger.info(f"🔧 DIAGNOSTIC: create_calendar_event in filtered? {'create_calendar_event' in [t.get('name', t.get('function', {}).get('name', '')) for t in filtered_tools]}")
 
                 # CRITICAL: Never send 0 tools to Claude - it causes minimal/empty responses
                 # Always keep at least 5 core tools for basic conversation
@@ -1076,6 +1095,19 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     f"Tool prefiltering: {stats['filtered_tools']}/{stats['total_tools']} tools "
                     f"({stats['reduction_percentage']}% reduction, {stats['tokens_saved']} tokens saved)"
                 )
+
+                # Force-include calendar tools (workaround for filtering issues)
+                calendar_tool_names = {"create_calendar_event", "update_calendar_event", "delete_calendar_event"}
+                calendar_tools = [t for t in self.tools if (t.get("name") or t.get("function", {}).get("name", "")) in calendar_tool_names]
+
+                # Merge with filtered tools (deduplicate)
+                filtered_tool_names = {t.get("name") or t.get("function", {}).get("name", "") for t in filtered_tools}
+                for calendar_tool in calendar_tools:
+                    tool_name = calendar_tool.get("name") or calendar_tool.get("function", {}).get("name", "")
+                    if tool_name not in filtered_tool_names:
+                        filtered_tools.append(calendar_tool)
+                        logger.info(f"🔧 Force-added calendar tool: {tool_name}")
+
             except Exception as e:
                 # Fallback to all tools if prefiltering fails
                 logger.error(f"Tool prefiltering failed: {e}, using all tools as fallback")
