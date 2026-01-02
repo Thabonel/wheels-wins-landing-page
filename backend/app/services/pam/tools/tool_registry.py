@@ -914,6 +914,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("track_savings function not available")
 
         class TrackSavingsTool:
+            tool_name = "track_savings"
             async def execute(self, user_id: str, **kwargs):
                 return await track_savings(user_id=user_id, **kwargs)
 
@@ -967,6 +968,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("analyze_budget function not available")
 
         class AnalyzeBudgetTool:
+            tool_name = "analyze_budget"
             async def execute(self, user_id: str, **kwargs):
                 return await analyze_budget(user_id=user_id, **kwargs)
 
@@ -1012,6 +1014,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("compare_vs_budget function not available")
 
         class CompareVsBudgetTool:
+            tool_name = "compare_vs_budget"
             async def execute(self, user_id: str, **kwargs):
                 return await compare_vs_budget(user_id=user_id, **kwargs)
 
@@ -1056,6 +1059,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("predict_end_of_month function not available")
 
         class PredictEndOfMonthTool:
+            tool_name = "predict_end_of_month"
             async def execute(self, user_id: str, **kwargs):
                 return await predict_end_of_month(user_id=user_id, **kwargs)
 
@@ -1095,6 +1099,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("find_savings_opportunities function not available")
 
         class FindSavingsOpportunitiesTool:
+            tool_name = "find_savings_opportunities"
             async def execute(self, user_id: str, **kwargs):
                 return await find_savings_opportunities(user_id=user_id, **kwargs)
 
@@ -1134,6 +1139,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("find_cheap_gas function not available")
 
         class FindCheapGasTool:
+            tool_name = "find_cheap_gas"
             async def execute(self, user_id: str, **kwargs):
                 return await find_cheap_gas(user_id=user_id, **kwargs)
 
@@ -1187,6 +1193,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("optimize_route function not available")
 
         class OptimizeRouteTool:
+            tool_name = "optimize_route"
             async def execute(self, user_id: str, **kwargs):
                 return await optimize_route(user_id=user_id, **kwargs)
 
@@ -1238,6 +1245,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("get_road_conditions function not available")
 
         class GetRoadConditionsTool:
+            tool_name = "get_road_conditions"
             async def execute(self, user_id: str, **kwargs):
                 return await get_road_conditions(user_id=user_id, **kwargs)
 
@@ -1285,6 +1293,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("estimate_travel_time function not available")
 
         class EstimateTravelTimeTool:
+            tool_name = "estimate_travel_time"
             async def execute(self, user_id: str, **kwargs):
                 return await estimate_travel_time(user_id=user_id, **kwargs)
 
@@ -1342,6 +1351,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("update_calendar_event function not available")
 
         class UpdateCalendarEventTool:
+            tool_name = "update_calendar_event"
             async def execute(self, user_id: str, **kwargs):
                 return await update_calendar_event(user_id=user_id, **kwargs)
 
@@ -1419,6 +1429,7 @@ async def _register_all_tools(registry: ToolRegistry):
             raise ImportError("delete_calendar_event function not available")
 
         class DeleteCalendarEventTool:
+            tool_name = "delete_calendar_event"
             async def execute(self, user_id: str, **kwargs):
                 return await delete_calendar_event(user_id=user_id, **kwargs)
 
