@@ -53,6 +53,7 @@ interface UserSettings {
   };
   pam_preferences: {
     voice_enabled: boolean;
+    wake_word_enabled: boolean; // "Hey Pam" wake word activation
     proactive_suggestions: boolean;
     response_style: string;
     expertise_level: string;
@@ -182,6 +183,7 @@ export const useUserSettings = () => {
             },
             pam_preferences: {
               voice_enabled: true,
+              wake_word_enabled: true, // Enable "Hey Pam" wake word by default
               proactive_suggestions: true,
               response_style: 'helpful',
               expertise_level: 'intermediate',
@@ -255,6 +257,7 @@ export const useUserSettings = () => {
         },
         pam_preferences: {
           voice_enabled: true,
+          wake_word_enabled: true, // Enable "Hey Pam" wake word by default
           proactive_suggestions: true,
           response_style: 'helpful',
           expertise_level: 'intermediate',

@@ -48,6 +48,7 @@ class ExportFormat(str, Enum):
 
 class EventType(str, Enum):
     """Valid calendar event types - must match frontend CalendarEvent types"""
+    PERSONAL = "personal"
     REMINDER = "reminder"
     TRIP = "trip"
     BOOKING = "booking"

@@ -276,6 +276,14 @@ async def voice_to_claude_bridge(
                 user_text = data.get("text", "")
                 context = data.get("context", {})
 
+                # DIAGNOSTIC: Log voice context for calendar appointments
+                pam_logger.info(f"🔍 DIAGNOSTIC: Voice context received={context}")
+                pam_logger.info(f"🔍 DIAGNOSTIC: Has timezone? {('timezone' in context)}")
+                pam_logger.info(f"🔍 DIAGNOSTIC: Has location? {('user_location' in context)}")
+                if 'user_location' in context:
+                    loc = context['user_location']
+                    pam_logger.info(f"🔍 DIAGNOSTIC: Location complete? lat={loc.get('lat')}, lng={loc.get('lng')}")
+
                 # Get or update PAM instance with user's language preference
                 # Prefer context language if explicitly provided; otherwise read from cached profile
                 user_language = context.get("language")
@@ -296,16 +304,27 @@ async def voice_to_claude_bridge(
                 )
 
                 # Forward to Claude (existing PAM system)
-                claude_response = await pam.chat(
+                # PAM.chat() now returns dict: {"text": str, "ui_actions": list}
+                pam_result = await pam.chat(
                     message=user_text,
                     context=context,
                     stream=False  # Get complete response
                 )
 
+                # Extract text from dict response
+                if isinstance(pam_result, dict):
+                    claude_response = pam_result.get("text", "")
+                    ui_actions = pam_result.get("ui_actions", [])
+                else:
+                    # Fallback for old string response format
+                    claude_response = pam_result
+                    ui_actions = []
+
                 # Send Claude's response back to browser
                 await websocket.send_json({
                     "type": "assistant_response",
                     "text": claude_response,
+                    "ui_actions": ui_actions,  # Include UI actions for voice mode
                     "timestamp": data.get("timestamp")
                 })
 

@@ -18,8 +18,9 @@ coverage/
 CLAUDE.local.md
 *.local.md
 
-# Package lock files (prevent accidental dependency updates)
-package-lock.json
+# Package lock files
+# NOTE: package-lock.json should be committed for CI/CD consistency
+# Removed from .gitignore to fix GitHub Actions caching
 yarn.lock
 
 # Git Safety Systems - Generated Files (DO NOT COMMIT)
