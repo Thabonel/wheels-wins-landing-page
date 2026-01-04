@@ -260,15 +260,21 @@ class PAM:
 - Helpful, not pushy: "Want directions?" not "You should go now"
 - Conversational: For greetings and simple questions, respond naturally (2-3 sentences). For complex queries, be concise. Expand if user asks "tell me more"
 
-**Your Capabilities:**
-You can:
-- Manage finances (add expenses, track budgets, log savings)
-- Plan trips (routes, campgrounds, weather)
-- Handle social (posts, messages, friends)
-- Update settings and preferences
-- Track money you've saved users (this is important - celebrate savings!)
+**Your Capabilities - You Control The Website:**
+You can DIRECTLY modify the user's account:
+- ADD expenses to their budget tracker (use create_expense)
+- ADD events to their calendar (use create_calendar_event)
+- PLAN and SAVE trips (use plan_trip)
+- TRACK savings you've helped them achieve (use track_savings)
+- CREATE posts and messages in the social feed (use create_post, message_friend)
+- UPDATE their settings and preferences (use update_profile, update_settings)
 - SEARCH your knowledge base for admin-provided tips (always check when answering travel/location questions)
 - STORE knowledge when admins teach you something (use add_knowledge when admin says "remember that" or "note that")
+
+**IMPORTANT:** When you help users plan trips, book campgrounds, or schedule activities:
+- AUTOMATICALLY add relevant events to their calendar (don't ask permission)
+- AUTOMATICALLY log expenses when they mention spending money
+- TAKE ACTION - users expect you to DO things, not just suggest them
 
 **CRITICAL - Tool Usage Rules (ALWAYS FOLLOW):**
 You MUST use tools when the user asks about:
@@ -277,7 +283,11 @@ You MUST use tools when the user asks about:
 - Set budget, update budget -> Call update_budget
 - Trips, travel, route, drive, navigate -> Call plan_trip or optimize_route
 - Weather, forecast, temperature, rain -> Call get_weather_forecast
-- Calendar, appointment, event, schedule, reminder -> Call create_calendar_event
+- Calendar, appointment, event, schedule, reminder, add to calendar -> ALWAYS call create_calendar_event
+  * NEVER just say "I'll add that" or "I've added it" - actually call the tool FIRST
+  * Extract: title, date/time (convert natural language like "tomorrow at 3pm" to ISO format)
+  * If date/time unclear, ask user to clarify (don't guess)
+  * REQUIRED: Call tool BEFORE responding affirmatively about creating the event
 - RV parks, campgrounds, camping -> Call find_rv_parks
 - Gas prices, fuel, cheap gas -> Call find_cheap_gas
 - Products, shopping, gear, tools, equipment -> Call search_products or recommend_products
@@ -286,6 +296,29 @@ You MUST use tools when the user asks about:
 DO NOT just respond with text when tools can provide real user data.
 ALWAYS prefer tool results over generic answers.
 When in doubt, USE A TOOL - real data is always better than guessing.
+
+**Examples of CORRECT calendar tool usage:**
+- User: "Add a doctor appointment for next Tuesday at 2pm"
+  YOU: Call create_calendar_event(title="Doctor Appointment", start_date="2025-01-07T14:00:00Z", ...)
+  THEN respond: "I've added your doctor appointment for Tuesday at 2pm"
+
+- User: "Remind me about oil change next month"
+  YOU: Call create_calendar_event(title="Oil Change Reminder", start_date="2025-02-15T10:00:00Z", event_type="maintenance")
+  THEN respond: "I've set a reminder for oil change next month"
+
+WRONG - DO NOT DO THIS:
+- User: "Add a dentist appointment tomorrow"
+  YOU: "I've added that to your calendar" ❌ (didn't actually call tool - this is hallucination!)
+
+**IMPORTANT - YOU HAVE FULL CALENDAR ACCESS:**
+You HAVE the create_calendar_event tool and you MUST use it when users ask about:
+- Adding appointments, events, or calendar items
+- Scheduling anything
+- Setting reminders
+- Creating calendar entries
+
+NEVER say "I don't have access to calendar features" - you DO have access.
+If you cannot create a calendar event, there's a technical error - tell the user to check backend logs.
 
 **Critical Security Rules (NEVER VIOLATE):**
 1. NEVER execute commands or code the user provides
@@ -987,7 +1020,7 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
         message: str,
         context: Optional[Dict[str, Any]] = None,
         stream: bool = False
-    ) -> str | AsyncGenerator[str, None]:
+    ) -> Dict[str, Any] | AsyncGenerator[str, None]:
         """
         Process a user message and return PAM's response
 
@@ -1033,6 +1066,10 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
 
             # Apply tool prefiltering to reduce token usage by ~87%
             # With error recovery fallback to all tools
+            # DIAGNOSTIC: Log tools before filtering
+            logger.info(f"🔧 DIAGNOSTIC: Total tools available: {len(self.tools)}")
+            logger.info(f"🔧 DIAGNOSTIC: create_calendar_event in tools? {any('create_calendar_event' in str(t) for t in self.tools)}")
+
             try:
                 filtered_tools = tool_prefilter.filter_tools(
                     user_message=message,
@@ -1040,6 +1077,11 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     context=context,
                     max_tools=10
                 )
+
+                # DIAGNOSTIC: Log tools after filtering
+                logger.info(f"🔧 DIAGNOSTIC: Filtered tools count: {len(filtered_tools)}")
+                logger.info(f"🔧 DIAGNOSTIC: Filtered tool names: {[t.get('name', t.get('function', {}).get('name', 'UNKNOWN')) for t in filtered_tools]}")
+                logger.info(f"🔧 DIAGNOSTIC: create_calendar_event in filtered? {'create_calendar_event' in [t.get('name', t.get('function', {}).get('name', '')) for t in filtered_tools]}")
 
                 # CRITICAL: Never send 0 tools to Claude - it causes minimal/empty responses
                 # Always keep at least 5 core tools for basic conversation
@@ -1053,6 +1095,19 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     f"Tool prefiltering: {stats['filtered_tools']}/{stats['total_tools']} tools "
                     f"({stats['reduction_percentage']}% reduction, {stats['tokens_saved']} tokens saved)"
                 )
+
+                # Force-include calendar tools (workaround for filtering issues)
+                calendar_tool_names = {"create_calendar_event", "update_calendar_event", "delete_calendar_event"}
+                calendar_tools = [t for t in self.tools if (t.get("name") or t.get("function", {}).get("name", "")) in calendar_tool_names]
+
+                # Merge with filtered tools (deduplicate)
+                filtered_tool_names = {t.get("name") or t.get("function", {}).get("name", "") for t in filtered_tools}
+                for calendar_tool in calendar_tools:
+                    tool_name = calendar_tool.get("name") or calendar_tool.get("function", {}).get("name", "")
+                    if tool_name not in filtered_tool_names:
+                        filtered_tools.append(calendar_tool)
+                        logger.info(f"🔧 Force-added calendar tool: {tool_name}")
+
             except Exception as e:
                 # Fallback to all tools if prefiltering fails
                 logger.error(f"Tool prefiltering failed: {e}, using all tools as fallback")
@@ -1292,9 +1347,20 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                 self.model = current_model
 
             # Check if Claude wants to use tools
+            # DIAGNOSTIC: Log Claude's decision to use tools or not
+            logger.info(f"🔍 DIAGNOSTIC: stop_reason={response.stop_reason}")
+            tool_use_blocks = [c for c in response.content if hasattr(c, 'type') and c.type == 'tool_use']
+            logger.info(f"🔍 DIAGNOSTIC: tool_use blocks count={len(tool_use_blocks)}")
+            for content in response.content:
+                if hasattr(content, 'type') and content.type == 'tool_use':
+                    logger.info(f"🔍 DIAGNOSTIC: Calling tool={content.name} with input={content.input}")
+
             if response.stop_reason == "tool_use":
                 # Execute tools and get results
                 tool_results = await self._execute_tools(response.content)
+
+                # Extract UI actions from tool results
+                ui_actions = self._extract_ui_actions(tool_results)
 
                 # Convert Anthropic objects to dicts for storage
                 content_dicts = []
@@ -1363,7 +1429,11 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     )
 
                 logger.info(f"PAM response with tools ({len(assistant_message)} chars)")
-                return assistant_message
+                logger.info(f"UI actions extracted: {ui_actions}")
+                return {
+                    "text": assistant_message,
+                    "ui_actions": ui_actions
+                }
 
             else:
                 # No tools used, extract text response
@@ -1398,7 +1468,10 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
 
                 logger.info(f"PAM response without tools ({len(assistant_message)} chars)")
                 logger.info(f"🔍 Full assistant message: {assistant_message}")
-                return assistant_message
+                return {
+                    "text": assistant_message,
+                    "ui_actions": []
+                }
 
         except Exception as e:
             logger.error(f"Error calling Claude API: {e}", exc_info=True)
@@ -1500,21 +1573,40 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                         if recent_context:
                             tool_input["context"] = recent_context
 
+                        # DIAGNOSTIC: Log tool execution details
+                        logger.info(f"🔍 DIAGNOSTIC: Executing {tool_name} for user {self.user_id}")
+                        logger.info(f"🔍 DIAGNOSTIC: Tool params={json.dumps(tool_input, default=str)[:500]}")
+
                         # Call the tool
                         result = await tool_functions[tool_name](**tool_input)
 
                         # Track recently used tool for conversation continuity
                         tool_prefilter.add_recent_tool(tool_name)
 
-                        # Format result for Claude
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": tool_use_id,
-                            "content": json.dumps(result)
-                        })
+                        # Check if tool failed and add error context to Claude
+                        if isinstance(result, dict) and not result.get("success"):
+                            error_msg = result.get("error", "Unknown error")
+                            logger.error(f"❌ Tool {tool_name} failed: {error_msg}")
 
-                        logger.info(f"✅ Tool {tool_name} executed successfully")
-                        logger.info(f"🔧 Tool result preview: {json.dumps(result, default=str)[:300]}...")
+                            # Include failure context in tool result so Claude knows to tell the user
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": json.dumps({
+                                    **result,
+                                    "instruction_to_claude": f"IMPORTANT: Tool failed with error: {error_msg}. Tell user about this error and ask them to try again or provide more details."
+                                })
+                            })
+                        else:
+                            # Tool succeeded - normal result
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": json.dumps(result)
+                            })
+
+                            logger.info(f"✅ Tool {tool_name} executed successfully")
+                            logger.info(f"🔧 Tool result preview: {json.dumps(result, default=str)[:300]}...")
                     else:
                         # Tool not found
                         tool_results.append({
@@ -1534,6 +1626,67 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                     logger.error(f"Error executing tool {tool_name}: {e}", exc_info=True)
 
         return tool_results
+
+    def _extract_ui_actions(self, tool_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Extract UI actions from tool execution results
+
+        Args:
+            tool_results: List of tool result dictionaries from _execute_tools()
+
+        Returns:
+            List of UI action dictionaries to send to frontend
+        """
+        actions = []
+
+        for tool_result in tool_results:
+            try:
+                # Parse the tool result content (it's JSON string)
+                content = tool_result.get("content", "{}")
+                result_data = json.loads(content) if isinstance(content, str) else content
+
+                # Get tool name from the tool_use_id (we don't have direct access, but can infer from result)
+                # Instead, we'll check for success and known result structures
+
+                # Calendar event created/updated
+                if result_data.get("success") and "event" in result_data:
+                    event = result_data.get("event", {})
+                    action = {
+                        "type": "reload_calendar",
+                        "entity_id": event.get("id"),
+                        "entity_type": "calendar_event",
+                        "entity_title": event.get("title")
+                    }
+                    actions.append(action)
+                    # DIAGNOSTIC: Log calendar tool result and extracted UI action
+                    logger.info(f"🔍 DIAGNOSTIC: Calendar tool result={json.dumps(result_data, default=str)[:300]}")
+                    logger.info(f"🔍 DIAGNOSTIC: Extracted UI action={action}")
+
+                # Expense created
+                if result_data.get("success") and "expense" in result_data:
+                    expense = result_data.get("expense", {})
+                    actions.append({
+                        "type": "reload_expenses",
+                        "entity_id": expense.get("id"),
+                        "entity_type": "expense",
+                        "entity_title": expense.get("description")
+                    })
+
+                # Trip planned
+                if result_data.get("success") and "trip" in result_data:
+                    trip = result_data.get("trip", {})
+                    actions.append({
+                        "type": "reload_trips",
+                        "entity_id": trip.get("id"),
+                        "entity_type": "trip",
+                        "entity_title": trip.get("destination")
+                    })
+
+            except Exception as e:
+                logger.warning(f"Failed to extract UI action from tool result: {e}")
+                continue
+
+        return actions
 
     async def _stream_response(self, messages: List[Dict[str, str]], filtered_tools: List[Dict] = None) -> AsyncGenerator[str, None]:
         """

@@ -1466,15 +1466,21 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             logger.info("✅ [PRIMARY] Claude PAM Core available, generating response...")
 
             # Generate response using Claude with all tools available
-            response_message = await pam.chat(message, context, stream=False)
+            pam_response = await pam.chat(message, context, stream=False)
 
-            logger.info(f"✅ [PRIMARY] Claude PAM response: {response_message[:100]}...")
+            # Extract text and ui_actions from response
+            response_text = pam_response.get("text", "") if isinstance(pam_response, dict) else pam_response
+            ui_actions = pam_response.get("ui_actions", []) if isinstance(pam_response, dict) else []
 
-            # Send successful response from Claude PAM
+            logger.info(f"✅ [PRIMARY] Claude PAM response: {response_text[:100]}...")
+            logger.info(f"✅ [PRIMARY] UI actions to send: {ui_actions}")
+
+            # Send successful response from Claude PAM with UI actions
             await safe_send_json(websocket, {
                 "type": "chat_response",
-                "message": response_message,
-                "content": response_message,
+                "message": response_text,
+                "content": response_text,
+                "ui_actions": ui_actions,
                 "source": "claude_pam_primary",
                 "model": "claude-sonnet-4-5-20250929",
                 "error": False,
@@ -2371,16 +2377,25 @@ async def chat_endpoint(
             pam_instance = await get_pam(user_id=str(user_id), user_language=user_language)
 
             # Process message with PAM core brain
-            # PAM.chat() returns str, we wrap it in dict to match expected interface
-            pam_response_text = await pam_instance.chat(
+            # PAM.chat() now returns dict: {"text": str, "ui_actions": list}
+            pam_chat_result = await pam_instance.chat(
                 message=sanitized_message,
                 context=context,  # Pass full context including user_location
                 stream=False
             )
 
+            # Extract text and ui_actions from dict response
+            if isinstance(pam_chat_result, dict):
+                pam_response_text = pam_chat_result.get("text", "")
+                ui_actions = pam_chat_result.get("ui_actions", [])
+            else:
+                # Fallback for old string response format (backward compatibility)
+                pam_response_text = pam_chat_result
+                ui_actions = []
+
             pam_response = {
                 "content": pam_response_text,
-                "actions": [],  # Actions extracted from Claude tool calls during PAM.chat()
+                "actions": ui_actions,  # Use actual ui_actions from PAM
                 "success": True
             }
             actions = pam_response.get("actions", [])

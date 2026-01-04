@@ -25,6 +25,7 @@ import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { pamAgenticService } from "@/services/pamAgenticService";
 import { logger } from '../lib/logger';
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
+import { wakeWordService } from "@/services/wakeWordService";
 
 // Using Backend PersonalizedPamAgent API for proper authentication and tool execution
 
@@ -66,7 +67,7 @@ interface PamProps {
 // The actual PAM implementation
 const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const { user, session } = useAuth();
-  const { settings, updateSettings } = useUserSettings();
+  const { settings, updateSettings, loading } = useUserSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [shouldAutoSend, setShouldAutoSend] = useState(false);
@@ -137,6 +138,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasShownWelcomeRef = useRef(false);
   const tokenRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const conversationEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const connectionStartTimeRef = useRef<number>(0);
   const reconnectAttemptsRef = useRef<number>(0);
   
@@ -234,6 +236,26 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       hasShownWelcomeRef.current = true;
     }
   }, [user, session?.access_token, messages.length]);
+
+  // Auto-start wake word listening if enabled in settings
+  useEffect(() => {
+    if (!pamEnabled || !user || loading) return;  // Wait for settings to finish loading
+
+    const wakeWordEnabled = settings?.pam_preferences?.wake_word_enabled ?? true;
+
+    if (wakeWordEnabled && !isWakeWordListening) {
+      logger.info('⚙️ Auto-starting wake word listening (enabled in settings)');
+      startWakeWordListening();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (isWakeWordListening) {
+        logger.debug('🧹 Cleanup: Stopping wake word listening');
+        wakeWordService.stop();
+      }
+    };
+  }, [user, loading, settings?.pam_preferences?.wake_word_enabled]);
 
   // Update location context when tracking state changes
   useEffect(() => {
@@ -504,14 +526,89 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     logger.debug('🔇 Audio level monitoring stopped');
   };
 
-  const startWakeWordListening = () => {
-    logger.debug('👂 Wake word listening started');
-    setIsWakeWordListening(true);
+  const startWakeWordListening = async () => {
+    try {
+      logger.debug('👂 Starting wake word listening for "Hey Pam"');
+
+      await wakeWordService.start({
+        wakeWord: 'hey pam',
+        confidence: 0.6, // Slightly lower threshold for better detection
+        onWakeWordDetected: () => {
+          logger.info('✨ Wake word "Hey Pam" detected - activating microphone');
+
+          // CRITICAL: Stop wake word IMMEDIATELY to prevent double-detection
+          // (interimResults can trigger multiple times for same phrase)
+          wakeWordService.stop();
+          setIsWakeWordListening(false);
+
+          // Auto-activate voice mode when wake word is detected
+          if (!isContinuousMode) {
+            startContinuousVoiceMode();
+          }
+        },
+        onError: (error) => {
+          logger.error(`Wake word error: ${error}`);
+          setIsWakeWordListening(false);
+
+          // Update settings to reflect failure
+          if (settings?.pam_preferences) {
+            updateSettings({
+              pam_preferences: {
+                ...settings.pam_preferences,
+                wake_word_enabled: false
+              }
+            });
+          }
+        },
+        onStatusChange: (listening) => {
+          setIsWakeWordListening(listening);
+        }
+      });
+
+      setIsWakeWordListening(true);
+
+      // Save preference to settings
+      if (settings?.pam_preferences) {
+        updateSettings({
+          pam_preferences: {
+            ...settings.pam_preferences,
+            wake_word_enabled: true
+          }
+        });
+      }
+
+      logger.info('✅ Wake word listening active - say "Hey Pam" to activate');
+
+    } catch (error) {
+      logger.error('Failed to start wake word listening:', error);
+      setIsWakeWordListening(false);
+
+      // Update settings to reflect failure
+      if (settings?.pam_preferences) {
+        updateSettings({
+          pam_preferences: {
+            ...settings.pam_preferences,
+            wake_word_enabled: false
+          }
+        });
+      }
+    }
   };
 
   const stopWakeWordListening = () => {
-    logger.debug('🔇 Wake word listening stopped');
+    logger.debug('🔇 Stopping wake word listening');
+    wakeWordService.stop();
     setIsWakeWordListening(false);
+
+    // Save preference to settings
+    if (settings?.pam_preferences) {
+      updateSettings({
+        pam_preferences: {
+          ...settings.pam_preferences,
+          wake_word_enabled: false
+        }
+      });
+    }
   };
 
   const startContinuousVoiceMode = async () => {
@@ -522,11 +619,38 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         return;
       }
 
+      // Prevent multiple instances - stop existing service first
+      if (realtimeService) {
+        logger.warn('⚠️ Voice service already active - stopping before restart');
+        try {
+          await realtimeService.stop();
+        } catch (error) {
+          logger.error('Error stopping old voice service:', error);
+        }
+        setRealtimeService(null);
+      }
+
+      // Prevent double-activation
+      if (isContinuousMode) {
+        logger.warn('⚠️ Voice mode already active - ignoring duplicate activation');
+        return;
+      }
+
       logger.debug('🎙️ Starting PAM Hybrid voice mode');
+
+      // CRITICAL: Stop wake word listening to prevent re-triggering
+      if (isWakeWordListening) {
+        logger.info('🔇 Stopping wake word (voice mode active)');
+        wakeWordService.stop();
+        setIsWakeWordListening(false);
+      }
 
       // Update UI state IMMEDIATELY for instant visual feedback
       setIsContinuousMode(true);
       setConversationMode('voice'); // Enable voice responses when voice mode starts
+
+      // Show connecting feedback
+      logger.info('🔄 Connecting to PAM voice system...');
 
       // Get API base URL from environment - environment-aware detection
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ||
@@ -556,10 +680,33 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         } : undefined,
         currentPage: 'pam_chat',
         onTranscript: (text) => {
+          // Filter out wake word activation phrases
+          const wakeWords = ['hey pam', 'hey, pam', 'hi pam', 'hi, pam'];
+          const cleanedText = text.toLowerCase().trim();
+
+          // Ignore if text is ONLY the wake word
+          if (wakeWords.some(ww => cleanedText === ww)) {
+            logger.debug('🔇 Ignoring wake word only:', text);
+            return;
+          }
+
+          // If text STARTS with wake word, remove it
+          let filteredText = text;
+          wakeWords.forEach(wakeWord => {
+            const regex = new RegExp(`^${wakeWord}[,\\s]+`, 'i');
+            filteredText = filteredText.replace(regex, '').trim();
+          });
+
+          // Skip if nothing left after filtering
+          if (filteredText.length === 0) {
+            logger.debug('🔇 Empty after filter:', text);
+            return;
+          }
+
           // Add user's transcribed speech as a message
           const newMessage: PamMessage = {
             id: Date.now().toString(),
-            content: text,
+            content: filteredText,
             sender: "user",
             timestamp: new Date().toISOString(),
           };
@@ -579,6 +726,32 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         onStatusChange: (status) => {
           setIsSpeaking(status.isSpeaking);
           setIsListening(status.isListening);
+
+          // Automatic conversation end detection
+          // When PAM finishes speaking AND user is silent → start 5-second timeout
+          // If user speaks again → clear timeout
+          const bothSilent = !status.isSpeaking && !status.isListening;
+
+          if (bothSilent) {
+            // Clear any existing timeout
+            if (conversationEndTimeoutRef.current) {
+              clearTimeout(conversationEndTimeoutRef.current);
+            }
+
+            // Start 5-second silence timeout
+            logger.debug('🔇 Both silent - starting 5s conversation end timer');
+            conversationEndTimeoutRef.current = setTimeout(() => {
+              logger.info('⏱️ Conversation ended (5s silence) - auto-switching to wake word');
+              stopContinuousVoiceMode();
+            }, 5000); // 5 seconds of silence
+          } else {
+            // User is speaking or PAM is speaking - clear timeout
+            if (conversationEndTimeoutRef.current) {
+              logger.debug('🎤 Activity detected - clearing conversation end timer');
+              clearTimeout(conversationEndTimeoutRef.current);
+              conversationEndTimeoutRef.current = null;
+            }
+          }
         }
       });
 
@@ -600,6 +773,12 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const stopContinuousVoiceMode = async () => {
     logger.debug('🔇 Stopping continuous voice mode');
 
+    // Clear conversation end timeout
+    if (conversationEndTimeoutRef.current) {
+      clearTimeout(conversationEndTimeoutRef.current);
+      conversationEndTimeoutRef.current = null;
+    }
+
     // Update UI state IMMEDIATELY for instant visual feedback
     setIsContinuousMode(false);
     setConversationMode('text'); // Disable voice responses when voice mode stops
@@ -610,6 +789,17 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     if (realtimeService) {
       await realtimeService.stop();
       setRealtimeService(null);
+    }
+
+    // Restart wake word listening if enabled in settings
+    const wakeWordEnabled = settings?.pam_preferences?.wake_word_enabled ?? true;
+    logger.info(`🔍 Wake word restart check: enabled=${wakeWordEnabled}, isListening=${isWakeWordListening}`);
+
+    if (wakeWordEnabled && !isWakeWordListening) {
+      logger.info('🔊 Restarting wake word (voice mode stopped)');
+      await startWakeWordListening();
+    } else {
+      logger.warn(`⚠️ Wake word NOT restarted: enabled=${wakeWordEnabled}, already listening=${isWakeWordListening}`);
     }
 
     logger.debug('✅ Continuous voice mode stopped');
@@ -894,7 +1084,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             conversation_mode: conversationMode, // "voice" or "text" - controls TTS
             location: locationObj || undefined,
             userLocation: locationObj || undefined,
-            conversation_history: conversationHistory.slice(-3)
+            conversation_history: conversationHistory.slice(-3),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // User's browser timezone (e.g., "Australia/Sydney")
           }
         })
       });
@@ -1142,6 +1333,33 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
               disabled={connectionStatus !== "Connected"}
             />
+            {/* Wake word toggle - "Hey Pam" activation */}
+            <button
+              onClick={isWakeWordListening ? stopWakeWordListening : startWakeWordListening}
+              className={`p-2 rounded-lg transition-all ${
+                isWakeWordListening
+                  ? "bg-green-600 text-white hover:bg-green-700 animate-pulse"
+                  : "text-gray-400 hover:bg-gray-100"
+              }`}
+              disabled={connectionStatus !== "Connected"}
+              title={isWakeWordListening ? 'Listening for "Hey Pam" - click to stop' : 'Enable "Hey Pam" wake word'}
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.536a5 5 0 001.414 0M4.222 18.364a9 9 0 01-2.222-2.828"
+                />
+              </svg>
+            </button>
+
+            {/* Voice mode toggle */}
             <button
               onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
               className={`p-2 rounded-lg transition-colors ${
@@ -1349,6 +1567,33 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
                 disabled={connectionStatus !== "Connected"}
               />
+              {/* Wake word toggle - "Hey Pam" activation */}
+              <button
+                onClick={isWakeWordListening ? stopWakeWordListening : startWakeWordListening}
+                className={`p-2 rounded-lg transition-all ${
+                  isWakeWordListening
+                    ? "bg-green-600 text-white hover:bg-green-700 animate-pulse"
+                    : "text-gray-400 hover:bg-gray-100"
+                }`}
+                disabled={connectionStatus !== "Connected"}
+                title={isWakeWordListening ? 'Listening for "Hey Pam" - click to stop' : 'Enable "Hey Pam" wake word'}
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.536a5 5 0 001.414 0M4.222 18.364a9 9 0 01-2.222-2.828"
+                  />
+                </svg>
+              </button>
+
+              {/* Voice mode toggle */}
               <button
                 onClick={isContinuousMode ? stopContinuousVoiceMode : startContinuousVoiceMode}
                 className={`p-2 rounded-lg transition-colors ${

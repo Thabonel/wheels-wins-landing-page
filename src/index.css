@@ -303,3 +303,14 @@
 .pam-error-toast {
   pointer-events: none;
 }
+
+/* Scrollbar hide utility for horizontal tab scrolling */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}

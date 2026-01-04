@@ -8,6 +8,7 @@ Example usage:
 - "Remind me about oil change next month"
 
 Amendment #4: Input validation with Pydantic models
+Amendment #5: Timezone-aware event creation with coordinate-based fallback
 """
 
 import logging
@@ -15,6 +16,18 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, TYPE_CHECKING, List
 from uuid import UUID
 from pydantic import ValidationError
+from zoneinfo import ZoneInfo
+
+# Initialize logger first (before using it)
+logger = logging.getLogger(__name__)
+
+# Coordinate-based timezone detection (fallback)
+try:
+    from timezonefinder import TimezoneFinder
+    TIMEZONE_FINDER_AVAILABLE = True
+except ImportError:
+    TIMEZONE_FINDER_AVAILABLE = False
+    logger.warning("timezonefinder not available - coordinate-based timezone detection disabled")
 
 # Import Client only for type checking to avoid runtime import failures
 if TYPE_CHECKING:
@@ -23,7 +36,49 @@ if TYPE_CHECKING:
 from .base_tool import BaseTool, ToolResult, ToolCapability
 from app.services.pam.schemas import CreateCalendarEventInput
 
-logger = logging.getLogger(__name__)
+
+def detect_user_timezone(context: Dict[str, Any]) -> tuple[ZoneInfo, str, str]:
+    """
+    Detect user's timezone with multiple fallback strategies
+
+    Strategy:
+    1. Try browser-detected timezone (context['timezone'])
+    2. Try coordinate-based detection (context['user_location'])
+    3. Fall back to UTC
+
+    Returns:
+        tuple: (ZoneInfo object, timezone_string, detection_method)
+    """
+    # Strategy 1: Browser-detected timezone (primary)
+    if 'timezone' in context and context['timezone']:
+        user_timezone_str = context['timezone']
+        try:
+            user_timezone = ZoneInfo(user_timezone_str)
+            logger.info(f"🌍 Timezone detected from browser: {user_timezone_str}")
+            return user_timezone, user_timezone_str, "browser"
+        except Exception as e:
+            logger.warning(f"Invalid browser timezone '{user_timezone_str}': {e}")
+
+    # Strategy 2: Coordinate-based detection (fallback)
+    if TIMEZONE_FINDER_AVAILABLE and 'user_location' in context:
+        user_loc = context['user_location']
+        lat = user_loc.get('lat')
+        lng = user_loc.get('lng')
+
+        if lat and lng:
+            try:
+                tf = TimezoneFinder()
+                timezone_str = tf.timezone_at(lat=lat, lng=lng)
+                if timezone_str:
+                    user_timezone = ZoneInfo(timezone_str)
+                    logger.info(f"🌍 Timezone detected from coordinates ({lat}, {lng}): {timezone_str}")
+                    return user_timezone, timezone_str, "coordinates"
+            except Exception as e:
+                logger.warning(f"Failed to detect timezone from coordinates ({lat}, {lng}): {e}")
+
+    # Strategy 3: UTC fallback
+    logger.warning("No timezone detected - falling back to UTC")
+    return ZoneInfo('UTC'), 'UTC', "fallback"
 
 
 async def create_calendar_event(
@@ -55,11 +110,19 @@ async def create_calendar_event(
         reminder_minutes: Array of reminder times in minutes before event [15, 60, 1440]
         color: Color hex code for calendar display
         is_private: Whether event is private (default: true)
+        **kwargs: Additional context (e.g., timezone from user's browser)
 
     Returns:
         Dict with created event details
 
     Amendment #4: Pydantic validation for input data
+    Amendment #5: Timezone-aware datetime interpretation with fallback strategies
+        - Primary: Uses browser-detected timezone (context['timezone'])
+        - Fallback: Derives timezone from GPS coordinates (context['user_location'])
+        - Last resort: Uses UTC
+        - If datetime has no timezone, interprets it in detected timezone
+        - Stores in database with proper timezone offset
+        - Automatically handles Daylight Saving Time transitions
     """
     # Validate inputs using Pydantic schema
     try:
@@ -91,8 +154,19 @@ async def create_calendar_event(
         # PAM is already authenticated via WebSocket/JWT, so using service_role is safe
         supabase = get_supabase_service()  # Type: Client (imported only for type checking)
 
-        # Parse dates (already validated by Pydantic)
-        start_dt = datetime.fromisoformat(validated.start_date.replace('Z', '+00:00'))
+        # Detect user's timezone with fallback strategies
+        context = kwargs.get('context', {})
+        user_timezone, user_timezone_str, detection_method = detect_user_timezone(context)
+
+        # Parse dates with timezone awareness
+        # If the datetime string has no timezone info, interpret it in user's timezone
+        start_dt_raw = validated.start_date.replace('Z', '+00:00')
+        start_dt = datetime.fromisoformat(start_dt_raw)
+
+        # If datetime is naive (no timezone), localize it to user's timezone
+        if start_dt.tzinfo is None:
+            start_dt = datetime.fromisoformat(validated.start_date).replace(tzinfo=user_timezone)
+            logger.info(f"Interpreted naive datetime '{validated.start_date}' as {user_timezone_str}: {start_dt.isoformat()}")
 
         # If no end date provided, default to 1 hour after start (unless all_day)
         if not validated.end_date:
@@ -101,7 +175,13 @@ async def create_calendar_event(
             else:
                 end_dt = start_dt + timedelta(hours=1)
         else:
-            end_dt = datetime.fromisoformat(validated.end_date.replace('Z', '+00:00'))
+            end_dt_raw = validated.end_date.replace('Z', '+00:00')
+            end_dt = datetime.fromisoformat(end_dt_raw)
+
+            # If datetime is naive, localize it to user's timezone
+            if end_dt.tzinfo is None:
+                end_dt = datetime.fromisoformat(validated.end_date).replace(tzinfo=user_timezone)
+                logger.info(f"Interpreted naive datetime '{validated.end_date}' as {user_timezone_str}: {end_dt.isoformat()}")
 
             # Validate end_date is after start_date
             if end_dt <= start_dt:
@@ -112,6 +192,15 @@ async def create_calendar_event(
 
         # Default reminders: [15] minutes before (array of integers)
         reminder_list = validated.reminder_minutes if validated.reminder_minutes else [15]
+
+        # Log timezone-aware event creation
+        logger.info(f"📅 Creating calendar event")
+        logger.info(f"   Title: {validated.title}")
+        logger.info(f"   Timezone: {user_timezone_str} (detected via {detection_method})")
+        logger.info(f"   Start (user timezone): {start_dt.strftime('%Y-%m-%d %I:%M %p %Z')}")
+        logger.info(f"   End (user timezone): {end_dt.strftime('%Y-%m-%d %I:%M %p %Z')}")
+        logger.info(f"   Start (UTC): {start_dt.astimezone(ZoneInfo('UTC')).strftime('%Y-%m-%d %I:%M %p %Z')}")
+        logger.info(f"   End (UTC): {end_dt.astimezone(ZoneInfo('UTC')).strftime('%Y-%m-%d %I:%M %p %Z')}")
 
         # Build event data matching actual database schema
         event_data = {

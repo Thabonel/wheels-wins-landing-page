@@ -22,7 +22,8 @@ import {
   MapPin,
   Bug,
   Zap,
-  UserCheck
+  UserCheck,
+  BookOpen
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -45,6 +46,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { name: 'Dashboard', icon: LayoutDashboard },
     { name: 'Users', icon: Users },
     { name: 'Content Moderation', icon: Shield },
+    { name: 'Knowledge Approval', icon: BookOpen },
     { name: 'Analytics', icon: BarChart3 },
     { name: 'Data Collector', icon: Database },
     { name: 'Chat Logs', icon: MessageSquare },

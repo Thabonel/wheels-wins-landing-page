@@ -337,7 +337,8 @@ export class PAMVoiceHybridService {
                 user_id: this.config.userId,
                 language: this.config.language || 'en',
                 user_location: this.config.location,
-                current_page: this.config.currentPage || 'pam_chat'
+                current_page: this.config.currentPage || 'pam_chat',
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone  // Browser-detected timezone for accurate calendar events
               }
             });
           }
@@ -412,6 +413,44 @@ export class PAMVoiceHybridService {
       const responseText = message.text;
       logger.info('[PAMVoiceHybrid] 🤖 Claude response:', responseText);
       this.config.onResponse?.(responseText);
+
+      // Handle UI actions from tool execution (e.g., calendar updates)
+      if (message.ui_actions && Array.isArray(message.ui_actions)) {
+        message.ui_actions.forEach((action: any) => {
+          logger.info(`[PAMVoiceHybrid] UI Action: ${action.type}`, action);
+
+          switch (action.type) {
+            case 'reload_calendar':
+              // Dispatch event for calendar component to reload
+              window.dispatchEvent(new CustomEvent('reload-calendar', {
+                detail: {
+                  entity_id: action.entity_id,
+                  entity_type: action.entity_type,
+                  entity_title: action.entity_title
+                }
+              }));
+              logger.info('[PAMVoiceHybrid] Dispatched calendar reload event');
+              break;
+
+            case 'reload_expenses':
+              // Dispatch event for expenses component to reload
+              window.dispatchEvent(new CustomEvent('reload-expenses', {
+                detail: {
+                  entity_id: action.entity_id
+                }
+              }));
+              break;
+
+            case 'navigate':
+              // Handle navigation if needed
+              logger.info(`[PAMVoiceHybrid] Navigation requested: ${action.path}`);
+              break;
+
+            default:
+              logger.warn(`[PAMVoiceHybrid] Unknown UI action type: ${action.type}`);
+          }
+        });
+      }
 
       // Send to OpenAI Realtime for TTS
       this.sendToOpenAI({
@@ -547,9 +586,9 @@ export class PAMVoiceHybridService {
       this.processorNode = null;
     }
 
-    // Close audio
+    // Stop audio processor
     if (this.audioProcessor) {
-      this.audioProcessor.close();
+      this.audioProcessor.stop();
       this.audioProcessor = null;
     }
 
