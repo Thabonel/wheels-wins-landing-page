@@ -15,25 +15,48 @@ Automated health monitoring for affiliate products in the shop. Checks for data 
 - **Severity Levels**: High (missing price) > Medium (missing image, stale) > Low (missing description)
 - **Detailed Reporting**: JSON report with all issues found
 
+## Authentication
+
+This function requires authentication via **one of two methods**:
+
+1. **Admin JWT Token** (for manual admin calls):
+   ```bash
+   curl -X POST \
+     -H "Authorization: Bearer <your-admin-jwt-token>" \
+     https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/product-health-check
+   ```
+
+2. **Cron Secret** (for automated cron jobs):
+   ```bash
+   curl -X POST \
+     -H "X-Cron-Secret: <your-cron-secret>" \
+     https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/product-health-check
+   ```
+
+Unauthenticated requests will receive `401 Unauthorized`.
+
 ## Usage
 
-### Manual Execution
+### Manual Execution (Admin Only)
 
 **Basic health check (no auto-fix)**:
 ```bash
 curl -X POST \
+  -H "Authorization: Bearer <your-admin-jwt-token>" \
   https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/product-health-check
 ```
 
 **With auto-fix (marks stale products as 'unknown')**:
 ```bash
 curl -X POST \
+  -H "Authorization: Bearer <your-admin-jwt-token>" \
   "https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/product-health-check?autoFix=true"
 ```
 
 **Custom stale threshold (60 days)**:
 ```bash
 curl -X POST \
+  -H "Authorization: Bearer <your-admin-jwt-token>" \
   "https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/product-health-check?staleDays=60&autoFix=true"
 ```
 
@@ -84,13 +107,16 @@ Add to `supabase/config.toml`:
 
 ```toml
 [functions.product-health-check]
-verify_jwt = false  # Public endpoint
+verify_jwt = false  # Auth handled in function code
 
 [functions.product-health-check.cron]
 schedule = "0 2 * * *"  # Daily at 2 AM UTC
 method = "POST"
 body = '{"autoFix": true, "staleDays": 30}'
+headers = { "X-Cron-Secret" = "${CRON_SECRET}" }
 ```
+
+**Important**: Set `CRON_SECRET` in Supabase project environment variables before deploying.
 
 Then deploy:
 ```bash
@@ -151,6 +177,15 @@ When Amazon Product Advertising API is available:
 
 ## Security
 
-- Uses `SUPABASE_SERVICE_ROLE_KEY` for admin access
-- No JWT verification required (internal function)
-- CORS enabled for dashboard integration
+**Authentication Required**: All requests must be authenticated via one of:
+1. **Admin JWT Token** - Verified against `admin_users` table (role: super_admin or admin, status: active)
+2. **Cron Secret** - Shared secret (`CRON_SECRET`) for automated cron jobs
+
+**Service Role Key**: Function uses `SUPABASE_SERVICE_ROLE_KEY` internally for database access, but all external requests are authenticated first.
+
+**CORS**: Enabled for admin dashboard integration.
+
+**Environment Variables Required**:
+- `SUPABASE_URL` - Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` - Service role key for database access
+- `CRON_SECRET` - Shared secret for authenticating cron job requests

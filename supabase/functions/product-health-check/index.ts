@@ -33,8 +33,76 @@ Deno.serve(async (req) => {
     // Initialize Supabase client with service role key for admin access
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Authentication check - require either cron secret or admin JWT
+    const authHeader = req.headers.get('Authorization');
+    const cronSecret = req.headers.get('X-Cron-Secret');
+    const expectedCronSecret = Deno.env.get('CRON_SECRET');
+
+    let isAuthenticated = false;
+
+    // Option 1: Cron job with shared secret
+    if (cronSecret && expectedCronSecret && cronSecret === expectedCronSecret) {
+      console.log('✓ Authenticated via cron secret');
+      isAuthenticated = true;
+    }
+    // Option 2: Admin user with valid JWT
+    else if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+
+      // Verify JWT and get user
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+      if (authError || !user) {
+        console.error('Invalid JWT token:', authError?.message);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized: Invalid authentication token' }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      // Verify user has admin privileges
+      const { data: adminUser, error: adminError } = await supabase
+        .from('admin_users')
+        .select('role, status')
+        .eq('user_id', user.id)
+        .single();
+
+      if (adminError || !adminUser ||
+          !['super_admin', 'admin'].includes(adminUser.role) ||
+          adminUser.status !== 'active') {
+        console.error('User lacks admin privileges:', user.email);
+        return new Response(
+          JSON.stringify({ error: 'Forbidden: Admin access required' }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+
+      console.log('✓ Authenticated as admin:', user.email);
+      isAuthenticated = true;
+    }
+
+    // Reject unauthenticated requests
+    if (!isAuthenticated) {
+      console.error('No valid authentication provided');
+      return new Response(
+        JSON.stringify({
+          error: 'Unauthorized: Authentication required',
+          hint: 'Provide either X-Cron-Secret header or valid admin JWT in Authorization header'
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     // Parse query parameters
     const url = new URL(req.url);
