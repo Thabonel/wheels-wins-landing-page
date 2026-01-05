@@ -63,6 +63,20 @@ WHERE tablename = 'product_issue_reports';
 
 ## Deployment Steps
 
+### Step 0: Set Environment Variables (CRITICAL)
+
+**Before deploying, set the CRON_SECRET in Supabase**:
+
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard/project/kycoklimpzkyrecbjecn)
+2. Navigate to **Settings** → **Edge Functions**
+3. Click **Add New Secret**
+4. Set:
+   - **Name**: `CRON_SECRET`
+   - **Value**: A strong random string (e.g., generate with `openssl rand -hex 32`)
+5. Click **Save**
+
+This secret authenticates the automated cron job requests.
+
 ### Step 1: Deploy Edge Function
 
 **Deploy the health check function to Supabase**:
@@ -80,13 +94,17 @@ supabase functions deploy product-health-check
 # Deployed function product-health-check in XXXms
 ```
 
-**Verify deployment**:
+**Verify deployment (requires admin JWT)**:
 ```bash
+# Get admin JWT token from browser (after login, check localStorage)
+export ADMIN_TOKEN="your-admin-jwt-token"
+
 # Test the function
 curl -X POST \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
   https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/product-health-check
 
-# Should return JSON health report
+# Should return JSON health report (not 401 Unauthorized)
 ```
 
 ### Step 2: Enable Cron Job
