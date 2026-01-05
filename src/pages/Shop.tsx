@@ -102,8 +102,8 @@ export default function Shop() {
     // Track in analytics
     trackProductInteraction({
       productId: productId || 'unknown',
-      interactionType: 'affiliate_click',
-      contextData: { section: 'main_grid', url }
+      interactionType: 'click',
+      contextData: { section: 'main_grid', url, affiliate: true }
     });
 
     // If it's a Digistore24 product, use the service to generate proper affiliate URL
@@ -149,15 +149,6 @@ export default function Shop() {
       console.log(`Initiating checkout for product: ${productId}`);
       alert("Stripe checkout would be integrated here for non-Digistore24 products.");
     }
-  };
-
-  // Track product views
-  const handleProductView = (productId: string) => {
-    trackProductInteraction({
-      productId,
-      interactionType: 'view',
-      contextData: { section: 'main_grid' }
-    });
   };
 
   if (loading) {
