@@ -10,7 +10,7 @@ import ProductGrid from "@/components/shop/ProductGrid";
 import PamRecommendations from "@/components/shop/PamRecommendations";
 import { usePersonalizedRecommendations } from "@/hooks/usePersonalizedRecommendations";
 import { useShoppingAnalytics } from "@/hooks/useShoppingAnalytics";
-import { getAffiliateProducts, getDigitalProducts } from "@/components/shop/ProductsData";
+import { getAffiliateProducts } from "@/components/shop/ProductsData";
 import { digistore24Service } from "@/services/digistore24Service";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,12 +44,9 @@ export default function Shop() {
         if (personalizedProducts.length > 0) {
           setAllProducts(personalizedProducts);
         } else {
-          const [digital, affiliate] = await Promise.all([
-            getDigitalProducts(region),
-            getAffiliateProducts(region) // Pass region for regional URL selection
-          ]);
-          // Show all products (regional URL routing handled in getRegionalUrl)
-          setAllProducts([...digital, ...affiliate]);
+          // All products are Amazon affiliate products
+          const affiliate = await getAffiliateProducts(region);
+          setAllProducts(affiliate);
         }
       } catch (error) {
         console.error("Error loading products:", error);
