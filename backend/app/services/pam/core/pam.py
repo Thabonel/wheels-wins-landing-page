@@ -43,6 +43,7 @@ Last Updated: January 10, 2025 (Added prompt caching)
 
 import os
 import logging
+import inspect
 from typing import Dict, Any, List, Optional, AsyncGenerator
 from datetime import datetime
 from anthropic import Anthropic, AsyncAnthropic
@@ -1570,7 +1571,11 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
                                 recent_context = msg.get("context", {})
                                 break
 
-                        if recent_context:
+                        # Only add context to tools that explicitly request it in their schema
+                        # Check if the tool's input schema has a 'context' parameter
+                        tool_func = tool_functions[tool_name]
+                        tool_signature = inspect.signature(tool_func)
+                        if recent_context and 'context' in tool_signature.parameters:
                             tool_input["context"] = recent_context
 
                         # DIAGNOSTIC: Log tool execution details
