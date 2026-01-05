@@ -44,6 +44,7 @@ import {
   DialogTrigger,
 } from '@/components/common/AnimatedDialog';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import {
   GripVertical,
@@ -70,6 +71,13 @@ const CATEGORIES = [
 
 const CURRENCIES = ['USD', 'AUD', 'EUR', 'GBP'] as const;
 
+const AVAILABILITY_STATUSES = [
+  { value: 'available', label: 'Available' },
+  { value: 'out_of_stock', label: 'Out of Stock' },
+  { value: 'discontinued', label: 'Discontinued' },
+  { value: 'unknown', label: 'Unknown' },
+] as const;
+
 interface AmazonProduct {
   id: string;
   title: string;
@@ -81,6 +89,7 @@ interface AmazonProduct {
   asin: string | null;
   affiliate_url: string;
   is_active: boolean;
+  availability_status?: string;
   sort_order: number;
   tags: string[] | null;
   created_at: string;
@@ -135,10 +144,14 @@ function buildAmazonAffiliateLink(asin: string): string {
 // Sortable row component
 function SortableProductRow({
   product,
+  isSelected,
+  onToggleSelect,
   onEdit,
   onDelete,
 }: {
   product: AmazonProduct;
+  isSelected: boolean;
+  onToggleSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -163,6 +176,12 @@ function SortableProductRow({
 
   return (
     <TableRow ref={setNodeRef} style={style}>
+      <TableCell className="w-12">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={onToggleSelect}
+        />
+      </TableCell>
       <TableCell>
         <div
           {...attributes}
@@ -234,6 +253,9 @@ export default function AmazonProductsManagement() {
   const [asinInput, setAsinInput] = useState('');
   const [detectedCurrency, setDetectedCurrency] = useState('USD');
   const [limitedAccess, setLimitedAccess] = useState(false);
+
+  // Bulk selection
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
 
   // Drag & drop sensors
   const sensors = useSensors(
@@ -452,6 +474,29 @@ export default function AmazonProductsManagement() {
     },
   });
 
+  // Bulk update mutation
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async ({ ids, updates }: { ids: string[]; updates: any }) => {
+      await Promise.all(
+        ids.map(id =>
+          supabase
+            .from('affiliate_products')
+            .update(updates)
+            .eq('id', id)
+        )
+      );
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['amazon-products-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['amazon-products'] });
+      toast.success(`Updated ${variables.ids.length} products`);
+      setSelectedProducts(new Set());
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update products: ${error.message}`);
+    },
+  });
+
   // Reorder products mutation
   const reorderMutation = useMutation({
     mutationFn: async (reorderedProducts: AmazonProduct[]) => {
@@ -512,6 +557,58 @@ export default function AmazonProductsManagement() {
     ) {
       deleteMutation.mutate(id);
     }
+  };
+
+  // Bulk operation handlers
+  const toggleProductSelection = (productId: string) => {
+    const newSelection = new Set(selectedProducts);
+    if (newSelection.has(productId)) {
+      newSelection.delete(productId);
+    } else {
+      newSelection.add(productId);
+    }
+    setSelectedProducts(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.size === products.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(products.map(p => p.id)));
+    }
+  };
+
+  const handleBulkUpdateAvailability = (status: string) => {
+    if (selectedProducts.size === 0) {
+      toast.error('No products selected');
+      return;
+    }
+    bulkUpdateMutation.mutate({
+      ids: Array.from(selectedProducts),
+      updates: { availability_status: status }
+    });
+  };
+
+  const handleBulkActivate = () => {
+    if (selectedProducts.size === 0) {
+      toast.error('No products selected');
+      return;
+    }
+    bulkUpdateMutation.mutate({
+      ids: Array.from(selectedProducts),
+      updates: { is_active: true }
+    });
+  };
+
+  const handleBulkDeactivate = () => {
+    if (selectedProducts.size === 0) {
+      toast.error('No products selected');
+      return;
+    }
+    bulkUpdateMutation.mutate({
+      ids: Array.from(selectedProducts),
+      updates: { is_active: false }
+    });
   };
 
   // ASIN input change handler (for currency detection)
@@ -627,6 +724,75 @@ export default function AmazonProductsManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedProducts.size > 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className="font-medium text-blue-900">
+                {selectedProducts.size} product{selectedProducts.size !== 1 ? 's' : ''} selected
+              </span>
+
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => handleBulkUpdateAvailability('available')}
+                  disabled={bulkUpdateMutation.isPending || limitedAccess}
+                >
+                  Mark Available
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleBulkUpdateAvailability('out_of_stock')}
+                  disabled={bulkUpdateMutation.isPending || limitedAccess}
+                >
+                  Mark Out of Stock
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleBulkUpdateAvailability('discontinued')}
+                  disabled={bulkUpdateMutation.isPending || limitedAccess}
+                >
+                  Mark Discontinued
+                </Button>
+
+                <div className="h-8 w-px bg-gray-300 mx-2" />
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleBulkActivate}
+                  disabled={bulkUpdateMutation.isPending || limitedAccess}
+                >
+                  Activate
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleBulkDeactivate}
+                  disabled={bulkUpdateMutation.isPending || limitedAccess}
+                >
+                  Deactivate
+                </Button>
+
+                <div className="h-8 w-px bg-gray-300 mx-2" />
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedProducts(new Set())}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Products Table */}
       <Card>
@@ -879,6 +1045,12 @@ export default function AmazonProductsManagement() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={selectedProducts.size === products.length && products.length > 0}
+                          onCheckedChange={toggleSelectAll}
+                        />
+                      </TableHead>
                       <TableHead className="w-12"></TableHead>
                       <TableHead>Product</TableHead>
                       <TableHead>ASIN</TableHead>
@@ -897,6 +1069,8 @@ export default function AmazonProductsManagement() {
                         <SortableProductRow
                           key={product.id}
                           product={product}
+                          isSelected={selectedProducts.has(product.id)}
+                          onToggleSelect={() => toggleProductSelection(product.id)}
                           onEdit={() => handleEdit(product)}
                           onDelete={() =>
                             handleDelete(product.id, product.title)
