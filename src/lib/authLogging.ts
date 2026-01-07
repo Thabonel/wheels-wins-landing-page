@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Session } from '@supabase/supabase-js';
+import { getGeolocation } from '@/services/geolocationProxyService';
 
 async function getIpAddress(): Promise<string | null> {
   try {
@@ -12,11 +13,10 @@ async function getIpAddress(): Promise<string | null> {
   }
 }
 
+// Phase 2: Now uses backend proxy to avoid CORS issues
 async function getLocationInfo(): Promise<any | null> {
   try {
-    const res = await fetch('https://ipapi.co/json/');
-    if (!res.ok) return null;
-    return await res.json();
+    return await getGeolocation();
   } catch {
     return null;
   }
