@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/test-utils';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import SignupForm from '@/components/auth/SignupForm';
@@ -110,8 +109,8 @@ describe('SignupForm', () => {
       const passwordInput = screen.getByLabelText(/^password$/i);
       const confirmPasswordInput = screen.getByLabelText(/confirm password/i);
 
-      expect(passwordInput).toHaveAttribute('minLength', '6');
-      expect(confirmPasswordInput).toHaveAttribute('minLength', '6');
+      expect(passwordInput).toHaveAttribute('minLength', '8');
+      expect(confirmPasswordInput).toHaveAttribute('minLength', '8');
     });
 
     it('should show error when passwords don\'t match', async () => {
@@ -148,7 +147,9 @@ describe('SignupForm', () => {
       fireEvent.click(submitButton);
 
       await waitFor(() => {
-        expect(mockProps.setError).toHaveBeenCalledWith('Password must be at least 6 characters');
+        expect(mockProps.setError).toHaveBeenCalledWith(
+          expect.stringContaining('Password must be at least 8 characters long')
+        );
       });
 
       expect(mockSupabaseAuth.signUp).not.toHaveBeenCalled();
