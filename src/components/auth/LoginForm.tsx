@@ -74,13 +74,14 @@ const LoginForm = ({ loading, setLoading, error, setError, onSuccess }: LoginFor
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input 
-            id="email" 
-            type="email" 
-            placeholder="email@example.com" 
-            value={email} 
-            onChange={(e) => setEmail(e.target.value)} 
-            required 
+          <Input
+            id="email"
+            type="email"
+            placeholder="email@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            data-testid="email-input"
           />
         </div>
 
@@ -101,6 +102,7 @@ const LoginForm = ({ loading, setLoading, error, setError, onSuccess }: LoginFor
             value={password}
             onChange={setPassword}
             required
+            data-testid="password-input"
           />
         </div>
 
@@ -111,7 +113,7 @@ const LoginForm = ({ loading, setLoading, error, setError, onSuccess }: LoginFor
           </Alert>
         )}
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="w-full" disabled={loading} data-testid="login-button">
           {loading ? "Processing..." : "Login"}
         </Button>
       </div>
