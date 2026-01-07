@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
 import { getMapboxPublicToken } from '@/utils/mapboxConfig';
+import type mapboxgl from 'mapbox-gl';
 
 // Import CSS only when needed
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -41,37 +41,48 @@ const MapboxWrapper: React.FC<MapboxWrapperProps> = ({
       return;
     }
 
-    mapboxgl.accessToken = token;
+    // Phase 4: Dynamic import to reduce initial bundle size by ~1.6MB
+    let cancelled = false;
 
-    // Initialize map
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style,
-      center,
-      zoom,
-      attributionControl: false, // Reduce clutter
-    });
+    import('mapbox-gl').then((mapboxglModule) => {
+      if (cancelled || !mapContainer.current) return;
 
-    map.current.on('load', () => {
-      setMapLoaded(true);
-    });
+      const mapboxgl = mapboxglModule.default;
+      mapboxgl.accessToken = token;
 
-    // Add markers
-    markers.forEach((marker) => {
-      if (map.current) {
-        const mapMarker = new mapboxgl.Marker()
-          .setLngLat([marker.lng, marker.lat]);
+      // Initialize map
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style,
+        center,
+        zoom,
+        attributionControl: false, // Reduce clutter
+      });
 
-        if (marker.popup) {
-          mapMarker.setPopup(new mapboxgl.Popup().setHTML(marker.popup));
+      map.current.on('load', () => {
+        setMapLoaded(true);
+      });
+
+      // Add markers
+      markers.forEach((marker) => {
+        if (map.current) {
+          const mapMarker = new mapboxgl.Marker()
+            .setLngLat([marker.lng, marker.lat]);
+
+          if (marker.popup) {
+            mapMarker.setPopup(new mapboxgl.Popup().setHTML(marker.popup));
+          }
+
+          mapMarker.addTo(map.current);
         }
-
-        mapMarker.addTo(map.current);
-      }
+      });
+    }).catch((error) => {
+      console.error('Failed to load mapbox-gl:', error);
     });
 
     // Cleanup
     return () => {
+      cancelled = true;
       if (map.current) {
         map.current.remove();
         map.current = null;
