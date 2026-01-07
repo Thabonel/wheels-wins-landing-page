@@ -3,6 +3,8 @@
  * Provides location-aware emergency numbers for worldwide RV travelers
  */
 
+import { getGeolocation } from '@/services/geolocationProxyService';
+
 // Comprehensive emergency numbers database
 export const EMERGENCY_DATABASE = {
   // North America
@@ -360,20 +362,15 @@ export async function detectUserCountry(): Promise<string> {
     console.error('Timezone detection error:', error);
   }
 
-  // 4. Try IP-based geolocation (would need API key)
+  // 4. Try IP-based geolocation
+  // Phase 2: Now uses backend proxy to avoid CORS issues
   try {
-    const response = await fetch('https://ipapi.co/json/', {
-      signal: AbortSignal.timeout(5000)
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      if (data.country_code) {
-        const country = data.country_code.toUpperCase();
-        localStorage.setItem('user_country', country);
-        localStorage.setItem('user_country_time', Date.now().toString());
-        return country;
-      }
+    const data = await getGeolocation();
+    if (data.country_code) {
+      const country = data.country_code.toUpperCase();
+      localStorage.setItem('user_country', country);
+      localStorage.setItem('user_country_time', Date.now().toString());
+      return country;
     }
   } catch (error) {
     console.log('IP geolocation failed:', error);
