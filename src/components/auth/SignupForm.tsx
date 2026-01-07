@@ -136,6 +136,7 @@ const SignupForm = ({ loading, setLoading, error, setError }: SignupFormProps) =
           placeholder="Enter your email"
           required
           disabled={loading}
+          data-testid="email-input"
         />
       </div>
 
@@ -151,6 +152,7 @@ const SignupForm = ({ loading, setLoading, error, setError }: SignupFormProps) =
           disabled={loading}
           minLength={8}
           maxLength={128}
+          data-testid="password-input"
         />
         {password && (
           <PasswordStrengthIndicator password={password} className="mt-3" />
@@ -169,10 +171,11 @@ const SignupForm = ({ loading, setLoading, error, setError }: SignupFormProps) =
           disabled={loading}
           minLength={8}
           maxLength={128}
+          data-testid="confirm-password-input"
         />
       </div>
 
-      <Button type="submit" className="w-full" disabled={loading}>
+      <Button type="submit" className="w-full" disabled={loading} data-testid="signup-button">
         {loading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

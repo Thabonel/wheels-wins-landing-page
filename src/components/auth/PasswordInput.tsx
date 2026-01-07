@@ -11,23 +11,25 @@ interface PasswordInputProps {
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
+  'data-testid'?: string;
 }
 
-const PasswordInput = ({ id, label, placeholder, value, onChange, required = false }: PasswordInputProps) => {
+const PasswordInput = ({ id, label, placeholder, value, onChange, required = false, 'data-testid': dataTestId }: PasswordInputProps) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="space-y-2">
       {label && <Label htmlFor={id}>{label}</Label>}
       <div className="relative">
-        <Input 
-          id={id} 
-          type={showPassword ? "text" : "password"} 
-          placeholder={placeholder} 
-          value={value} 
-          onChange={(e) => onChange(e.target.value)} 
+        <Input
+          id={id}
+          type={showPassword ? "text" : "password"}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           required={required}
           className="pr-10"
+          data-testid={dataTestId}
         />
         <button
           type="button"
