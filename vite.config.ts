@@ -1,6 +1,5 @@
 // vite.config.ts
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
 import reactFallback from "@vitejs/plugin-react";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
@@ -134,7 +133,6 @@ export default defineConfig(({ mode }) => {
       },
       // Additional optimizations
       assetsInlineLimit: 4096,
-      reportCompressedSize: false,
     }),
   },
 };
