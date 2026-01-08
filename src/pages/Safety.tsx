@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Phone, MapPin, Heart, Wifi, AlertTriangle, Users, Compass } from 'lucide-react';
 import { PersonalizedSafetyCard } from '@/components/safety/PersonalizedSafetyCard';
 import { useProfile } from '@/hooks/useProfile';
+import { PageHelp } from '@/components/common/PageHelp';
 
 const Safety = () => {
   const { profile } = useProfile();
@@ -238,6 +239,17 @@ const Safety = () => {
         </CardContent>
       </Card>
 
+      <PageHelp
+        title="RV Travel Safety Help"
+        description="This page provides comprehensive safety resources for RV travelers, including situational awareness, emergency communication, and community support."
+        tips={[
+          "Start with universal safety content that applies to all travelers",
+          "Enable personalized content in Privacy Settings to see gender-specific resources",
+          "Save emergency contacts in your phone now - don't wait for an emergency",
+          "Statistical reality: Solo RV travel is safer than living in most cities",
+          "Join community groups to build your safety network on the road"
+        ]}
+      />
     </div>
   );
 };

@@ -25,6 +25,7 @@ import { AccountSecurity } from "@/components/settings/AccountSecurity";
 import { AccountDeletion } from "@/components/settings/AccountDeletion";
 import { TransitionSettings } from "@/components/settings/TransitionSettings";
 import { syncLocalPhotos } from "@/utils/fileUploadUtils";
+import { PageHelp } from "@/components/common/PageHelp";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -340,6 +341,17 @@ const Profile = () => {
           </TabsContent>
         </Tabs>
       </div>
+      <PageHelp
+        title="Profile & Settings Help"
+        description="Manage your personal information, travel preferences, vehicle setup, and account settings all in one place."
+        tips={[
+          "Complete your Identity tab first - it helps personalize your experience",
+          "Enable personalized content in Privacy Settings to see gender-specific safety resources",
+          "Travel preferences help PAM suggest better routes and campgrounds",
+          "Vehicle setup improves gas cost calculations and route planning",
+          "Your Knowledge tab saves PAM's learnings about you for better recommendations"
+        ]}
+      />
     </ErrorBoundary>
   );
 };
