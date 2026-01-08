@@ -40,7 +40,20 @@ CREATE TABLE profiles (
     camp_types TEXT,
     accessibility TEXT,
     pets TEXT,
-    travel_style TEXT,
+
+    -- Phase 1: Solo Traveler Community Features (Added Jan 8, 2026)
+    gender_identity TEXT,                   -- Optional: Woman, Man, Non-binary, etc.
+    gender_custom TEXT,                     -- Custom text when gender_identity = 'Self-describe'
+    pronouns TEXT,                          -- Optional: she/her, he/him, they/them, etc.
+    pronouns_custom TEXT,                   -- Custom text when pronouns = 'Self-describe'
+    travel_style TEXT[],                    -- ⚠️ NOW ARRAY: ['Solo traveler', 'Open to companions', etc.]
+    interests TEXT[],                       -- Activity tags: ['hiking', 'fishing', 'photography', etc.]
+    content_preferences JSONB DEFAULT '{    -- Opt-in personalization settings
+        "show_personalized_safety": false,
+        "show_personalized_community": false,
+        "share_gender_with_groups": false
+    }'::jsonb,
+
     region TEXT,
     role TEXT DEFAULT 'user',
     status TEXT DEFAULT 'active',
@@ -67,6 +80,98 @@ const { data } = await supabase
 
 **References:**
 - `id` → `auth.users(id)` (1:1 relationship)
+
+**Phase 1 Fields (Solo Traveler Community Features):**
+
+1. **`gender_identity` (TEXT, optional)**
+   - Options: "Woman", "Man", "Non-binary", "Genderqueer", "Agender", "Genderfluid", "Two-Spirit", "Self-describe", "" (prefer not to say)
+   - Hidden by default - user controls visibility via `content_preferences.share_gender_with_groups`
+   - If "Self-describe", actual value stored in `gender_custom`
+
+2. **`pronouns` (TEXT, optional)**
+   - Options: "she/her", "he/him", "they/them", "she/they", "he/they", "any", "Self-describe", "" (prefer not to say)
+   - If "Self-describe", actual value stored in `pronouns_custom`
+
+3. **`travel_style` (TEXT[], ⚠️ CHANGED FROM TEXT TO ARRAY)**
+   - Multi-select values: "Solo traveler", "Open to companions", "Traveling with partner", "Traveling with family", "Prefer privacy"
+   - **Migration Note:** Existing single TEXT values were automatically migrated to single-element arrays
+
+4. **`interests` (TEXT[], optional)**
+   - Activity-based matching tags
+   - Examples: "hiking", "fishing", "photography", "cycling", "rv-repair", "cooking", "kayaking", "birdwatching", "stargazing", "rockhounding", "veterans"
+   - Used to recommend community groups and events
+
+5. **`content_preferences` (JSONB, defaults to all false)**
+   - Structure:
+     ```json
+     {
+       "show_personalized_safety": false,      // Women/men-specific safety resources
+       "show_personalized_community": false,   // Personalized group recommendations
+       "share_gender_with_groups": false       // Allow gender-specific groups in feed
+     }
+     ```
+   - All fields default to `false` (opt-in, not opt-out)
+   - Privacy-first design
+
+**Query Examples:**
+
+```typescript
+// Get profile with new fields
+const { data } = await supabase
+  .from('profiles')
+  .select('id, full_name, gender_identity, pronouns, travel_style, interests, content_preferences')
+  .eq('id', userId)
+  .single();
+
+// Update gender identity (optional)
+await supabase
+  .from('profiles')
+  .update({
+    gender_identity: 'Non-binary',
+    pronouns: 'they/them'
+  })
+  .eq('id', userId);
+
+// Update travel style (now array)
+await supabase
+  .from('profiles')
+  .update({
+    travel_style: ['Solo traveler', 'Open to companions']
+  })
+  .eq('id', userId);
+
+// Update interests
+await supabase
+  .from('profiles')
+  .update({
+    interests: ['hiking', 'photography', 'veterans']
+  })
+  .eq('id', userId);
+
+// Update content preferences
+await supabase
+  .from('profiles')
+  .update({
+    content_preferences: {
+      show_personalized_safety: true,
+      show_personalized_community: true,
+      share_gender_with_groups: false
+    }
+  })
+  .eq('id', userId);
+
+// Search by interests (array contains)
+const { data } = await supabase
+  .from('profiles')
+  .select('*')
+  .contains('interests', ['hiking']);
+
+// Search by travel style (array contains)
+const { data } = await supabase
+  .from('profiles')
+  .select('*')
+  .contains('travel_style', ['Solo traveler']);
+```
 
 ---
 
