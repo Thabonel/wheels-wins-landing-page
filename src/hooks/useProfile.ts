@@ -12,7 +12,7 @@ interface Profile {
   full_name?: string;
   nickname?: string;
   profile_image_url?: string;
-  travel_style?: string;
+  travel_style?: string[];
   partner_name?: string;
   partner_email?: string;
   partner_profile_image_url?: string;
@@ -26,6 +26,17 @@ interface Profile {
   accessibility?: string;
   pets?: string;
   created_at: string;
+  // Phase 1: Solo Traveler Community Features
+  gender_identity?: string;
+  gender_custom?: string;
+  pronouns?: string;
+  pronouns_custom?: string;
+  interests?: string[];
+  content_preferences?: {
+    show_personalized_safety?: boolean;
+    show_personalized_community?: boolean;
+    share_gender_with_groups?: boolean;
+  };
 }
 
 export const useProfile = () => {

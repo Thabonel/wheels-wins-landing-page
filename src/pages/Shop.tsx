@@ -14,6 +14,7 @@ import { getAffiliateProducts } from "@/components/shop/ProductsData";
 import { digistore24Service } from "@/services/digistore24Service";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { PageHelp } from "@/components/common/PageHelp";
 
 export default function Shop() {
   const [activeTab, setActiveTab] = useState<TabValue>("all");
@@ -209,6 +210,17 @@ export default function Shop() {
           </Tabs>
         </div>
       </div>
+      <PageHelp
+        title="Shop Help"
+        description="Browse curated products and resources for RV travelers. We earn a small commission when you purchase through our affiliate links at no extra cost to you."
+        tips={[
+          "PAM provides personalized product recommendations based on your profile",
+          "Featured products are hand-selected for quality and value",
+          "All products are vetted for RV travel relevance",
+          "Your region determines which products are available and shipping options",
+          "Digital products are delivered instantly after purchase"
+        ]}
+      />
     </div>
   );
 }
