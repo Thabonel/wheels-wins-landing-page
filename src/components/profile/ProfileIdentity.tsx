@@ -91,14 +91,17 @@ export const ProfileIdentity = ({
             </TooltipProvider>
           </div>
           <Select
-            value={formData.genderIdentity || ""}
-            onValueChange={(val) => setFormData(prev => ({ ...prev, genderIdentity: val }))}
+            value={formData.genderIdentity || "prefer_not_to_say"}
+            onValueChange={(val) => setFormData(prev => ({
+              ...prev,
+              genderIdentity: val === "prefer_not_to_say" ? "" : val
+            }))}
           >
             <SelectTrigger>
               <SelectValue placeholder="Prefer not to say" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Prefer not to say</SelectItem>
+              <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
               <SelectItem value="Woman">Woman</SelectItem>
               <SelectItem value="Man">Man</SelectItem>
               <SelectItem value="Non-binary">Non-binary</SelectItem>
@@ -123,14 +126,17 @@ export const ProfileIdentity = ({
         <div className="space-y-2">
           <Label htmlFor="pronouns">Pronouns (Optional)</Label>
           <Select
-            value={formData.pronouns || ""}
-            onValueChange={(val) => setFormData(prev => ({ ...prev, pronouns: val }))}
+            value={formData.pronouns || "prefer_not_to_say"}
+            onValueChange={(val) => setFormData(prev => ({
+              ...prev,
+              pronouns: val === "prefer_not_to_say" ? "" : val
+            }))}
           >
             <SelectTrigger>
               <SelectValue placeholder="Prefer not to say" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Prefer not to say</SelectItem>
+              <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
               <SelectItem value="she/her">she/her</SelectItem>
               <SelectItem value="he/him">he/him</SelectItem>
               <SelectItem value="they/them">they/them</SelectItem>
