@@ -170,8 +170,13 @@ export function LaunchWeekPlanner() {
       setTasks(transformedTasks);
 
       // Load progress for all days
-      const { data: progressData } = await supabase
+      const { data: progressData, error: progressError } = await supabase
         .rpc('get_launch_week_progress', { p_user_id: user.id });
+
+      if (progressError) {
+        console.error('Error loading progress:', progressError);
+        throw progressError;
+      }
 
       setDayProgress(progressData || []);
 
