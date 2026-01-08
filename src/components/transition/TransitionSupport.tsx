@@ -190,8 +190,13 @@ export function TransitionSupport() {
       setAnxietyLogs(anxietyData || []);
 
       // Load badges
-      const { data: badgesData } = await supabase
+      const { data: badgesData, error: badgesError } = await supabase
         .rpc('check_badge_eligibility', { p_user_id: user.id });
+
+      if (badgesError) {
+        console.error('Error checking badge eligibility:', badgesError);
+        throw badgesError;
+      }
 
       setBadges(badgesData || []);
 

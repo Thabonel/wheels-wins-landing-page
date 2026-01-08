@@ -134,7 +134,7 @@ export const EquipmentManager: React.FC = () => {
       if (!profile) return;
 
       const { data, error } = await supabase
-        .rpc('get_equipment_stats', { p_profile_id: profile.id });
+        .rpc('get_equipment_stats', { p_user_id: profile.id });
 
       if (error) throw error;
       if (data && data.length > 0) {
