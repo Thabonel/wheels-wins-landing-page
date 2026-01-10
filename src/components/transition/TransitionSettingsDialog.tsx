@@ -52,28 +52,26 @@ export function TransitionSettingsDialog({
         throw new Error('No authenticated user');
       }
 
-      const { error } = await supabase
+      // Use upsert to insert or update
+      const { data: updatedProfile, error } = await supabase
         .from('transition_profiles')
-        .update({
+        .upsert({
+          user_id: userData.user.id,
           departure_date: formData.departure_date || null,
           current_phase: formData.current_phase,
           transition_type: formData.transition_type,
           motivation: formData.motivation || null,
           is_enabled: formData.is_enabled,
           updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id',
         })
-        .eq('user_id', userData.user.id);
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast.success('Settings updated successfully');
-
-      // Fetch the updated profile to pass back to parent
-      const { data: updatedProfile } = await supabase
-        .from('transition_profiles')
-        .select('*')
-        .eq('user_id', userData.user.id)
-        .single();
 
       if (updatedProfile) {
         onUpdate(updatedProfile);
