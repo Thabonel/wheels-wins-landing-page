@@ -47,7 +47,12 @@ export function TransitionSettingsDialog({
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        throw new Error('No authenticated user');
+      }
+
+      const { error } = await supabase
         .from('transition_profiles')
         .update({
           departure_date: formData.departure_date || null,
@@ -57,14 +62,23 @@ export function TransitionSettingsDialog({
           is_enabled: formData.is_enabled,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', profile.id)
-        .select()
-        .single();
+        .eq('user_id', userData.user.id);
 
       if (error) throw error;
 
       toast.success('Settings updated successfully');
-      onUpdate(data);
+
+      // Fetch the updated profile to pass back to parent
+      const { data: updatedProfile } = await supabase
+        .from('transition_profiles')
+        .select('*')
+        .eq('user_id', userData.user.id)
+        .single();
+
+      if (updatedProfile) {
+        onUpdate(updatedProfile);
+      }
+
       onOpenChange(false);
     } catch (error) {
       console.error('Error updating settings:', error);
