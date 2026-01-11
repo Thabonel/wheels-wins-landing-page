@@ -2794,6 +2794,434 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Update Budget tool registration failed: {e}")
         failed_count += 1
 
+    # Meal Planning Tools
+    try:
+        logger.debug("🔄 Attempting to register Save Recipe tool...")
+        save_recipe = lazy_import("app.services.pam.tools.meals.save_recipe", "save_recipe")
+
+        if save_recipe is None:
+            raise ImportError("save_recipe function not available")
+
+        class SaveRecipeTool:
+            tool_name = "save_recipe"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await save_recipe(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=SaveRecipeTool(),
+            function_definition={
+                "name": "save_recipe",
+                "description": "Save a recipe from YouTube video or website URL to user's collection. Automatically scrapes recipe data and adds nutrition info.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "YouTube or recipe website URL"
+                        },
+                        "recipe_name": {
+                            "type": "string",
+                            "description": "Optional custom name for the recipe"
+                        }
+                    },
+                    "required": ["url"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Save Recipe tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Save Recipe tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Save Recipe tool registration failed: {e}")
+        failed_count += 1
+
+    # Meal Tool: Search Recipes
+    try:
+        logger.debug("🔄 Attempting to register Search Recipes tool...")
+        search_recipes = lazy_import("app.services.pam.tools.meals.search_recipes", "search_recipes")
+
+        if search_recipes is None:
+            raise ImportError("search_recipes function not available")
+
+        class SearchRecipesTool:
+            tool_name = "search_recipes"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await search_recipes(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=SearchRecipesTool(),
+            function_definition={
+                "name": "search_recipes",
+                "description": "Search user's recipe collection by ingredients, meal type, dietary restrictions. Automatically enforces user's dietary restrictions and filters allergens.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Text query for recipe name or description"
+                        },
+                        "ingredients": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of ingredients to search for"
+                        },
+                        "meal_type": {
+                            "type": "string",
+                            "enum": ["breakfast", "lunch", "dinner", "snack"],
+                            "description": "Filter by meal type"
+                        },
+                        "dietary_tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Filter by dietary tags (vegan, gluten-free, etc.)"
+                        },
+                        "max_prep_time": {
+                            "type": "integer",
+                            "description": "Maximum prep time in minutes"
+                        },
+                        "include_public": {
+                            "type": "boolean",
+                            "description": "Include public community recipes"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results (default: 10)"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Search Recipes tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Search Recipes tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Search Recipes tool registration failed: {e}")
+        failed_count += 1
+
+    # Meal Tool: Share Recipe
+    try:
+        logger.debug("🔄 Attempting to register Share Recipe tool...")
+        share_recipe = lazy_import("app.services.pam.tools.meals.share_recipe", "share_recipe")
+
+        if share_recipe is None:
+            raise ImportError("share_recipe function not available")
+
+        class ShareRecipeTool:
+            tool_name = "share_recipe"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await share_recipe(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=ShareRecipeTool(),
+            function_definition={
+                "name": "share_recipe",
+                "description": "Share a recipe with friends or make it public in the community library.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "recipe_id": {
+                            "type": "string",
+                            "description": "UUID of the recipe to share"
+                        },
+                        "action": {
+                            "type": "string",
+                            "enum": ["share_with_friends", "make_public", "make_private"],
+                            "description": "Sharing action to perform"
+                        },
+                        "friend_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of friend user IDs (required for share_with_friends)"
+                        }
+                    },
+                    "required": ["recipe_id", "action"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Share Recipe tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Share Recipe tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Share Recipe tool registration failed: {e}")
+        failed_count += 1
+
+    # Meal Tool: Manage Dietary Preferences
+    try:
+        logger.debug("🔄 Attempting to register Manage Dietary Preferences tool...")
+        manage_dietary_prefs = lazy_import("app.services.pam.tools.meals.manage_dietary_prefs", "manage_dietary_prefs")
+
+        if manage_dietary_prefs is None:
+            raise ImportError("manage_dietary_prefs function not available")
+
+        class ManageDietaryPrefsTool:
+            tool_name = "manage_dietary_prefs"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await manage_dietary_prefs(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=ManageDietaryPrefsTool(),
+            function_definition={
+                "name": "manage_dietary_prefs",
+                "description": "Manage user's dietary preferences, restrictions, allergies, and nutrition goals. Use when user mentions dietary restrictions or nutrition goals.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["set", "add", "remove", "get"],
+                            "description": "Action to perform"
+                        },
+                        "dietary_restrictions": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of dietary restrictions (vegan, vegetarian, gluten-free, etc.)"
+                        },
+                        "allergies": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of allergies (peanuts, shellfish, etc.)"
+                        },
+                        "preferred_cuisines": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of preferred cuisines"
+                        },
+                        "disliked_ingredients": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of disliked ingredients"
+                        },
+                        "daily_calorie_goal": {
+                            "type": "integer",
+                            "description": "Daily calorie goal"
+                        },
+                        "daily_protein_goal": {
+                            "type": "integer",
+                            "description": "Daily protein goal (grams)"
+                        },
+                        "daily_carb_goal": {
+                            "type": "integer",
+                            "description": "Daily carb goal (grams)"
+                        },
+                        "daily_fat_goal": {
+                            "type": "integer",
+                            "description": "Daily fat goal (grams)"
+                        }
+                    },
+                    "required": ["action"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Manage Dietary Preferences tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Manage Dietary Preferences tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Manage Dietary Preferences tool registration failed: {e}")
+        failed_count += 1
+
+    # Meal Tool: Manage Pantry
+    try:
+        logger.debug("🔄 Attempting to register Manage Pantry tool...")
+        manage_pantry = lazy_import("app.services.pam.tools.meals.manage_pantry", "manage_pantry")
+
+        if manage_pantry is None:
+            raise ImportError("manage_pantry function not available")
+
+        class ManagePantryTool:
+            tool_name = "manage_pantry"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await manage_pantry(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=ManagePantryTool(),
+            function_definition={
+                "name": "manage_pantry",
+                "description": "Manage pantry inventory with expiry dates. Use when user mentions pantry items, groceries, or checking what's expiring.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["add", "update", "remove", "list", "check_expiry"],
+                            "description": "Pantry action to perform"
+                        },
+                        "ingredient_name": {
+                            "type": "string",
+                            "description": "Name of the ingredient"
+                        },
+                        "quantity": {
+                            "type": "number",
+                            "description": "Quantity of the ingredient"
+                        },
+                        "unit": {
+                            "type": "string",
+                            "description": "Unit of measurement (cups, lbs, oz, grams, etc.)"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Storage location (fridge, freezer, pantry)"
+                        },
+                        "expiry_date": {
+                            "type": "string",
+                            "description": "Expiry date (YYYY-MM-DD format)"
+                        },
+                        "item_id": {
+                            "type": "string",
+                            "description": "UUID of pantry item (for update/remove)"
+                        }
+                    },
+                    "required": ["action"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Manage Pantry tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Manage Pantry tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Manage Pantry tool registration failed: {e}")
+        failed_count += 1
+
+    # Meal Tool: Plan Meals
+    try:
+        logger.debug("🔄 Attempting to register Plan Meals tool...")
+        plan_meals = lazy_import("app.services.pam.tools.meals.plan_meals", "plan_meals")
+
+        if plan_meals is None:
+            raise ImportError("plan_meals function not available")
+
+        class PlanMealsTool:
+            tool_name = "plan_meals"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await plan_meals(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=PlanMealsTool(),
+            function_definition={
+                "name": "plan_meals",
+                "description": "Generate AI-powered meal plan for specified days using user's recipes and pantry items. Use when user asks to plan meals.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "days": {
+                            "type": "integer",
+                            "description": "Number of days to plan (default: 7)"
+                        },
+                        "meal_types": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of meal types to plan (default: breakfast, lunch, dinner)"
+                        },
+                        "use_pantry_items": {
+                            "type": "boolean",
+                            "description": "Whether to prioritize pantry items (default: true)"
+                        },
+                        "dietary_preferences": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional dietary preferences to enforce"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Plan Meals tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Plan Meals tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Plan Meals tool registration failed: {e}")
+        failed_count += 1
+
+    # Meal Tool: Generate Shopping List
+    try:
+        logger.debug("🔄 Attempting to register Generate Shopping List tool...")
+        generate_shopping_list = lazy_import("app.services.pam.tools.meals.generate_shopping_list", "generate_shopping_list")
+
+        if generate_shopping_list is None:
+            raise ImportError("generate_shopping_list function not available")
+
+        class GenerateShoppingListTool:
+            tool_name = "generate_shopping_list"
+            async def initialize(self):
+                pass
+            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
+                return await generate_shopping_list(user_id=user_id, **params)
+
+        registry.register_tool(
+            tool=GenerateShoppingListTool(),
+            function_definition={
+                "name": "generate_shopping_list",
+                "description": "Generate shopping list from meal plans, subtracting available pantry items. Use when user asks for shopping list.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "start_date": {
+                            "type": "string",
+                            "description": "Start date for meal plans (YYYY-MM-DD format)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "End date for meal plans (YYYY-MM-DD format)"
+                        },
+                        "meal_plan_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional list of specific meal plan IDs"
+                        },
+                        "list_name": {
+                            "type": "string",
+                            "description": "Optional custom name for the list"
+                        }
+                    }
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ Generate Shopping List tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Generate Shopping List tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Generate Shopping List tool registration failed: {e}")
+        failed_count += 1
+
     # Registration summary
     total_attempted = registered_count + failed_count
     success_rate = (registered_count / total_attempted * 100) if total_attempted > 0 else 0
