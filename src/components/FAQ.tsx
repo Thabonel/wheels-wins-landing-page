@@ -56,7 +56,7 @@ const FAQ = () => {
     {
       question: "Is my financial data secure?",
       answer:
-        "Yes. We use bank-level 256-bit encryption for all data. Your credit card details are processed by Stripe (used by Amazon, Shopify) and never stored on our servers. We're fully GDPR compliant and regularly audited.",
+        "Yes. We use bank-level 256-bit encryption for all data. Your credit card details are processed by Stripe (used by Amazon, Shopify) and never stored on our servers. We follow GDPR guidelines for data protection.",
       category: "security",
     },
     {
@@ -68,7 +68,7 @@ const FAQ = () => {
     {
       question: "Can I delete my account and data?",
       answer:
-        "Yes. Go to Settings - Privacy - Delete Account. This permanently removes all your data within 48 hours. You can also export everything first (trips, expenses, messages) before deleting.",
+        "Yes. Go to Settings and request account deletion. Your account will be scheduled for permanent deletion in 30 days, giving you time to change your mind. You can export your data before deleting.",
       category: "security",
     },
     {
@@ -86,7 +86,7 @@ const FAQ = () => {
     {
       question: "Can I use this with my partner/travel buddy?",
       answer:
-        "Yes. Add your partner's email in Settings - Profile. You'll both see shared expenses, trips, and budgets. Each person gets their own PAM assistant with full access to shared data.",
+        "Yes. You can share your trip plans and coordinate travel with friends through the social features. Each person has their own account with their own PAM assistant.",
       category: "setup",
     },
     {

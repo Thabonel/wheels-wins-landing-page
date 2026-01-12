@@ -5,7 +5,7 @@ const Testimonials = () => {
       credentials: "Full-time RVer, 3 years",
       location: "Queensland, Australia",
       quote:
-        "Saved $400 in my first month just by following PAM's fuel suggestions. The route planner found campgrounds I never would've discovered on my own.",
+        "The route planner found campgrounds I never would've discovered on my own. Makes trip planning so much easier.",
       initials: "MR",
       rotation: "-2deg",
       pinColor: "bg-secondary",
@@ -15,7 +15,7 @@ const Testimonials = () => {
       credentials: "Grey Nomads, 5 years on the road",
       location: "Victoria, Australia",
       quote:
-        "We used to overspend every month and had no idea where the money went. PAM's expense tracking showed us we were wasting $200/month on convenience stops. Now we're saving that instead.",
+        "We used to have no idea where our money was going each month. PAM's expense tracking helps us see exactly what we're spending on fuel, food, and camping.",
       initials: "RH",
       rotation: "1deg",
       pinColor: "bg-primary",
@@ -25,7 +25,7 @@ const Testimonials = () => {
       credentials: "Weekend warrior, Class C motorhome",
       location: "New South Wales, Australia",
       quote:
-        "The weather alerts saved us from driving into a storm in the Blue Mountains. PAM rerouted us automatically and we found an amazing free camp instead. Worth every cent.",
+        "Having all my trip planning and expenses in one place is a game changer. No more spreadsheets or guesswork.",
       initials: "JT",
       rotation: "-1deg",
       pinColor: "bg-accent",
