@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
 
 const CallToAction = () => {
   return (
@@ -55,34 +54,20 @@ const CallToAction = () => {
           <Link to="/signup">
             <Button
               size="lg"
-              className="text-lg font-medium px-8 py-6 bg-primary-foreground text-primary hover:bg-primary-foreground/90 btn-editorial group"
+              className="text-lg font-medium px-8 py-6 bg-primary-foreground text-primary hover:bg-primary-foreground/90 btn-editorial"
             >
               Start Free for 30 Days
-              <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
             </Button>
           </Link>
         </div>
 
         {/* Trust indicators */}
         <div className="mt-10 flex flex-wrap justify-center gap-6 text-sm opacity-80">
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>No credit card required</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Cancel anytime</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Full access for 30 days</span>
-          </div>
+          <span>No credit card required</span>
+          <span>-</span>
+          <span>Cancel anytime</span>
+          <span>-</span>
+          <span>Full access for 30 days</span>
         </div>
       </div>
     </section>

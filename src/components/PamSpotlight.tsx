@@ -1,12 +1,11 @@
 import { getPublicAssetUrl } from "@/utils/publicAssets";
-import { MapPin, DollarSign, Users, Sparkles } from "lucide-react";
 
 const PamSpotlight = () => {
   const features = [
-    { icon: MapPin, label: "Route Planning" },
-    { icon: DollarSign, label: "Budget Tracking" },
-    { icon: Users, label: "Community Connect" },
-    { icon: Sparkles, label: "Smart Suggestions" },
+    "Route Planning",
+    "Budget Tracking",
+    "Community Connect",
+    "Smart Suggestions",
   ];
 
   return (
@@ -51,34 +50,11 @@ const PamSpotlight = () => {
                 {/* Subtle gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent" />
               </div>
-
-              {/* Floating badge */}
-              <div className="absolute -bottom-4 -right-4 md:-right-8 bg-background rounded-xl px-4 py-3 shadow-warm-lg border border-border animate-float">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-accent/30 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-accent-foreground" />
-                  </div>
-                  <span className="text-sm font-medium text-foreground">
-                    AI-Powered
-                  </span>
-                </div>
-              </div>
             </div>
           </div>
 
           {/* Content side */}
           <div className="w-full lg:w-7/12 order-1 lg:order-2">
-            {/* Decorative quotation mark */}
-            <div className="mb-4 opacity-20">
-              <svg
-                className="w-12 h-12 text-primary"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z" />
-              </svg>
-            </div>
-
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-light tracking-tight text-foreground mb-6">
               Meet <span className="font-medium text-primary">Pam</span> - Your
               AI Travel Companion
@@ -91,20 +67,16 @@ const PamSpotlight = () => {
               better than the last.
             </p>
 
-            {/* Feature badges */}
+            {/* Feature badges - text only */}
             <div className="flex flex-wrap gap-3 mb-8">
-              {features.map((feature, index) => {
-                const Icon = feature.icon;
-                return (
-                  <div
-                    key={index}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/50 border border-border/50 text-sm font-medium text-foreground transition-all duration-200 hover:bg-muted hover:border-border"
-                  >
-                    <Icon className="w-4 h-4 text-secondary" />
-                    {feature.label}
-                  </div>
-                );
-              })}
+              {features.map((feature, index) => (
+                <span
+                  key={index}
+                  className="px-4 py-2 rounded-full bg-muted/50 border border-border/50 text-sm font-medium text-foreground"
+                >
+                  {feature}
+                </span>
+              ))}
             </div>
 
             {/* Quote highlight */}

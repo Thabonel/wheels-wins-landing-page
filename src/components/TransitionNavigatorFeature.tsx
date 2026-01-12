@@ -1,4 +1,3 @@
-import { ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -138,7 +137,6 @@ const TransitionNavigatorFeature = () => {
               {isAuthenticated
                 ? "Open Transition Navigator"
                 : "Get Started Free"}
-              <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <p className="text-sm text-muted-foreground mt-4">
               {isAuthenticated
