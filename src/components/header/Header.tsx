@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useHeaderAppearance } from "@/hooks/useHeaderAppearance";
-import { useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import HeaderContainer from "./HeaderContainer";
 import NavigationLinks from "./NavigationLinks";
@@ -14,7 +13,6 @@ import LanguageSelector from "@/components/LanguageSelector";
 const Header = () => {
   const { isAuthenticated, isDevMode } = useAuth();
   const { isHomePage, showNavigation, showUserMenu } = useHeaderAppearance();
-  const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -22,8 +20,8 @@ const Header = () => {
       setIsScrolled(window.scrollY > 50);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
@@ -31,7 +29,7 @@ const Header = () => {
       {/* Logo */}
       <Link to="/" className="flex-shrink-0">
         <img
-          src={getPublicAssetUrl('wheels and wins Logo alpha.png')}
+          src={getPublicAssetUrl("wheels and wins Logo alpha.png")}
           alt="Wheels & Wins - RV Trip Planning and Budget Management App Logo"
           className="h-14 object-contain drop-shadow-md"
         />
@@ -49,7 +47,7 @@ const Header = () => {
             <Link to="/shop">
               <Button
                 variant="outline"
-                className="bg-white text-primary border-primary hover:bg-primary/10 min-h-[44px] px-3 sm:px-4"
+                className="bg-card text-foreground border-border hover:bg-muted hover:border-primary/30 min-h-[44px] px-3 sm:px-4 font-body transition-all"
                 size="sm"
               >
                 Shop
@@ -66,7 +64,7 @@ const Header = () => {
           <Link to="/login">
             <Button
               variant="default"
-              className="min-h-[44px] px-3 sm:px-4"
+              className="min-h-[44px] px-3 sm:px-4 bg-primary text-primary-foreground hover:bg-primary/90 font-body btn-editorial"
               size="sm"
             >
               Sign In

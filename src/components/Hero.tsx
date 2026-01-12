@@ -1,31 +1,111 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 const Hero = () => {
   return (
-    <section className="w-full h-screen flex items-start justify-center overflow-hidden pt-32">
-      <div className="absolute inset-0 bg-cover bg-center" style={{
-        backgroundImage: `url('/images/hero-unimog-fire.jpg')`
-      }}>
-        <div className="absolute inset-0 bg-black/40" />
-      </div>
-      <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 drop-shadow-lg">
-          Plan RV Trips That Save Money, Not Waste It
-        </h1>
-        <p className="text-xl md:text-2xl text-white/90 mb-10 max-w-3xl mx-auto">
-          AI-powered route planning + expense tracking for full-time RVers who want more travel, less stress.
-        </p>
-        <div className="flex justify-center items-center">
-          <Link to="/signup">
-            <Button size="lg" className="text-xl font-semibold px-10 py-7 bg-accent text-accent-foreground hover:bg-accent/90">
-              Start Free for 30 Days
-            </Button>
-          </Link>
+    <section className="w-full min-h-[90vh] bg-background relative overflow-hidden">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 opacity-[0.02]" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23370808' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+      }} />
+
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 md:pt-20 pb-16 relative">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          {/* Content - Left side */}
+          <div className="lg:col-span-6 space-y-6 md:space-y-8">
+            {/* Badge */}
+            <Badge
+              variant="secondary"
+              className="bg-accent/20 text-accent-foreground border-accent/30 px-4 py-1.5 text-sm font-medium animate-fade-in"
+            >
+              AI-Powered Travel Planning
+            </Badge>
+
+            {/* Headline */}
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-light tracking-tight text-foreground leading-[1.1] animate-fade-in-up">
+              Plan RV Trips That{" "}
+              <span className="font-medium text-primary">Save Money</span>, Not Waste It
+            </h1>
+
+            {/* Tagline */}
+            <p className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+              Smart route planning and expense tracking for full-time RVers who want more adventure, less stress.
+            </p>
+
+            {/* CTA */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-2 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+              <Link to="/signup">
+                <Button
+                  size="lg"
+                  className="text-lg font-medium px-8 py-6 bg-primary text-primary-foreground hover:bg-primary/90 btn-editorial shadow-warm"
+                >
+                  Start Free for 30 Days
+                </Button>
+              </Link>
+              <Link to="/features">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="text-lg font-medium px-8 py-6 border-border hover:bg-muted"
+                >
+                  See How It Works
+                </Button>
+              </Link>
+            </div>
+
+            {/* Social proof */}
+            <div className="flex items-center gap-3 pt-4 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+              <div className="flex -space-x-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium text-muted-foreground"
+                  >
+                    {['JD', 'MK', 'SA', 'TL'][i - 1]}
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">10,000+</span> travelers already planning smarter
+              </p>
+            </div>
+          </div>
+
+          {/* Featured Image - Right side */}
+          <div className="lg:col-span-6 relative animate-scale-in" style={{ animationDelay: '0.2s' }}>
+            <div className="relative">
+              {/* Decorative element behind image */}
+              <div className="absolute -inset-4 bg-accent/10 rounded-3xl transform rotate-2" />
+
+              {/* Main image */}
+              <div className="relative rounded-2xl overflow-hidden shadow-warm-lg">
+                <img
+                  src="/images/hero-unimog-fire.jpg"
+                  alt="RV adventure by campfire at sunset"
+                  className="w-full h-auto object-cover aspect-[4/3]"
+                />
+                {/* Subtle gradient overlay for depth */}
+                <div className="absolute inset-0 bg-gradient-to-t from-foreground/10 to-transparent" />
+              </div>
+
+              {/* Floating badge */}
+              <div className="absolute -bottom-4 -left-4 md:-left-8 bg-card rounded-xl px-4 py-3 shadow-warm-lg border border-border animate-float">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">$2,400 saved</p>
+                    <p className="text-xs text-muted-foreground">Average annual savings</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="text-white/80 mt-6 text-sm">
-          Join 10,000+ RV travelers
-        </p>
       </div>
     </section>
   );
