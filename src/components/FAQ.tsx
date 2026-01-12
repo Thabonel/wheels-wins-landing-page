@@ -4,7 +4,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Mail } from "lucide-react";
 
 const FAQ = () => {
   const faqs = [
@@ -156,12 +155,9 @@ const FAQ = () => {
           </Accordion>
         </div>
 
-        {/* Contact section with envelope decoration */}
+        {/* Contact section */}
         <div className="mt-16 text-center">
           <div className="inline-flex flex-col items-center bg-card rounded-xl px-8 py-6 shadow-warm border border-border/50">
-            <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mb-4">
-              <Mail className="w-5 h-5 text-secondary" />
-            </div>
             <p className="text-muted-foreground mb-2">Still have questions?</p>
             <a
               href="mailto:support@wheelsandwins.com"

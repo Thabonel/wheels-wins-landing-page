@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Video } from "lucide-react";
 
 const FeaturedProduct = () => {
   return (
@@ -18,7 +17,7 @@ const FeaturedProduct = () => {
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="w-full md:w-1/4 flex justify-center">
                 <div className="w-24 h-24 rounded-full bg-accent flex items-center justify-center">
-                  <Video className="w-12 h-12 text-accent-foreground" />
+                  <span className="text-3xl font-display font-medium text-accent-foreground">Video</span>
                 </div>
               </div>
 

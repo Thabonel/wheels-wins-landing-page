@@ -1,5 +1,3 @@
-import { Quote } from "lucide-react";
-
 const Testimonials = () => {
   const testimonials = [
     {
@@ -85,11 +83,6 @@ const Testimonials = () => {
                   ${index === 1 ? "md:-mt-4" : ""}
                 `}
               >
-                {/* Large decorative quote */}
-                <div className="absolute top-6 right-6 opacity-10">
-                  <Quote className="w-12 h-12 text-primary" />
-                </div>
-
                 {/* Quote text */}
                 <blockquote className="relative mb-6">
                   <p className="text-foreground leading-relaxed text-base">
