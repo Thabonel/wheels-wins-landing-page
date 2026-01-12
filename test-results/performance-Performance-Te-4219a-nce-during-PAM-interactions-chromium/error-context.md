@@ -1,0 +1,352 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - link "Wheels & Wins - RV Trip Planning and Budget Management App Logo" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img "Wheels & Wins - RV Trip Planning and Budget Management App Logo" [ref=e8]
+        - generic [ref=e9]:
+          - button [ref=e10] [cursor=pointer]:
+            - img
+          - link "Shop" [ref=e11] [cursor=pointer]:
+            - /url: /shop
+            - button "Shop" [ref=e12]
+          - link "Login" [ref=e13] [cursor=pointer]:
+            - /url: /login
+            - button "Login" [ref=e14]
+    - generic [ref=e18]:
+      - heading "Plan RV Trips That Save Money, Not Waste It" [level=1] [ref=e19]
+      - paragraph [ref=e20]: AI-powered route planning + expense tracking for full-time RVers who want more travel, less stress.
+      - link "Start Free for 30 Days" [ref=e22] [cursor=pointer]:
+        - /url: /signup
+        - button "Start Free for 30 Days" [ref=e23]
+      - paragraph [ref=e24]: Join 10,000+ RV travelers
+    - main [ref=e25]:
+      - generic [ref=e28]:
+        - generic [ref=e31]:
+          - img "Pam AI Assistant" [ref=e33]
+          - generic [ref=e34]:
+            - heading "Pam Handles the Details - You Live the Dream" [level=2] [ref=e35]
+            - paragraph [ref=e36]: Pam is your friendly AI travel companion. She plans routes, tracks your budget, and connects you with like-minded travellers so you can focus on what matters most - living freely and fully.
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - generic [ref=e40]:
+              - img [ref=e41]
+              - text: "New Feature: Life Transition Navigator"
+            - heading "Planning to Hit the Road?" [level=2] [ref=e44]
+            - paragraph [ref=e45]: We know the transition from traditional life to full-time RV living can feel overwhelming. That's why we built a complete planning system to guide you every step of the way.
+          - generic [ref=e46]:
+            - generic [ref=e48]:
+              - img [ref=e51]
+              - heading "Step-by-Step Checklist" [level=3] [ref=e54]
+              - paragraph [ref=e55]: From downsizing to departure day - never miss a critical task
+            - generic [ref=e57]:
+              - img [ref=e60]
+              - heading "Smart Timeline" [level=3] [ref=e62]
+              - paragraph [ref=e63]: Know exactly what to do and when, customized to your departure date
+            - generic [ref=e65]:
+              - img [ref=e68]
+              - heading "Auto-Hides When Done" [level=3] [ref=e71]
+              - paragraph [ref=e72]: Once you hit the road, the planner gracefully gets out of your way
+          - generic [ref=e73]:
+            - heading "What's Included in the Transition Navigator" [level=3] [ref=e74]
+            - generic [ref=e75]:
+              - generic [ref=e76]:
+                - img [ref=e77]
+                - generic [ref=e80]:
+                  - heading "Vehicle Modifications Tracker" [level=4] [ref=e81]
+                  - paragraph [ref=e82]: Plan upgrades, track costs, manage your build
+              - generic [ref=e83]:
+                - img [ref=e84]
+                - generic [ref=e87]:
+                  - heading "Equipment List Manager" [level=4] [ref=e88]
+                  - paragraph [ref=e89]: Never forget essential gear - organized by priority
+              - generic [ref=e90]:
+                - img [ref=e91]
+                - generic [ref=e94]:
+                  - heading "Digital Life Consolidation" [level=4] [ref=e95]
+                  - paragraph [ref=e96]: Cancel services, go paperless, simplify your life
+              - generic [ref=e97]:
+                - img [ref=e98]
+                - generic [ref=e101]:
+                  - heading "Shakedown Trip Logger" [level=4] [ref=e102]
+                  - paragraph [ref=e103]: Test everything before you go all-in
+              - generic [ref=e104]:
+                - img [ref=e105]
+                - generic [ref=e108]:
+                  - heading "Psychological Support Tools" [level=4] [ref=e109]
+                  - paragraph [ref=e110]: Navigate the emotional side of major life change
+              - generic [ref=e111]:
+                - img [ref=e112]
+                - generic [ref=e115]:
+                  - heading "Launch Week Countdown" [level=4] [ref=e116]
+                  - paragraph [ref=e117]: Final week checklist - nothing gets forgotten
+            - generic [ref=e118]:
+              - button "Get Started Free" [ref=e119] [cursor=pointer]:
+                - text: Get Started Free
+                - img
+              - paragraph [ref=e120]: No credit card required - start planning your adventure today
+        - generic [ref=e122]:
+          - heading "What Makes Wheels and Wins Different" [level=2] [ref=e123]
+          - generic [ref=e124]:
+            - generic [ref=e126]:
+              - img [ref=e128]
+              - heading "Community that Travels With You" [level=3] [ref=e133]
+              - paragraph [ref=e134]: Stay connected with other nomads - share tips, meet up on the road, and always have friends nearby.
+            - generic [ref=e136]:
+              - img [ref=e138]
+              - heading "See Where Your Money Goes" [level=3] [ref=e140]
+              - paragraph [ref=e141]: Pam tracks expenses, spots where you're overspending, and helps you save on gas and camping.
+            - generic [ref=e143]:
+              - img [ref=e145]
+              - heading "Routes That Actually Work" [level=3] [ref=e147]
+              - paragraph [ref=e148]: Skip the problems. Find scenic routes and great spots that fit your RV and travel style.
+        - generic [ref=e150]:
+          - heading "Learn, Earn & Share" [level=2] [ref=e151]
+          - paragraph [ref=e152]: Make Fun Travel Videos for Friends & Family
+          - generic [ref=e155]:
+            - img [ref=e158]
+            - generic [ref=e161]:
+              - paragraph [ref=e162]:
+                - text: Turn your travels into beautiful memories and income opportunities.
+                - text: Pam even helps you promote your creations to fellow travellers.
+              - generic [ref=e163]:
+                - generic [ref=e164]: A$97 or free with annual membership
+                - button "→ View Course" [ref=e165] [cursor=pointer]
+        - generic [ref=e167]:
+          - generic [ref=e168]:
+            - heading "Pick Your Plan" [level=2] [ref=e169]
+            - paragraph [ref=e170]: Try it free for 30 days, no credit card needed
+          - generic [ref=e171]:
+            - generic [ref=e172]:
+              - generic [ref=e173]:
+                - heading "Free Trial" [level=3] [ref=e174]
+                - paragraph [ref=e175]: Full access to Pam & community
+              - generic [ref=e176]:
+                - generic [ref=e177]: A$0for 30 days
+                - list [ref=e178]:
+                  - listitem [ref=e179]:
+                    - img [ref=e180]
+                    - generic [ref=e183]: Full access to Pam & community
+              - button "Start Free Trial (No credit card needed)" [ref=e185] [cursor=pointer]
+            - generic [ref=e186]:
+              - generic [ref=e187]:
+                - heading "Monthly" [level=3] [ref=e188]
+                - paragraph [ref=e189]: Keep using Pam after your trial
+              - generic [ref=e190]:
+                - generic [ref=e191]: A$9.99/month
+                - list [ref=e192]:
+                  - listitem [ref=e193]:
+                    - img [ref=e194]
+                    - generic [ref=e197]: Keep all your trips and expenses organized
+              - button "Start Monthly Plan" [ref=e199] [cursor=pointer]
+            - generic [ref=e200]:
+              - generic [ref=e201]: Best Value
+              - generic [ref=e202]:
+                - heading "Annual" [level=3] [ref=e203]
+                - paragraph [ref=e204]: Includes Pam + free video course
+              - generic [ref=e205]:
+                - generic [ref=e206]: A$99/year
+                - list [ref=e207]:
+                  - listitem [ref=e208]:
+                    - img [ref=e209]
+                    - generic [ref=e212]: Full access to Pam & community
+                  - listitem [ref=e213]:
+                    - img [ref=e214]
+                    - generic [ref=e217]: Free video course (A$97 value)
+              - button "Start Annual Plan" [ref=e219] [cursor=pointer]
+          - generic [ref=e220]:
+            - heading "Compare Plans" [level=3] [ref=e221]
+            - table [ref=e223]:
+              - rowgroup [ref=e224]:
+                - row "Features Free Trial Monthly Annual" [ref=e225]:
+                  - cell "Features" [ref=e226]
+                  - cell "Free Trial" [ref=e227]
+                  - cell "Monthly" [ref=e228]
+                  - cell "Annual" [ref=e229]
+              - rowgroup [ref=e230]:
+                - row "AI trip planning with PAM" [ref=e231]:
+                  - cell "AI trip planning with PAM" [ref=e232]
+                  - cell [ref=e233]:
+                    - img [ref=e234]
+                  - cell [ref=e236]:
+                    - img [ref=e237]
+                  - cell [ref=e239]:
+                    - img [ref=e240]
+                - row "Expense & budget tracking" [ref=e242]:
+                  - cell "Expense & budget tracking" [ref=e243]
+                  - cell [ref=e244]:
+                    - img [ref=e245]
+                  - cell [ref=e247]:
+                    - img [ref=e248]
+                  - cell [ref=e250]:
+                    - img [ref=e251]
+                - row "Community access & social features" [ref=e253]:
+                  - cell "Community access & social features" [ref=e254]
+                  - cell [ref=e255]:
+                    - img [ref=e256]
+                  - cell [ref=e258]:
+                    - img [ref=e259]
+                  - cell [ref=e261]:
+                    - img [ref=e262]
+                - row "Weather alerts & road conditions" [ref=e264]:
+                  - cell "Weather alerts & road conditions" [ref=e265]
+                  - cell [ref=e266]:
+                    - img [ref=e267]
+                  - cell [ref=e269]:
+                    - img [ref=e270]
+                  - cell [ref=e272]:
+                    - img [ref=e273]
+                - row "Save unlimited trips & routes 3 trips max" [ref=e275]:
+                  - cell "Save unlimited trips & routes" [ref=e276]
+                  - cell "3 trips max" [ref=e277]
+                  - cell [ref=e278]:
+                    - img [ref=e279]
+                  - cell [ref=e281]:
+                    - img [ref=e282]
+                - row "Historical expense reports 30 days" [ref=e284]:
+                  - cell "Historical expense reports" [ref=e285]
+                  - cell "30 days" [ref=e286]
+                  - cell [ref=e287]:
+                    - img [ref=e288]
+                  - cell [ref=e290]:
+                    - img [ref=e291]
+                - row "Priority PAM response time" [ref=e293]:
+                  - cell "Priority PAM response time" [ref=e294]
+                  - cell [ref=e295]:
+                    - img [ref=e296]
+                  - cell [ref=e299]:
+                    - img [ref=e300]
+                  - cell [ref=e303]:
+                    - img [ref=e304]
+                - row "Free RV travel video course (A$97 value)" [ref=e306]:
+                  - cell "Free RV travel video course (A$97 value)" [ref=e307]
+                  - cell [ref=e308]:
+                    - img [ref=e309]
+                  - cell [ref=e312]:
+                    - img [ref=e313]
+                  - cell [ref=e316]:
+                    - img [ref=e317]
+                - row "Total savings vs monthly (per year) - A$0 Save A$20" [ref=e319]:
+                  - cell "Total savings vs monthly (per year)" [ref=e320]
+                  - cell "-" [ref=e321]
+                  - cell "A$0" [ref=e322]
+                  - cell "Save A$20" [ref=e323]
+            - paragraph [ref=e324]: All plans include 30-day money-back guarantee. Cancel anytime with one click.
+        - generic [ref=e326]:
+          - generic [ref=e327]:
+            - heading "Frequently Asked Questions" [level=2] [ref=e328]
+            - paragraph [ref=e329]: Everything you need to know about Wheels & Wins
+          - generic [ref=e330]:
+            - heading "How much does Wheels & Wins cost?" [level=3] [ref=e332]:
+              - button "How much does Wheels & Wins cost?" [ref=e333] [cursor=pointer]:
+                - generic [ref=e334]: How much does Wheels & Wins cost?
+                - img [ref=e335]
+            - heading "What happens after my free trial ends?" [level=3] [ref=e338]:
+              - button "What happens after my free trial ends?" [ref=e339] [cursor=pointer]:
+                - generic [ref=e340]: What happens after my free trial ends?
+                - img [ref=e341]
+            - heading "Can I really cancel anytime?" [level=3] [ref=e344]:
+              - button "Can I really cancel anytime?" [ref=e345] [cursor=pointer]:
+                - generic [ref=e346]: Can I really cancel anytime?
+                - img [ref=e347]
+            - heading "Do you offer refunds?" [level=3] [ref=e350]:
+              - button "Do you offer refunds?" [ref=e351] [cursor=pointer]:
+                - generic [ref=e352]: Do you offer refunds?
+                - img [ref=e353]
+            - heading "Is my financial data secure?" [level=3] [ref=e356]:
+              - button "Is my financial data secure?" [ref=e357] [cursor=pointer]:
+                - generic [ref=e358]: Is my financial data secure?
+                - img [ref=e359]
+            - heading "Who can see my location and travel plans?" [level=3] [ref=e362]:
+              - button "Who can see my location and travel plans?" [ref=e363] [cursor=pointer]:
+                - generic [ref=e364]: Who can see my location and travel plans?
+                - img [ref=e365]
+            - heading "Can I delete my account and data?" [level=3] [ref=e368]:
+              - button "Can I delete my account and data?" [ref=e369] [cursor=pointer]:
+                - generic [ref=e370]: Can I delete my account and data?
+                - img [ref=e371]
+            - heading "How long does setup take?" [level=3] [ref=e374]:
+              - button "How long does setup take?" [ref=e375] [cursor=pointer]:
+                - generic [ref=e376]: How long does setup take?
+                - img [ref=e377]
+            - heading "Do I need to manually enter all my past expenses?" [level=3] [ref=e380]:
+              - button "Do I need to manually enter all my past expenses?" [ref=e381] [cursor=pointer]:
+                - generic [ref=e382]: Do I need to manually enter all my past expenses?
+                - img [ref=e383]
+            - heading "Can I use this with my partner/travel buddy?" [level=3] [ref=e386]:
+              - button "Can I use this with my partner/travel buddy?" [ref=e387] [cursor=pointer]:
+                - generic [ref=e388]: Can I use this with my partner/travel buddy?
+                - img [ref=e389]
+            - heading "Does PAM work offline?" [level=3] [ref=e392]:
+              - button "Does PAM work offline?" [ref=e393] [cursor=pointer]:
+                - generic [ref=e394]: Does PAM work offline?
+                - img [ref=e395]
+            - heading "What if PAM gives me wrong directions or bad advice?" [level=3] [ref=e398]:
+              - button "What if PAM gives me wrong directions or bad advice?" [ref=e399] [cursor=pointer]:
+                - generic [ref=e400]: What if PAM gives me wrong directions or bad advice?
+                - img [ref=e401]
+          - generic [ref=e403]:
+            - paragraph [ref=e404]: Still have questions?
+            - link "Email us at support@wheelsandwins.com" [ref=e405] [cursor=pointer]:
+              - /url: mailto:support@wheelsandwins.com
+        - generic [ref=e407]:
+          - heading "Why Travellers Love Pam & Wheels and Wins" [level=2] [ref=e408]
+          - paragraph [ref=e409]: Stories from the Road
+          - generic [ref=e410]:
+            - generic [ref=e412]:
+              - generic [ref=e413]:
+                - generic [ref=e414]: MR
+                - generic [ref=e415]:
+                  - paragraph [ref=e416]: Margaret R.
+                  - paragraph [ref=e417]: Full-time RVer, 3 years
+                  - paragraph [ref=e418]: Queensland, Australia
+              - paragraph [ref=e419]: "\"Saved $400 in my first month just by following PAM's fuel suggestions. The route planner found campgrounds I never would've discovered on my own.\""
+            - generic [ref=e421]:
+              - generic [ref=e422]:
+                - generic [ref=e423]: RH
+                - generic [ref=e424]:
+                  - paragraph [ref=e425]: Robert & Linda H.
+                  - paragraph [ref=e426]: Grey Nomads, 5 years on the road
+                  - paragraph [ref=e427]: Victoria, Australia
+              - paragraph [ref=e428]: "\"We used to overspend every month and had no idea where the money went. PAM's expense tracking showed us we were wasting $200/month on convenience stops. Now we're saving that instead.\""
+            - generic [ref=e430]:
+              - generic [ref=e431]:
+                - generic [ref=e432]: JT
+                - generic [ref=e433]:
+                  - paragraph [ref=e434]: James T.
+                  - paragraph [ref=e435]: Weekend warrior, Class C motorhome
+                  - paragraph [ref=e436]: New South Wales, Australia
+              - paragraph [ref=e437]: "\"The weather alerts saved us from driving into a storm in the Blue Mountains. PAM rerouted us automatically and we found an amazing free camp instead. Worth every cent.\""
+        - generic [ref=e439]:
+          - heading "Join the Wheels and Wins Community" [level=2] [ref=e440]
+          - paragraph [ref=e441]: Wherever the road takes you, you're never alone, and Pam's always got your back.
+          - link "Start Free for 30 Days" [ref=e442] [cursor=pointer]:
+            - /url: /signup
+            - button "Start Free for 30 Days" [ref=e443]
+    - contentinfo [ref=e444]:
+      - contentinfo [ref=e445]:
+        - generic [ref=e446]:
+          - generic [ref=e447]:
+            - paragraph [ref=e448]: If something doesn't work, let me know and I will fix it immediately.
+            - button "Report Issue" [ref=e449] [cursor=pointer]:
+              - img
+              - text: Report Issue
+          - generic [ref=e450]:
+            - paragraph [ref=e451]: © 2026 Wheels and Wins. All rights reserved.
+            - generic [ref=e452]:
+              - link "Terms of Service" [ref=e453] [cursor=pointer]:
+                - /url: /terms
+              - generic [ref=e454]: "|"
+              - link "Privacy Policy" [ref=e455] [cursor=pointer]:
+                - /url: /privacy
+              - generic [ref=e456]: "|"
+              - link "Cookie Policy" [ref=e457] [cursor=pointer]:
+                - /url: /cookies
+    - button "Open PAM Chat" [ref=e458] [cursor=pointer]:
+      - img "PAM" [ref=e460]
+```
