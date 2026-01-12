@@ -43,7 +43,7 @@ const Hero = () => {
                   Start Free for 30 Days
                 </Button>
               </Link>
-              <Link to="/features">
+              <a href="#how-it-works">
                 <Button
                   size="lg"
                   variant="outline"
@@ -51,7 +51,7 @@ const Hero = () => {
                 >
                   See How It Works
                 </Button>
-              </Link>
+              </a>
             </div>
 
             {/* Social proof */}
