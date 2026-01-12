@@ -61,10 +61,9 @@ const PamSpotlight = () => {
             </h2>
 
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8">
-              Pam handles the details so you can live the dream. She plans
+              Pam handles the details so you can live the dream. She helps plan
               routes, tracks your budget, and connects you with like-minded
-              travelers - all while learning your preferences to make every trip
-              better than the last.
+              travelers - your personal AI assistant for life on the road.
             </p>
 
             {/* Feature badges - text only */}

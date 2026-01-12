@@ -47,18 +47,8 @@ const Hero = () => {
 
             {/* Social proof */}
             <div className="flex items-center gap-3 pt-4 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              <div className="flex -space-x-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium text-muted-foreground"
-                  >
-                    {['JD', 'MK', 'SA', 'TL'][i - 1]}
-                  </div>
-                ))}
-              </div>
               <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">10,000+</span> travelers already planning smarter
+                Join RVers across Australia planning smarter trips
               </p>
             </div>
           </div>
@@ -83,8 +73,8 @@ const Hero = () => {
               {/* Floating badge */}
               <div className="absolute -bottom-4 -left-4 md:-left-8 bg-card rounded-xl px-4 py-3 shadow-warm-lg border border-border animate-float">
                 <div className="text-center">
-                  <p className="text-sm font-medium text-foreground">$2,400 saved</p>
-                  <p className="text-xs text-muted-foreground">Average annual savings</p>
+                  <p className="text-sm font-medium text-foreground">30-day free trial</p>
+                  <p className="text-xs text-muted-foreground">No credit card required</p>
                 </div>
               </div>
             </div>
