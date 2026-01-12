@@ -2,7 +2,6 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Loader2, Check, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -96,23 +95,18 @@ const PricingPlans = () => {
                 </div>
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
-                    <CheckCircle className="h-5 w-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                    <span className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5 text-green-500 font-medium">-</span>
                     <span>Full access to Pam & community</span>
                   </li>
                 </ul>
               </CardContent>
               <CardFooter>
                 <Button
-                  className="w-full bg-green-500 hover:bg-green-600"
+                  className="w-full bg-green-500 hover:bg-green-600 text-white"
                   onClick={() => handleSubscription("price_1QT2VtDXysaVZSVhq8YjLRgX", "Free Trial")}
                   disabled={isLoading === "price_1QT2VtDXysaVZSVhq8YjLRgX"}
                 >
-                  {isLoading === "price_1QT2VtDXysaVZSVhq8YjLRgX" ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : "Start Free Trial (No credit card needed)"}
+                  {isLoading === "price_1QT2VtDXysaVZSVhq8YjLRgX" ? "Processing..." : "Start Free Trial (No credit card needed)"}
                 </Button>
               </CardFooter>
             </Card>
@@ -130,23 +124,18 @@ const PricingPlans = () => {
                 </div>
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
-                    <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5 text-primary font-medium">-</span>
                     <span>Keep all your trips and expenses organized</span>
                   </li>
                 </ul>
               </CardContent>
               <CardFooter>
                 <Button
-                  className="w-full bg-primary hover:bg-primary/90"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                   onClick={() => handleSubscription("price_1QT2XeDXysaVZSVhFiWGHV4Y", "Monthly Plan")}
                   disabled={isLoading === "price_1QT2XeDXysaVZSVhFiWGHV4Y"}
                 >
-                  {isLoading === "price_1QT2XeDXysaVZSVhFiWGHV4Y" ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : "Start Monthly Plan"}
+                  {isLoading === "price_1QT2XeDXysaVZSVhFiWGHV4Y" ? "Processing..." : "Start Monthly Plan"}
                 </Button>
               </CardFooter>
             </Card>
@@ -167,27 +156,22 @@ const PricingPlans = () => {
                 </div>
                 <ul className="space-y-2 text-left">
                   <li className="flex items-start">
-                    <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5 text-primary font-medium">-</span>
                     <span>Full access to Pam & community</span>
                   </li>
                   <li className="flex items-start">
-                    <CheckCircle className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5 text-primary font-medium">-</span>
                     <span>Free video course (A$97 value)</span>
                   </li>
                 </ul>
               </CardContent>
               <CardFooter>
                 <Button
-                  className="w-full bg-accent hover:bg-accent/90"
+                  className="w-full bg-accent text-foreground hover:bg-accent/90"
                   onClick={() => handleSubscription("price_1QT2YqDXysaVZSVh7XaE9rJ8", "Annual Plan")}
                   disabled={isLoading === "price_1QT2YqDXysaVZSVh7XaE9rJ8"}
                 >
-                  {isLoading === "price_1QT2YqDXysaVZSVh7XaE9rJ8" ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : "Start Annual Plan"}
+                  {isLoading === "price_1QT2YqDXysaVZSVh7XaE9rJ8" ? "Processing..." : "Start Annual Plan"}
                 </Button>
               </CardFooter>
             </Card>
@@ -209,51 +193,51 @@ const PricingPlans = () => {
                 <tbody className="divide-y divide-gray-200">
                   <tr>
                     <td className="p-4">AI trip planning with PAM</td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="p-4">Expense & budget tracking</td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
                   </tr>
                   <tr>
                     <td className="p-4">Community access & social features</td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="p-4">Weather alerts & road conditions</td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
                   </tr>
                   <tr>
                     <td className="p-4">Save unlimited trips & routes</td>
                     <td className="text-center p-4"><span className="text-gray-400 text-sm">3 trips max</span></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="p-4">Historical expense reports</td>
                     <td className="text-center p-4"><span className="text-gray-400 text-sm">30 days</span></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
                   </tr>
                   <tr>
                     <td className="p-4">Priority PAM response time</td>
-                    <td className="text-center p-4"><X className="h-5 w-5 text-gray-300 mx-auto" /></td>
-                    <td className="text-center p-4"><X className="h-5 w-5 text-gray-300 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="text-center p-4"><span className="text-gray-400">-</span></td>
+                    <td className="text-center p-4"><span className="text-gray-400">-</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
                   </tr>
                   <tr className="bg-gray-50">
                     <td className="p-4">Free RV travel video course (A$97 value)</td>
-                    <td className="text-center p-4"><X className="h-5 w-5 text-gray-300 mx-auto" /></td>
-                    <td className="text-center p-4"><X className="h-5 w-5 text-gray-300 mx-auto" /></td>
-                    <td className="text-center p-4"><Check className="h-5 w-5 text-green-500 mx-auto" /></td>
+                    <td className="text-center p-4"><span className="text-gray-400">-</span></td>
+                    <td className="text-center p-4"><span className="text-gray-400">-</span></td>
+                    <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
                   </tr>
                   <tr>
                     <td className="p-4 font-semibold">Total savings vs monthly (per year)</td>

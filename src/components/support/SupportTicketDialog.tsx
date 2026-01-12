@@ -22,8 +22,6 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertCircle } from 'lucide-react';
-
 interface SupportTicketDialogProps {
   trigger?: React.ReactNode;
 }
@@ -93,9 +91,8 @@ export function SupportTicketDialog({ trigger }: SupportTicketDialogProps) {
     <Button
       variant="outline"
       size="sm"
-      className="gap-2"
+      className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
     >
-      <AlertCircle className="h-4 w-4" />
       Report Issue
     </Button>
   );
