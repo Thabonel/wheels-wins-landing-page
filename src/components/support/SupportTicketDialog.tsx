@@ -91,7 +91,7 @@ export function SupportTicketDialog({ trigger }: SupportTicketDialogProps) {
     <Button
       variant="outline"
       size="sm"
-      className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+      className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
     >
       Report Issue
     </Button>
