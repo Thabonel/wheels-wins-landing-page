@@ -54,25 +54,25 @@
             - text: Don't have an account?
             - link "Sign up" [ref=e52] [cursor=pointer]:
               - /url: /signup
-    - button "Open PAM Chat" [ref=e53] [cursor=pointer]:
-      - img "PAM" [ref=e55]
-    - contentinfo [ref=e57]:
-      - contentinfo [ref=e58]:
-        - generic [ref=e59]:
-          - generic [ref=e60]:
-            - paragraph [ref=e61]: If something doesn't work, let me know and I will fix it immediately.
-            - button "Report Issue" [ref=e62] [cursor=pointer]:
+    - contentinfo [ref=e53]:
+      - contentinfo [ref=e54]:
+        - generic [ref=e55]:
+          - generic [ref=e56]:
+            - paragraph [ref=e57]: If something doesn't work, let me know and I will fix it immediately.
+            - button "Report Issue" [ref=e58] [cursor=pointer]:
               - img
               - text: Report Issue
-          - generic [ref=e63]:
-            - paragraph [ref=e64]: © 2025 Wheels and Wins. All rights reserved.
-            - generic [ref=e65]:
-              - link "Terms of Service" [ref=e66] [cursor=pointer]:
+          - generic [ref=e59]:
+            - paragraph [ref=e60]: © 2026 Wheels and Wins. All rights reserved.
+            - generic [ref=e61]:
+              - link "Terms of Service" [ref=e62] [cursor=pointer]:
                 - /url: /terms
-              - generic [ref=e67]: "|"
-              - link "Privacy Policy" [ref=e68] [cursor=pointer]:
+              - generic [ref=e63]: "|"
+              - link "Privacy Policy" [ref=e64] [cursor=pointer]:
                 - /url: /privacy
-              - generic [ref=e69]: "|"
-              - link "Cookie Policy" [ref=e70] [cursor=pointer]:
+              - generic [ref=e65]: "|"
+              - link "Cookie Policy" [ref=e66] [cursor=pointer]:
                 - /url: /cookies
+    - button "Open PAM Chat" [ref=e67] [cursor=pointer]:
+      - img "PAM" [ref=e69]
 ```

@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 
 const Hero = () => {
   return (
@@ -14,14 +13,6 @@ const Hero = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* Content - Left side */}
           <div className="lg:col-span-6 space-y-6 md:space-y-8">
-            {/* Badge */}
-            <Badge
-              variant="secondary"
-              className="bg-accent/20 text-accent-foreground border-accent/30 px-4 py-1.5 text-sm font-medium animate-fade-in"
-            >
-              AI-Powered Travel Planning
-            </Badge>
-
             {/* Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-light tracking-tight text-foreground leading-[1.1] animate-fade-in-up">
               Plan RV Trips That{" "}
@@ -91,16 +82,9 @@ const Hero = () => {
 
               {/* Floating badge */}
               <div className="absolute -bottom-4 -left-4 md:-left-8 bg-card rounded-xl px-4 py-3 shadow-warm-lg border border-border animate-float">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">$2,400 saved</p>
-                    <p className="text-xs text-muted-foreground">Average annual savings</p>
-                  </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-foreground">$2,400 saved</p>
+                  <p className="text-xs text-muted-foreground">Average annual savings</p>
                 </div>
               </div>
             </div>

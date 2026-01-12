@@ -1,0 +1,51 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - link "Wheels & Wins - RV Trip Planning and Budget Management App Logo" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img "Wheels & Wins - RV Trip Planning and Budget Management App Logo" [ref=e8]
+        - generic [ref=e9]:
+          - button [ref=e10] [cursor=pointer]:
+            - img
+          - link "Sign In" [ref=e11] [cursor=pointer]:
+            - /url: /login
+            - button "Sign In" [ref=e12]
+    - main [ref=e13]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - img [ref=e19]
+          - heading "Admin Access Required" [level=3] [ref=e21]
+        - generic [ref=e22]:
+          - alert [ref=e23]:
+            - img [ref=e24]
+            - generic [ref=e26]: You must be logged in to access the admin panel.
+          - generic [ref=e27]:
+            - button "Login" [ref=e28] [cursor=pointer]
+            - button "Back to Home" [ref=e29] [cursor=pointer]
+    - contentinfo [ref=e30]:
+      - contentinfo [ref=e31]:
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - paragraph [ref=e34]: If something doesn't work, let me know and I will fix it immediately.
+            - button "Report Issue" [ref=e35] [cursor=pointer]:
+              - img
+              - text: Report Issue
+          - generic [ref=e36]:
+            - paragraph [ref=e37]: © 2026 Wheels and Wins. All rights reserved.
+            - generic [ref=e38]:
+              - link "Terms of Service" [ref=e39] [cursor=pointer]:
+                - /url: /terms
+              - generic [ref=e40]: "|"
+              - link "Privacy Policy" [ref=e41] [cursor=pointer]:
+                - /url: /privacy
+              - generic [ref=e42]: "|"
+              - link "Cookie Policy" [ref=e43] [cursor=pointer]:
+                - /url: /cookies
+    - button "Open PAM Chat" [ref=e44] [cursor=pointer]:
+      - img "PAM" [ref=e46]
+```
