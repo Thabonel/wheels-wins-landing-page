@@ -4,19 +4,41 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useRegion } from "@/context/RegionContext";
 
 const FAQ = () => {
+  const { region, regionConfig } = useRegion();
+  const currency = regionConfig.currencySymbol;
+
+  // Get region-specific bank text
+  const getBankText = () => {
+    switch (region) {
+      case 'Australia':
+        return 'Works with any Australian bank.';
+      case 'New Zealand':
+        return 'Works with any New Zealand bank.';
+      case 'United States':
+        return 'Works with any US bank.';
+      case 'Canada':
+        return 'Works with any Canadian bank.';
+      case 'United Kingdom':
+        return 'Works with any UK bank.';
+      default:
+        return 'Works with most major banks.';
+    }
+  };
+
   const faqs = [
     {
       question: "How much does Wheels & Wins cost?",
       answer:
-        "Start with a free 30-day trial (no credit card required). After that, it's just A$10/month or A$100/year (save 17%). Cancel anytime with one click. Most RVers save more than A$10 in their first week just from fuel savings alone.",
+        `Start with a free 30-day trial (no credit card required). After that, it's just ${currency}10/month or ${currency}100/year (save 17%). Cancel anytime with one click. Most RVers save more than ${currency}10 in their first week just from fuel savings alone.`,
       category: "pricing",
     },
     {
       question: "What happens after my free trial ends?",
       answer:
-        "You'll get an email reminder 3 days before your trial ends. You can choose to subscribe for A$10/month or let it expire, no automatic charges. All your saved data stays private and can be downloaded anytime.",
+        `You'll get an email reminder 3 days before your trial ends. You can choose to subscribe for ${currency}10/month or let it expire, no automatic charges. All your saved data stays private and can be downloaded anytime.`,
       category: "pricing",
     },
     {
@@ -58,7 +80,7 @@ const FAQ = () => {
     {
       question: "Do I need to manually enter all my past expenses?",
       answer:
-        "No! Upload your bank statements (CSV, Excel, or PDF) and we'll automatically categorize transactions. Just review and approve. Works with any Australian bank.",
+        `No! Upload your bank statements (CSV, Excel, or PDF) and we'll automatically categorize transactions. Just review and approve. ${getBankText()}`,
       category: "setup",
     },
     {
