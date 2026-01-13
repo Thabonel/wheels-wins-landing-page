@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
 import {
   Accordion,
   AccordionContent,
@@ -7,6 +9,8 @@ import {
 import { useRegion } from "@/context/RegionContext";
 
 const FAQ = () => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(sectionRef, { once: true, amount: 0.1 });
   const { region, regionConfig } = useRegion();
   const currency = regionConfig.currencySymbol;
 
@@ -103,6 +107,41 @@ const FAQ = () => {
     },
   ];
 
+  const headerVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
   return (
     <section className="py-20 md:py-28 bg-background relative overflow-hidden">
       {/* Book page texture */}
@@ -123,9 +162,14 @@ const FAQ = () => {
       <div className="absolute top-10 left-10 w-20 h-20 border border-border/20 rounded-full" />
       <div className="absolute bottom-10 right-10 w-32 h-32 border border-border/10 rounded-full" />
 
-      <div className="container max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div ref={sectionRef} className="container max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         {/* Section header with book styling */}
-        <div className="text-center mb-16">
+        <motion.div
+          className="text-center mb-16"
+          variants={headerVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           {/* Decorative book icon */}
           <div className="mb-6 flex justify-center">
             <div className="w-16 h-1 bg-primary/20 rounded-full" />
@@ -138,47 +182,59 @@ const FAQ = () => {
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
             Everything you need to know about Wheels & Wins
           </p>
-        </div>
+        </motion.div>
 
         {/* FAQ Accordion with journal styling */}
         <div className="relative">
           {/* Decorative margin line */}
           <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-primary/20 to-transparent hidden md:block" />
 
-          <Accordion type="single" collapsible className="w-full space-y-3">
-            {faqs.map((faq, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="border-none"
-              >
-                <div className="bg-card rounded-lg border border-border/50 shadow-warm overflow-hidden transition-all duration-200 hover:shadow-warm-lg hover:border-border">
-                  <AccordionTrigger className="text-left hover:no-underline px-6 py-5 group">
-                    <div className="flex items-start gap-4 w-full">
-                      {/* Question number */}
-                      <span className="flex-shrink-0 text-sm font-display text-muted-foreground/50 pt-0.5">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <span className="text-base md:text-lg font-display font-medium text-foreground pr-4 group-hover:text-primary transition-colors">
-                        {faq.question}
-                      </span>
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+          >
+            <Accordion type="single" collapsible className="w-full space-y-3">
+              {faqs.map((faq, index) => (
+                <motion.div key={index} variants={itemVariants}>
+                  <AccordionItem
+                    value={`item-${index}`}
+                    className="border-none"
+                  >
+                    <div className="bg-card rounded-lg border border-border/50 shadow-warm overflow-hidden transition-all duration-200 hover:shadow-warm-lg hover:border-border">
+                      <AccordionTrigger className="text-left hover:no-underline px-6 py-5 group">
+                        <div className="flex items-start gap-4 w-full">
+                          {/* Question number */}
+                          <span className="flex-shrink-0 text-sm font-display text-muted-foreground/50 pt-0.5">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <span className="text-base md:text-lg font-display font-medium text-foreground pr-4 group-hover:text-primary transition-colors">
+                            {faq.question}
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6 pb-5">
+                        <div className="pl-10 border-l-2 border-accent/30 ml-2">
+                          <p className="text-muted-foreground leading-relaxed">
+                            {faq.answer}
+                          </p>
+                        </div>
+                      </AccordionContent>
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-6 pb-5">
-                    <div className="pl-10 border-l-2 border-accent/30 ml-2">
-                      <p className="text-muted-foreground leading-relaxed">
-                        {faq.answer}
-                      </p>
-                    </div>
-                  </AccordionContent>
-                </div>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                  </AccordionItem>
+                </motion.div>
+              ))}
+            </Accordion>
+          </motion.div>
         </div>
 
         {/* Contact section */}
-        <div className="mt-16 text-center">
+        <motion.div
+          className="mt-16 text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+          transition={{ delay: 1.2, duration: 0.5 }}
+        >
           <div className="inline-flex flex-col items-center bg-card rounded-xl px-8 py-6 shadow-warm border border-border/50">
             <p className="text-muted-foreground mb-2">Still have questions?</p>
             <a
@@ -188,16 +244,21 @@ const FAQ = () => {
               support@wheelsandwins.com
             </a>
           </div>
-        </div>
+        </motion.div>
 
         {/* Bottom decorative element */}
-        <div className="mt-12 flex justify-center">
+        <motion.div
+          className="mt-12 flex justify-center"
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : { opacity: 0 }}
+          transition={{ delay: 1.4, duration: 0.5 }}
+        >
           <div className="flex items-center gap-3">
             <div className="w-8 h-px bg-border" />
             <div className="w-2 h-2 rounded-full bg-primary/30" />
             <div className="w-8 h-px bg-border" />
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

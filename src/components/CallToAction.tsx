@@ -1,7 +1,35 @@
+import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 const CallToAction = () => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(sectionRef, { once: true, amount: 0.3 });
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
   return (
     <section className="py-20 md:py-28 bg-primary text-primary-foreground relative overflow-hidden">
       {/* Topographic pattern background */}
@@ -34,23 +62,48 @@ const CallToAction = () => {
       </div>
 
       {/* Decorative compass elements */}
-      <div className="absolute top-8 left-8 w-16 h-16 border border-primary-foreground/20 rounded-full" />
-      <div className="absolute bottom-8 right-8 w-24 h-24 border border-primary-foreground/10 rounded-full" />
+      <motion.div
+        className="absolute top-8 left-8 w-16 h-16 border border-primary-foreground/20 rounded-full"
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.5 }}
+        transition={{ delay: 0.5, duration: 0.5 }}
+      />
+      <motion.div
+        className="absolute bottom-8 right-8 w-24 h-24 border border-primary-foreground/10 rounded-full"
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.5 }}
+        transition={{ delay: 0.7, duration: 0.5 }}
+      />
 
-      <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
+      <motion.div
+        ref={sectionRef}
+        className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative"
+        variants={containerVariants}
+        initial="hidden"
+        animate={isInView ? "visible" : "hidden"}
+      >
         {/* Headline */}
-        <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-light tracking-tight mb-6">
+        <motion.h2
+          variants={itemVariants}
+          className="text-3xl md:text-4xl lg:text-5xl font-display font-light tracking-tight mb-6"
+        >
           Join the Wheels and Wins{" "}
           <span className="font-medium">Community</span>
-        </h2>
+        </motion.h2>
 
         {/* Subtext */}
-        <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto opacity-90 leading-relaxed">
+        <motion.p
+          variants={itemVariants}
+          className="text-lg md:text-xl mb-10 max-w-2xl mx-auto opacity-90 leading-relaxed"
+        >
           Wherever the road takes you, you're never alone - and Pam's always got your back.
-        </p>
+        </motion.p>
 
         {/* CTA Button - inverted colors */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <motion.div
+          variants={itemVariants}
+          className="flex flex-col sm:flex-row gap-4 justify-center"
+        >
           <Link to="/signup">
             <Button
               size="lg"
@@ -59,17 +112,20 @@ const CallToAction = () => {
               Start Free for 30 Days
             </Button>
           </Link>
-        </div>
+        </motion.div>
 
         {/* Trust indicators */}
-        <div className="mt-10 flex flex-wrap justify-center gap-6 text-sm opacity-80">
+        <motion.div
+          variants={itemVariants}
+          className="mt-10 flex flex-wrap justify-center gap-6 text-sm opacity-80"
+        >
           <span>No credit card required</span>
           <span>-</span>
           <span>Cancel anytime</span>
           <span>-</span>
           <span>Full access for 30 days</span>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </section>
   );
 };

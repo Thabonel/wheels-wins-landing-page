@@ -182,4 +182,48 @@ export const ANIMATE_PRESENCE_CONFIG = {
   },
 } as const;
 
+/**
+ * Scroll-triggered animation variants
+ * Used with ScrollReveal components for on-scroll reveals
+ */
+export const SCROLL_VARIANTS = {
+  /** Fade up - most common, elegant entrance */
+  fadeUp: {
+    hidden: { opacity: 0, y: 40 },
+    visible: { opacity: 1, y: 0 },
+  },
+  /** Fade in - subtle, no movement */
+  fadeIn: {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+  },
+  /** Scale up - for images and cards */
+  scaleUp: {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 },
+  },
+  /** Slide from left */
+  slideLeft: {
+    hidden: { opacity: 0, x: -60 },
+    visible: { opacity: 1, x: 0 },
+  },
+  /** Slide from right */
+  slideRight: {
+    hidden: { opacity: 0, x: 60 },
+    visible: { opacity: 1, x: 0 },
+  },
+} as const;
+
+/**
+ * Stagger timing presets
+ */
+export const STAGGER_PRESETS = {
+  /** Fast stagger for many items */
+  fast: { staggerChildren: 0.05, delayChildren: 0.1 },
+  /** Standard stagger for cards/features */
+  standard: { staggerChildren: 0.1, delayChildren: 0.15 },
+  /** Slow stagger for emphasis */
+  slow: { staggerChildren: 0.15, delayChildren: 0.2 },
+} as const;
+
 export default ANIMATION_CONFIG;

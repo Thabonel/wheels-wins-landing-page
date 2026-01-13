@@ -1,7 +1,46 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const Hero = () => {
+  // Animation variants for staggered entrance
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
+  const imageVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: {
+        duration: 0.8,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+        delay: 0.3,
+      },
+    },
+  };
+
   return (
     <section className="w-full min-h-[90vh] bg-background relative overflow-hidden">
       {/* Subtle background pattern */}
@@ -12,20 +51,34 @@ const Hero = () => {
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 md:pt-20 pb-16 relative">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* Content - Left side */}
-          <div className="lg:col-span-6 space-y-6 md:space-y-8">
+          <motion.div
+            className="lg:col-span-6 space-y-6 md:space-y-8"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-light tracking-tight text-foreground leading-[1.1] animate-fade-in-up">
+            <motion.h1
+              variants={itemVariants}
+              className="text-4xl sm:text-5xl lg:text-6xl font-display font-light tracking-tight text-foreground leading-[1.1]"
+            >
               Plan RV Trips That{" "}
               <span className="font-medium text-primary">Save Money</span>, Not Waste It
-            </h1>
+            </motion.h1>
 
             {/* Tagline */}
-            <p className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+            <motion.p
+              variants={itemVariants}
+              className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed"
+            >
               Smart route planning and expense tracking for full-time RVers who want more adventure, less stress.
-            </p>
+            </motion.p>
 
             {/* CTA */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-2 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-col sm:flex-row gap-4 pt-2"
+            >
               <Link to="/signup">
                 <Button
                   size="lg"
@@ -43,18 +96,26 @@ const Hero = () => {
                   See How It Works
                 </Button>
               </a>
-            </div>
+            </motion.div>
 
             {/* Social proof */}
-            <div className="flex items-center gap-3 pt-4 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+            <motion.div
+              variants={itemVariants}
+              className="flex items-center gap-3 pt-4"
+            >
               <p className="text-sm text-muted-foreground">
                 Join RVers across Australia planning smarter trips
               </p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Featured Image - Right side */}
-          <div className="lg:col-span-6 relative animate-scale-in" style={{ animationDelay: '0.2s' }}>
+          <motion.div
+            className="lg:col-span-6 relative"
+            variants={imageVariants}
+            initial="hidden"
+            animate="visible"
+          >
             <div className="relative">
               {/* Decorative element behind image */}
               <div className="absolute -inset-4 bg-accent/10 rounded-3xl transform rotate-2" />
@@ -71,14 +132,27 @@ const Hero = () => {
               </div>
 
               {/* Floating badge */}
-              <div className="absolute -bottom-4 -left-4 md:-left-8 bg-card rounded-xl px-4 py-3 shadow-warm-lg border border-border animate-float">
+              <motion.div
+                className="absolute -bottom-4 -left-4 md:-left-8 bg-card rounded-xl px-4 py-3 shadow-warm-lg border border-border"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{
+                  opacity: 1,
+                  x: 0,
+                  y: [0, -10, 0],
+                }}
+                transition={{
+                  opacity: { duration: 0.5, delay: 0.8, ease: [0.25, 0.46, 0.45, 0.94] as const },
+                  x: { duration: 0.5, delay: 0.8, ease: [0.25, 0.46, 0.45, 0.94] as const },
+                  y: { duration: 6, ease: "easeInOut", repeat: Infinity, delay: 1.3 },
+                }}
+              >
                 <div className="text-center">
                   <p className="text-sm font-medium text-foreground">30-day free trial</p>
                   <p className="text-xs text-muted-foreground">No credit card required</p>
                 </div>
-              </div>
+              </motion.div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

@@ -1,4 +1,10 @@
+import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
+
 const HowItWorks = () => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(sectionRef, { once: true, amount: 0.2 });
+
   const features = [
     {
       number: "01",
@@ -20,15 +26,55 @@ const HowItWorks = () => {
     },
   ];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const headerVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 40 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
   return (
     <section id="how-it-works" className="py-20 md:py-28 bg-card relative overflow-hidden">
       {/* Subtle decorative background */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-secondary/5 rounded-full blur-3xl" />
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/5 rounded-full blur-3xl" />
 
-      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div ref={sectionRef} className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         {/* Section header */}
-        <div className="text-center mb-16 md:mb-20">
+        <motion.div
+          className="text-center mb-16 md:mb-20"
+          variants={headerVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-light tracking-tight text-foreground mb-4">
             What Makes Us{" "}
             <span className="font-medium text-primary">Different</span>
@@ -36,18 +82,23 @@ const HowItWorks = () => {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Built by RVers, for RVers - we understand the journey.
           </p>
-        </div>
+        </motion.div>
 
         {/* Features grid with staggered layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"
+          variants={containerVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           {features.map((feature, index) => {
             const isMiddle = index === 1;
 
             return (
-              <div
+              <motion.div
                 key={index}
                 className={`relative group ${isMiddle ? "md:-mt-4" : ""}`}
-                style={{ "--index": index } as React.CSSProperties}
+                variants={cardVariants}
               >
                 {/* Card */}
                 <div
@@ -73,10 +124,10 @@ const HowItWorks = () => {
                     {feature.description}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

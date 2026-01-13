@@ -1,5 +1,6 @@
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import { motion, useInView } from "framer-motion";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +13,8 @@ import { useRegion } from "@/context/RegionContext";
 import { convertPrice } from "@/services/currencyService";
 
 const PricingPlans = () => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(sectionRef, { once: true, amount: 0.1 });
   const { isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -70,20 +73,67 @@ const PricingPlans = () => {
     setSelectedPlan(null);
   };
 
+  const headerVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 40, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.6,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
   return (
     <>
-      <section className="py-16 bg-gradient-to-b from-white to-gray-50">
+      <section ref={sectionRef} className="py-16 bg-gradient-to-b from-white to-gray-50">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <motion.div
+            className="text-center mb-12"
+            variants={headerVariants}
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+          >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Pick Your Plan</h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
               Try it free for 30 days, no credit card needed
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <motion.div
+            className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto"
+            variants={containerVariants}
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+          >
             {/* Free Trial Plan */}
-            <Card className="border-2 border-green-500/20 relative overflow-hidden flex flex-col">
+            <motion.div variants={cardVariants}>
+            <Card className="border-2 border-green-500/20 relative overflow-hidden flex flex-col h-full">
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-xl">Free Trial</CardTitle>
                 <CardDescription className="text-sm">Full access to Pam & community</CardDescription>
@@ -110,9 +160,11 @@ const PricingPlans = () => {
                 </Button>
               </CardFooter>
             </Card>
+            </motion.div>
 
             {/* Monthly Plan */}
-            <Card className="border-2 border-primary/20 flex flex-col">
+            <motion.div variants={cardVariants}>
+            <Card className="border-2 border-primary/20 flex flex-col h-full">
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-xl">Monthly</CardTitle>
                 <CardDescription className="text-sm">Keep using Pam after your trial</CardDescription>
@@ -139,9 +191,11 @@ const PricingPlans = () => {
                 </Button>
               </CardFooter>
             </Card>
+            </motion.div>
 
             {/* Annual Plan */}
-            <Card className="border-2 border-accent flex flex-col relative overflow-hidden">
+            <motion.div variants={cardVariants}>
+            <Card className="border-2 border-accent flex flex-col relative overflow-hidden h-full">
               <div className="absolute top-0 right-0 bg-accent text-accent-foreground px-3 py-1 text-xs font-semibold">
                 Best Value
               </div>
@@ -175,7 +229,8 @@ const PricingPlans = () => {
                 </Button>
               </CardFooter>
             </Card>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Feature Comparison Table */}
           <div className="mt-16 max-w-5xl mx-auto">
