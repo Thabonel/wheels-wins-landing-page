@@ -16,6 +16,98 @@ export interface GeolocationData {
   provider?: string;  // Which API provided the data (ip-api.com, ipapi.co, or fallback)
 }
 
+// Country data for browser-based detection fallback
+const COUNTRY_DATA: Record<string, { name: string; lat: number; lng: number }> = {
+  'AU': { name: 'Australia', lat: -25.2744, lng: 133.7751 },
+  'NZ': { name: 'New Zealand', lat: -40.9006, lng: 174.886 },
+  'US': { name: 'United States', lat: 39.8283, lng: -98.5795 },
+  'CA': { name: 'Canada', lat: 56.1304, lng: -106.3468 },
+  'GB': { name: 'United Kingdom', lat: 55.3781, lng: -3.436 },
+  'UK': { name: 'United Kingdom', lat: 55.3781, lng: -3.436 },
+};
+
+/**
+ * Detect country from browser settings (language + timezone)
+ * Used as fallback when backend geolocation fails
+ */
+function detectCountryFromBrowser(): string | null {
+  // Check browser language (e.g., 'en-AU' -> 'AU')
+  const language = navigator.language || (navigator as any).userLanguage;
+
+  if (language) {
+    const parts = language.split('-');
+    if (parts.length > 1) {
+      const countryCode = parts[1].toUpperCase();
+      if (COUNTRY_DATA[countryCode]) {
+        return countryCode;
+      }
+    }
+  }
+
+  // Check timezone for additional hints
+  try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    if (timezone) {
+      if (timezone.includes('Sydney') || timezone.includes('Melbourne') ||
+          timezone.includes('Brisbane') || timezone.includes('Perth') ||
+          timezone.includes('Australia')) {
+        return 'AU';
+      }
+      if (timezone.includes('Auckland') || timezone.includes('Wellington') ||
+          timezone.includes('Pacific/Auckland')) {
+        return 'NZ';
+      }
+      if (timezone.includes('America/') && !timezone.includes('Toronto') &&
+          !timezone.includes('Vancouver')) {
+        return 'US';
+      }
+      if (timezone.includes('Toronto') || timezone.includes('Vancouver') ||
+          timezone.includes('Canada')) {
+        return 'CA';
+      }
+      if (timezone.includes('London') || timezone.includes('Europe/London')) {
+        return 'GB';
+      }
+    }
+  } catch {
+    // Timezone detection failed, continue without it
+  }
+
+  return null;
+}
+
+/**
+ * Get browser-based fallback geolocation data
+ */
+function getBrowserFallbackGeolocation(): GeolocationData {
+  const detectedCountry = detectCountryFromBrowser();
+
+  if (detectedCountry && COUNTRY_DATA[detectedCountry]) {
+    const country = COUNTRY_DATA[detectedCountry];
+    return {
+      country_code: detectedCountry,
+      country_name: country.name,
+      city: 'Unknown',
+      region: 'Unknown',
+      latitude: country.lat,
+      longitude: country.lng,
+      provider: 'browser-fallback'
+    };
+  }
+
+  // Ultimate fallback: Rest of World (use a neutral central location)
+  return {
+    country_code: 'XX',
+    country_name: 'Unknown',
+    city: 'Unknown',
+    region: 'Unknown',
+    latitude: 0,
+    longitude: 0,
+    provider: 'default-fallback'
+  };
+}
+
 /**
  * Get user's geolocation using backend proxy
  * Avoids CORS by routing through our FastAPI backend
@@ -43,16 +135,10 @@ export async function getGeolocation(): Promise<GeolocationData> {
   } catch (error) {
     console.error('Geolocation proxy error:', error);
 
-    // Return fallback US location if backend fails
-    return {
-      country_code: 'US',
-      country_name: 'United States',
-      city: 'Unknown',
-      region: 'Unknown',
-      latitude: 39.8283,  // Center of US
-      longitude: -98.5795,
-      provider: 'fallback'
-    };
+    // Use browser-based detection (timezone + language) instead of hardcoding US
+    const fallback = getBrowserFallbackGeolocation();
+    console.log(`Using browser-based fallback: ${fallback.country_code} (${fallback.country_name})`);
+    return fallback;
   }
 }
 
