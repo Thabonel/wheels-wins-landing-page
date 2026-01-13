@@ -51,8 +51,24 @@ export function PAMWakeWord({ apiKey, onWakeWordDetected, enabled = true }: PAMW
 
       logger.info('[WakeWord] Heard:', transcript);
 
-      // Check for wake word
-      if (transcript.includes('hey pam') || transcript.includes('hi pam')) {
+      // Check for wake word - any greeting + "pam" should trigger
+      const pamGreetings = [
+        'hey pam',
+        'hi pam',
+        'hello pam',
+        'good morning pam',
+        'good afternoon pam',
+        'good evening pam',
+        'morning pam',
+        'evening pam',
+        'yo pam',
+        'ok pam',
+        'okay pam'
+      ];
+
+      const wakeWordDetected = pamGreetings.some(greeting => transcript.includes(greeting));
+
+      if (wakeWordDetected) {
         logger.info('[WakeWord] Wake word detected!');
         handleWakeWord();
       }
@@ -133,7 +149,7 @@ export function PAMWakeWord({ apiKey, onWakeWordDetected, enabled = true }: PAMW
     try {
       recognition.start();
       setIsListening(true);
-      logger.info('[WakeWord] Started listening for "Hey PAM"');
+      logger.info('[WakeWord] Started listening for PAM wake words');
       toast.success('Wake word detection active');
     } catch (error) {
       logger.error('[WakeWord] Failed to start listening:', error);
@@ -191,7 +207,7 @@ export function PAMWakeWord({ apiKey, onWakeWordDetected, enabled = true }: PAMW
           className="gap-2"
         >
           {isListening ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
-          {isListening ? 'Listening for "Hey PAM"' : 'Enable Wake Word'}
+          {isListening ? 'Listening for PAM' : 'Enable Wake Word'}
         </Button>
       )}
 
@@ -211,7 +227,7 @@ export function PAMWakeWord({ apiKey, onWakeWordDetected, enabled = true }: PAMW
       {/* Status Text */}
       {isListening && !isVoiceActive && (
         <span className="text-sm text-muted-foreground">
-          Say "Hey PAM" to start
+          Say "Hey PAM", "Hi PAM", or "Good morning PAM"
         </span>
       )}
     </div>
