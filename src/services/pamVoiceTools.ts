@@ -1,11 +1,13 @@
 /**
- * PAM Voice Tool Definitions (OpenAI Format)
+ * PAM Voice Tool Definitions (OpenAI Realtime API Format)
  *
- * All 47 PAM tools converted from Claude format to OpenAI function calling format.
+ * All 45 PAM tools in OpenAI Realtime API function calling format.
  * These tools enable GPT-realtime to control the entire Wheels & Wins platform via voice.
+ *
+ * CRITICAL: OpenAI Realtime API requires type: 'function' wrapper for each tool.
  */
 
-export interface PAMTool {
+interface RawTool {
   name: string;
   description: string;
   parameters: {
@@ -15,11 +17,15 @@ export interface PAMTool {
   };
 }
 
+export interface PAMTool extends RawTool {
+  type: 'function';
+}
+
 /**
  * Build complete PAM tool definitions for OpenAI Realtime API
  */
 export function buildPAMTools(): PAMTool[] {
-  return [
+  const rawTools: RawTool[] = [
     // ==============================
     // BUDGET TOOLS (10)
     // ==============================
@@ -633,4 +639,10 @@ export function buildPAMTools(): PAMTool[] {
       }
     }
   ];
+
+  // Wrap each tool with type: 'function' for OpenAI Realtime API
+  return rawTools.map(tool => ({
+    type: 'function' as const,
+    ...tool
+  }));
 }
