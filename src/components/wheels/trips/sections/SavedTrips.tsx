@@ -1,17 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  MapPin, 
-  Calendar, 
-  Clock, 
-  DollarSign,
-  Edit, 
-  Trash2, 
+import {
+  MapPin,
+  Calendar,
+  Clock,
+  Trash2,
   Play,
-  Download,
   Share2
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -20,17 +16,16 @@ import { toast } from 'sonner';
 
 interface SavedTrip {
   id: string;
-  user_id: string;
-  origin: string;
-  destination: string;
-  start_date?: string;
-  end_date?: string;
-  distance_miles?: number;
-  estimated_cost?: number;
-  actual_cost?: number;
-  status?: string; // 'planned', 'active', 'completed'
-  notes?: string;
+  user_id: string | null;
+  name: string;
+  description?: string | null;
+  notes?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   route_data?: any;
+  distance_km?: number | null;
+  difficulty?: string | null;
+  is_public: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -84,13 +79,13 @@ export default function SavedTrips() {
 
     try {
       const { error } = await supabase
-        .from('user_trips')
+        .from('trips')
         .delete()
         .eq('id', tripId)
         .eq('user_id', user?.id); // Ensure user owns the trip
 
       if (error) throw error;
-      
+
       toast.success('Trip deleted successfully');
       loadSavedTrips();
     } catch (error) {
@@ -103,10 +98,10 @@ export default function SavedTrips() {
     // Store trip data in sessionStorage for the trip planner to load
     const tripData = {
       id: trip.id,
-      title: `${trip.origin} to ${trip.destination}`,
-      description: trip.notes,
+      name: trip.name,
+      description: trip.description,
+      notes: trip.notes,
       route_data: trip.route_data || null,
-      status: trip.status
     };
 
     sessionStorage.setItem('loadTripData', JSON.stringify(tripData));
@@ -164,7 +159,7 @@ export default function SavedTrips() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {trips.map((trip) => {
-        const tripTitle = `${trip.origin} to ${trip.destination}`;
+        // Parse route data if stored as JSONB
         const routeData = typeof trip.route_data === 'string'
           ? JSON.parse(trip.route_data)
           : trip.route_data || {};
@@ -174,43 +169,37 @@ export default function SavedTrips() {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg">{tripTitle}</CardTitle>
-                  {trip.notes && (
-                    <p className="text-sm text-gray-600 mt-1">{trip.notes}</p>
+                  <CardTitle className="text-lg">{trip.name}</CardTitle>
+                  {trip.description && (
+                    <p className="text-sm text-gray-600 mt-1">{trip.description}</p>
                   )}
                 </div>
-                {trip.status && (
-                  <Badge variant="secondary">
-                    {trip.status}
-                  </Badge>
+                {trip.difficulty && (
+                  <span className="text-xs px-2 py-1 bg-gray-100 rounded">
+                    {trip.difficulty}
+                  </span>
                 )}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar className="w-4 h-4" />
-                <span>{new Date(trip.created_at).toLocaleDateString()}</span>
-              </div>
-              
+              {trip.created_at && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Calendar className="w-4 h-4" />
+                  <span>Created {new Date(trip.created_at).toLocaleDateString()}</span>
+                </div>
+              )}
+
               {trip.start_date && trip.end_date && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="w-4 h-4" />
                   <span>{new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}</span>
                 </div>
               )}
-              
-              {trip.estimated_cost && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <DollarSign className="w-4 h-4" />
-                  <span>Budget: ${trip.estimated_cost.toLocaleString()}</span>
-                  {trip.actual_cost && trip.actual_cost > 0 && <span>• Spent: ${trip.actual_cost.toLocaleString()}</span>}
-                </div>
-              )}
 
-              {trip.distance_miles && (
+              {trip.distance_km && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <MapPin className="w-4 h-4" />
-                  <span>Distance: {Math.round(trip.distance_miles)} miles</span>
+                  <span>Distance: {Math.round(trip.distance_km)} km</span>
                 </div>
               )}
 
@@ -221,29 +210,37 @@ export default function SavedTrips() {
                 </div>
               )}
 
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Clock className="w-4 h-4" />
-                <span>Updated {new Date(trip.updated_at).toLocaleDateString()}</span>
-              </div>
+              {trip.notes && (
+                <div className="flex items-start gap-2 text-sm text-gray-600">
+                  <span className="line-clamp-2">{trip.notes}</span>
+                </div>
+              )}
+
+              {trip.updated_at && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Clock className="w-4 h-4" />
+                  <span>Updated {new Date(trip.updated_at).toLocaleDateString()}</span>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-2">
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   onClick={() => handleLoadTrip(trip)}
                   className="flex-1"
                 >
                   <Play className="w-4 h-4 mr-1" />
                   Load
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => handleShareTrip(trip)}
                 >
                   <Share2 className="w-4 h-4" />
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => handleDeleteTrip(trip.id)}
                 >
