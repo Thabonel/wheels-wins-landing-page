@@ -17,15 +17,16 @@ import { toast } from 'sonner';
 interface SavedTrip {
   id: string;
   user_id: string | null;
-  name: string;
+  title: string;
   description?: string | null;
-  notes?: string | null;
   start_date?: string | null;
   end_date?: string | null;
-  route_data?: any;
-  distance_km?: number | null;
-  difficulty?: string | null;
-  is_public: boolean;
+  status?: string | null;
+  trip_type?: string | null;
+  total_budget?: number | null;
+  spent_budget?: number | null;
+  privacy_level?: string | null;
+  metadata?: any;
   created_at: string;
   updated_at: string;
 }
@@ -46,9 +47,9 @@ export default function SavedTrips() {
     try {
       setLoading(true);
       
-      // Query trips from trips table (user's personal saved trips)
+      // Query trips from user_trips table (user's personal saved trips)
       const { data: trips, error } = await supabase
-        .from('trips')
+        .from('user_trips')
         .select('*')
         .eq('user_id', user?.id)
         .order('updated_at', { ascending: false });
@@ -79,7 +80,7 @@ export default function SavedTrips() {
 
     try {
       const { error } = await supabase
-        .from('trips')
+        .from('user_trips')
         .delete()
         .eq('id', tripId)
         .eq('user_id', user?.id); // Ensure user owns the trip
@@ -98,10 +99,9 @@ export default function SavedTrips() {
     // Store trip data in sessionStorage for the trip planner to load
     const tripData = {
       id: trip.id,
-      name: trip.name,
+      title: trip.title,
       description: trip.description,
-      notes: trip.notes,
-      route_data: trip.route_data || null,
+      metadata: trip.metadata || null,
     };
 
     sessionStorage.setItem('loadTripData', JSON.stringify(tripData));
@@ -158,99 +158,87 @@ export default function SavedTrips() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {trips.map((trip) => {
-        // Parse route data if stored as JSONB
-        const routeData = typeof trip.route_data === 'string'
-          ? JSON.parse(trip.route_data)
-          : trip.route_data || {};
+      {trips.map((trip) => (
+        <Card key={trip.id} className="hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-lg">{trip.title}</CardTitle>
+                {trip.description && (
+                  <p className="text-sm text-gray-600 mt-1">{trip.description}</p>
+                )}
+              </div>
+              {trip.status && (
+                <span className={`text-xs px-2 py-1 rounded ${
+                  trip.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  trip.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {trip.status}
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {trip.start_date && trip.end_date && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Calendar className="w-4 h-4" />
+                <span>{new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}</span>
+              </div>
+            )}
 
-        return (
-          <Card key={trip.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{trip.name}</CardTitle>
-                  {trip.description && (
-                    <p className="text-sm text-gray-600 mt-1">{trip.description}</p>
-                  )}
-                </div>
-                {trip.difficulty && (
-                  <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                    {trip.difficulty}
+            {trip.trip_type && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <MapPin className="w-4 h-4" />
+                <span className="capitalize">{trip.trip_type.replace('_', ' ')}</span>
+              </div>
+            )}
+
+            {trip.total_budget && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Budget: ${trip.total_budget.toLocaleString()}</span>
+                {trip.spent_budget !== null && trip.spent_budget !== undefined && (
+                  <span className="text-gray-400">
+                    (${trip.spent_budget.toLocaleString()} spent)
                   </span>
                 )}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {trip.created_at && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>Created {new Date(trip.created_at).toLocaleDateString()}</span>
-                </div>
-              )}
+            )}
 
-              {trip.start_date && trip.end_date && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>{new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}</span>
-                </div>
-              )}
-
-              {trip.distance_km && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4" />
-                  <span>Distance: {Math.round(trip.distance_km)} km</span>
-                </div>
-              )}
-
-              {routeData.duration && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Clock className="w-4 h-4" />
-                  <span>Duration: {Math.round(routeData.duration / 3600)}h {Math.round((routeData.duration % 3600) / 60)}m</span>
-                </div>
-              )}
-
-              {trip.notes && (
-                <div className="flex items-start gap-2 text-sm text-gray-600">
-                  <span className="line-clamp-2">{trip.notes}</span>
-                </div>
-              )}
-
-              {trip.updated_at && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Clock className="w-4 h-4" />
-                  <span>Updated {new Date(trip.updated_at).toLocaleDateString()}</span>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleLoadTrip(trip)}
-                  className="flex-1"
-                >
-                  <Play className="w-4 h-4 mr-1" />
-                  Load
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleShareTrip(trip)}
-                >
-                  <Share2 className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDeleteTrip(trip.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+            {trip.updated_at && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Clock className="w-4 h-4" />
+                <span>Updated {new Date(trip.updated_at).toLocaleDateString()}</span>
               </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                size="sm"
+                onClick={() => handleLoadTrip(trip)}
+                className="flex-1"
+              >
+                <Play className="w-4 h-4 mr-1" />
+                Load
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleShareTrip(trip)}
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleDeleteTrip(trip.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
