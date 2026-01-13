@@ -318,6 +318,8 @@ export class PAMVoiceHybridService {
     switch (message.type) {
       case 'session.created':
         logger.info('[PAMVoiceHybrid] OpenAI session ready');
+        // Immediately greet the user so they know PAM is listening
+        this.speakGreeting();
         break;
 
       case 'conversation.item.created':
@@ -475,6 +477,38 @@ export class PAMVoiceHybridService {
         }
       });
     }
+  }
+
+  // =====================================================
+  // GREETING
+  // =====================================================
+
+  /**
+   * Speak a greeting when PAM is activated via wake word
+   */
+  private speakGreeting(): void {
+    logger.info('[PAMVoiceHybrid] Speaking greeting...');
+
+    // Send greeting text to OpenAI for TTS
+    this.sendToOpenAI({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'assistant',
+        content: [{
+          type: 'input_text',
+          text: 'Hi! How can I help you?'
+        }]
+      }
+    });
+
+    // Trigger TTS response
+    this.sendToOpenAI({
+      type: 'response.create',
+      response: {
+        modalities: ['audio']
+      }
+    });
   }
 
   // =====================================================
