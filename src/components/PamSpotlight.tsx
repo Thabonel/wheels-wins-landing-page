@@ -1,12 +1,53 @@
+import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 const PamSpotlight = () => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(sectionRef, { once: true, amount: 0.2 });
+
   const features = [
     "Route Planning",
     "Budget Tracking",
     "Community Connect",
     "Smart Suggestions",
   ];
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
+  const imageVariants = {
+    hidden: { opacity: 0, scale: 0.95, x: -30 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      x: 0,
+      transition: {
+        duration: 0.7,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
 
   return (
     <section className="py-20 md:py-28 bg-card relative overflow-hidden">
@@ -22,10 +63,15 @@ const PamSpotlight = () => {
       <div className="absolute top-0 right-0 w-72 h-72 bg-accent/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-secondary/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
 
-      <div className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div ref={sectionRef} className="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
           {/* Image side - organic blob shape */}
-          <div className="w-full lg:w-5/12 order-2 lg:order-1">
+          <motion.div
+            className="w-full lg:w-5/12 order-2 lg:order-1"
+            variants={imageVariants}
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+          >
             <div className="relative">
               {/* Decorative blob shape behind image */}
               <svg
@@ -51,41 +97,62 @@ const PamSpotlight = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent" />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Content side */}
-          <div className="w-full lg:w-7/12 order-1 lg:order-2">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-light tracking-tight text-foreground mb-6">
+          <motion.div
+            className="w-full lg:w-7/12 order-1 lg:order-2"
+            variants={containerVariants}
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+          >
+            <motion.h2
+              variants={itemVariants}
+              className="text-3xl md:text-4xl lg:text-5xl font-display font-light tracking-tight text-foreground mb-6"
+            >
               Meet <span className="font-medium text-primary">Pam</span> - Your
               AI Travel Companion
-            </h2>
+            </motion.h2>
 
-            <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8">
+            <motion.p
+              variants={itemVariants}
+              className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8"
+            >
               Pam handles the details so you can live the dream. She helps plan
               routes, tracks your budget, and connects you with like-minded
               travelers - your personal AI assistant for life on the road.
-            </p>
+            </motion.p>
 
             {/* Feature badges - text only */}
-            <div className="flex flex-wrap gap-3 mb-8">
+            <motion.div variants={itemVariants} className="flex flex-wrap gap-3 mb-8">
               {features.map((feature, index) => (
-                <span
+                <motion.span
                   key={index}
                   className="px-4 py-2 rounded-full bg-muted/50 border border-border/50 text-sm font-medium text-foreground"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: 0.4 + index * 0.1,
+                    ease: [0.25, 0.46, 0.45, 0.94] as const,
+                  }}
                 >
                   {feature}
-                </span>
+                </motion.span>
               ))}
-            </div>
+            </motion.div>
 
             {/* Quote highlight */}
-            <div className="relative pl-6 border-l-2 border-accent">
+            <motion.div
+              variants={itemVariants}
+              className="relative pl-6 border-l-2 border-accent"
+            >
               <p className="text-base italic text-muted-foreground">
                 "Like having a knowledgeable friend who's always got your back
                 on the road"
               </p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
     </section>
