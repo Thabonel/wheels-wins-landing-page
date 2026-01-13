@@ -489,24 +489,12 @@ export class PAMVoiceHybridService {
   private speakGreeting(): void {
     logger.info('[PAMVoiceHybrid] Speaking greeting...');
 
-    // Send greeting text to OpenAI for TTS
-    this.sendToOpenAI({
-      type: 'conversation.item.create',
-      item: {
-        type: 'message',
-        role: 'assistant',
-        content: [{
-          type: 'input_text',
-          text: 'Hi! How can I help you?'
-        }]
-      }
-    });
-
-    // Trigger TTS response
+    // Trigger immediate voice response with greeting
     this.sendToOpenAI({
       type: 'response.create',
       response: {
-        modalities: ['audio']
+        modalities: ['text', 'audio'],
+        instructions: 'Say exactly: "Hi! How can I help you?"'
       }
     });
   }

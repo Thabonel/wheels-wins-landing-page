@@ -380,21 +380,14 @@ When users ask you to do something (add expense, plan trip, etc), USE THE TOOLS 
   private speakGreeting(): void {
     logger.info('[PAMVoice] Speaking greeting...');
 
-    // Send a user message that triggers PAM to greet
+    // Trigger immediate voice response with greeting instruction
     this.sendRealtimeMessage({
-      type: 'conversation.item.create',
-      item: {
-        type: 'message',
-        role: 'user',
-        content: [{
-          type: 'input_text',
-          text: '[System: User just activated you by saying "Hey PAM". Greet them briefly and ask how you can help. Keep it to one short sentence like "Hi! How can I help you?"]'
-        }]
+      type: 'response.create',
+      response: {
+        modalities: ['text', 'audio'],
+        instructions: 'The user just activated you. Greet them immediately with a brief, friendly greeting like "Hi! How can I help you?" Keep it to one short sentence.'
       }
     });
-
-    // Trigger response generation
-    this.sendRealtimeMessage({ type: 'response.create' });
   }
 
   /**
