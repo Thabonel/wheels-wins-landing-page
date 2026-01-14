@@ -1131,19 +1131,29 @@ Remember: You're here to help RVers travel smarter and save money. Be helpful, b
             # Build messages for Claude (convert our format to Claude's format)
             claude_messages = self._build_claude_messages()
 
+            # Check if this is a voice request (more lenient tool filtering needed)
+            is_voice = context.get("is_voice", False) if context else False
+
             # Apply tool prefiltering to reduce token usage by ~87%
             # With error recovery fallback to all tools
             # DIAGNOSTIC: Log tools before filtering
             logger.info(f"🔧 DIAGNOSTIC: Total tools available: {len(self.tools)}")
             logger.info(f"🔧 DIAGNOSTIC: create_calendar_event in tools? {any('create_calendar_event' in str(t) for t in self.tools)}")
+            logger.info(f"🔧 DIAGNOSTIC: is_voice={is_voice}")
 
             try:
-                filtered_tools = tool_prefilter.filter_tools(
-                    user_message=message,
-                    all_tools=self.tools,
-                    context=context,
-                    max_tools=10
-                )
+                # VOICE MODE: Skip aggressive prefiltering - voice commands are conversational
+                # and the semantic prefilter often excludes relevant tools
+                if is_voice:
+                    logger.info("🎤 Voice mode detected - using all tools (skip prefiltering)")
+                    filtered_tools = self.tools
+                else:
+                    filtered_tools = tool_prefilter.filter_tools(
+                        user_message=message,
+                        all_tools=self.tools,
+                        context=context,
+                        max_tools=10
+                    )
 
                 # DIAGNOSTIC: Log tools after filtering
                 logger.info(f"🔧 DIAGNOSTIC: Filtered tools count: {len(filtered_tools)}")
