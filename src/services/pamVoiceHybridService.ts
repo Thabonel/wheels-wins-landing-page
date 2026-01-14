@@ -485,16 +485,29 @@ export class PAMVoiceHybridService {
 
   /**
    * Speak a greeting when PAM is activated via wake word
+   * Uses TTS-only pattern (same as Claude responses) - no content generation
    */
   private speakGreeting(): void {
     logger.info('[PAMVoiceHybrid] Speaking greeting...');
 
-    // Trigger immediate voice response with greeting
+    // Create assistant message with greeting text (TTS-only, no generation)
+    this.sendToOpenAI({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'assistant',
+        content: [{
+          type: 'text',
+          text: 'Hi! How can I help you?'
+        }]
+      }
+    });
+
+    // Trigger audio generation for the message (TTS only)
     this.sendToOpenAI({
       type: 'response.create',
       response: {
-        modalities: ['text', 'audio'],
-        instructions: 'Say exactly: "Hi! How can I help you?"'
+        modalities: ['audio']
       }
     });
   }
