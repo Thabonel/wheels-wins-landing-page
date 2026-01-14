@@ -70,9 +70,11 @@ class WakeWordService {
         const last = event.results.length - 1;
         const result = event.results[last];
         const transcript = result[0].transcript.toLowerCase().trim();
-        const confidence = result[0].confidence;
+        // Handle undefined confidence (common with interim results)
+        const confidence = result[0].confidence ?? 0.9;
+        const isFinal = result.isFinal;
 
-        logger.debug(`🎤 Heard: "${transcript}" (confidence: ${confidence.toFixed(2)})`);
+        logger.debug(`🎤 Heard: "${transcript}" (confidence: ${confidence.toFixed(2)}, final: ${isFinal})`);
 
         // Check if transcript contains wake word
         const wakeWordDetected = this.checkWakeWord(transcript, confidence);
@@ -183,11 +185,13 @@ class WakeWordService {
 
     // Check confidence threshold
     if (confidence < minConfidence) {
+      logger.debug(`🔇 Confidence ${confidence.toFixed(2)} below threshold ${minConfidence}`);
       return false;
     }
 
     // Normalize transcript
     const normalizedTranscript = transcript.replace(/[,.\s]+/g, ' ').trim();
+    logger.debug(`🔍 Checking normalized: "${normalizedTranscript}"`);
 
     // All PAM wake word variations - any greeting + "pam"
     const pamWakeWords = [
