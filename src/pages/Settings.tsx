@@ -1,6 +1,4 @@
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
@@ -12,6 +10,7 @@ import { IntegrationSettings } from '@/components/settings/IntegrationSettings';
 import { LocationSettings } from '@/components/settings/LocationSettings';
 import { VoiceSettings } from '@/components/settings/VoiceSettings';
 import { TransitionSettings } from '@/components/settings/TransitionSettings';
+import { SubscriptionSettings } from '@/components/settings/SubscriptionSettings';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -29,6 +28,7 @@ export default function Settings() {
       </div>
 
       <div className="grid gap-6">
+        <SubscriptionSettings />
         <VoiceSettings />
         <ProfileSettings />
         <NotificationSettings />

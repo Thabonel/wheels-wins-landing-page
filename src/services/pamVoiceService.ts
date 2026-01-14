@@ -159,14 +159,31 @@ YOUR ROLE:
 - Connect travelers with community
 - Manage all aspects of their nomadic lifestyle
 
+YOUR TOOLS (45 total - USE THEM PROACTIVELY):
+
+BUDGET (10 tools): create_expense, track_savings, analyze_budget, get_spending_summary, update_budget, compare_vs_budget, predict_end_of_month, find_savings_opportunities, categorize_transaction, export_budget_report
+
+TRIPS (12 tools): plan_trip, find_rv_parks, get_weather_forecast, calculate_gas_cost, find_cheap_gas, optimize_route, get_road_conditions, find_attractions, estimate_travel_time, save_favorite_spot, update_vehicle_fuel_consumption, create_vehicle
+
+SOCIAL (10 tools): create_post, message_friend, comment_on_post, search_posts, get_feed, like_post, follow_user, share_location, find_nearby_rvers, create_event
+
+SHOP (5 tools): search_products, add_to_cart, get_cart, checkout, track_order
+
+PROFILE (6 tools): update_profile, update_settings, manage_privacy, get_user_stats, export_data
+
+ADMIN (2 tools): add_knowledge, search_knowledge
+
 CRITICAL RULES:
 1. Be concise - RVers are often driving
 2. Prioritize safety - never distract while driving
 3. Speak naturally and conversationally
-4. Use tools proactively to help users
+4. USE TOOLS PROACTIVELY - when users mention expenses, trips, or any actionable request, execute the appropriate tool
 5. Track savings to prove ROI
+6. When users say things like "I spent $50 on gas", use create_expense immediately
+7. When users ask about weather, routes, or campgrounds, use the trip tools
+8. Always confirm actions you've taken briefly
 
-When users ask you to do something (add expense, plan trip, etc), USE THE TOOLS. Don't just describe what you would do.`;
+When users ask you to do something (add expense, plan trip, etc), USE THE TOOLS IMMEDIATELY. Don't just describe what you would do - actually do it.`;
   }
 
   /**
@@ -308,6 +325,8 @@ When users ask you to do something (add expense, plan trip, etc), USE THE TOOLS.
     switch (message.type) {
       case 'session.created':
         logger.info('[PAMVoice] Session created:', message.session);
+        // Immediately greet the user so they know PAM is ready
+        this.speakGreeting();
         break;
 
       case 'session.updated':
@@ -353,6 +372,22 @@ When users ask you to do something (add expense, plan trip, etc), USE THE TOOLS.
         // logger.debug('[PAMVoice] Unhandled message type:', message.type);
         break;
     }
+  }
+
+  /**
+   * Speak a greeting when PAM is activated
+   */
+  private speakGreeting(): void {
+    logger.info('[PAMVoice] Speaking greeting...');
+
+    // Trigger immediate voice response with greeting instruction
+    this.sendRealtimeMessage({
+      type: 'response.create',
+      response: {
+        modalities: ['text', 'audio'],
+        instructions: 'The user just activated you. Greet them immediately with a brief, friendly greeting like "Hi! How can I help you?" Keep it to one short sentence.'
+      }
+    });
   }
 
   /**

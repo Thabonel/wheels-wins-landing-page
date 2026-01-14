@@ -1,10 +1,29 @@
-
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, ShoppingCart, Star } from "lucide-react";
+import { ExternalLink, ShoppingCart, Star, Flag } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/common/AnimatedDialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { ShopProduct, isDigitalProduct, isAffiliateProduct } from "./types";
 import { useRegion } from "@/context/RegionContext";
+import { useAuth } from "@/context/AuthContext";
 
 interface ProductCardProps {
   product: ShopProduct;
@@ -14,12 +33,59 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, onExternalLinkClick, onBuyProduct }: ProductCardProps) {
   const { regionConfig } = useRegion();
-  
+  const { user } = useAuth();
+
+  // Report issue state
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [issueType, setIssueType] = useState<string>("");
+  const [issueNotes, setIssueNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
   const handleClick = () => {
     if (isAffiliateProduct(product)) {
       onExternalLinkClick(product.externalLink, product.id);
     } else if (isDigitalProduct(product)) {
       onBuyProduct(product.id);
+    }
+  };
+
+  const handleReportIssue = async () => {
+    if (!issueType) {
+      toast.error("Please select an issue type");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      // Insert report into product_issue_reports table
+      const { error } = await supabase.from('product_issue_reports').insert({
+        product_id: product.id,
+        user_id: user?.id || null,
+        issue_type: issueType,
+        notes: issueNotes.trim() || null,
+        product_snapshot: {
+          title: product.title,
+          price: isDigitalProduct(product) ? product.price : (isAffiliateProduct(product) ? product.price : null),
+          currency: isDigitalProduct(product) ? product.currency : (isAffiliateProduct(product) ? product.currency : null),
+        },
+      });
+
+      if (error) {
+        console.error('Failed to submit product report:', error);
+        toast.error("Failed to submit report. Please try again.");
+        return;
+      }
+
+      toast.success("Thank you for reporting this issue!");
+      setReportDialogOpen(false);
+      setIssueType("");
+      setIssueNotes("");
+    } catch (error) {
+      console.error('Unexpected error submitting report:', error);
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -117,8 +183,8 @@ export default function ProductCard({ product, onExternalLinkClick, onBuyProduct
         )}
       </CardContent>
       
-      <CardFooter className="pt-2">
-        <Button 
+      <CardFooter className="pt-2 flex-col gap-2">
+        <Button
           onClick={handleClick}
           className="w-full"
           variant={isAffiliateProduct(product) ? "outline" : "default"}
@@ -135,6 +201,74 @@ export default function ProductCard({ product, onExternalLinkClick, onBuyProduct
             </>
           )}
         </Button>
+
+        {/* Report Issue Dialog */}
+        <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full text-xs text-gray-500 hover:text-gray-700">
+              <Flag className="w-3 h-3 mr-1" />
+              Report Issue
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Report Product Issue</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="text-sm text-gray-600">
+                Report an issue with <strong>{product.title}</strong>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="issue-type">Issue Type *</Label>
+                <Select value={issueType} onValueChange={setIssueType}>
+                  <SelectTrigger id="issue-type">
+                    <SelectValue placeholder="Select issue type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="incorrect_price">Incorrect Price</SelectItem>
+                    <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                    <SelectItem value="discontinued">Product Discontinued</SelectItem>
+                    <SelectItem value="broken_link">Broken Link</SelectItem>
+                    <SelectItem value="wrong_image">Wrong Image</SelectItem>
+                    <SelectItem value="wrong_description">Wrong Description</SelectItem>
+                    <SelectItem value="other">Other Issue</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="issue-notes">Additional Notes (Optional)</Label>
+                <Textarea
+                  id="issue-notes"
+                  placeholder="Provide more details about the issue..."
+                  value={issueNotes}
+                  onChange={(e) => setIssueNotes(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setReportDialogOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleReportIssue}
+                  disabled={!issueType || submitting}
+                >
+                  {submitting ? "Submitting..." : "Submit Report"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardFooter>
     </Card>
   );

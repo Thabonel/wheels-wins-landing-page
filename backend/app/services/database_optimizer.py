@@ -183,14 +183,16 @@ class DatabaseOptimizer:
     def __init__(self):
         self.pool_manager = ConnectionPoolManager()
         self.cache_manager = None
-        
+        self._initialized = False
+        self._initializing = False
+
         # Query plan cache
         self._plan_cache: Dict[str, QueryPlan] = {}
-        
+
         # Query result cache (in-memory for frequently accessed data)
         self._result_cache: Dict[str, Tuple[Any, float]] = {}
         self._cache_ttl = 300  # 5 minutes default
-        
+
         # Query performance tracking
         self.query_stats = defaultdict(lambda: {
             "count": 0,
@@ -201,26 +203,47 @@ class DatabaseOptimizer:
             "cache_hits": 0,
             "cache_misses": 0
         })
-        
+
         # Slow query log
         self.slow_queries = deque(maxlen=100)
         self.slow_query_threshold_ms = 100
-        
-        asyncio.create_task(self._initialize_async())
+
+        # Lazy initialization - only create task if event loop is running
+        try:
+            asyncio.get_running_loop()
+            asyncio.create_task(self._initialize_async())
+        except RuntimeError:
+            # No event loop running - will initialize on first use
+            pass
     
     async def _initialize_async(self):
         """Initialize async components"""
+        if self._initialized or self._initializing:
+            return
+
+        self._initializing = True
         try:
             await self.pool_manager.initialize()
             self.cache_manager = await get_cache_manager()
-            
+
             # Start background tasks
             asyncio.create_task(self._cache_cleanup_task())
             asyncio.create_task(self._performance_monitor_task())
-            
+
+            self._initialized = True
             logger.info("Database optimizer initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize database optimizer: {str(e)}")
+        finally:
+            self._initializing = False
+
+    async def _ensure_initialized(self):
+        """Ensure the optimizer is initialized before use"""
+        if not self._initialized and not self._initializing:
+            await self._initialize_async()
+        # Wait for initialization to complete if it's in progress
+        while self._initializing:
+            await asyncio.sleep(0.1)
     
     async def execute_optimized(self,
                                query: str,
@@ -230,7 +253,7 @@ class DatabaseOptimizer:
                                cache_ttl: Optional[int] = None) -> Any:
         """
         Execute query with optimization
-        
+
         Args:
             query: SQL query to execute
             params: Query parameters
@@ -238,6 +261,7 @@ class DatabaseOptimizer:
             use_cache: Whether to use result caching
             cache_ttl: Cache TTL in seconds
         """
+        await self._ensure_initialized()
         start_time = time.time()
         params = params or []
         
@@ -298,11 +322,12 @@ class DatabaseOptimizer:
                           transaction: bool = True) -> List[Any]:
         """
         Execute multiple queries in batch
-        
+
         Args:
             queries: List of (query, params) tuples
             transaction: Whether to wrap in transaction
         """
+        await self._ensure_initialized()
         results = []
         pool = self.pool_manager.get_pool("write")
         
@@ -422,6 +447,7 @@ class DatabaseOptimizer:
         """
         Analyze query execution plan
         """
+        await self._ensure_initialized()
         pool = self.pool_manager.get_pool("read")
         
         if not pool:
@@ -484,6 +510,7 @@ class DatabaseOptimizer:
         """
         Run VACUUM ANALYZE on specified tables
         """
+        await self._ensure_initialized()
         pool = self.pool_manager.get_pool("write")
         
         if not pool:

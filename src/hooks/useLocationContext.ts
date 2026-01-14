@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { getGeolocation } from '@/services/geolocationProxyService';
 
 interface LocationData {
   latitude: number;
@@ -109,18 +110,10 @@ export function useLocationContext(): UseLocationContextReturn {
   }, []);
 
   // Get location via IP-based service (fallback)
+  // Phase 2: Now uses backend proxy to avoid CORS issues
   const getIPLocation = useCallback(async (): Promise<LocationData | null> => {
     try {
-      // Use a free IP geolocation service as fallback
-      const response = await fetch('https://ipapi.co/json/', {
-        signal: AbortSignal.timeout(LOCATION_TIMEOUT)
-      });
-      
-      if (!response.ok) {
-        throw new Error('IP location service failed');
-      }
-
-      const data = await response.json();
+      const data = await getGeolocation();
       if (data.latitude && data.longitude) {
         return {
           latitude: data.latitude,

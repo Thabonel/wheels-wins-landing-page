@@ -100,6 +100,7 @@ from app.api.v1 import (
     community,  # Community contribution system
     transition,  # Life Transition Navigator module
     knowledge,  # Community Knowledge Center
+    utils,  # Utility endpoints (geolocation proxy, etc.) - Phase 2
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import system_settings as system_settings_api
@@ -823,6 +824,7 @@ app.include_router(products.router, prefix="/api/v1", tags=["Products"])
 app.include_router(orders.router, prefix="/api/v1", tags=["Orders"])
 app.include_router(maintenance.router, prefix="/api/v1", tags=["Maintenance"])
 app.include_router(custom_routes.router, prefix="/api/v1", tags=["Routes"])
+app.include_router(utils.router, prefix="/api/v1/utils", tags=["Utilities"])
 app.include_router(onboarding.router, prefix="/api/v1", tags=["Onboarding"])
 app.include_router(knowledge.router, prefix="/api/v1", tags=["Knowledge Center"])
 app.include_router(digistore24.router, prefix="/api/v1/digistore24", tags=["Digistore24"])

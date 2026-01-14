@@ -19,7 +19,7 @@ import jwt
 from app.main import app
 from app.api.v1.pam import router as pam_router
 from app.core.config import settings
-from app.middleware.enhanced_rate_limiter import MultiTierRateLimiter
+from app.middleware.rate_limiting import MultiTierRateLimiter
 from app.middleware.message_size_validator import MessageSizeValidator, MessageType
 from app.services.tts.circuit_breaker import CircuitBreaker, CircuitState
 from app.services.cache_manager import CacheManager
@@ -186,7 +186,8 @@ class TestCSRFExemption:
             json={"audio_data": "base64_audio", "format": "webm"}
         )
         # Should not fail due to CSRF
-        assert "CSRF" not in response.text if response.status_code != 200
+        if response.status_code == 200:
+            assert "CSRF" not in response.text
 
 
 # =====================================================

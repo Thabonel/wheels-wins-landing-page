@@ -1,17 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  MapPin, 
-  Calendar, 
-  Clock, 
-  DollarSign,
-  Edit, 
-  Trash2, 
+import {
+  MapPin,
+  Calendar,
+  Clock,
+  Trash2,
   Play,
-  Download,
   Share2
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -20,17 +16,17 @@ import { toast } from 'sonner';
 
 interface SavedTrip {
   id: string;
-  user_id: string;
-  origin: string;
-  destination: string;
-  start_date?: string;
-  end_date?: string;
-  distance_miles?: number;
-  estimated_cost?: number;
-  actual_cost?: number;
-  status?: string; // 'planned', 'active', 'completed'
-  notes?: string;
-  route_data?: any;
+  user_id: string | null;
+  title: string;
+  description?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  status?: string | null;
+  trip_type?: string | null;
+  total_budget?: number | null;
+  spent_budget?: number | null;
+  privacy_level?: string | null;
+  metadata?: any;
   created_at: string;
   updated_at: string;
 }
@@ -51,9 +47,9 @@ export default function SavedTrips() {
     try {
       setLoading(true);
       
-      // Query trips from trips table (user's personal saved trips)
+      // Query trips from user_trips table (user's personal saved trips)
       const { data: trips, error } = await supabase
-        .from('trips')
+        .from('user_trips')
         .select('*')
         .eq('user_id', user?.id)
         .order('updated_at', { ascending: false });
@@ -90,7 +86,7 @@ export default function SavedTrips() {
         .eq('user_id', user?.id); // Ensure user owns the trip
 
       if (error) throw error;
-      
+
       toast.success('Trip deleted successfully');
       loadSavedTrips();
     } catch (error) {
@@ -103,10 +99,9 @@ export default function SavedTrips() {
     // Store trip data in sessionStorage for the trip planner to load
     const tripData = {
       id: trip.id,
-      title: `${trip.origin} to ${trip.destination}`,
-      description: trip.notes,
-      route_data: trip.route_data || null,
-      status: trip.status
+      title: trip.title,
+      description: trip.description,
+      metadata: trip.metadata || null,
     };
 
     sessionStorage.setItem('loadTripData', JSON.stringify(tripData));
@@ -163,97 +158,87 @@ export default function SavedTrips() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {trips.map((trip) => {
-        const tripTitle = `${trip.origin} to ${trip.destination}`;
-        const routeData = typeof trip.route_data === 'string'
-          ? JSON.parse(trip.route_data)
-          : trip.route_data || {};
-
-        return (
-          <Card key={trip.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{tripTitle}</CardTitle>
-                  {trip.notes && (
-                    <p className="text-sm text-gray-600 mt-1">{trip.notes}</p>
-                  )}
-                </div>
-                {trip.status && (
-                  <Badge variant="secondary">
-                    {trip.status}
-                  </Badge>
+      {trips.map((trip) => (
+        <Card key={trip.id} className="hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="text-lg">{trip.title}</CardTitle>
+                {trip.description && (
+                  <p className="text-sm text-gray-600 mt-1">{trip.description}</p>
                 )}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
+              {trip.status && (
+                <span className={`text-xs px-2 py-1 rounded ${
+                  trip.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  trip.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {trip.status}
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {trip.start_date && trip.end_date && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Calendar className="w-4 h-4" />
-                <span>{new Date(trip.created_at).toLocaleDateString()}</span>
+                <span>{new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}</span>
               </div>
-              
-              {trip.start_date && trip.end_date && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>{new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}</span>
-                </div>
-              )}
-              
-              {trip.estimated_cost && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <DollarSign className="w-4 h-4" />
-                  <span>Budget: ${trip.estimated_cost.toLocaleString()}</span>
-                  {trip.actual_cost && trip.actual_cost > 0 && <span>• Spent: ${trip.actual_cost.toLocaleString()}</span>}
-                </div>
-              )}
+            )}
 
-              {trip.distance_miles && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <MapPin className="w-4 h-4" />
-                  <span>Distance: {Math.round(trip.distance_miles)} miles</span>
-                </div>
-              )}
+            {trip.trip_type && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <MapPin className="w-4 h-4" />
+                <span className="capitalize">{trip.trip_type.replace('_', ' ')}</span>
+              </div>
+            )}
 
-              {routeData.duration && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Clock className="w-4 h-4" />
-                  <span>Duration: {Math.round(routeData.duration / 3600)}h {Math.round((routeData.duration % 3600) / 60)}m</span>
-                </div>
-              )}
+            {trip.total_budget && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Budget: ${trip.total_budget.toLocaleString()}</span>
+                {trip.spent_budget !== null && trip.spent_budget !== undefined && (
+                  <span className="text-gray-400">
+                    (${trip.spent_budget.toLocaleString()} spent)
+                  </span>
+                )}
+              </div>
+            )}
 
+            {trip.updated_at && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Clock className="w-4 h-4" />
                 <span>Updated {new Date(trip.updated_at).toLocaleDateString()}</span>
               </div>
+            )}
 
-              <div className="flex gap-2 pt-2">
-                <Button 
-                  size="sm" 
-                  onClick={() => handleLoadTrip(trip)}
-                  className="flex-1"
-                >
-                  <Play className="w-4 h-4 mr-1" />
-                  Load
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => handleShareTrip(trip)}
-                >
-                  <Share2 className="w-4 h-4" />
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => handleDeleteTrip(trip.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+            <div className="flex gap-2 pt-2">
+              <Button
+                size="sm"
+                onClick={() => handleLoadTrip(trip)}
+                className="flex-1"
+              >
+                <Play className="w-4 h-4 mr-1" />
+                Load
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleShareTrip(trip)}
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleDeleteTrip(trip.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

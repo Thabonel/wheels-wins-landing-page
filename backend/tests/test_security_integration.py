@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.core.config import settings
-from app.middleware.enhanced_rate_limiter import MultiTierRateLimiter
+from app.middleware.rate_limiting import MultiTierRateLimiter
 from app.middleware.message_size_validator import MessageSizeValidator, MessageType
 from app.core.logging_config import PAMLogger
 

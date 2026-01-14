@@ -36,6 +36,18 @@ verify_jwt = true
 [functions.pam-fuel-estimate]
 verify_jwt = true
 
+# Product health check - automated monitoring
+[functions.product-health-check]
+verify_jwt = false
+
+# Daily health check cron job (runs at 2 AM UTC)
+# CRON_SECRET must be set in Supabase project environment variables
+[functions.product-health-check.cron]
+schedule = "0 2 * * *"
+method = "POST"
+body = '{"autoFix": true, "staleDays": 30}'
+headers = { "X-Cron-Secret" = "${CRON_SECRET}" }
+
 [db]
 port = 54323
 shadow_port = 54324

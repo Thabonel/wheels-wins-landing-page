@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-01-07T10:54:03.414Z",
+  "summary": {
+    "pages": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "warnings": 0
+    },
+    "buttons": {
+      "total": 0,
+      "clickable": 0
+    },
+    "forms": {
+      "total": 0,
+      "submittable": 0
+    },
+    "links": {
+      "total": 0,
+      "reachable": 0
+    },
+    "avgLoadTime": null
+  },
+  "results": []
+}
