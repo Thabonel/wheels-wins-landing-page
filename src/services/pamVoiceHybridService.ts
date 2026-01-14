@@ -331,6 +331,7 @@ export class PAMVoiceHybridService {
             this.config.onTranscript?.(transcript);
 
             // Send to Claude for reasoning with full context
+            // CRITICAL: Mark as voice input so backend can adjust tool handling
             this.sendToClaudeBridge({
               type: 'user_message',
               text: transcript,
@@ -340,7 +341,8 @@ export class PAMVoiceHybridService {
                 language: this.config.language || 'en',
                 user_location: this.config.location,
                 current_page: this.config.currentPage || 'pam_chat',
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone  // Browser-detected timezone for accurate calendar events
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,  // Browser-detected timezone for accurate calendar events
+                is_voice: true  // Flag for voice input - backend should be more lenient with tool filtering
               }
             });
           }
