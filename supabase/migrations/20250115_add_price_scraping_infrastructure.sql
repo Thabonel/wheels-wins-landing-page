@@ -19,14 +19,15 @@ CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
 -- Create cron job to scrape Amazon prices daily at 6 AM UTC
--- Note: CRON_SECRET must be set in Edge Function secrets to: wheels-wins-cron-2024-secure
+-- Note: Replace YOUR_CRON_SECRET_HERE with actual value from Supabase Edge Function secrets
+-- The cron job in the database has already been configured with the correct secret
 SELECT cron.schedule(
   'scrape-amazon-prices-daily',
   '0 6 * * *',
   $$
   SELECT net.http_post(
     url := 'https://kycoklimpzkyrecbjecn.supabase.co/functions/v1/scrape-amazon-prices',
-    headers := '{"Content-Type": "application/json", "X-Cron-Secret": "wheels-wins-cron-2024-secure"}'::jsonb,
+    headers := '{"Content-Type": "application/json", "X-Cron-Secret": "YOUR_CRON_SECRET_HERE"}'::jsonb,
     body := '{}'::jsonb
   );
   $$
