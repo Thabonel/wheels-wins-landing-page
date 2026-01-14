@@ -491,13 +491,14 @@ export class PAMVoiceHybridService {
     logger.info('[PAMVoiceHybrid] Speaking greeting...');
 
     // Create assistant message with greeting text (TTS-only, no generation)
+    // Uses same pattern as Claude response TTS (line 457-478)
     this.sendToOpenAI({
       type: 'conversation.item.create',
       item: {
         type: 'message',
         role: 'assistant',
         content: [{
-          type: 'text',
+          type: 'input_text',
           text: 'Hi! How can I help you?'
         }]
       }
