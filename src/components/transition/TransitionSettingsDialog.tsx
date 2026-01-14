@@ -47,24 +47,36 @@ export function TransitionSettingsDialog({
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        throw new Error('No authenticated user');
+      }
+
+      // Use upsert to insert or update
+      const { data: updatedProfile, error } = await supabase
         .from('transition_profiles')
-        .update({
+        .upsert({
+          user_id: userData.user.id,
           departure_date: formData.departure_date || null,
           current_phase: formData.current_phase,
           transition_type: formData.transition_type,
           motivation: formData.motivation || null,
           is_enabled: formData.is_enabled,
           updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id',
         })
-        .eq('id', profile.id)
         .select()
         .single();
 
       if (error) throw error;
 
       toast.success('Settings updated successfully');
-      onUpdate(data);
+
+      if (updatedProfile) {
+        onUpdate(updatedProfile);
+      }
+
       onOpenChange(false);
     } catch (error) {
       console.error('Error updating settings:', error);

@@ -64,6 +64,7 @@ const FreshTripPlannerTest = lazyWithRetry(() => import('./pages/FreshTripPlanne
 const WheelsSimple = lazyWithRetry(() => import('./pages/WheelsSimple'));
 const PamDirectApiTest = lazyWithRetry(() => import('./pages/PamDirectApiTest'));
 const Transition = lazyWithRetry(() => import('./pages/Transition'));
+const Safety = lazyWithRetry(() => import('./pages/Safety'));
 
 
 const queryClient = new QueryClient();
@@ -80,7 +81,7 @@ function App() {
       <AppErrorBoundary>
         <Toaster />
         <StagingBanner />
-        <Router>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
             <PhotoSyncHandler />
             <RegionProvider>
@@ -110,6 +111,7 @@ function App() {
                                   <Route path="/wins" element={<ProtectedRoute><Wins /></ProtectedRoute>} />
                                   <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
                                   <Route path="/shop" element={<Shop />} />
+                                  <Route path="/safety" element={<Safety />} />
                                   <Route path="/transition" element={<ProtectedRoute><Transition /></ProtectedRoute>} />
                                   <Route path="/admin" element={
                                     <AdminProtection>

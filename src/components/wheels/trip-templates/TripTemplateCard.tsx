@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,13 +12,19 @@ import {
   ChevronRight,
   Mountain,
   Trees,
-  Waves
+  Waves,
+  RefreshCw,
+  Save,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
 import { googleImageService } from '@/services/googleImageService';
+import { getNextPhotoAlternative, PhotoAlternative } from '@/services/photoAlternativesService';
+import { TripTemplateImageService } from '@/services/tripTemplateImageService';
 import TripRatingWidget from './TripRatingWidget';
 import { getMapboxPublicToken } from '@/utils/mapboxConfig';
+import { toast } from 'sonner';
 
 interface TripTemplateCardProps {
   template: TripTemplate;
@@ -37,12 +43,77 @@ const categoryIcons: Record<string, React.ReactNode> = {
   'general': <MapPin className="w-4 h-4" />
 };
 
-export default function TripTemplateCard({ 
-  template, 
+export default function TripTemplateCard({
+  template,
   onAddToJourney,
-  onUseTemplate, 
-  isInJourney 
+  onUseTemplate,
+  isInJourney
 }: TripTemplateCardProps) {
+  // Photo cycling state
+  const [photoIndex, setPhotoIndex] = useState(-1); // -1 means using default image
+  const [currentPhoto, setCurrentPhoto] = useState<PhotoAlternative | null>(null);
+  const [isLoadingPhoto, setIsLoadingPhoto] = useState(false);
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
+  const [photoTotal, setPhotoTotal] = useState(0);
+  const [showPhotoControls, setShowPhotoControls] = useState(false);
+
+  // Cycle to next photo alternative
+  const handleRefreshPhoto = useCallback(async () => {
+    setIsLoadingPhoto(true);
+    try {
+      const result = await getNextPhotoAlternative(
+        template.id,
+        template.name,
+        photoIndex,
+        template.region
+      );
+
+      if (result.alternative) {
+        setCurrentPhoto(result.alternative);
+        setPhotoIndex(result.nextIndex);
+        setPhotoTotal(result.total);
+      } else {
+        toast.error('No alternative photos available');
+      }
+    } catch (error) {
+      console.error('Failed to fetch alternative photo:', error);
+      toast.error('Failed to load alternative photo');
+    } finally {
+      setIsLoadingPhoto(false);
+    }
+  }, [template.id, template.name, template.region, photoIndex]);
+
+  // Save current photo to database
+  const handleSavePhoto = useCallback(async () => {
+    if (!currentPhoto) {
+      toast.error('No photo selected to save');
+      return;
+    }
+
+    setIsSavingPhoto(true);
+    try {
+      const success = await TripTemplateImageService.updateTemplateImage(
+        template.id,
+        currentPhoto.url,
+        currentPhoto.thumbnail,
+        currentPhoto.source,
+        currentPhoto.query
+      );
+
+      if (success) {
+        toast.success('Photo saved successfully');
+        setShowPhotoControls(false);
+      } else {
+        toast.error('Failed to save photo');
+      }
+    } catch (error) {
+      console.error('Failed to save photo:', error);
+      toast.error('Failed to save photo');
+    } finally {
+      setIsSavingPhoto(false);
+    }
+  }, [template.id, currentPhoto]);
+
   const difficultyColor = {
     'beginner': 'bg-green-100 text-green-800',
     'intermediate': 'bg-yellow-100 text-yellow-800', 
@@ -189,14 +260,20 @@ export default function TripTemplateCard({
     return `https://api.mapbox.com/styles/v1/mapbox/${mapStyle}/static/${marker}/${centerLon},${centerLat},${zoom},0/400x200@2x?access_token=${mapboxToken}`;
   };
   
-  const mapUrl = template.route?.mapPreview || getTemplateImage();
+  const defaultMapUrl = template.route?.mapPreview || getTemplateImage();
+  // Use currentPhoto if user has cycled, otherwise use default
+  const displayImageUrl = currentPhoto?.url || defaultMapUrl;
 
   return (
     <Card className="hover:shadow-lg transition-all duration-200 overflow-hidden group">
-      {/* Static Map Preview */}
-      <div className="relative h-48 overflow-hidden">
+      {/* Static Map Preview with Photo Controls */}
+      <div
+        className="relative h-48 overflow-hidden"
+        onMouseEnter={() => setShowPhotoControls(true)}
+        onMouseLeave={() => setShowPhotoControls(false)}
+      >
         <img
-          src={mapUrl}
+          src={displayImageUrl}
           alt={`${template.name} route map`}
           width={400}
           height={192}
@@ -204,6 +281,60 @@ export default function TripTemplateCard({
           loading="lazy"
           decoding="async"
         />
+
+        {/* Photo Controls - visible on hover */}
+        <div className={cn(
+          "absolute bottom-2 left-2 right-2 flex justify-between items-center transition-opacity duration-200",
+          showPhotoControls ? "opacity-100" : "opacity-0"
+        )}>
+          {/* Refresh Photo Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRefreshPhoto();
+            }}
+            disabled={isLoadingPhoto}
+            className="flex items-center gap-1 px-2 py-1 text-xs bg-white/90 hover:bg-white rounded shadow-sm transition-colors disabled:opacity-50"
+            title="Try different photo"
+          >
+            {isLoadingPhoto ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3 h-3" />
+            )}
+            <span>
+              {photoTotal > 0 ? `${photoIndex + 1}/${photoTotal}` : 'Try different'}
+            </span>
+          </button>
+
+          {/* Save Photo Button - only show if user has selected an alternative */}
+          {currentPhoto && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSavePhoto();
+              }}
+              disabled={isSavingPhoto}
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded shadow-sm transition-colors disabled:opacity-50"
+              title="Save this photo"
+            >
+              {isSavingPhoto ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Save className="w-3 h-3" />
+              )}
+              <span>Save</span>
+            </button>
+          )}
+        </div>
+
+        {/* Photo source indicator */}
+        {currentPhoto && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] bg-black/50 text-white rounded">
+            {currentPhoto.source}: {currentPhoto.query}
+          </div>
+        )}
+
         <div className="absolute top-2 right-2">
           <Badge className={cn(difficultyColor[template.difficulty])}>
             {template.difficulty}

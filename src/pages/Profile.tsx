@@ -25,6 +25,7 @@ import { AccountSecurity } from "@/components/settings/AccountSecurity";
 import { AccountDeletion } from "@/components/settings/AccountDeletion";
 import { TransitionSettings } from "@/components/settings/TransitionSettings";
 import { syncLocalPhotos } from "@/utils/fileUploadUtils";
+import { PageHelp } from "@/components/common/PageHelp";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -36,7 +37,12 @@ const Profile = () => {
   const [formData, setFormData] = useState({
     fullName: profile?.full_name || '',
     nickname: profile?.nickname || '',
-    travelStyle: profile?.travel_style || 'solo',
+    genderIdentity: profile?.gender_identity || '',
+    genderCustom: profile?.gender_custom || '',
+    pronouns: profile?.pronouns || '',
+    pronounsCustom: profile?.pronouns_custom || '',
+    travelStyle: profile?.travel_style || [],
+    interests: profile?.interests || [],
     partnerName: profile?.partner_name || '',
     partnerEmail: profile?.partner_email || '',
     vehicleType: profile?.vehicle_type || '',
@@ -56,7 +62,12 @@ const Profile = () => {
       setFormData({
         fullName: profile.full_name || '',
         nickname: profile.nickname || '',
-        travelStyle: profile.travel_style || 'solo',
+        genderIdentity: profile.gender_identity || '',
+        genderCustom: profile.gender_custom || '',
+        pronouns: profile.pronouns || '',
+        pronounsCustom: profile.pronouns_custom || '',
+        travelStyle: profile.travel_style || [],
+        interests: profile.interests || [],
         partnerName: profile.partner_name || '',
         partnerEmail: profile.partner_email || '',
         vehicleType: profile.vehicle_type || '',
@@ -112,7 +123,12 @@ const Profile = () => {
       const updateData = {
         full_name: formData.fullName,
         nickname: formData.nickname,
+        gender_identity: formData.genderIdentity || null,
+        gender_custom: formData.genderCustom || null,
+        pronouns: formData.pronouns || null,
+        pronouns_custom: formData.pronounsCustom || null,
         travel_style: formData.travelStyle,
+        interests: formData.interests,
         partner_name: formData.partnerName,
         partner_email: formData.partnerEmail,
         vehicle_type: formData.vehicleType,
@@ -325,6 +341,17 @@ const Profile = () => {
           </TabsContent>
         </Tabs>
       </div>
+      <PageHelp
+        title="Profile & Settings Help"
+        description="Manage your personal information, travel preferences, vehicle setup, and account settings all in one place."
+        tips={[
+          "Complete your Identity tab first - it helps personalize your experience",
+          "Enable personalized content in Privacy Settings to see gender-specific safety resources",
+          "Travel preferences help PAM suggest better routes and campgrounds",
+          "Vehicle setup improves gas cost calculations and route planning",
+          "Your Knowledge tab saves PAM's learnings about you for better recommendations"
+        ]}
+      />
     </ErrorBoundary>
   );
 };

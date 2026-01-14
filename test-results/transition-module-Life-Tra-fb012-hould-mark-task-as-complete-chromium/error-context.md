@@ -1,0 +1,73 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - link "Wheels & Wins - RV Trip Planning and Budget Management App Logo" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img "Wheels & Wins - RV Trip Planning and Budget Management App Logo" [ref=e8]
+        - generic [ref=e9]:
+          - button [ref=e10] [cursor=pointer]:
+            - img
+          - link "Sign In" [ref=e11] [cursor=pointer]:
+            - /url: /login
+            - button "Sign In" [ref=e12]
+    - main [ref=e13]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - heading "Welcome Back" [level=3] [ref=e19]
+          - paragraph [ref=e20]: Log in to access your account
+        - generic [ref=e23]:
+          - generic [ref=e24]:
+            - text: Email
+            - textbox "Email" [ref=e25]:
+              - /placeholder: email@example.com
+          - generic [ref=e26]:
+            - generic [ref=e27]:
+              - generic [ref=e28]: Password
+              - link "Forgot password?" [ref=e29] [cursor=pointer]:
+                - /url: /reset-password
+            - generic [ref=e31]:
+              - textbox "Password" [ref=e32]:
+                - /placeholder: ""
+              - button [ref=e33] [cursor=pointer]:
+                - img [ref=e34]
+          - button "Login" [ref=e37] [cursor=pointer]
+        - generic [ref=e38]:
+          - generic [ref=e43]: or continue with
+          - generic [ref=e44]:
+            - button "Continue with Google" [ref=e45] [cursor=pointer]:
+              - img
+              - text: Continue with Google
+            - button "Continue with Facebook" [ref=e46] [cursor=pointer]:
+              - img
+              - text: Continue with Facebook
+          - generic [ref=e47]:
+            - text: Don't have an account?
+            - link "Sign up" [ref=e48] [cursor=pointer]:
+              - /url: /signup
+    - contentinfo [ref=e49]:
+      - contentinfo [ref=e50]:
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: If something doesn't work, let me know and I will fix it immediately.
+            - button "Report Issue" [ref=e54] [cursor=pointer]:
+              - img
+              - text: Report Issue
+          - generic [ref=e55]:
+            - paragraph [ref=e56]: © 2026 Wheels and Wins. All rights reserved.
+            - generic [ref=e57]:
+              - link "Terms of Service" [ref=e58] [cursor=pointer]:
+                - /url: /terms
+              - generic [ref=e59]: "|"
+              - link "Privacy Policy" [ref=e60] [cursor=pointer]:
+                - /url: /privacy
+              - generic [ref=e61]: "|"
+              - link "Cookie Policy" [ref=e62] [cursor=pointer]:
+                - /url: /cookies
+    - button "Open PAM Chat" [ref=e63] [cursor=pointer]:
+      - img "PAM" [ref=e65]
+```

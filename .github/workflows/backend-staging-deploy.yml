@@ -30,7 +30,7 @@ jobs:
     - name: Run backend tests
       working-directory: ./backend
       run: |
-        python -m pytest tests/ -v --tb=short || true
+        python -m pytest tests/ -v --tb=short
         
     - name: Deploy to Render
       env:

@@ -1,4 +1,5 @@
 import { Region } from '@/context/RegionContext';
+import { getCountryCode } from './geolocationProxyService';
 
 interface GeolocationData {
   country_code: string;
@@ -62,31 +63,20 @@ export async function detectUserRegion(): Promise<Region> {
 
 /**
  * Try multiple geolocation services
+ * Phase 2: Now uses backend proxy to avoid CORS issues
  */
 async function tryGeolocationServices(): Promise<Region | null> {
-  // List of free geolocation APIs to try
+  // Primary: Backend proxy (CORS-friendly, tries ip-api.com and ipapi.co)
+  try {
+    const countryCode = await getCountryCode();
+    const region = COUNTRY_TO_REGION[countryCode] || COUNTRY_TO_REGION['DEFAULT'];
+    return region;
+  } catch (primaryError) {
+    console.warn('Backend geolocation proxy failed, trying CloudFlare fallback');
+  }
+
+  // Fallback: CloudFlare trace (CORS-friendly)
   const services = [
-    // ipapi.co - No API key needed for limited requests
-    async () => {
-      const response = await fetch('https://ipapi.co/json/', {
-        signal: AbortSignal.timeout(3000) // 3 second timeout
-      });
-      if (!response.ok) throw new Error('ipapi.co failed');
-      const data = await response.json();
-      return data.country_code;
-    },
-    
-    // ip-api.com - Free for non-commercial use
-    async () => {
-      const response = await fetch('http://ip-api.com/json/', {
-        signal: AbortSignal.timeout(3000)
-      });
-      if (!response.ok) throw new Error('ip-api.com failed');
-      const data = await response.json();
-      return data.countryCode;
-    },
-    
-    // CloudFlare trace - Very reliable
     async () => {
       const response = await fetch('https://www.cloudflare.com/cdn-cgi/trace', {
         signal: AbortSignal.timeout(3000)

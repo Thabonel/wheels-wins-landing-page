@@ -70,9 +70,11 @@ class WakeWordService {
         const last = event.results.length - 1;
         const result = event.results[last];
         const transcript = result[0].transcript.toLowerCase().trim();
-        const confidence = result[0].confidence;
+        // Handle undefined confidence (common with interim results)
+        const confidence = result[0].confidence ?? 0.9;
+        const isFinal = result.isFinal;
 
-        logger.debug(`🎤 Heard: "${transcript}" (confidence: ${confidence.toFixed(2)})`);
+        logger.debug(`🎤 Heard: "${transcript}" (confidence: ${confidence.toFixed(2)}, final: ${isFinal})`);
 
         // Check if transcript contains wake word
         const wakeWordDetected = this.checkWakeWord(transcript, confidence);
@@ -180,24 +182,39 @@ class WakeWordService {
     if (!this.options) return false;
 
     const minConfidence = this.options.confidence ?? 0.7;
-    const wakeWord = this.options.wakeWord.toLowerCase();
 
     // Check confidence threshold
     if (confidence < minConfidence) {
+      logger.debug(`🔇 Confidence ${confidence.toFixed(2)} below threshold ${minConfidence}`);
       return false;
     }
 
-    // Check for wake word in transcript
-    // Support variations: "hey pam", "hey, pam", "hey  pam"
+    // Normalize transcript
     const normalizedTranscript = transcript.replace(/[,.\s]+/g, ' ').trim();
-    const normalizedWakeWord = wakeWord.replace(/[,.\s]+/g, ' ').trim();
+    logger.debug(`🔍 Checking normalized: "${normalizedTranscript}"`);
 
-    // Check for exact match or wake word at start of sentence
-    const exactMatch = normalizedTranscript === normalizedWakeWord;
-    const startsWithWakeWord = normalizedTranscript.startsWith(normalizedWakeWord + ' ');
-    const containsWakeWord = normalizedTranscript.includes(normalizedWakeWord);
+    // All PAM wake word variations - any greeting + "pam"
+    const pamWakeWords = [
+      'hey pam',
+      'hi pam',
+      'hello pam',
+      'good morning pam',
+      'good afternoon pam',
+      'good evening pam',
+      'morning pam',
+      'evening pam',
+      'yo pam',
+      'ok pam',
+      'okay pam'
+    ];
 
-    return exactMatch || startsWithWakeWord || containsWakeWord;
+    // Check if transcript matches any wake word pattern
+    return pamWakeWords.some(wakeWord => {
+      const exactMatch = normalizedTranscript === wakeWord;
+      const startsWithWakeWord = normalizedTranscript.startsWith(wakeWord + ' ');
+      const containsWakeWord = normalizedTranscript.includes(wakeWord);
+      return exactMatch || startsWithWakeWord || containsWakeWord;
+    });
   }
 
   /**

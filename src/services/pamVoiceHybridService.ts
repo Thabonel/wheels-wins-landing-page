@@ -317,7 +317,9 @@ export class PAMVoiceHybridService {
   private handleOpenAIMessage(message: any): void {
     switch (message.type) {
       case 'session.created':
-        logger.info('[PAMVoiceHybrid] OpenAI session ready');
+        logger.info('[PAMVoiceHybrid] ✅ OpenAI session ready - triggering greeting');
+        // Immediately greet the user so they know PAM is listening
+        this.speakGreeting();
         break;
 
       case 'conversation.item.created':
@@ -329,6 +331,7 @@ export class PAMVoiceHybridService {
             this.config.onTranscript?.(transcript);
 
             // Send to Claude for reasoning with full context
+            // CRITICAL: Mark as voice input so backend can adjust tool handling
             this.sendToClaudeBridge({
               type: 'user_message',
               text: transcript,
@@ -338,7 +341,8 @@ export class PAMVoiceHybridService {
                 language: this.config.language || 'en',
                 user_location: this.config.location,
                 current_page: this.config.currentPage || 'pam_chat',
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone  // Browser-detected timezone for accurate calendar events
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,  // Browser-detected timezone for accurate calendar events
+                is_voice: true  // Flag for voice input - backend should be more lenient with tool filtering
               }
             });
           }
@@ -346,15 +350,16 @@ export class PAMVoiceHybridService {
         break;
 
       case 'response.audio.delta':
-        // OpenAI speaking response from Claude
+        // OpenAI speaking response (greeting or Claude response)
         if (message.delta && this.audioProcessor) {
+          logger.debug('[PAMVoiceHybrid] 🔊 Received audio chunk');
           this.audioProcessor.playAudioChunk(message.delta);
           this.updateStatus({ isSpeaking: true });
         }
         break;
 
       case 'response.audio.done':
-        logger.info('[PAMVoiceHybrid] 🔊 Speech complete');
+        logger.info('[PAMVoiceHybrid] ✅ Speech playback complete');
         this.updateStatus({ isSpeaking: false });
         break;
 
@@ -475,6 +480,46 @@ export class PAMVoiceHybridService {
         }
       });
     }
+  }
+
+  // =====================================================
+  // GREETING
+  // =====================================================
+
+  /**
+   * Speak a greeting when PAM is activated via wake word
+   * Uses TTS-only pattern (same as Claude responses) - no content generation
+   */
+  private speakGreeting(): void {
+    logger.info('[PAMVoiceHybrid] 🎤 Speaking greeting "Hi! How can I help you?"');
+
+    // Create assistant message with greeting text (TTS-only, no generation)
+    // Uses same pattern as Claude response TTS (line 457-478)
+    const createMsg = {
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'assistant',
+        content: [{
+          type: 'input_text',
+          text: 'Hi! How can I help you?'
+        }]
+      }
+    };
+    logger.debug('[PAMVoiceHybrid] Sending conversation.item.create:', JSON.stringify(createMsg));
+    this.sendToOpenAI(createMsg);
+
+    // Trigger audio generation for the message (TTS only)
+    const responseMsg = {
+      type: 'response.create',
+      response: {
+        modalities: ['audio']
+      }
+    };
+    logger.debug('[PAMVoiceHybrid] Sending response.create:', JSON.stringify(responseMsg));
+    this.sendToOpenAI(responseMsg);
+
+    logger.info('[PAMVoiceHybrid] ✅ Greeting messages sent to OpenAI');
   }
 
   // =====================================================
