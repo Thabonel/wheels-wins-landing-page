@@ -1,8 +1,24 @@
+/**
+ * @deprecated This component is part of the legacy voice system.
+ * Use PAMVoiceHybrid component instead for production voice features.
+ *
+ * This component uses the deprecated useVoice hook which has undefined references.
+ * The production voice system uses PAMVoiceHybridService (OpenAI Realtime + Claude).
+ *
+ * Migration path:
+ * - For voice chat: Use src/components/pam/PAMVoiceHybrid.tsx
+ * - For voice toggle: Use src/components/pam/voice/VoiceToggle.tsx
+ *
+ * Scheduled for removal in Q2 2026.
+ * @see src/components/pam/PAMVoiceHybrid.tsx
+ * @see VOICE_RATIONALIZATION_PLAN.md
+ */
+
 import React, { useState, useEffect, useCallback } from "react";
 import { X, Send, Mic, MicOff, VolumeX, Volume2, AlertTriangle, Settings } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useVoice } from "@/hooks/useVoice";
-import { useVoiceErrorRecovery } from "@/hooks/useVoiceErrorRecovery";
+import { useVoice } from "@/deprecated/hooks/useVoice";
+import { useVoiceErrorRecovery } from "@/deprecated/hooks/useVoiceErrorRecovery";
 import { AudioPlayer } from "./AudioPlayer";
 import { VoiceStatusMonitor } from "./VoiceStatusMonitor";
 import { useUserSettings } from "@/hooks/useUserSettings";
@@ -10,14 +26,10 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 /**
- * New PAM component using production-grade voice architecture
- * 
- * Features:
- * - Centralized voice state management with Zustand
- * - Settings-dependent initialization 
- * - Sequential audio playbook (fixes double greeting)
- * - Multi-provider TTS fallback
- * - Proper error handling and recovery
+ * @deprecated Legacy PAM voice component - DO NOT USE IN NEW CODE
+ *
+ * This component was part of an earlier voice architecture attempt.
+ * Use PAMVoiceHybrid instead for production voice features.
  */
 
 interface PamVoiceProps {

@@ -1,8 +1,20 @@
 import { useVoiceStore } from '@/stores/useVoiceStore';
 
 /**
+ * @deprecated LEGACY - Do not use in new code.
+ *
+ * This WebRTCConnectionService was part of the legacy multi-provider voice architecture.
+ * OpenAI Realtime uses its own WebSocket-based connection with optimized audio handling.
+ *
+ * USE INSTEAD: PAMVoiceHybridService from '@/services/pamVoiceHybridService'
+ *
+ * This file is scheduled for removal in Q2 2026.
+ * See VOICE_RATIONALIZATION_PLAN.md for details.
+ *
+ * ---
+ * Original description:
  * WebRTC Connection Service for real-time voice communication
- * 
+ *
  * Implements WebRTC for superior real-time performance over WebSocket
  * Based on research showing WebRTC's advantages for voice agents:
  * - Lower latency (UDP-based)

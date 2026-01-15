@@ -1,4 +1,20 @@
 /**
+ * @deprecated LEGACY - Do not use in new code.
+ *
+ * This pamVoiceService was an earlier attempt at GPT-realtime integration
+ * that has been superseded by the hybrid architecture.
+ *
+ * USE INSTEAD: PAMVoiceHybridService from '@/services/pamVoiceHybridService'
+ *
+ * The active voice system uses:
+ * - OpenAI Realtime for voice I/O (STT + TTS)
+ * - Claude for reasoning and tool execution (better reasoning than GPT)
+ *
+ * This file is scheduled for removal in Q2 2026.
+ * See VOICE_RATIONALIZATION_PLAN.md for details.
+ *
+ * ---
+ * Original description:
  * PAM Voice Service - GPT-realtime Integration
  *
  * Ultra-simple voice service using OpenAI's GPT-realtime speech-to-speech model.

@@ -280,6 +280,7 @@ async def voice_to_claude_bridge(
                 pam_logger.info(f"🔍 DIAGNOSTIC: Voice context received={context}")
                 pam_logger.info(f"🔍 DIAGNOSTIC: Has timezone? {('timezone' in context)}")
                 pam_logger.info(f"🔍 DIAGNOSTIC: Has location? {('user_location' in context)}")
+                pam_logger.info(f"🔍 DIAGNOSTIC: is_voice flag={context.get('is_voice', False)}")
                 if 'user_location' in context:
                     loc = context['user_location']
                     pam_logger.info(f"🔍 DIAGNOSTIC: Location complete? lat={loc.get('lat')}, lng={loc.get('lng')}")

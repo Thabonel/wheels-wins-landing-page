@@ -1,12 +1,24 @@
 import { useVoiceStore } from '@/stores/useVoiceStore';
-import { voiceOrchestrator } from '@/services/VoiceOrchestrator';
+import { voiceOrchestrator } from '@/deprecated/services/VoiceOrchestrator';
 import { sttService } from './STTService';
 import { vadService } from './VADService';
 import { webRTCService } from './WebRTCConnectionService';
 
 /**
+ * @deprecated LEGACY - Do not use in new code.
+ *
+ * This ConversationManager was part of the legacy multi-provider voice architecture.
+ * The active voice system handles conversation state through OpenAI Realtime.
+ *
+ * USE INSTEAD: PAMVoiceHybridService from '@/services/pamVoiceHybridService'
+ *
+ * This file is scheduled for removal in Q2 2026.
+ * See VOICE_RATIONALIZATION_PLAN.md for details.
+ *
+ * ---
+ * Original description:
  * Conversation Manager - Orchestrates the entire voice conversation flow
- * 
+ *
  * Manages the complex state machine for natural conversations:
  * - Turn-taking between user and agent
  * - Context management and memory

@@ -1,11 +1,23 @@
 import { useVoiceStore } from '@/stores/useVoiceStore';
 
 /**
+ * @deprecated LEGACY - Do not use in new code.
+ *
+ * This VADService was part of the legacy multi-provider voice architecture.
+ * OpenAI Realtime handles voice activity detection (server_vad) internally.
+ *
+ * USE INSTEAD: PAMVoiceHybridService from '@/services/pamVoiceHybridService'
+ *
+ * This file is scheduled for removal in Q2 2026.
+ * See VOICE_RATIONALIZATION_PLAN.md for details.
+ *
+ * ---
+ * Original description:
  * Voice Activity Detection (VAD) Service
- * 
+ *
  * Implements intelligent speech detection for natural conversation flow
  * Based on research showing Silero VAD and WebRTC VAD as best options
- * 
+ *
  * Features:
  * - Real-time speech detection
  * - Endpointing (detecting when user stops speaking)

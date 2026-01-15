@@ -33,8 +33,8 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useVoice } from '@/hooks/useVoice';
-import { useVoiceErrorRecovery, VoiceError } from '@/hooks/useVoiceErrorRecovery';
+import { useVoice } from '@/deprecated/hooks/useVoice';
+import { useVoiceErrorRecovery, VoiceError } from '@/deprecated/hooks/useVoiceErrorRecovery';
 
 interface VoiceStatusMonitorProps {
   showAdvanced?: boolean;

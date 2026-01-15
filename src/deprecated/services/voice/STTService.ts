@@ -1,11 +1,23 @@
 import { useVoiceStore } from '@/stores/useVoiceStore';
 
 /**
+ * @deprecated LEGACY - Do not use in new code.
+ *
+ * This STTService was part of the legacy multi-provider voice architecture.
+ * OpenAI Realtime handles speech-to-text internally with better latency.
+ *
+ * USE INSTEAD: PAMVoiceHybridService from '@/services/pamVoiceHybridService'
+ *
+ * This file is scheduled for removal in Q2 2026.
+ * See VOICE_RATIONALIZATION_PLAN.md for details.
+ *
+ * ---
+ * Original description:
  * Speech-to-Text (STT) Service with Multi-Provider Support
- * 
+ *
  * Implements real-time speech transcription with fallback providers
  * Based on research showing AssemblyAI and Deepgram as top performers
- * 
+ *
  * Features:
  * - Multiple STT provider support with fallback
  * - Real-time streaming transcription

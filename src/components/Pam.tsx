@@ -15,7 +15,7 @@ import { pamCalendarService } from "@/services/pamCalendarService";
 import { pamFeedbackService } from "@/services/pamFeedbackService";
 import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { vadService, type ConversationState } from "@/services/voiceActivityDetection";
+import { vadService, type ConversationState } from "@/deprecated/services/voiceActivityDetection";
 import { audioManager } from "@/utils/audioManager";
 import { PAMVoiceHybridService, createVoiceService } from "@/services/pamVoiceHybridService";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
@@ -714,12 +714,14 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         },
         onResponse: (text) => {
           // Add PAM's response as a message
+          // CRITICAL: shouldSpeak: false because OpenAI Realtime handles TTS in hybrid mode
+          // Setting this to true would cause DOUBLE VOICE (both OpenAI and local TTS)
           const newMessage: PamMessage = {
             id: Date.now().toString(),
             content: text,
             sender: "pam",
             timestamp: new Date().toISOString(),
-            shouldSpeak: true,
+            shouldSpeak: false, // OpenAI Realtime handles TTS - don't use local TTS
           };
           setMessages((prev) => [...prev, newMessage]);
         },
@@ -1082,6 +1084,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             region: userContext?.region,
             current_page: 'pam_chat',
             conversation_mode: conversationMode, // "voice" or "text" - controls TTS
+            is_voice: conversationMode === 'voice', // CRITICAL: Tell backend to use all tools for voice
             location: locationObj || undefined,
             userLocation: locationObj || undefined,
             conversation_history: conversationHistory.slice(-3),
@@ -1112,7 +1115,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
 
       // Text-to-speech only in voice conversation mode (not for typed messages)
-      if (conversationMode === 'voice') {
+      // CRITICAL: Skip local TTS if hybrid realtime service is active (it handles TTS via OpenAI)
+      if (conversationMode === 'voice' && !realtimeService) {
         await speakText(responseContent);
       }
 

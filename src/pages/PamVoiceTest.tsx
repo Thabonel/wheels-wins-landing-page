@@ -1,10 +1,23 @@
+/**
+ * @deprecated This test page uses the legacy voice system.
+ * The production voice system is PAMVoiceHybridService used in Pam.tsx.
+ *
+ * This page uses deprecated components:
+ * - PamVoice (deprecated) - uses broken useVoice hook
+ * - VoiceOrchestrator (deprecated) - never integrated
+ *
+ * Scheduled for removal in Q2 2026.
+ * @see src/components/Pam.tsx (production voice)
+ * @see VOICE_RATIONALIZATION_PLAN.md
+ */
+
 import React from 'react';
-import { PamVoice } from '@/components/voice/PamVoice';
-import { useVoiceOrchestrator } from '@/services/VoiceOrchestrator';
+import { PamVoice } from '@/deprecated/components/voice/PamVoice';
+import { useVoiceOrchestrator } from '@/deprecated/services/VoiceOrchestrator';
 import { useVoiceStore } from '@/stores/useVoiceStore';
 
 /**
- * Test page for the new production-grade voice architecture
+ * @deprecated Legacy voice test page
  * 
  * This page allows testing all the new voice features:
  * - Settings-dependent initialization

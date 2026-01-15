@@ -1,4 +1,17 @@
 /**
+ * @deprecated LEGACY - Do not use in new code.
+ *
+ * This Voice Activity Detection service was part of the legacy multi-provider
+ * voice architecture. OpenAI Realtime handles VAD internally.
+ *
+ * USE INSTEAD: PAMVoiceHybridService from '@/services/pamVoiceHybridService'
+ * OpenAI Realtime's server-side VAD provides better detection with lower latency.
+ *
+ * This file is scheduled for removal in Q2 2026.
+ * See VOICE_RATIONALIZATION_PLAN.md for details.
+ *
+ * ---
+ * Original description:
  * Voice Activity Detection Service
  * Integrates the VAD worklet for sophisticated conversation management
  */
