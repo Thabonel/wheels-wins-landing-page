@@ -6,6 +6,7 @@ export interface VoiceInputOptions {
   interimResults?: boolean;      // Return interim results
   maxAlternatives?: number;      // Maximum number of alternatives
   lang?: string;                // Language code, e.g., 'en-US'
+  autoTimeoutMs?: number;       // Auto-stop after this many ms of inactivity (0 = disabled)
 }
 
 export interface VoiceInputState {
@@ -30,7 +31,8 @@ const DEFAULT_OPTIONS: Required<VoiceInputOptions> = {
   continuous: false,
   interimResults: true,
   maxAlternatives: 1,
-  lang: 'en-US'
+  lang: 'en-US',
+  autoTimeoutMs: 60000 // Auto-stop after 60 seconds of inactivity (0 to disable)
 };
 
 // Check for browser support with proper typing
@@ -76,6 +78,8 @@ export function useVoiceInput(
   // Refs for managing recognition instance
   const recognition = useRef<SpeechRecognition | null>(null);
   const isInitialized = useRef(false);
+  const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const resetTimeoutRef = useRef<(() => void) | null>(null);
 
   // Initialize recognition with proper configuration
   const initializeRecognition = useCallback(() => {
@@ -188,6 +192,10 @@ export function useVoiceInput(
           hasPermission: true,
           isProcessing: true
         }));
+        // Reset inactivity timer - user is actively speaking
+        if (resetTimeoutRef.current) {
+          resetTimeoutRef.current();
+        }
       };
 
       recognitionInstance.onnomatch = () => {
@@ -220,6 +228,46 @@ export function useVoiceInput(
       initializeRecognition();
     }
   }, [state.isSupported, initializeRecognition]);
+
+  // Inactivity timeout management
+  const resetInactivityTimeout = useCallback(() => {
+    if (inactivityTimeoutRef.current) {
+      clearTimeout(inactivityTimeoutRef.current);
+      inactivityTimeoutRef.current = null;
+    }
+  }, []);
+
+  const startInactivityTimeout = useCallback(() => {
+    // Skip if timeout is disabled
+    if (!options.current.autoTimeoutMs || options.current.autoTimeoutMs <= 0) {
+      return;
+    }
+
+    // Clear any existing timeout
+    resetInactivityTimeout();
+
+    // Set new timeout
+    inactivityTimeoutRef.current = setTimeout(() => {
+      if (recognition.current && state.isListening) {
+        logger.debug('Voice input: Auto-stopping due to inactivity');
+        try {
+          recognition.current.stop();
+          setState(prev => ({
+            ...prev,
+            isListening: false,
+            isProcessing: false
+          }));
+        } catch (error) {
+          logger.error('Voice input: Error auto-stopping', error);
+        }
+      }
+    }, options.current.autoTimeoutMs);
+  }, [resetInactivityTimeout, state.isListening]);
+
+  // Keep ref updated with latest startInactivityTimeout
+  useEffect(() => {
+    resetTimeoutRef.current = startInactivityTimeout;
+  }, [startInactivityTimeout]);
 
   // Start listening
   const startListening = useCallback(async () => {
@@ -260,6 +308,8 @@ export function useVoiceInput(
 
       recognition.current.start();
       logger.debug('Voice input: Started listening');
+      // Start inactivity timeout
+      startInactivityTimeout();
       return true;
     } catch (error) {
       const errorMessage = 'Failed to start speech recognition';
@@ -271,11 +321,14 @@ export function useVoiceInput(
       if (onError) onError(errorMessage);
       return false;
     }
-  }, [state.isSupported, state.isListening, onError]);
+  }, [state.isSupported, state.isListening, onError, startInactivityTimeout]);
 
   // Stop listening
   const stopListening = useCallback(() => {
     if (!recognition.current || !state.isListening) return;
+
+    // Clear inactivity timeout
+    resetInactivityTimeout();
 
     try {
       // Update state immediately for instant UI feedback
@@ -290,11 +343,14 @@ export function useVoiceInput(
     } catch (error) {
       logger.error('Voice input: Error stopping recognition', error);
     }
-  }, [state.isListening]);
+  }, [state.isListening, resetInactivityTimeout]);
 
   // Abort listening (immediate stop)
   const abortListening = useCallback(() => {
     if (!recognition.current) return;
+
+    // Clear inactivity timeout
+    resetInactivityTimeout();
 
     try {
       recognition.current.abort();
@@ -308,7 +364,7 @@ export function useVoiceInput(
     } catch (error) {
       logger.error('Voice input: Error aborting recognition', error);
     }
-  }, []);
+  }, [resetInactivityTimeout]);
 
   // Clear transcript
   const clearTranscript = useCallback(() => {
@@ -374,6 +430,11 @@ export function useVoiceInput(
     }
 
     return () => {
+      // Clear inactivity timeout
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current);
+        inactivityTimeoutRef.current = null;
+      }
       if (recognition.current) {
         recognition.current.abort();
         recognition.current = null;
@@ -382,7 +443,7 @@ export function useVoiceInput(
         window.removeEventListener('pam-voice:stop-all', handleGlobalStop as EventListener);
       }
     };
-  }, []);
+  }, [abortListening]);
 
   return {
     // State

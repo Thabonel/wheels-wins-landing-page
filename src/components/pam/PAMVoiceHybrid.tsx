@@ -25,6 +25,9 @@ interface Message {
   timestamp: number;
 }
 
+// Auto-timeout: Voice session deactivates after this many seconds of inactivity
+const VOICE_INACTIVITY_TIMEOUT_MS = 60000; // 60 seconds
+
 export function PAMVoiceHybrid() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -40,6 +43,7 @@ export function PAMVoiceHybrid() {
 
   const voiceServiceRef = useRef<PAMVoiceHybridService | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Scroll to bottom when new messages
   useEffect(() => {
@@ -50,7 +54,69 @@ export function PAMVoiceHybrid() {
   useEffect(() => {
     return () => {
       destroyVoiceService();
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current);
+      }
     };
+  }, []);
+
+  // =====================================================
+  // INACTIVITY TIMEOUT MANAGEMENT
+  // =====================================================
+
+  // Reset the inactivity timer - called when user speaks or PAM responds
+  const resetInactivityTimeout = useCallback(() => {
+    // Clear existing timeout
+    if (inactivityTimeoutRef.current) {
+      clearTimeout(inactivityTimeoutRef.current);
+      inactivityTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Start the inactivity timer - will stop voice after timeout
+  const startInactivityTimeout = useCallback(() => {
+    // Clear any existing timeout first
+    resetInactivityTimeout();
+
+    // Set new timeout
+    inactivityTimeoutRef.current = setTimeout(() => {
+      // Don't auto-stop if PAM is currently speaking
+      if (status.isSpeaking) {
+        // Restart timer to check again later
+        startInactivityTimeout();
+        return;
+      }
+
+      // Auto-stop due to inactivity
+      if (voiceServiceRef.current && isActive) {
+        console.log('[PAMVoiceHybrid] Auto-stopping due to inactivity');
+        voiceServiceRef.current.stop().then(() => {
+          voiceServiceRef.current = null;
+          destroyVoiceService();
+          setIsActive(false);
+          setStatus({ isConnected: false, isListening: false, isSpeaking: false });
+          setCurrentTranscript('');
+
+          // Notify other voice components
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('pam-voice:stop-all'));
+          }
+
+          toast({
+            title: 'Voice deactivated',
+            description: 'Session ended due to inactivity'
+          });
+        });
+      }
+    }, VOICE_INACTIVITY_TIMEOUT_MS);
+  }, [resetInactivityTimeout, status.isSpeaking, isActive, toast]);
+
+  // Clear timeout when voice session ends
+  const clearInactivityTimeout = useCallback(() => {
+    if (inactivityTimeoutRef.current) {
+      clearTimeout(inactivityTimeoutRef.current);
+      inactivityTimeoutRef.current = null;
+    }
   }, []);
 
   // =====================================================
@@ -79,9 +145,13 @@ export function PAMVoiceHybrid() {
         onTranscript: (text) => {
           setCurrentTranscript(text);
           addMessage('user', text);
+          // Reset inactivity timer - user is speaking
+          startInactivityTimeout();
         },
         onResponse: (text) => {
           addMessage('assistant', text);
+          // Reset inactivity timer - PAM responded, wait for next user input
+          startInactivityTimeout();
         },
         onStatusChange: (newStatus) => {
           setStatus(newStatus);
@@ -92,9 +162,12 @@ export function PAMVoiceHybrid() {
       voiceServiceRef.current = service;
       setIsActive(true);
 
+      // Start the inactivity timer
+      startInactivityTimeout();
+
       toast({
-        title: '🎤 Voice activated',
-        description: 'PAM is listening...'
+        title: 'Voice activated',
+        description: 'PAM is listening... (auto-off after 60s of inactivity)'
       });
 
     } catch (error) {
@@ -106,9 +179,12 @@ export function PAMVoiceHybrid() {
       });
       setIsActive(false);
     }
-  }, [user, toast]);
+  }, [user, toast, startInactivityTimeout]);
 
   const stopVoiceSession = useCallback(async () => {
+    // Clear inactivity timer
+    clearInactivityTimeout();
+
     if (voiceServiceRef.current) {
       await voiceServiceRef.current.stop();
       voiceServiceRef.current = null;
@@ -128,7 +204,7 @@ export function PAMVoiceHybrid() {
       title: 'Voice deactivated',
       description: 'PAM stopped listening'
     });
-  }, [toast]);
+  }, [toast, clearInactivityTimeout]);
 
   const toggleVoiceSession = useCallback(() => {
     if (isActive) {
