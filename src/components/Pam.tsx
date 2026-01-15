@@ -560,8 +560,12 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           setIsWakeWordListening(false);
 
           // Auto-activate voice mode when wake word is detected
-          if (!isContinuousMode) {
+          // IMPORTANT: Use ref instead of state to avoid stale closure issue
+          // (state value can be stale if wake word was started right after stopping voice)
+          if (!isContinuousModeRef.current) {
             startContinuousVoiceMode();
+          } else {
+            logger.warn('⚠️ Wake word detected but voice mode ref shows active - skipping');
           }
         },
         onError: (error) => {
@@ -648,9 +652,10 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         setRealtimeService(null);
       }
 
-      // Prevent double-activation
-      if (isContinuousMode) {
-        logger.warn('⚠️ Voice mode already active - ignoring duplicate activation');
+      // Prevent double-activation - use ref for accurate current state
+      // (state can be stale in callbacks due to React's async updates)
+      if (isContinuousModeRef.current) {
+        logger.warn('⚠️ Voice mode already active (ref check) - ignoring duplicate activation');
         return;
       }
 
