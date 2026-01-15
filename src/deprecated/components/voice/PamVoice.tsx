@@ -19,7 +19,7 @@ import { X, Send, Mic, MicOff, VolumeX, Volume2, AlertTriangle, Settings } from 
 import { useAuth } from "@/context/AuthContext";
 import { useVoice } from "@/deprecated/hooks/useVoice";
 import { useVoiceErrorRecovery } from "@/deprecated/hooks/useVoiceErrorRecovery";
-import { AudioPlayer } from "./AudioPlayer";
+import { AudioPlayer } from "@/components/voice/AudioPlayer";
 import { VoiceStatusMonitor } from "./VoiceStatusMonitor";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { Button } from "@/components/ui/button";
