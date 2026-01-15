@@ -7,17 +7,64 @@ Example usage:
 - "Create a route from LA to New York with 3 stops"
 
 Amendment #4: Input validation with Pydantic models
+Amendment #5: Return map_action for Grok-style map visualization
 """
 
 import logging
-from typing import Any, Dict, Optional, List
+import aiohttp
+import asyncio
+from typing import Any, Dict, Optional, List, Tuple
 from datetime import datetime
 from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.trip import PlanTripInput
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
+
+
+async def geocode_location(address: str) -> Optional[Tuple[float, float]]:
+    """
+    Geocode an address to coordinates using Mapbox API
+    Returns (longitude, latitude) for Mapbox format, or None if failed
+    """
+    # Get Mapbox token from settings
+    token_sources = ['MAPBOX_SECRET_TOKEN', 'VITE_MAPBOX_TOKEN', 'VITE_MAPBOX_PUBLIC_TOKEN']
+    mapbox_token = None
+
+    for token_name in token_sources:
+        token = getattr(settings, token_name, None)
+        if token:
+            if hasattr(token, 'get_secret_value'):
+                token = token.get_secret_value()
+            if token:
+                mapbox_token = token
+                break
+
+    if not mapbox_token:
+        logger.warning("No Mapbox token available for geocoding")
+        return None
+
+    try:
+        url = f"https://api.mapbox.com/geocoding/v5/mapbox.places/{address}.json"
+        params = {"access_token": mapbox_token, "limit": 1}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data["features"]:
+                        coords = data["features"][0]["geometry"]["coordinates"]
+                        return (coords[0], coords[1])  # [lng, lat] - Mapbox format
+
+        logger.warning(f"Could not geocode address: {address}")
+        return None
+
+    except Exception as e:
+        logger.error(f"Geocoding error for {address}: {e}")
+        return None
 
 
 async def plan_trip(
@@ -136,6 +183,57 @@ async def plan_trip(
 
             logger.info(f"Created trip plan: {trip['id']} for user {validated.user_id} (route source: {trip_data['metadata']['route_source']})")
 
+            # Build map_action for Grok-style map visualization
+            # Geocode all locations to get coordinates
+            waypoints = []
+
+            # Origin
+            origin_coords = await geocode_location(validated.origin)
+            if origin_coords:
+                waypoints.append({
+                    "name": validated.origin,
+                    "coordinates": list(origin_coords),  # [lng, lat]
+                    "type": "origin",
+                    "description": "Starting point"
+                })
+
+            # Intermediate stops
+            if validated.stops:
+                for stop in validated.stops:
+                    stop_coords = await geocode_location(stop)
+                    if stop_coords:
+                        waypoints.append({
+                            "name": stop,
+                            "coordinates": list(stop_coords),  # [lng, lat]
+                            "type": "waypoint",
+                            "description": "Stop along route"
+                        })
+
+            # Destination
+            dest_coords = await geocode_location(validated.destination)
+            if dest_coords:
+                waypoints.append({
+                    "name": validated.destination,
+                    "coordinates": list(dest_coords),  # [lng, lat]
+                    "type": "destination",
+                    "description": "Final destination"
+                })
+
+            # Build map_action only if we have valid waypoints
+            map_action = None
+            if len(waypoints) >= 2:  # Need at least origin and destination
+                map_action = {
+                    "type": "REPLACE_ROUTE",
+                    "waypoints": waypoints,
+                    "metadata": {
+                        "totalDistance": estimated_distance * 1609.34 if estimated_distance else None,  # Convert miles to meters
+                        "totalDuration": duration_hours * 3600 if duration_hours else None,  # Convert hours to seconds
+                        "estimatedFuelCost": estimated_gas,
+                        "sourceTool": "plan_trip"
+                    }
+                }
+                logger.info(f"Generated map_action with {len(waypoints)} waypoints for trip {trip['id']}")
+
             return {
                 "success": True,
                 "trip": trip,
@@ -147,6 +245,7 @@ async def plan_trip(
                     "distance_miles": estimated_distance,
                     "duration_hours": duration_hours
                 },
+                "map_action": map_action,
                 "message": f"Planned trip from {validated.origin} to {validated.destination}" +
                           (f" with {len(validated.stops)} stops" if validated.stops else "") +
                           (f" (${estimated_total:.2f} estimated, {estimated_distance:.0f} miles)" if estimated_distance else "")
