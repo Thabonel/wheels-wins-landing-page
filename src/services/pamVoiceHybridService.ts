@@ -214,7 +214,9 @@ export class PAMVoiceHybridService {
       // Step 6: Start streaming microphone to OpenAI
       this.startMicrophoneStreaming();
 
-      this.updateStatus({ isConnected: true, isListening: true });
+      // isListening starts false - it means "user currently speaking"
+      // It will be set true when user starts speaking (input_audio_buffer.speech_started)
+      this.updateStatus({ isConnected: true, isListening: false });
 
       logger.info('[PAMVoiceHybrid] ✅ Hybrid voice session started');
 
@@ -370,6 +372,8 @@ export class PAMVoiceHybridService {
 
       case 'input_audio_buffer.speech_stopped':
         logger.info('[PAMVoiceHybrid] 🎤 User stopped speaking');
+        // CRITICAL: Set isListening to false so silence detection works
+        this.updateStatus({ isListening: false });
         break;
 
       case 'error':
