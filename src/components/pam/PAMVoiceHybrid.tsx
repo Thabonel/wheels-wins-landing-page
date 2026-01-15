@@ -25,8 +25,8 @@ interface Message {
   timestamp: number;
 }
 
-// Auto-timeout: Voice session deactivates after this many seconds of inactivity
-const VOICE_INACTIVITY_TIMEOUT_MS = 60000; // 60 seconds
+// Auto-timeout: Voice returns to wake word mode after this many seconds of inactivity
+const VOICE_INACTIVITY_TIMEOUT_MS = 30000; // 30 seconds - then fall back to wake word
 
 export function PAMVoiceHybrid() {
   const { user } = useAuth();
@@ -87,9 +87,9 @@ export function PAMVoiceHybrid() {
         return;
       }
 
-      // Auto-stop due to inactivity
+      // Auto-stop due to inactivity - switch to wake word mode
       if (voiceServiceRef.current && isActive) {
-        console.log('[PAMVoiceHybrid] Auto-stopping due to inactivity');
+        console.log('[PAMVoiceHybrid] Auto-stopping due to inactivity - returning to wake word mode');
         voiceServiceRef.current.stop().then(() => {
           voiceServiceRef.current = null;
           destroyVoiceService();
@@ -97,14 +97,15 @@ export function PAMVoiceHybrid() {
           setStatus({ isConnected: false, isListening: false, isSpeaking: false });
           setCurrentTranscript('');
 
-          // Notify other voice components
+          // Notify that voice should return to wake word mode (not fully stop)
           if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('pam-voice:return-to-wake-word'));
             window.dispatchEvent(new CustomEvent('pam-voice:stop-all'));
           }
 
           toast({
-            title: 'Voice deactivated',
-            description: 'Session ended due to inactivity'
+            title: 'Listening for "Hey PAM"',
+            description: 'Voice mode paused - say "Hey PAM" to continue'
           });
         });
       }

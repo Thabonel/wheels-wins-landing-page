@@ -257,6 +257,24 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     };
   }, [user, loading, settings?.pam_preferences?.wake_word_enabled]);
 
+  // Listen for "return to wake word" events from PAMVoiceHybrid or other components
+  useEffect(() => {
+    const handleReturnToWakeWord = async () => {
+      const wakeWordEnabled = settings?.pam_preferences?.wake_word_enabled ?? true;
+      logger.info('📣 Received return-to-wake-word event');
+
+      if (wakeWordEnabled && !isWakeWordListening) {
+        logger.info('👂 Restarting wake word listening (triggered by inactivity timeout)');
+        await startWakeWordListening();
+      }
+    };
+
+    window.addEventListener('pam-voice:return-to-wake-word', handleReturnToWakeWord);
+    return () => {
+      window.removeEventListener('pam-voice:return-to-wake-word', handleReturnToWakeWord);
+    };
+  }, [settings?.pam_preferences?.wake_word_enabled, isWakeWordListening]);
+
   // Update location context when tracking state changes
   useEffect(() => {
     const updateLocationContext = async () => {
