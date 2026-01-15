@@ -24,9 +24,11 @@ import FreshRouteComparison from './components/FreshRouteComparison';
 import FreshElevationProfile from './components/FreshElevationProfile';
 import FreshDraggableWaypoints from './components/FreshDraggableWaypoints';
 import ShareTripModal from './components/ShareTripModal';
+import PAMRouteConfirmDialog from './components/PAMRouteConfirmDialog';
 import BudgetSidebar from '../BudgetSidebar';
 import SocialSidebar from '../SocialSidebar';
 import { useSocialTripState } from '../hooks/useSocialTripState';
+import { pamTripBridge, PAMTripAction } from '@/services/pamTripBridge';
 
 // Map styles configuration
 const MAP_STYLES = {
@@ -96,6 +98,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     waterFill: false,
     rvRepair: false
   });
+
+  // PAM Trip Bridge state
+  const [showPAMRouteDialog, setShowPAMRouteDialog] = useState(false);
+  const [pendingPAMAction, setPendingPAMAction] = useState<PAMTripAction | null>(null);
+  const [isApplyingPAMRoute, setIsApplyingPAMRoute] = useState(false);
   
   // Refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -893,7 +900,119 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       handleApplyTemplate(initialTemplate);
     }
   }, [map, waypointManager, initialTemplate]);
-  
+
+  // PAM Trip Bridge subscription - listen for route actions from PAM
+  useEffect(() => {
+    const handlePAMTripAction = (action: PAMTripAction) => {
+      console.log('[FreshTripPlanner] Received PAM trip action:', action.type, action.waypoints.length, 'waypoints');
+
+      if (action.requiresConfirmation) {
+        // Show confirmation dialog
+        setPendingPAMAction(action);
+        setShowPAMRouteDialog(true);
+      } else {
+        // Auto-apply for simple actions (single stop)
+        applyPAMRouteAction(action);
+      }
+    };
+
+    // Subscribe to PAM trip bridge
+    const unsubscribe = pamTripBridge.subscribe(handlePAMTripAction);
+    console.log('[FreshTripPlanner] Subscribed to PAM Trip Bridge');
+
+    return () => {
+      unsubscribe();
+      console.log('[FreshTripPlanner] Unsubscribed from PAM Trip Bridge');
+    };
+  }, []);
+
+  // Apply waypoints from PAM action to the map
+  const applyPAMRouteAction = async (action: PAMTripAction) => {
+    if (!waypointManager) {
+      console.error('[FreshTripPlanner] Waypoint manager not ready');
+      pamTripBridge.reportResult({ success: false, error: 'Map not ready', actionId: action.actionId });
+      return;
+    }
+
+    setIsApplyingPAMRoute(true);
+
+    try {
+      // Convert PAM waypoints to map waypoints (with generated IDs)
+      const mapWaypoints = action.waypoints.map((wp, index) => ({
+        id: `pam-${Date.now()}-${index}`,
+        name: wp.name,
+        coordinates: wp.coordinates as [number, number],
+        type: wp.type,
+        address: wp.address,
+      }));
+
+      if (action.type === 'REPLACE_ROUTE' || action.type === 'OPTIMIZE') {
+        // Replace entire route
+        waypointManager.setWaypoints(mapWaypoints);
+        toast.success(`Route applied: ${mapWaypoints.length} waypoints`);
+      } else if (action.type === 'ADD_WAYPOINTS' || action.type === 'ADD_STOP') {
+        // Add to existing route
+        mapWaypoints.forEach(wp => {
+          waypointManager.addWaypoint(wp);
+        });
+        toast.success(`Added ${mapWaypoints.length} waypoint${mapWaypoints.length > 1 ? 's' : ''}`);
+      } else if (action.type === 'CLEAR_ROUTE') {
+        waypointManager.clearWaypoints();
+        toast.info('Route cleared');
+      }
+
+      // Fit map to show all waypoints
+      if (map && mapWaypoints.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds();
+        mapWaypoints.forEach(wp => bounds.extend(wp.coordinates));
+        map.fitBounds(bounds, { padding: 100, maxZoom: 12 });
+      }
+
+      // Report success
+      pamTripBridge.reportResult({
+        success: true,
+        actionId: action.actionId,
+        waypointCount: waypointManager.waypoints.length + mapWaypoints.length,
+      });
+
+      console.log('[FreshTripPlanner] PAM route action applied successfully');
+    } catch (error) {
+      console.error('[FreshTripPlanner] Error applying PAM route:', error);
+      toast.error('Failed to apply route');
+      pamTripBridge.reportResult({
+        success: false,
+        actionId: action.actionId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    } finally {
+      setIsApplyingPAMRoute(false);
+      setShowPAMRouteDialog(false);
+      setPendingPAMAction(null);
+    }
+  };
+
+  // Handle PAM route dialog actions
+  const handlePAMRouteConfirm = () => {
+    if (pendingPAMAction) {
+      applyPAMRouteAction(pendingPAMAction);
+    }
+  };
+
+  const handlePAMRouteModify = () => {
+    // Close dialog but keep waypoints for manual editing
+    if (pendingPAMAction) {
+      toast.info('Route loaded for manual editing. Modify waypoints as needed.');
+      applyPAMRouteAction({ ...pendingPAMAction, type: 'ADD_WAYPOINTS' });
+    }
+  };
+
+  const handlePAMRouteCancel = () => {
+    setShowPAMRouteDialog(false);
+    setPendingPAMAction(null);
+    pamTripBridge.clearPendingAction();
+    toast.info('Route cancelled');
+  };
+
   return (
     <div className="relative w-full h-full overflow-hidden" data-trip-planner-root="true">
       {/* Full-screen map container - ensure it has explicit height */}
@@ -1170,6 +1289,17 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           }
         }}
       />
+
+      {/* PAM Route Confirmation Dialog */}
+      {showPAMRouteDialog && pendingPAMAction && (
+        <PAMRouteConfirmDialog
+          action={pendingPAMAction}
+          onConfirm={handlePAMRouteConfirm}
+          onModify={handlePAMRouteModify}
+          onCancel={handlePAMRouteCancel}
+          isApplying={isApplyingPAMRoute}
+        />
+      )}
 
       {/* Track Management Panel - Modern React Component */}
       <FreshTrackPanel

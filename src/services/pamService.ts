@@ -29,6 +29,7 @@ import type { Pam2ChatRequest, Pam2ChatResponse, Pam2HealthResponse, UIAction } 
 import { MessageQueue, type QueuedMessage } from '@/utils/messageQueue';
 import { type PamContext, type PamApiMessage, validatePamContext } from '@/types/pamContext';
 import { toast } from 'sonner';
+import { pamTripBridge, extractMapActionFromToolResult } from './pamTripBridge';
 
 // =====================================================
 // TYPES & INTERFACES
@@ -759,6 +760,9 @@ class PamService {
               this.handleUIActions(response.ui_actions);
             }
 
+            // Handle map actions from trip planning tools (Grok-style)
+            this.handleMapAction(response);
+
             // Convert PAM 2.0 response to compatible format
             const legacyResponse: PamApiResponse = {
               response: content,
@@ -839,6 +843,9 @@ class PamService {
           backend: this.getEnvironment(),
           healthScore: Math.min(100, this.status.healthScore + 5)
         });
+
+        // Handle map actions from trip planning tools (Grok-style)
+        this.handleMapAction(pam2Response as any);
 
         // Convert PAM 2.0 response to compatible format (support both 'response' and 'content')
         const content = (pam2Response as any).response || (pam2Response as any).content || (pam2Response as any).message;
@@ -1012,6 +1019,47 @@ class PamService {
           console.warn(`Unknown UI action type: ${action.type}`);
       }
     });
+  }
+
+  /**
+   * Handle map actions from trip planning tools (Grok-style trip planning)
+   * Extracts map_action from response metadata and dispatches to PAMTripBridge
+   * for rendering on the map component
+   */
+  private handleMapAction(response: any): void {
+    // Check for map_action in response or metadata
+    const mapActionSource = response?.map_action || response?.metadata?.map_action;
+
+    if (mapActionSource) {
+      console.log(`🗺️ Detected map action in PAM response:`, mapActionSource);
+
+      // Extract and validate the map action
+      const tripAction = extractMapActionFromToolResult({ map_action: mapActionSource });
+
+      if (tripAction) {
+        console.log(`🗺️ Dispatching trip action to map:`, {
+          type: tripAction.type,
+          waypointCount: tripAction.waypoints.length,
+          requiresConfirmation: tripAction.requiresConfirmation
+        });
+
+        // Dispatch to bridge for map component to handle
+        pamTripBridge.dispatch(tripAction);
+
+        // Show toast for user feedback
+        const waypointCount = tripAction.waypoints.length;
+        const actionDescription = tripAction.type === 'REPLACE_ROUTE' ? 'Route planned' :
+                                  tripAction.type === 'ADD_WAYPOINTS' ? `${waypointCount} stops found` :
+                                  tripAction.type === 'ADD_STOP' ? 'Stop added' :
+                                  tripAction.type === 'OPTIMIZE' ? 'Route optimized' : 'Route updated';
+
+        toast.info(actionDescription, {
+          description: tripAction.requiresConfirmation
+            ? 'Review the route on the map'
+            : 'Applied to your trip',
+        });
+      }
+    }
   }
 
   private async enhanceMessageWithLocation(message: PamApiMessage): Promise<PamApiMessage> {
