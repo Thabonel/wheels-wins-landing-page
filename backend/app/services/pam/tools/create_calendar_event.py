@@ -93,6 +93,7 @@ async def create_calendar_event(
     reminder_minutes: Optional[List[int]] = None,
     color: str = "#3b82f6",
     is_private: bool = True,
+    context: Optional[Dict[str, Any]] = None,
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -155,8 +156,9 @@ async def create_calendar_event(
         supabase = get_supabase_service()  # Type: Client (imported only for type checking)
 
         # Detect user's timezone with fallback strategies
-        context = kwargs.get('context', {})
-        user_timezone, user_timezone_str, detection_method = detect_user_timezone(context)
+        # Use explicit context parameter (passed by PAM when function signature includes 'context')
+        ctx = context or kwargs.get('context', {})
+        user_timezone, user_timezone_str, detection_method = detect_user_timezone(ctx)
 
         # Parse dates with timezone awareness
         # If the datetime string has no timezone info, interpret it in user's timezone
