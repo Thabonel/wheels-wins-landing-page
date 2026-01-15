@@ -250,6 +250,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
         context: {
           current_page: 'simple-pam-test',
           conversation_mode: conversationMode, // "voice" or "text" - controls TTS
+          is_voice: conversationMode === 'voice', // CRITICAL: Tell backend to use all tools for voice
           session_data: {
             conversation_length: messages.length
           }

@@ -1,6 +1,18 @@
 /**
+ * @deprecated LEGACY - Do not use in new code.
+ *
+ * This useVoiceErrorRecovery hook was designed for the legacy multi-provider
+ * voice architecture. PAMVoiceHybridService handles errors internally.
+ *
+ * USE INSTEAD: PAMVoiceHybridService from '@/services/pamVoiceHybridService'
+ *
+ * This file is scheduled for removal in Q2 2026.
+ * See VOICE_RATIONALIZATION_PLAN.md for details.
+ *
+ * ---
+ * Original description:
  * Enhanced Voice Error Recovery Hook
- * 
+ *
  * Provides comprehensive error recovery capabilities for the PAM voice system.
  * Integrates with the existing voice infrastructure to provide:
  * - Intelligent error classification and recovery strategies
@@ -11,9 +23,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useVoice } from '@/hooks/useVoice';
+import { useVoice } from '@/deprecated/hooks/useVoice';
 import { useVoiceStore } from '@/stores/useVoiceStore';
-import { voiceOrchestrator } from '@/services/VoiceOrchestrator';
+import { voiceOrchestrator } from '@/deprecated/services/VoiceOrchestrator';
 
 // Types for error recovery system
 export type VoiceErrorSeverity = 'low' | 'medium' | 'high' | 'critical';

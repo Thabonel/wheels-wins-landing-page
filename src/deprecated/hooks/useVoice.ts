@@ -1,17 +1,32 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useVoiceStore, useVoiceSettings } from '@/stores/useVoiceStore';
 import { useUserSettings } from '@/hooks/useUserSettings';
-import { voiceOrchestrator } from '@/services/VoiceOrchestrator';
+import { voiceOrchestrator } from '@/deprecated/services/VoiceOrchestrator';
 import { createNariLabsProvider } from '@/services/tts/NariLabsProvider';
 import { createBrowserTTSProvider } from '@/services/tts/BrowserTTSProvider';
-import { webRTCService } from '@/services/voice/WebRTCConnectionService';
-import { vadService } from '@/services/voice/VADService';
-import { sttService } from '@/services/voice/STTService';
-import { conversationManager } from '@/services/voice/ConversationManager';
+import { webRTCService } from '@/deprecated/services/voice/WebRTCConnectionService';
+import { vadService } from '@/deprecated/services/voice/VADService';
+import { sttService } from '@/deprecated/services/voice/STTService';
+import { conversationManager } from '@/deprecated/services/voice/ConversationManager';
 
 /**
+ * @deprecated LEGACY - Do not use in new code.
+ *
+ * This useVoice hook was part of the legacy multi-provider voice architecture.
+ * It never successfully initialized in production (references undefined settings).
+ *
+ * USE INSTEAD: Import PAMVoiceHybridService directly
+ *   import { createVoiceService } from '@/services/pamVoiceHybridService';
+ *
+ * See Pam.tsx startContinuousVoiceMode() for the working pattern.
+ *
+ * This file is scheduled for removal in Q2 2026.
+ * See VOICE_RATIONALIZATION_PLAN.md for details.
+ *
+ * ---
+ * Original description:
  * Main voice hook that orchestrates the entire voice system
- * 
+ *
  * Implements settings-dependent initialization to fix race conditions
  * Manages connection lifecycle and integrates with Vercel AI SDK
  */

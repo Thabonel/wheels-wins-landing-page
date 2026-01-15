@@ -1,7 +1,26 @@
+/**
+ * @deprecated This context is part of the legacy voice system.
+ * The production voice system uses PAMVoiceHybridService instead.
+ *
+ * This context provides basic voice state management but is NOT used
+ * by the production PAMVoiceHybrid system which manages its own state.
+ *
+ * For new code:
+ * - Voice hybrid service: src/services/pamVoiceHybridService.ts
+ * - Voice hook: src/hooks/voice/useTextToSpeech.ts
+ * - Voice store: src/stores/useVoiceStore.ts
+ *
+ * Scheduled for removal in Q2 2026.
+ * @see src/services/pamVoiceHybridService.ts
+ * @see VOICE_RATIONALIZATION_PLAN.md
+ */
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { pamVoiceService, VoiceGenerationOptions } from '@/lib/voiceService';
 
+/**
+ * @deprecated Legacy voice context type - DO NOT USE IN NEW CODE
+ */
 interface VoiceContextType {
   isVoiceEnabled: boolean;
   toggleVoice: () => void;

@@ -1,11 +1,27 @@
 import { useVoiceStore, type AudioQueueItem, type VoiceSettings } from '@/stores/useVoiceStore';
 
 /**
+ * @deprecated LEGACY - Do not use in new code.
+ *
+ * This VoiceOrchestrator was part of an earlier multi-provider voice architecture
+ * that was never successfully integrated into production.
+ *
+ * USE INSTEAD: PAMVoiceHybridService from '@/services/pamVoiceHybridService'
+ *
+ * The active voice system uses:
+ * - OpenAI Realtime for voice I/O (STT + TTS)
+ * - Claude for reasoning and tool execution
+ *
+ * This file is scheduled for removal in Q2 2026.
+ * See VOICE_RATIONALIZATION_PLAN.md for details.
+ *
+ * ---
+ * Original description:
  * VoiceOrchestrator - Centralized voice management service
- * 
+ *
  * This is the SINGLE point of entry for all TTS operations in the application.
  * Eliminates duplicate audio playback by ensuring all voice requests go through one queue.
- * 
+ *
  * Based on research patterns from production voice agents.
  */
 export class VoiceOrchestrator {

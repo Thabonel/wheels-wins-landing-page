@@ -19,10 +19,13 @@ Token Impact:
 
 import re
 import asyncio
+import logging
 from typing import List, Dict, Set, Optional
 from collections import OrderedDict, deque
 from datetime import datetime
 import signal
+
+logger = logging.getLogger(__name__)
 
 
 class ToolPrefilter:
@@ -100,6 +103,21 @@ class ToolPrefilter:
             r'\b(site|sites|spot|spots)\b',
             r'\b(reservation|reservations|reserve|book|booking)\b',
             r'\b(rv park|rv parks|rv resort)\b'
+        ],
+        # CRITICAL: Calendar keywords for voice commands like "book an appointment"
+        "calendar": [
+            r'\b(calendar|calendars)\b',
+            r'\b(appointment|appointments)\b',
+            r'\b(schedule|scheduling|scheduled)\b',
+            r'\b(book|booking|booked)\b',
+            r'\b(reminder|reminders|remind)\b',
+            r'\b(event|events)\b',
+            r'\b(meeting|meetings)\b',
+            r'\b(dentist|doctor|checkup|check-up)\b',
+            r'\b(tomorrow|next week|next month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b',
+            r'\b(add to|put on|set up|create a)\b',
+            r'\b(at \d|for \d|\d pm|\d am|\d:)\b',  # Time patterns like "at 3", "for 2pm"
+            r'\b(oil change|maintenance|service)\b'
         ]
     }
 
@@ -178,7 +196,11 @@ class ToolPrefilter:
         "/shop": "shop",
         "/shopping": "shop",
         "/rv": "rv",
-        "/campgrounds": "rv"
+        "/campgrounds": "rv",
+        "/calendar": "calendar",
+        "/schedule": "calendar",
+        "/appointments": "calendar",
+        "/pam_chat": "calendar"  # Voice chat should include calendar tools
     }
 
     def __init__(self, max_recent_tools: int = 5):
