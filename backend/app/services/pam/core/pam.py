@@ -1844,7 +1844,7 @@ async def get_pam(user_id: str, user_language: str = "en") -> PAM:
 
     Args:
         user_id: UUID of the user
-        user_language: User's preferred language (en, es, fr)
+        user_language: User's preferred language (en, es, fr) - will be overridden by profile
 
     Returns:
         PAM instance for this user (with cached context injected)
@@ -1882,8 +1882,15 @@ async def get_pam(user_id: str, user_language: str = "en") -> PAM:
     except Exception as e:
         logger.error(f"❌ Cache service error for {user_id}: {e}", exc_info=True)
 
+    # ALWAYS use language from user profile if available (not passed parameter)
+    # This ensures PAM speaks the user's configured language
+    profile_language = user_context.get('language', 'en') if user_context else user_language
+    if profile_language != user_language:
+        logger.info(f"🌍 Using profile language '{profile_language}' instead of passed '{user_language}'")
+    user_language = profile_language
+
     if user_id not in _pam_instances:
-        logger.info(f"🆕 Creating new PAM instance for user {user_id}")
+        logger.info(f"🆕 Creating new PAM instance for user {user_id} with language '{user_language}'")
         _pam_instances[user_id] = PAM(user_id, user_language, user_context)
 
         # Log system prompt preview for debugging
@@ -1897,15 +1904,20 @@ async def get_pam(user_id: str, user_language: str = "en") -> PAM:
 
     else:
         # Update language or context if changed
-        if _pam_instances[user_id].user_language != user_language or user_context:
-            if _pam_instances[user_id].user_language != user_language:
-                _pam_instances[user_id].user_language = user_language
-                logger.info(f"🔄 Updated language for user {user_id} to {user_language}")
-            if user_context:
-                _pam_instances[user_id].user_context = user_context
-                logger.info(f"🔄 Updated context for user {user_id}")
-            # Rebuild system prompt with new context
+        # ALWAYS check language against profile (not what was passed)
+        needs_update = False
+        if _pam_instances[user_id].user_language != user_language:
+            _pam_instances[user_id].user_language = user_language
+            logger.info(f"🔄 Updated language for user {user_id} to '{user_language}' (from profile)")
+            needs_update = True
+        if user_context:
+            _pam_instances[user_id].user_context = user_context
+            logger.info(f"🔄 Updated context for user {user_id}")
+            needs_update = True
+        if needs_update:
+            # Rebuild system prompt with new language/context
             _pam_instances[user_id].system_prompt = _pam_instances[user_id]._build_system_prompt()
+            logger.info(f"🔄 Rebuilt system prompt for user {user_id}")
 
     return _pam_instances[user_id]
 
