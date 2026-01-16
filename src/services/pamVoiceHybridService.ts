@@ -319,8 +319,13 @@ export class PAMVoiceHybridService {
   private handleOpenAIMessage(message: any): void {
     switch (message.type) {
       case 'session.created':
-        logger.info('[PAMVoiceHybrid] ✅ OpenAI session ready - triggering greeting');
-        // Immediately greet the user so they know PAM is listening
+        logger.info('[PAMVoiceHybrid] ✅ OpenAI session created (waiting for session.updated)');
+        // Don't greet yet - wait for session.updated after our config is applied
+        break;
+
+      case 'session.updated':
+        logger.info('[PAMVoiceHybrid] ✅ OpenAI session configured - triggering greeting');
+        // NOW greet the user - session is fully configured with voice
         this.speakGreeting();
         break;
 
