@@ -274,10 +274,43 @@ async def voice_to_claude_bridge(
             if message_type == "user_message":
                 # User spoke, OpenAI transcribed, now process with Claude
                 user_text = data.get("text", "")
-                context = data.get("context", {})
+                browser_context = data.get("context", {})
+
+                # =====================================================
+                # LOAD USER CONTEXT (same as text mode)
+                # Voice mode needs profile, financial, social data
+                # =====================================================
+                try:
+                    from app.services.pam.cache_warming import get_cache_warming_service
+                    cache_service = await get_cache_warming_service()
+
+                    # Load cached context (profile, financial, preferences)
+                    cached_context = await cache_service.get_cached_user_context(user_id)
+
+                    # Merge: cached context first, browser context on top
+                    # Browser wins for real-time data (location, timezone, is_voice)
+                    context = {
+                        **(cached_context or {}),  # Profile, financial, preferences
+                        **browser_context,          # Location, timezone, is_voice
+                    }
+
+                    pam_logger.info(
+                        f"📦 Voice context loaded: {list(context.keys())}",
+                        extra={
+                            "user_id": user_id,
+                            "has_profile": "profile" in context or "user_profile" in context,
+                            "has_expenses": "expenses" in context,
+                            "has_vehicle": "vehicle" in context,
+                            "cached_keys": list((cached_context or {}).keys()),
+                            "browser_keys": list(browser_context.keys())
+                        }
+                    )
+                except Exception as e:
+                    pam_logger.warning(f"⚠️ Failed to load cached context: {e}, using browser context only")
+                    context = browser_context
 
                 # DIAGNOSTIC: Log voice context for calendar appointments
-                pam_logger.info(f"🔍 DIAGNOSTIC: Voice context received={context}")
+                pam_logger.info(f"🔍 DIAGNOSTIC: Voice context keys={list(context.keys())}")
                 pam_logger.info(f"🔍 DIAGNOSTIC: Has timezone? {('timezone' in context)}")
                 pam_logger.info(f"🔍 DIAGNOSTIC: Has location? {('user_location' in context)}")
                 pam_logger.info(f"🔍 DIAGNOSTIC: is_voice flag={context.get('is_voice', False)}")
@@ -285,18 +318,8 @@ async def voice_to_claude_bridge(
                     loc = context['user_location']
                     pam_logger.info(f"🔍 DIAGNOSTIC: Location complete? lat={loc.get('lat')}, lng={loc.get('lng')}")
 
-                # Get or update PAM instance with user's language preference
-                # Prefer context language if explicitly provided; otherwise read from cached profile
-                user_language = context.get("language")
-                if not user_language:
-                    try:
-                        from app.services.pam.cache_warming import get_cache_warming_service
-                        cache_service = await get_cache_warming_service()
-                        cached_ctx = await cache_service.get_cached_user_context(user_id)
-                        user_language = (cached_ctx or {}).get("language", "en")
-                    except Exception:
-                        user_language = "en"
-
+                # Get PAM instance with user's language preference
+                user_language = context.get("language", "en")
                 pam = await get_pam(user_id, user_language=user_language)
 
                 pam_logger.info(
