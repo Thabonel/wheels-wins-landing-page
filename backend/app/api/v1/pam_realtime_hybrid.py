@@ -96,8 +96,9 @@ async def create_hybrid_voice_session(
     7. OpenAI Realtime speaks response to user
     """
     try:
-        # Log function entry
+        # Log function entry with context
         logger.info(f"🎤 Voice session creation started for user {current_user.user_id}")
+        logger.info(f"🌍 User context - language: {request.language}, location: {request.location}, timezone: {request.timezone}")
 
         # Check OpenAI API key
         openai_key = os.getenv('OPENAI_API_KEY')
