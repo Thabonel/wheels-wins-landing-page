@@ -40,6 +40,11 @@ class VoiceSessionRequest(BaseModel):
     """Request to create voice session"""
     voice: Optional[str] = "marin"  # Natural, expressive voice
     temperature: Optional[float] = 0.8
+    # User context for personalized instructions
+    language: Optional[str] = "en"  # Default English
+    location: Optional[Dict[str, Any]] = None  # {city, state, country, lat, lng}
+    timezone: Optional[str] = None  # e.g., "America/New_York"
+    user_name: Optional[str] = None  # User's name for personalization
 
 
 class VoiceSessionResponse(BaseModel):
@@ -120,7 +125,12 @@ async def create_hybrid_voice_session(
                         "model": "gpt-4o-realtime-preview",
                         "voice": request.voice,
                         "modalities": ["text", "audio"],
-                        "instructions": _get_chat_supervisor_instructions(),
+                        "instructions": _get_chat_supervisor_instructions(
+                            language=request.language,
+                            location=request.location,
+                            timezone=request.timezone,
+                            user_name=request.user_name
+                        ),
                         "tools": _get_supervisor_tool(),
                         "turn_detection": {
                             "type": "server_vad",
@@ -226,22 +236,79 @@ async def create_hybrid_voice_session(
         )
 
 
-def _get_chat_supervisor_instructions() -> str:
+def _get_chat_supervisor_instructions(
+    language: str = "en",
+    location: Optional[Dict[str, Any]] = None,
+    timezone: Optional[str] = None,
+    user_name: Optional[str] = None
+) -> str:
     """
     Chat-Supervisor pattern instructions for OpenAI Realtime.
 
     OpenAI handles basic chat and delegates complex tasks to Claude supervisor.
     This is the recommended pattern from OpenAI for hybrid voice agents.
 
+    Args:
+        language: User's preferred language code (default "en" for English)
+        location: User's location dict with city, state, country, lat, lng
+        timezone: User's timezone (e.g., "America/New_York")
+        user_name: User's name for personalization
+
     Reference: https://github.com/openai/openai-realtime-agents
     """
-    return """You are PAM, a friendly RV travel assistant with a warm, helpful personality.
+    # Build location context string
+    location_context = ""
+    if location:
+        city = location.get("city", "")
+        state = location.get("state", "")
+        country = location.get("country", "")
+        if city and state:
+            location_context = f"The user is currently in {city}, {state}"
+            if country and country != "USA" and country != "United States":
+                location_context += f", {country}"
+        elif city:
+            location_context = f"The user is currently in {city}"
+
+    # Build timezone context
+    timezone_context = ""
+    if timezone:
+        timezone_context = f"The user's timezone is {timezone}."
+
+    # Build user name context
+    name_context = ""
+    if user_name:
+        name_context = f"The user's name is {user_name}. Feel free to use their name occasionally."
+
+    # Map language code to language name for clarity
+    language_names = {
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        "de": "German",
+        "it": "Italian",
+        "pt": "Portuguese",
+        "zh": "Chinese",
+        "ja": "Japanese",
+        "ko": "Korean"
+    }
+    language_name = language_names.get(language, "English")
+
+    return f"""You are PAM, a friendly RV travel assistant with a warm, helpful personality.
+
+## CRITICAL: Language Requirement
+**ALWAYS speak in {language_name}.** This is your PRIMARY language for this conversation.
+Do NOT switch to any other language unless the user explicitly speaks to you in that language first.
+
+## User Context
+{location_context}
+{timezone_context}
+{name_context}
 
 ## Your Role
 You handle the voice conversation with the user. For simple interactions, respond directly.
-For complex tasks, delegate to your supervisor (Claude) who has access to tools.
+For complex tasks, delegate to your supervisor (Claude) who has access to powerful tools.
 
-## What YOU Handle Directly (respond immediately):
+## What YOU Handle Directly (respond immediately in {language_name}):
 - Greetings: "Hi!", "Hello", "Hey PAM"
 - Casual chat: "How are you?", "What's up?"
 - Simple questions about yourself: "What can you do?"
@@ -249,26 +316,40 @@ For complex tasks, delegate to your supervisor (Claude) who has access to tools.
 - Clarifications: "What did you mean by...?"
 
 ## What You DELEGATE to Supervisor (call delegate_to_supervisor):
-- Calendar/scheduling: "Book an appointment", "What's on my calendar?"
-- Budget/expenses: "Track this expense", "How much have I spent?"
-- Trip planning: "Plan a trip to...", "Find RV parks near..."
-- Weather: "What's the weather?"
-- Any action that requires looking up data or making changes
-- Anything you're not 100% sure how to answer
+Your supervisor (Claude) has access to these powerful tools - ALWAYS delegate for these:
+- **Calendar management**: Book appointments, check schedule, set reminders, create events
+- **Budget & expenses**: Track spending, log expenses, check budget status, savings goals
+- **Trip planning**: Plan routes, find RV parks, gas prices, attractions, road conditions
+- **Weather forecasts**: Current weather, forecasts for any location
+- **User profile**: Update settings, preferences, vehicle information
+- **Social features**: Posts, messages, finding nearby RVers
+- **Shopping**: Product recommendations, deals, nearby stores
+
+## When to Delegate (ALWAYS call delegate_to_supervisor for these):
+- "Book an appointment" → delegate (calendar)
+- "What's on my calendar?" → delegate (calendar)
+- "Track this expense" → delegate (budget)
+- "How much have I spent?" → delegate (budget)
+- "Plan a trip to..." → delegate (trip)
+- "Find RV parks near..." → delegate (trip)
+- "What's the weather?" → delegate (weather)
+- "Find cheap gas" → delegate (trip)
+- Any question requiring real data or taking an action
 
 ## Conversation Style
-- Be warm, friendly, and conversational
+- Be warm, friendly, and conversational - in {language_name}
 - Keep responses concise (1-2 sentences for simple things)
 - When delegating, say something like "Let me check that for you..." or "One moment..."
 - After getting supervisor response, speak it naturally (don't just read it robotically)
 
 ## Important Rules
-1. ALWAYS delegate if the user wants to DO something (book, create, track, find, etc.)
-2. NEVER make up information - delegate to get accurate data
-3. Keep the conversation flowing naturally even when delegating
-4. Remember context from earlier in the conversation
+1. **ALWAYS speak in {language_name}** unless the user switches languages
+2. ALWAYS delegate if the user wants to DO something (book, create, track, find, etc.)
+3. NEVER make up information - delegate to get accurate data
+4. Keep the conversation flowing naturally even when delegating
+5. Remember context from earlier in the conversation
 
-You are NOT just a voice interface - you ARE PAM. Be helpful and personable."""
+You are NOT just a voice interface - you ARE PAM. Be helpful and personable!"""
 
 
 def _get_supervisor_tool() -> list:

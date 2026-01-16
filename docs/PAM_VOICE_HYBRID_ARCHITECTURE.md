@@ -3,7 +3,7 @@
 ## Chat-Supervisor Pattern: OpenAI Realtime + Claude Integration
 
 **Date:** January 2026
-**Updated:** January 2026 (Chat-Supervisor Pattern)
+**Updated:** January 2026 (Chat-Supervisor Pattern + Language/Location Awareness)
 **System:** PAM (Personal AI Mobility assistant) for Wheels & Wins
 
 ---
@@ -310,6 +310,55 @@ The `AudioProcessor` uses Web Audio API scheduling:
 ### Issue 3: Calendar Keywords Not Detected
 **Root Cause:** Tool prefilter missing calendar-related keywords
 **Fix:** Added comprehensive calendar keyword patterns
+
+### Issue 4: PAM Speaking Wrong Language (Spanish Instead of English)
+**Root Cause:** OpenAI instructions were static - no user language/location context passed
+**Fix:**
+1. `VoiceSessionRequest` now accepts `language`, `location`, `timezone`, `user_name`
+2. `_get_chat_supervisor_instructions()` is now parameterized with user context
+3. Instructions explicitly state "ALWAYS speak in {language}" as the FIRST rule
+4. Frontend passes user context when creating the session
+
+---
+
+## User Context Injection
+
+The session creation flow now passes user context to personalize GPT's behavior:
+
+```typescript
+// Frontend (pamVoiceHybridService.ts)
+body: JSON.stringify({
+  voice: 'marin',
+  temperature: 0.65,
+  language: 'en',           // User's language preference
+  location: {               // User's current location
+    city: 'Austin',
+    state: 'Texas',
+    lat: 30.2672,
+    lng: -97.7431
+  },
+  timezone: 'America/Chicago'
+})
+```
+
+```python
+# Backend (pam_realtime_hybrid.py)
+def _get_chat_supervisor_instructions(
+    language: str = "en",
+    location: Optional[Dict] = None,
+    timezone: Optional[str] = None,
+    user_name: Optional[str] = None
+) -> str:
+    # Generates personalized instructions like:
+    # "ALWAYS speak in English..."
+    # "The user is currently in Austin, Texas..."
+```
+
+This ensures PAM:
+1. **Speaks the correct language** (English by default)
+2. **Knows the user's location** for context-aware responses
+3. **Understands timezone** for scheduling
+4. **Can use the user's name** for personalization
 
 ---
 
