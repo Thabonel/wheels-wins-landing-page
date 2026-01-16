@@ -127,6 +127,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const isWakeWordListeningRef = useRef(false);
   const isContinuousModeRef = useRef(false);
   const isListeningRef = useRef(false);
+  const realtimeServiceRef = useRef<PAMVoiceHybridService | null>(null);
   const [sessionId, setSessionId] = useState<string>(() => {
     // Generate or restore session ID for conversation continuity
     const saved = localStorage.getItem('pam_session_id');
@@ -176,7 +177,11 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   useEffect(() => {
     isListeningRef.current = isListening;
   }, [isListening]);
-  
+
+  useEffect(() => {
+    realtimeServiceRef.current = realtimeService;
+  }, [realtimeService]);
+
   // Set up VAD event handlers
   useEffect(() => {
     // User speech start - interrupt PAM if speaking
@@ -783,7 +788,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Start voice session (microphone → OpenAI → Claude → response)
       await service.start();
 
+      // Set both state and ref (ref is used in timeout callbacks to avoid stale closure)
       setRealtimeService(service);
+      realtimeServiceRef.current = service;
 
       logger.info('✅ PAM voice mode active (OpenAI voice + Claude reasoning!)');
 
@@ -811,20 +818,28 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     setIsSpeaking(false);
 
     // Then stop PAM Hybrid Voice service (async - won't block UI)
-    if (realtimeService) {
-      await realtimeService.stop();
+    // CRITICAL: Use ref to get current service (state can be stale in timeout callbacks)
+    const service = realtimeServiceRef.current;
+    if (service) {
+      logger.info('🔇 Stopping realtime service via ref');
+      await service.stop();
       setRealtimeService(null);
+      realtimeServiceRef.current = null;
+    } else {
+      logger.warn('⚠️ No realtime service to stop (ref was null)');
     }
 
     // Restart wake word listening if enabled in settings
+    // Use ref to check current state (avoid stale closure)
     const wakeWordEnabled = settings?.pam_preferences?.wake_word_enabled ?? true;
-    logger.info(`🔍 Wake word restart check: enabled=${wakeWordEnabled}, isListening=${isWakeWordListening}`);
+    const currentlyListening = isWakeWordListeningRef.current;
+    logger.info(`🔍 Wake word restart check: enabled=${wakeWordEnabled}, isListening=${currentlyListening}`);
 
-    if (wakeWordEnabled && !isWakeWordListening) {
+    if (wakeWordEnabled && !currentlyListening) {
       logger.info('🔊 Restarting wake word (voice mode stopped)');
       await startWakeWordListening();
     } else {
-      logger.warn(`⚠️ Wake word NOT restarted: enabled=${wakeWordEnabled}, already listening=${isWakeWordListening}`);
+      logger.warn(`⚠️ Wake word NOT restarted: enabled=${wakeWordEnabled}, already listening=${currentlyListening}`);
     }
 
     logger.debug('✅ Continuous voice mode stopped');
