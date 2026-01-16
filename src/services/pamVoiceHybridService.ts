@@ -404,21 +404,9 @@ export class PAMVoiceHybridService {
             logger.info('[PAMVoiceHybrid] 👤 Transcript:', transcript);
             this.config.onTranscript?.(transcript);
 
-            // Send to Claude for reasoning with full context
-            // CRITICAL: Mark as voice input so backend can adjust tool handling
-            this.sendToClaudeBridge({
-              type: 'user_message',
-              text: transcript,
-              timestamp: Date.now(),
-              context: {
-                user_id: this.config.userId,
-                language: this.config.language || 'en',
-                user_location: this.config.location,
-                current_page: this.config.currentPage || 'pam_chat',
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,  // Browser-detected timezone for accurate calendar events
-                is_voice: true  // Flag for voice input - backend should be more lenient with tool filtering
-              }
-            });
+            // WORKAROUND: Route through text REST endpoint which has full profile/tools access
+            // The WebSocket bridge doesn't load context properly, but text mode does
+            this.sendViaTextEndpoint(transcript);
           }
         }
         break;
@@ -557,6 +545,97 @@ export class PAMVoiceHybridService {
         type: 'response.create',
         response: {
           modalities: ['audio']
+        }
+      });
+    }
+  }
+
+  // =====================================================
+  // TEXT ENDPOINT WORKAROUND
+  // =====================================================
+
+  /**
+   * Route voice input through text REST endpoint for full profile/tools access.
+   * WORKAROUND: The WebSocket bridge doesn't load context properly, but text mode does.
+   * This sends the transcript to /api/v1/pam/chat and speaks the response.
+   */
+  private async sendViaTextEndpoint(transcript: string): Promise<void> {
+    try {
+      logger.info('[PAMVoiceHybrid] 📝 Routing through text endpoint for full context access');
+
+      const response = await fetch(
+        `${this.config.apiBaseUrl}/api/v1/pam/chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.config.authToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: transcript,
+            context: {
+              user_id: this.config.userId,
+              language: this.config.language || 'en',
+              user_location: this.config.location,
+              current_page: this.config.currentPage || 'pam_chat',
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              is_voice: true
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Text endpoint failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const responseText = result.text || result.response || '';
+
+      logger.info('[PAMVoiceHybrid] 🤖 Got response from text endpoint:', responseText.substring(0, 50));
+      this.config.onResponse?.(responseText);
+
+      // Handle UI actions from tool execution (same as WebSocket path)
+      if (result.ui_actions && Array.isArray(result.ui_actions)) {
+        result.ui_actions.forEach((action: any) => {
+          logger.info(`[PAMVoiceHybrid] UI Action: ${action.type}`, action);
+          if (action.type === 'reload_calendar') {
+            window.dispatchEvent(new CustomEvent('reload-calendar', { detail: action }));
+          } else if (action.type === 'reload_expenses') {
+            window.dispatchEvent(new CustomEvent('reload-expenses', { detail: action }));
+          }
+        });
+      }
+
+      // Send response to OpenAI for TTS
+      this.sendToOpenAI({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'assistant',
+          content: [{
+            type: 'input_text',
+            text: responseText
+          }]
+        }
+      });
+
+      // Trigger TTS
+      this.sendToOpenAI({
+        type: 'response.create',
+        response: {
+          modalities: ['audio']
+        }
+      });
+
+    } catch (error) {
+      logger.error('[PAMVoiceHybrid] Text endpoint error:', error);
+      // Speak error message
+      this.sendToOpenAI({
+        type: 'response.create',
+        response: {
+          modalities: ['text', 'audio'],
+          instructions: 'Say: "Sorry, I had trouble processing that. Please try again."'
         }
       });
     }
