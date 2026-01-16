@@ -15,7 +15,7 @@ import { LaunchWeekPlanner } from './LaunchWeekPlanner';
 import { TransitionSettingsDialog } from './TransitionSettingsDialog';
 import { TransitionOnboarding } from './TransitionOnboarding';
 import type { OnboardingData } from './TransitionOnboarding';
-import { AddTaskDialog } from './AddTaskDialog';
+import { TaskDialog } from './TaskDialog';
 import { Button } from '@/components/ui/button';
 import { Settings, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -44,6 +44,7 @@ export function TransitionDashboard() {
   const [financialItems, setFinancialItems] = useState<TransitionFinancialItem[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<TransitionTask | null>(null);
 
   // Calculate days until departure (handle null gracefully)
   const daysUntilDeparture = profile?.departure_date
@@ -180,6 +181,97 @@ export function TransitionDashboard() {
       );
     } catch (error) {
       console.error('Error toggling subtask:', error);
+    }
+  };
+
+  // Handle editing a task
+  const handleEditTask = async (taskData: {
+    title: string;
+    description?: string;
+    category: TaskCategory;
+    priority?: TaskPriority;
+    milestone?: string;
+    days_before_departure?: number;
+    checklist_items?: { text: string; is_completed: boolean }[];
+  }) => {
+    if (!editingTask) return;
+
+    try {
+      const { error } = await supabase
+        .from('transition_tasks')
+        .update({
+          title: taskData.title,
+          description: taskData.description || null,
+          category: taskData.category,
+          priority: taskData.priority || 'medium',
+          milestone: taskData.milestone || null,
+          days_before_departure: taskData.days_before_departure || null,
+          checklist_items: taskData.checklist_items
+            ? taskData.checklist_items.map((item, index) => ({
+                id: editingTask.checklist_items?.[index]?.id || crypto.randomUUID(),
+                text: item.text,
+                is_completed: item.is_completed,
+              }))
+            : [],
+        })
+        .eq('id', editingTask.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === editingTask.id
+            ? {
+                ...task,
+                title: taskData.title,
+                description: taskData.description || null,
+                category: taskData.category,
+                priority: taskData.priority || 'medium',
+                milestone: taskData.milestone || null,
+                days_before_departure: taskData.days_before_departure || null,
+                checklist_items: taskData.checklist_items
+                  ? taskData.checklist_items.map((item, index) => ({
+                      id: editingTask.checklist_items?.[index]?.id || crypto.randomUUID(),
+                      text: item.text,
+                      is_completed: item.is_completed,
+                    }))
+                  : [],
+              }
+            : task
+        )
+      );
+
+      toast.success('Task updated successfully!');
+      setEditingTask(null);
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task. Please try again.');
+      throw error;
+    }
+  };
+
+  // Handle deleting a task
+  const handleDeleteTask = async () => {
+    if (!editingTask) return;
+
+    try {
+      const { error } = await supabase
+        .from('transition_tasks')
+        .delete()
+        .eq('id', editingTask.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setTasks((prev) => prev.filter((task) => task.id !== editingTask.id));
+
+      toast.success('Task deleted successfully!');
+      setEditingTask(null);
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task. Please try again.');
+      throw error;
     }
   };
 
@@ -644,6 +736,7 @@ export function TransitionDashboard() {
             onToggleTask={handleToggleTask}
             onToggleSubTask={handleToggleSubTask}
             onAddTask={handleOpenAddTask}
+            onEditTask={(task) => setEditingTask(task)}
           />
         </div>
 
@@ -713,10 +806,19 @@ export function TransitionDashboard() {
       )}
 
       {/* Add Task Dialog */}
-      <AddTaskDialog
+      <TaskDialog
         open={addTaskOpen}
         onOpenChange={setAddTaskOpen}
-        onAddTask={handleAddTask}
+        onSave={handleAddTask}
+      />
+
+      {/* Edit Task Dialog */}
+      <TaskDialog
+        open={!!editingTask}
+        onOpenChange={(open) => !open && setEditingTask(null)}
+        onSave={handleEditTask}
+        onDelete={handleDeleteTask}
+        task={editingTask || undefined}
       />
     </div>
   );

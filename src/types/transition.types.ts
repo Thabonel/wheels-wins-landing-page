@@ -742,8 +742,8 @@ export type IncomeType = 'remote_work' | 'freelance' | 'passive' | 'seasonal';
 export type IncomeStatus = 'planning' | 'setting_up' | 'active' | 'paused' | 'discontinued';
 export type IncomePriority = 'low' | 'medium' | 'high' | 'critical';
 
-// Checklist item structure
-export interface ChecklistItem {
+// Checklist item structure for income streams (different from task checklist items)
+export interface IncomeChecklistItem {
   task: string;
   completed: boolean;
 }
@@ -772,7 +772,7 @@ export interface IncomeStream {
   status: IncomeStatus;
 
   // Setup progress
-  setup_checklist: ChecklistItem[];
+  setup_checklist: IncomeChecklistItem[];
   setup_completed: boolean;
   setup_completed_date: string | null;
 
@@ -796,7 +796,7 @@ export interface CreateIncomeStreamRequest {
   income_type: IncomeType;
   monthly_estimate?: number;
   status?: IncomeStatus;
-  setup_checklist?: ChecklistItem[];
+  setup_checklist?: IncomeChecklistItem[];
   resources?: ResourceLink[];
   notes?: string;
   priority?: IncomePriority;
@@ -809,7 +809,7 @@ export interface UpdateIncomeStreamRequest {
   monthly_estimate?: number;
   actual_monthly?: number;
   status?: IncomeStatus;
-  setup_checklist?: ChecklistItem[];
+  setup_checklist?: IncomeChecklistItem[];
   setup_completed?: boolean;
   resources?: ResourceLink[];
   notes?: string;

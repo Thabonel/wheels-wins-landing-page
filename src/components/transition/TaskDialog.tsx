@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, X, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,12 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { TaskCategory, TaskPriority, ChecklistItem } from '@/types/transition.types';
+import type { TaskCategory, TaskPriority, ChecklistItem, TransitionTask } from '@/types/transition.types';
 
-interface AddTaskDialogProps {
+interface TaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddTask: (task: {
+  onSave: (task: {
     title: string;
     description?: string;
     category: TaskCategory;
@@ -33,6 +33,8 @@ interface AddTaskDialogProps {
     days_before_departure?: number;
     checklist_items?: Omit<ChecklistItem, 'id'>[];
   }) => Promise<void>;
+  onDelete?: () => Promise<void>;
+  task?: TransitionTask; // If provided, dialog is in "edit" mode
 }
 
 const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
@@ -53,7 +55,9 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: 'critical', label: 'Critical' },
 ];
 
-export function AddTaskDialog({ open, onOpenChange, onAddTask }: AddTaskDialogProps) {
+export function TaskDialog({ open, onOpenChange, onSave, onDelete, task }: TaskDialogProps) {
+  const isEditMode = !!task;
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<TaskCategory>('custom');
@@ -63,6 +67,35 @@ export function AddTaskDialog({ open, onOpenChange, onAddTask }: AddTaskDialogPr
   const [checklistItems, setChecklistItems] = useState<string[]>([]);
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Populate form when task changes (edit mode)
+  useEffect(() => {
+    if (task) {
+      setTitle(task.title || '');
+      setDescription(task.description || '');
+      setCategory(task.category || 'custom');
+      setPriority(task.priority || 'medium');
+      setMilestone(task.milestone || '');
+      setDaysBeforeDeparture(task.days_before_departure?.toString() || '');
+      setChecklistItems(task.checklist_items?.map((item) => item.text) || []);
+    } else {
+      // Reset form for add mode
+      resetForm();
+    }
+  }, [task, open]);
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setCategory('custom');
+    setPriority('medium');
+    setMilestone('');
+    setDaysBeforeDeparture('');
+    setChecklistItems([]);
+    setNewChecklistItem('');
+    setShowDeleteConfirm(false);
+  };
 
   const handleAddChecklistItem = () => {
     if (newChecklistItem.trim()) {
@@ -81,7 +114,7 @@ export function AddTaskDialog({ open, onOpenChange, onAddTask }: AddTaskDialogPr
 
     setIsSubmitting(true);
     try {
-      await onAddTask({
+      await onSave({
         title: title.trim(),
         description: description.trim() || undefined,
         category,
@@ -94,18 +127,25 @@ export function AddTaskDialog({ open, onOpenChange, onAddTask }: AddTaskDialogPr
         })),
       });
 
-      // Reset form
-      setTitle('');
-      setDescription('');
-      setCategory('custom');
-      setPriority('medium');
-      setMilestone('');
-      setDaysBeforeDeparture('');
-      setChecklistItems([]);
-      setNewChecklistItem('');
+      resetForm();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error adding task:', error);
+      console.error('Error saving task:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+
+    setIsSubmitting(true);
+    try {
+      await onDelete();
+      resetForm();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error deleting task:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -115,9 +155,11 @@ export function AddTaskDialog({ open, onOpenChange, onAddTask }: AddTaskDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Task</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Edit Task' : 'Add New Task'}</DialogTitle>
           <DialogDescription>
-            Create a new task to track your transition progress
+            {isEditMode
+              ? 'Update this task in your transition checklist'
+              : 'Create a new task to track your transition progress'}
           </DialogDescription>
         </DialogHeader>
 
@@ -261,21 +303,62 @@ export function AddTaskDialog({ open, onOpenChange, onAddTask }: AddTaskDialogPr
             )}
           </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!title.trim() || isSubmitting}>
-              {isSubmitting ? 'Adding...' : 'Add Task'}
-            </Button>
+          <DialogFooter className="flex justify-between">
+            <div>
+              {isEditMode && onDelete && !showDeleteConfirm && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isSubmitting}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+              {showDeleteConfirm && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-red-600">Delete this task?</span>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDelete}
+                    disabled={isSubmitting}
+                  >
+                    Yes
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isSubmitting}
+                  >
+                    No
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!title.trim() || isSubmitting}>
+                {isSubmitting ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Task'}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   );
 }
+
+// Keep backward compatibility alias
+export { TaskDialog as AddTaskDialog };
