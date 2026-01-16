@@ -297,6 +297,14 @@ export class PAMVoiceHybridService {
   // =====================================================
 
   private async createOpenAISession(): Promise<OpenAISessionData> {
+    // Build location object for backend
+    const locationData = this.config.location ? {
+      city: this.config.location.city,
+      state: this.config.location.region,
+      lat: this.config.location.lat,
+      lng: this.config.location.lng
+    } : null;
+
     const response = await fetch(
       `${this.config.apiBaseUrl}/api/v1/pam/voice-hybrid/create-session`,
       {
@@ -307,7 +315,11 @@ export class PAMVoiceHybridService {
         },
         body: JSON.stringify({
           voice: this.config.voice,
-          temperature: this.config.temperature ?? 0.65
+          temperature: this.config.temperature ?? 0.65,
+          // Pass user context for personalized instructions
+          language: this.config.language || 'en',
+          location: locationData,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         })
       }
     );
@@ -320,7 +332,9 @@ export class PAMVoiceHybridService {
     const data = await response.json();
     logger.info('[PAMVoiceHybrid] OpenAI session created:', {
       voice: data.voice,
-      expires_at: data.expires_at
+      expires_at: data.expires_at,
+      language: this.config.language || 'en',
+      location: locationData?.city
     });
 
     return data;
