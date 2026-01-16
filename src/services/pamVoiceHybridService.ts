@@ -83,11 +83,23 @@ class AudioProcessor {
   private readonly prerollSec = 0.2; // jitter buffer
   private readonly crossfadeSec = 0.01; // 10 ms fade at boundaries
 
+  // Playback completion tracking
+  private onPlaybackComplete: (() => void) | null = null;
+  private playbackEndTimeout: ReturnType<typeof setTimeout> | null = null;
+  private lastScheduledEndTime = 0; // Track when audio will finish
+
   constructor(audioContext: AudioContext) {
     this.audioContext = audioContext;
     this.masterGain = this.audioContext.createGain();
     this.masterGain.gain.setValueAtTime(1.0, this.audioContext.currentTime);
     this.masterGain.connect(this.audioContext.destination);
+  }
+
+  /**
+   * Set callback for when audio playback actually completes
+   */
+  setOnPlaybackComplete(callback: (() => void) | null): void {
+    this.onPlaybackComplete = callback;
   }
 
   async playAudioChunk(base64Audio: string): Promise<void> {
@@ -137,8 +149,42 @@ class AudioProcessor {
 
       // Next chunk starts with tiny overlap equal to fade
       this.scheduleTime = endTime - fade;
+
+      // Track when this chunk will finish for completion callback
+      this.lastScheduledEndTime = Math.max(this.lastScheduledEndTime, endTime);
     } catch (error) {
       logger.error('[AudioProcessor] Failed to play chunk:', error);
+    }
+  }
+
+  /**
+   * Schedule completion callback after all audio finishes playing
+   * Called when response.audio.done indicates no more chunks coming
+   */
+  schedulePlaybackComplete(): void {
+    // Clear any existing timeout
+    if (this.playbackEndTimeout) {
+      clearTimeout(this.playbackEndTimeout);
+      this.playbackEndTimeout = null;
+    }
+
+    if (!this.onPlaybackComplete) return;
+
+    const now = this.audioContext.currentTime;
+    const timeUntilEnd = (this.lastScheduledEndTime - now) * 1000; // Convert to ms
+
+    if (timeUntilEnd > 0) {
+      // Audio still playing - wait for it to finish
+      logger.info(`[AudioProcessor] Audio finishes in ${timeUntilEnd.toFixed(0)}ms, scheduling completion callback`);
+      this.playbackEndTimeout = setTimeout(() => {
+        logger.info('[AudioProcessor] Audio playback actually complete');
+        this.onPlaybackComplete?.();
+        this.playbackEndTimeout = null;
+      }, timeUntilEnd + 100); // +100ms buffer for safety
+    } else {
+      // Audio already finished or no audio was scheduled
+      logger.info('[AudioProcessor] No pending audio, calling completion immediately');
+      this.onPlaybackComplete();
     }
   }
 
@@ -148,6 +194,13 @@ class AudioProcessor {
     this.masterGain.gain.setTargetAtTime(0.0, now, 0.01);
     // Reset schedule so next playback re-prerolls
     this.scheduleTime = 0;
+    this.lastScheduledEndTime = 0;
+
+    // Clear any pending playback completion timeout
+    if (this.playbackEndTimeout) {
+      clearTimeout(this.playbackEndTimeout);
+      this.playbackEndTimeout = null;
+    }
   }
 }
 
@@ -169,6 +222,9 @@ export class PAMVoiceHybridService {
     isListening: false,
     isSpeaking: false
   };
+
+  // Track when we're waiting for audio playback to actually complete
+  private audioCompletionPending = false;
 
   constructor(config: VoiceSessionConfig) {
     this.config = {
@@ -204,6 +260,15 @@ export class PAMVoiceHybridService {
       // Let browser use native sample rate for microphone processing too
       this.audioContext = new AudioContext();
       this.audioProcessor = new AudioProcessor(this.audioContext);
+
+      // Set up playback completion callback - called when audio actually finishes
+      this.audioProcessor.setOnPlaybackComplete(() => {
+        if (this.audioCompletionPending) {
+          this.audioCompletionPending = false;
+          logger.info('[PAMVoiceHybrid] ✅ Audio playback actually complete - setting isSpeaking=false');
+          this.updateStatus({ isSpeaking: false });
+        }
+      });
 
       // Step 4: Connect to OpenAI Realtime WebSocket
       await this.connectOpenAIWebSocket(sessionData);
@@ -366,8 +431,12 @@ export class PAMVoiceHybridService {
         break;
 
       case 'response.audio.done':
-        logger.info('[PAMVoiceHybrid] ✅ Speech playback complete');
-        this.updateStatus({ isSpeaking: false });
+        // Audio chunks received, but may still be playing in AudioProcessor queue
+        // Schedule completion callback for when audio actually finishes
+        logger.info('[PAMVoiceHybrid] 📦 Audio chunks received, waiting for playback to complete');
+        this.audioCompletionPending = true;
+        this.audioProcessor?.schedulePlaybackComplete();
+        // isSpeaking will be set to false by the playback completion callback
         break;
 
       case 'input_audio_buffer.speech_started':
