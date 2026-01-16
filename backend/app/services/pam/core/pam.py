@@ -1496,6 +1496,12 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                     if hasattr(block, 'text'):
                         assistant_message += block.text
 
+                # CRITICAL FIX: If Claude returned empty response after tool execution,
+                # synthesize a response from the tool results (prevents silent voice sessions)
+                if not assistant_message.strip():
+                    logger.warning("⚠️ Claude returned empty response after tool execution, synthesizing from tool results")
+                    assistant_message = self._synthesize_response_from_tool_results(tool_results)
+
                 # Add final response to history
                 self.conversation_history.append({
                     "role": "assistant",
@@ -1716,6 +1722,66 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                     logger.error(f"Error executing tool {tool_name}: {e}", exc_info=True)
 
         return tool_results
+
+    def _synthesize_response_from_tool_results(self, tool_results: List[Dict[str, Any]]) -> str:
+        """
+        Synthesize a natural language response from tool results when Claude returns empty.
+        This prevents silent voice sessions by ensuring there's always something to say.
+
+        Args:
+            tool_results: List of tool result dictionaries from _execute_tools()
+
+        Returns:
+            A synthesized response string based on tool results
+        """
+        for tool_result in tool_results:
+            try:
+                content = tool_result.get("content", "{}")
+                result_data = json.loads(content) if isinstance(content, str) else content
+
+                # Check if tool has a message field (most PAM tools do)
+                if result_data.get("message"):
+                    return result_data["message"]
+
+                # Handle find_cheap_gas specifically
+                if result_data.get("cheapest_price") and result_data.get("stations"):
+                    cheapest = result_data["cheapest_price"]
+                    currency = result_data.get("currency", "$")
+                    location = result_data.get("location", "your area")
+                    stations = result_data.get("stations", [])
+                    if stations:
+                        best_station = stations[0].get("name", "a nearby station")
+                        return f"I found the cheapest fuel at {currency}{cheapest:.2f} per unit at {best_station} near {location}."
+                    return f"The cheapest fuel I found is {currency}{cheapest:.2f} near {location}."
+
+                # Handle optimize_route
+                if result_data.get("optimized_route") and result_data.get("savings_tracked") is not None:
+                    savings = result_data.get("optimized_route", {}).get("savings", {})
+                    gas_savings = savings.get("gas_cost", 0)
+                    time_savings = savings.get("time_hours", 0)
+                    return f"I've optimized your route! You'll save ${gas_savings:.2f} on fuel and {time_savings:.1f} hours of driving time."
+
+                # Handle compare_prices
+                if result_data.get("comparison") and result_data.get("potential_savings"):
+                    savings = result_data.get("potential_savings", 0)
+                    cheapest = result_data.get("comparison", {}).get("cheapest", {})
+                    store = cheapest.get("store", "a retailer")
+                    return f"I compared prices and found you could save ${savings:.2f} by buying from {store}."
+
+                # Handle generic success with data
+                if result_data.get("success"):
+                    return "I've completed that for you. Is there anything else you'd like to know?"
+
+                # Handle errors
+                if result_data.get("error"):
+                    return f"I ran into an issue: {result_data['error']}"
+
+            except (json.JSONDecodeError, TypeError, KeyError) as e:
+                logger.warning(f"Error parsing tool result for synthesis: {e}")
+                continue
+
+        # Absolute fallback
+        return "I've processed your request. Let me know if you need more details."
 
     def _extract_ui_actions(self, tool_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
