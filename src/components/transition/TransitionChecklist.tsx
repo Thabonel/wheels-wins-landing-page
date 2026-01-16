@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CheckCircle2, Circle, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle2, ChevronDown, ChevronRight, Plus, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,6 +10,7 @@ interface TransitionChecklistProps {
   onToggleTask: (taskId: string, isCompleted: boolean) => void;
   onToggleSubTask: (taskId: string, subTaskId: string, isCompleted: boolean) => void;
   onAddTask: () => void;
+  onEditTask: (task: TransitionTask) => void;
 }
 
 /**
@@ -22,6 +23,7 @@ export function TransitionChecklist({
   onToggleTask,
   onToggleSubTask,
   onAddTask,
+  onEditTask,
 }: TransitionChecklistProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<TaskCategory>>(
     new Set(['financial', 'vehicle'])
@@ -147,6 +149,18 @@ export function TransitionChecklist({
                             className="mt-1"
                           />
                           <div className="flex-1 min-w-0">
+                            {/* Edit button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="float-right h-7 w-7 p-0 opacity-60 hover:opacity-100"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditTask(task);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span
                                 className={`font-medium ${
