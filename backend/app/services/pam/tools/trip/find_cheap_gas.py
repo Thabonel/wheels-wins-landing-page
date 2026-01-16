@@ -1,12 +1,14 @@
 """Find Cheap Gas Tool for PAM
 
-Locate cheapest gas stations near a location or along a route
+Locate cheapest gas stations near a location or along a route.
+Automatically tracks savings when cheaper gas is found.
 
 Example usage:
 - "Find cheap gas near me"
 - "Show cheapest gas stations along I-5"
 
 Amendment #4: Input validation with Pydantic models
+Amendment #5: Auto-track savings when cheaper gas found
 """
 
 import logging
@@ -16,6 +18,7 @@ from pydantic import ValidationError
 from supabase import create_client, Client
 from app.services.external.eia_gas_prices import get_fuel_price_for_region
 from app.services.pam.schemas.trip import FindCheapGasInput
+from app.services.pam.tools.budget.auto_track_savings import auto_record_savings
 
 logger = logging.getLogger(__name__)
 
@@ -186,15 +189,39 @@ async def find_cheap_gas(
             "EU": "European fuel price data"
         }.get(region, "regional fuel data")
 
+        # Calculate and auto-track potential savings
+        potential_savings = 0.0
+        savings_tracked = False
+        if cheapest_price and base_price > cheapest_price:
+            # Estimate savings based on typical RV fill-up (20-30 gallons)
+            estimated_gallons = 25.0 if region == "US" else 95.0  # 95 liters for non-US
+            price_diff = base_price - cheapest_price
+            potential_savings = round(price_diff * estimated_gallons, 2)
+
+            # Auto-track savings if meaningful (>$2)
+            if potential_savings >= 2.0:
+                cheapest_station = sorted_stations[0]["name"] if sorted_stations else "nearby station"
+                savings_tracked = await auto_record_savings(
+                    user_id=validated.user_id,
+                    amount=potential_savings,
+                    category="fuel",
+                    savings_type="fuel_optimization",
+                    description=f"Found cheaper gas at {cheapest_station} near {validated.location} - saving {currency}{potential_savings:.2f} vs regional average",
+                    confidence_score=0.75,
+                    baseline_cost=base_price * estimated_gallons,
+                    optimized_cost=cheapest_price * estimated_gallons
+                )
+
         if cheapest_price:
+            savings_msg = f" 💰 Potential savings: {currency}{potential_savings:.2f} per fill-up!" if potential_savings >= 2.0 else ""
             message = (
                 f"Based on current {region} averages ({base_price:.2f} {currency}/{unit} from {price_source}), "
-                f"the cheapest {validated.fuel_type.value} should be around {cheapest_price:.2f} {currency}/{unit} near {validated.location}. "  # ✅ Extract enum value
-                f"I've listed {len(sorted_stations)} representative stations below. "
+                f"the cheapest {validated.fuel_type.value} should be around {cheapest_price:.2f} {currency}/{unit} near {validated.location}. "
+                f"I've listed {len(sorted_stations)} representative stations below.{savings_msg} "
                 f"Note: For real-time station-specific prices, check local apps or websites."
             )
         else:
-            message = f"No {validated.fuel_type.value} stations found"  # ✅ Extract enum value
+            message = f"No {validated.fuel_type.value} stations found"
 
         return {
             "success": True,
@@ -208,6 +235,8 @@ async def find_cheap_gas(
             "stations_found": len(sorted_stations),
             "cheapest_price": cheapest_price,
             "stations": sorted_stations[:10],  # Top 10
+            "potential_savings": potential_savings,
+            "savings_tracked": savings_tracked,
             "message": message,
             "note": f"Prices are representative estimates based on {price_source}. For real-time prices, check local fuel price apps."
         }

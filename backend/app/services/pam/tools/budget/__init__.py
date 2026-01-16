@@ -10,6 +10,7 @@ from .predict_end_of_month import predict_end_of_month
 from .find_savings_opportunities import find_savings_opportunities
 from .categorize_transaction import categorize_transaction
 from .export_budget_report import export_budget_report
+from .auto_track_savings import auto_record_savings
 
 __all__ = [
     'create_expense',
@@ -21,5 +22,6 @@ __all__ = [
     'predict_end_of_month',
     'find_savings_opportunities',
     'categorize_transaction',
-    'export_budget_report'
+    'export_budget_report',
+    'auto_record_savings'
 ]
