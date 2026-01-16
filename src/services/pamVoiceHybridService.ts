@@ -358,24 +358,9 @@ export class PAMVoiceHybridService {
 
       this.openaiWs.onopen = () => {
         logger.info('[PAMVoiceHybrid] OpenAI WebSocket connected');
-
-        // Configure session
-        this.sendToOpenAI({
-          type: 'session.update',
-          session: {
-            modalities: ['text', 'audio'],
-            voice: sessionData.voice,
-            turn_detection: {
-              type: 'server_vad',
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 500
-            },
-            input_audio_format: 'pcm16',
-            output_audio_format: 'pcm16'
-          }
-        });
-
+        // NOTE: Session is already fully configured by backend at creation time
+        // (instructions, tools, voice, turn_detection, audio formats)
+        // No session.update needed - it would overwrite backend config
         resolve();
       };
 
