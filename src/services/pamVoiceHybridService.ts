@@ -390,8 +390,10 @@ export class PAMVoiceHybridService {
 
       case 'session.updated':
         logger.info('[PAMVoiceHybrid] ✅ OpenAI session configured - triggering greeting');
-        // NOW greet the user - session is fully configured with voice
-        this.speakGreeting();
+        // Small delay to ensure OpenAI is fully ready for TTS
+        setTimeout(() => {
+          this.speakGreeting();
+        }, 200);
         break;
 
       case 'conversation.item.created':
