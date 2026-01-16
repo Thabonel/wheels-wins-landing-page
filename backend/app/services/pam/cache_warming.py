@@ -351,18 +351,24 @@ class CacheWarmingService:
             profile = json.loads(profile_json)
             preferences = json.loads(pref_json) if pref_json else {}
 
-            # Build context for PAM
+            # Build context for PAM - include FULL profile structure for tool access
+            # Tools expect nested structures like vehicle_info, travel_preferences, etc.
             context = {
-                'location': profile.get('region'),  # or use a location field if available
-                'preferred_units': preferences.get('preferred_units', 'metric'),
-                'fuel_type': profile.get('fuel_type'),
-                'vehicle_make_model': profile.get('vehicle_make_model'),
-                'travel_style': preferences.get('travel_style'),
-                'full_name': profile.get('full_name'),
-                'nickname': profile.get('nickname'),
-                'language': profile.get('language', 'en')
+                # Full enriched profile for tool access (matches LoadUserProfileTool output)
+                'user_profile': profile,
+                'preferences': preferences,
+                # Common flat fields for convenience
+                'language': profile.get('language', 'en'),
+                'full_name': profile.get('personal_details', {}).get('full_name') or profile.get('full_name'),
+                'nickname': profile.get('personal_details', {}).get('nickname') or profile.get('nickname'),
+                'location': profile.get('personal_details', {}).get('region') or profile.get('region'),
+                # Nested structures that tools expect
+                'vehicle_info': profile.get('vehicle_info', {}),
+                'travel_preferences': profile.get('travel_preferences', {}),
+                'budget_preferences': profile.get('budget_preferences', {}),
             }
 
+            logger.info(f"Loaded cached context for {user_id}: keys={list(context.keys())}")
             return context
 
         except Exception as e:
@@ -380,15 +386,23 @@ class CacheWarmingService:
 
             profile = profile_result.data
 
+            # Return structure consistent with cached version
             return {
-                'location': profile.get('region'),
-                'preferred_units': profile.get('preferred_units', 'metric'),
-                'fuel_type': profile.get('fuel_type'),
-                'vehicle_make_model': profile.get('vehicle_make_model'),
-                'travel_style': profile.get('travel_style'),
+                'user_profile': profile,
+                'preferences': {},
+                'language': profile.get('language', 'en'),
                 'full_name': profile.get('full_name'),
                 'nickname': profile.get('nickname'),
-                'language': profile.get('language', 'en')
+                'location': profile.get('region'),
+                'vehicle_info': {
+                    'type': profile.get('vehicle_type'),
+                    'make_model': profile.get('vehicle_make_model'),
+                    'fuel_type': profile.get('fuel_type'),
+                },
+                'travel_preferences': {
+                    'travel_style': profile.get('travel_style'),
+                },
+                'budget_preferences': {},
             }
 
         except Exception as e:
