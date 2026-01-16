@@ -568,38 +568,24 @@ export class PAMVoiceHybridService {
 
   /**
    * Speak a greeting when PAM is activated via wake word
-   * Uses TTS-only pattern (same as Claude responses) - no content generation
+   * Uses response.create with instructions to generate audio greeting
    */
   private speakGreeting(): void {
     logger.info('[PAMVoiceHybrid] 🎤 Speaking greeting "Hi! How can I help you?"');
 
-    // Create assistant message with greeting text (TTS-only, no generation)
-    // Uses same pattern as Claude response TTS (line 457-478)
-    const createMsg = {
-      type: 'conversation.item.create',
-      item: {
-        type: 'message',
-        role: 'assistant',
-        content: [{
-          type: 'input_text',
-          text: 'Hi! How can I help you?'
-        }]
-      }
-    };
-    logger.debug('[PAMVoiceHybrid] Sending conversation.item.create:', JSON.stringify(createMsg));
-    this.sendToOpenAI(createMsg);
-
-    // Trigger audio generation for the message (TTS only)
+    // Use response.create with instructions to generate spoken greeting
+    // This tells OpenAI to generate both text and audio for the greeting
     const responseMsg = {
       type: 'response.create',
       response: {
-        modalities: ['audio']
+        modalities: ['text', 'audio'],
+        instructions: 'Say exactly this greeting to the user: "Hi! How can I help you?" - nothing more, nothing less.'
       }
     };
-    logger.debug('[PAMVoiceHybrid] Sending response.create:', JSON.stringify(responseMsg));
+    logger.debug('[PAMVoiceHybrid] Sending response.create with greeting:', JSON.stringify(responseMsg));
     this.sendToOpenAI(responseMsg);
 
-    logger.info('[PAMVoiceHybrid] ✅ Greeting messages sent to OpenAI');
+    logger.info('[PAMVoiceHybrid] ✅ Greeting request sent to OpenAI');
   }
 
   // =====================================================
