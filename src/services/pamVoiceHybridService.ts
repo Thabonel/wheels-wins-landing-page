@@ -403,24 +403,20 @@ export class PAMVoiceHybridService {
           if (transcript) {
             logger.info('[PAMVoiceHybrid] 👤 Transcript:', transcript);
             this.config.onTranscript?.(transcript);
-
-            // Send to Claude for reasoning with full context
-            // CRITICAL: Mark as voice input so backend can adjust tool handling
-            this.sendToClaudeBridge({
-              type: 'user_message',
-              text: transcript,
-              timestamp: Date.now(),
-              context: {
-                user_id: this.config.userId,
-                language: this.config.language || 'en',
-                user_location: this.config.location,
-                current_page: this.config.currentPage || 'pam_chat',
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,  // Browser-detected timezone for accurate calendar events
-                is_voice: true  // Flag for voice input - backend should be more lenient with tool filtering
-              }
-            });
+            // NOTE: In chat-supervisor mode, OpenAI handles simple responses directly
+            // and calls delegate_to_supervisor tool for complex tasks.
+            // We no longer send every message to Claude - OpenAI decides.
           }
         }
+        break;
+
+      // =====================================================
+      // CHAT-SUPERVISOR PATTERN: Tool Call Handling
+      // OpenAI decides when to delegate to Claude
+      // =====================================================
+      case 'response.function_call_arguments.done':
+        // OpenAI is calling our delegate_to_supervisor tool
+        this.handleSupervisorToolCall(message);
         break;
 
       case 'response.audio.delta':
@@ -459,6 +455,79 @@ export class PAMVoiceHybridService {
   }
 
   // =====================================================
+  // SUPERVISOR TOOL CALL HANDLER
+  // =====================================================
+
+  /**
+   * Handle when OpenAI calls the delegate_to_supervisor tool.
+   * This is the key to the chat-supervisor pattern - OpenAI decides
+   * when a request needs Claude's help, then we forward to Claude
+   * with full conversation context.
+   */
+  private async handleSupervisorToolCall(message: any): Promise<void> {
+    try {
+      const callId = message.call_id;
+      const args = JSON.parse(message.arguments || '{}');
+
+      logger.info('[PAMVoiceHybrid] 🎯 Supervisor delegation requested:', {
+        callId,
+        userRequest: args.user_request?.substring(0, 50),
+        requestType: args.request_type
+      });
+
+      // Forward to Claude via the bridge
+      this.sendToClaudeBridge({
+        type: 'supervisor_request',
+        user_request: args.user_request,
+        conversation_summary: args.conversation_summary || '',
+        request_type: args.request_type || 'general',
+        context: {
+          user_id: this.config.userId,
+          language: this.config.language || 'en',
+          user_location: this.config.location,
+          current_page: this.config.currentPage || 'pam_chat',
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          is_voice: true
+        }
+      });
+
+      // Store the call_id so we can respond when Claude returns
+      this.pendingSupervisorCallId = callId;
+
+    } catch (error) {
+      logger.error('[PAMVoiceHybrid] Failed to handle supervisor tool call:', error);
+
+      // Return error to OpenAI so it can tell the user
+      this.sendToolResult(message.call_id, {
+        error: 'Failed to process request. Please try again.'
+      });
+    }
+  }
+
+  /**
+   * Send tool result back to OpenAI Realtime.
+   * OpenAI will then speak the response to the user.
+   */
+  private sendToolResult(callId: string, result: any): void {
+    this.sendToOpenAI({
+      type: 'conversation.item.create',
+      item: {
+        type: 'function_call_output',
+        call_id: callId,
+        output: typeof result === 'string' ? result : JSON.stringify(result)
+      }
+    });
+
+    // Trigger OpenAI to generate response based on tool output
+    this.sendToOpenAI({
+      type: 'response.create'
+    });
+  }
+
+  // Track pending supervisor calls
+  private pendingSupervisorCallId: string | null = null;
+
+  // =====================================================
   // CLAUDE BRIDGE WEBSOCKET
   // =====================================================
 
@@ -494,72 +563,117 @@ export class PAMVoiceHybridService {
   }
 
   private handleClaudeMessage(message: any): void {
-    if (message.type === 'assistant_response') {
+    // =====================================================
+    // SUPERVISOR RESPONSE (Chat-Supervisor Pattern)
+    // Claude processed the delegated request, return to OpenAI
+    // =====================================================
+    if (message.type === 'supervisor_response') {
       const responseText = message.text;
-      logger.info('[PAMVoiceHybrid] 🤖 Claude response:', responseText);
+      logger.info('[PAMVoiceHybrid] 🤖 Supervisor (Claude) response:', responseText);
       this.config.onResponse?.(responseText);
 
-      // Handle UI actions from tool execution (e.g., calendar updates)
-      if (message.ui_actions && Array.isArray(message.ui_actions)) {
-        message.ui_actions.forEach((action: any) => {
-          logger.info(`[PAMVoiceHybrid] UI Action: ${action.type}`, action);
+      // Handle UI actions
+      this.handleUIActions(message.ui_actions);
 
-          switch (action.type) {
-            case 'reload_calendar':
-              // Dispatch event for calendar component to reload
-              window.dispatchEvent(new CustomEvent('reload-calendar', {
-                detail: {
-                  entity_id: action.entity_id,
-                  entity_type: action.entity_type,
-                  entity_title: action.entity_title
-                }
-              }));
-              logger.info('[PAMVoiceHybrid] Dispatched calendar reload event');
-              break;
-
-            case 'reload_expenses':
-              // Dispatch event for expenses component to reload
-              window.dispatchEvent(new CustomEvent('reload-expenses', {
-                detail: {
-                  entity_id: action.entity_id
-                }
-              }));
-              break;
-
-            case 'navigate':
-              // Handle navigation if needed
-              logger.info(`[PAMVoiceHybrid] Navigation requested: ${action.path}`);
-              break;
-
-            default:
-              logger.warn(`[PAMVoiceHybrid] Unknown UI action type: ${action.type}`);
-          }
-        });
+      // Send result back to OpenAI as tool output
+      if (this.pendingSupervisorCallId) {
+        this.sendToolResult(this.pendingSupervisorCallId, responseText);
+        this.pendingSupervisorCallId = null;
+      } else {
+        // Fallback: inject as assistant message and trigger TTS
+        logger.warn('[PAMVoiceHybrid] No pending call_id, using fallback TTS');
+        this.speakResponse(responseText);
       }
 
-      // Send to OpenAI Realtime for TTS
-      this.sendToOpenAI({
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'assistant',
-          content: [
-            {
-              type: 'input_text',
-              text: responseText
-            }
-          ]
-        }
-      });
-
-      // Trigger response generation (TTS)
-      this.sendToOpenAI({
-        type: 'response.create',
-        response: {
-          modalities: ['audio']
-        }
-      });
+      return;
     }
+
+    // =====================================================
+    // LEGACY: Direct assistant response
+    // (For backward compatibility with old flow)
+    // =====================================================
+    if (message.type === 'assistant_response') {
+      const responseText = message.text;
+      logger.info('[PAMVoiceHybrid] 🤖 Claude response (legacy):', responseText);
+      this.config.onResponse?.(responseText);
+
+      // Handle UI actions
+      this.handleUIActions(message.ui_actions);
+
+      // In legacy mode, we need to inject this into OpenAI for TTS
+      this.speakResponse(responseText);
+
+      return;
+    }
+  }
+
+  /**
+   * Handle UI actions from tool execution (calendar updates, etc.)
+   */
+  private handleUIActions(ui_actions: any[] | undefined): void {
+    if (!ui_actions || !Array.isArray(ui_actions)) return;
+
+    ui_actions.forEach((action: any) => {
+      logger.info(`[PAMVoiceHybrid] UI Action: ${action.type}`, action);
+
+      switch (action.type) {
+        case 'reload_calendar':
+          window.dispatchEvent(new CustomEvent('reload-calendar', {
+            detail: {
+              entity_id: action.entity_id,
+              entity_type: action.entity_type,
+              entity_title: action.entity_title
+            }
+          }));
+          logger.info('[PAMVoiceHybrid] Dispatched calendar reload event');
+          break;
+
+        case 'reload_expenses':
+          window.dispatchEvent(new CustomEvent('reload-expenses', {
+            detail: {
+              entity_id: action.entity_id
+            }
+          }));
+          break;
+
+        case 'navigate':
+          // Handle navigation if needed
+          logger.info(`[PAMVoiceHybrid] Navigation requested: ${action.path}`);
+          break;
+
+        default:
+          logger.warn(`[PAMVoiceHybrid] Unknown UI action type: ${action.type}`);
+      }
+    });
+  }
+
+  /**
+   * Speak a response via OpenAI Realtime TTS.
+   * Used for legacy flow or fallback when tool call flow fails.
+   */
+  private speakResponse(responseText: string): void {
+    // Send to OpenAI Realtime for TTS
+    this.sendToOpenAI({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'assistant',
+        content: [
+          {
+            type: 'input_text',
+            text: responseText
+          }
+        ]
+      }
+    });
+
+    // Trigger response generation (TTS)
+    this.sendToOpenAI({
+      type: 'response.create',
+      response: {
+        modalities: ['audio']
+      }
+    });
   }
 
   // =====================================================

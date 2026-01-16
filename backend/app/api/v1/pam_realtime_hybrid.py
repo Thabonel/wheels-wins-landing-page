@@ -1,8 +1,16 @@
 """
-PAM Hybrid Voice System - Backend Bridge
-OpenAI Realtime API (voice I/O) + Claude Sonnet 4.5 (reasoning)
+PAM Hybrid Voice System - Chat-Supervisor Pattern
+OpenAI Realtime API (voice I/O) + Claude Sonnet 4.5 (reasoning/tools)
 
-This endpoint creates secure sessions and forwards tool calls to Claude.
+Architecture: Chat-Supervisor Pattern (OpenAI recommended)
+- OpenAI Realtime: Fast voice chat, basic responses, decides when to delegate
+- Claude (Supervisor): Complex reasoning, tool execution, maintains context
+
+Key insight: OpenAI has ONE tool (delegate_to_supervisor) that passes
+conversation history to Claude for complex tasks. This solves the
+"two disconnected AIs" problem by preserving context across the bridge.
+
+Reference: https://github.com/openai/openai-realtime-agents
 """
 
 import os
@@ -48,6 +56,14 @@ class ToolExecutionRequest(BaseModel):
     tool_name: str
     arguments: Dict[str, Any]
     user_id: str
+
+
+class SupervisorRequest(BaseModel):
+    """Request to delegate to Claude supervisor"""
+    user_request: str
+    conversation_history: list  # Full conversation for context
+    user_id: str
+    context: Optional[Dict[str, Any]] = None
 
 
 # =====================================================
@@ -104,8 +120,8 @@ async def create_hybrid_voice_session(
                         "model": "gpt-4o-realtime-preview",
                         "voice": request.voice,
                         "modalities": ["text", "audio"],
-                        "instructions": _get_minimal_instructions(),
-                        "tools": [],
+                        "instructions": _get_chat_supervisor_instructions(),
+                        "tools": _get_supervisor_tool(),
                         "turn_detection": {
                             "type": "server_vad",
                             "threshold": 0.5,
@@ -210,12 +226,108 @@ async def create_hybrid_voice_session(
         )
 
 
+def _get_chat_supervisor_instructions() -> str:
+    """
+    Chat-Supervisor pattern instructions for OpenAI Realtime.
+
+    OpenAI handles basic chat and delegates complex tasks to Claude supervisor.
+    This is the recommended pattern from OpenAI for hybrid voice agents.
+
+    Reference: https://github.com/openai/openai-realtime-agents
+    """
+    return """You are PAM, a friendly RV travel assistant with a warm, helpful personality.
+
+## Your Role
+You handle the voice conversation with the user. For simple interactions, respond directly.
+For complex tasks, delegate to your supervisor (Claude) who has access to tools.
+
+## What YOU Handle Directly (respond immediately):
+- Greetings: "Hi!", "Hello", "Hey PAM"
+- Casual chat: "How are you?", "What's up?"
+- Simple questions about yourself: "What can you do?"
+- Acknowledgments: "Thanks", "Got it", "Okay"
+- Clarifications: "What did you mean by...?"
+
+## What You DELEGATE to Supervisor (call delegate_to_supervisor):
+- Calendar/scheduling: "Book an appointment", "What's on my calendar?"
+- Budget/expenses: "Track this expense", "How much have I spent?"
+- Trip planning: "Plan a trip to...", "Find RV parks near..."
+- Weather: "What's the weather?"
+- Any action that requires looking up data or making changes
+- Anything you're not 100% sure how to answer
+
+## Conversation Style
+- Be warm, friendly, and conversational
+- Keep responses concise (1-2 sentences for simple things)
+- When delegating, say something like "Let me check that for you..." or "One moment..."
+- After getting supervisor response, speak it naturally (don't just read it robotically)
+
+## Important Rules
+1. ALWAYS delegate if the user wants to DO something (book, create, track, find, etc.)
+2. NEVER make up information - delegate to get accurate data
+3. Keep the conversation flowing naturally even when delegating
+4. Remember context from earlier in the conversation
+
+You are NOT just a voice interface - you ARE PAM. Be helpful and personable."""
+
+
+def _get_supervisor_tool() -> list:
+    """
+    The single tool that bridges OpenAI Realtime to Claude supervisor.
+
+    When OpenAI detects a complex request, it calls this tool with:
+    - user_request: What the user is asking for
+    - conversation_summary: Key context from the conversation
+
+    The tool returns Claude's response which OpenAI then speaks.
+    """
+    return [
+        {
+            "type": "function",
+            "name": "delegate_to_supervisor",
+            "description": """Delegate complex requests to your supervisor (Claude) who has access to tools for:
+- Calendar management (create/update/delete events, appointments)
+- Budget tracking (expenses, spending summaries, savings)
+- Trip planning (routes, RV parks, attractions, gas prices)
+- Weather forecasts
+- User profile and settings
+- Social features (posts, messages)
+- Shopping recommendations
+
+Call this for ANY request that requires:
+1. Looking up real data (calendar events, expenses, weather)
+2. Taking an action (booking appointments, logging expenses)
+3. Complex reasoning or recommendations
+4. Information you don't have access to
+
+DO NOT try to answer these yourself - always delegate.""",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_request": {
+                        "type": "string",
+                        "description": "The user's request in their own words. Be specific and include all relevant details they mentioned."
+                    },
+                    "conversation_summary": {
+                        "type": "string",
+                        "description": "Brief summary of relevant conversation context (e.g., 'User previously mentioned they are in Denver' or 'Following up on the dentist appointment we discussed')"
+                    },
+                    "request_type": {
+                        "type": "string",
+                        "enum": ["calendar", "budget", "trip", "weather", "profile", "social", "shopping", "general"],
+                        "description": "Category of the request to help route to appropriate tools"
+                    }
+                },
+                "required": ["user_request", "request_type"]
+            }
+        }
+    ]
+
+
 def _get_minimal_instructions() -> str:
     """
-    Minimal instructions for OpenAI Realtime.
-
-    OpenAI only handles voice I/O - no reasoning, no tools.
-    Just transcribe what user says and speak what we send back.
+    @deprecated Use _get_chat_supervisor_instructions instead.
+    Kept for reference only.
     """
     return """You are a voice interface for PAM, an RV travel assistant.
 
@@ -242,124 +354,175 @@ async def voice_to_claude_bridge(
     user_id: str
 ):
     """
-    WebSocket bridge between browser and Claude.
+    WebSocket bridge between browser and Claude (Chat-Supervisor Pattern).
 
-    Browser flow:
-    1. Browser establishes WebRTC with OpenAI Realtime (voice I/O)
-    2. Browser establishes WebSocket with this endpoint (text bridge)
-    3. When user speaks, OpenAI transcribes → browser sends text here
-    4. We forward to Claude via existing PAM system
-    5. Claude responds with text → we send back to browser
-    6. Browser sends text to OpenAI Realtime for TTS
+    This bridge handles TWO types of requests:
 
-    This keeps Claude as the brain, OpenAI as the voice.
+    1. SUPERVISOR DELEGATION (new pattern):
+       - OpenAI Realtime calls delegate_to_supervisor tool
+       - Browser forwards tool call here with conversation_history
+       - We execute via Claude with full context
+       - Return response for OpenAI to speak
+
+    2. DIRECT MESSAGE (legacy fallback):
+       - Browser sends user message directly
+       - We forward to Claude
+       - Return response for OpenAI to speak
+
+    The supervisor pattern is preferred because it:
+    - Preserves conversation context across the bridge
+    - Lets OpenAI decide when delegation is needed
+    - Provides better user experience (faster simple responses)
     """
     await websocket.accept()
 
+    # Conversation history for context preservation
+    conversation_history = []
+
     try:
-        # Initialize PAM instance variable (will be set when we receive first message with context)
+        # Initialize PAM instance variable
         pam = None
 
         pam_logger.info(
-            f"🔗 Voice bridge connected for user {user_id}",
-            extra={"user_id": user_id, "connection_type": "hybrid_voice"}
+            f"🔗 Voice bridge connected for user {user_id} (chat-supervisor mode)",
+            extra={"user_id": user_id, "connection_type": "chat_supervisor"}
         )
 
         while True:
-            # Receive text from browser (transcribed by OpenAI)
             data = await websocket.receive_json()
-
             message_type = data.get("type")
 
-            if message_type == "user_message":
-                # User spoke, OpenAI transcribed, now process with Claude
-                user_text = data.get("text", "")
+            # =====================================================
+            # SUPERVISOR TOOL CALL (Chat-Supervisor Pattern)
+            # OpenAI Realtime called delegate_to_supervisor
+            # =====================================================
+            if message_type == "supervisor_request":
+                user_request = data.get("user_request", "")
+                conversation_summary = data.get("conversation_summary", "")
+                request_type = data.get("request_type", "general")
                 browser_context = data.get("context", {})
 
-                # =====================================================
-                # LOAD USER CONTEXT (same as text mode)
-                # Voice mode needs profile, financial, social data
-                # =====================================================
-                try:
-                    from app.services.pam.cache_warming import get_cache_warming_service
-                    cache_service = await get_cache_warming_service()
-
-                    # Load cached context (profile, financial, preferences)
-                    cached_context = await cache_service.get_cached_user_context(user_id)
-
-                    # Merge: cached context first, browser context on top
-                    # Browser wins for real-time data (location, timezone, is_voice)
-                    context = {
-                        **(cached_context or {}),  # Profile, financial, preferences
-                        **browser_context,          # Location, timezone, is_voice
+                pam_logger.info(
+                    f"🎯 Supervisor delegation: type={request_type}, request={user_request[:50]}...",
+                    extra={
+                        "user_id": user_id,
+                        "request_type": request_type,
+                        "has_context": bool(conversation_summary)
                     }
+                )
 
-                    pam_logger.info(
-                        f"📦 Voice context loaded: {list(context.keys())}",
-                        extra={
-                            "user_id": user_id,
-                            "has_profile": "profile" in context or "user_profile" in context,
-                            "has_expenses": "expenses" in context,
-                            "has_vehicle": "vehicle" in context,
-                            "cached_keys": list((cached_context or {}).keys()),
-                            "browser_keys": list(browser_context.keys())
-                        }
-                    )
-                except Exception as e:
-                    pam_logger.warning(f"⚠️ Failed to load cached context: {e}, using browser context only")
-                    context = browser_context
+                # Load full context
+                context = await _load_voice_context(user_id, browser_context)
 
-                # DIAGNOSTIC: Log voice context for calendar appointments
-                pam_logger.info(f"🔍 DIAGNOSTIC: Voice context keys={list(context.keys())}")
-                pam_logger.info(f"🔍 DIAGNOSTIC: Has timezone? {('timezone' in context)}")
-                pam_logger.info(f"🔍 DIAGNOSTIC: Has location? {('user_location' in context)}")
-                pam_logger.info(f"🔍 DIAGNOSTIC: is_voice flag={context.get('is_voice', False)}")
-                if 'user_location' in context:
-                    loc = context['user_location']
-                    pam_logger.info(f"🔍 DIAGNOSTIC: Location complete? lat={loc.get('lat')}, lng={loc.get('lng')}")
+                # Add conversation summary to context for Claude
+                if conversation_summary:
+                    context["conversation_summary"] = conversation_summary
 
-                # Get PAM instance with user's language preference
+                # Add conversation history for multi-turn context
+                context["conversation_history"] = conversation_history
+
+                # Get PAM instance
                 user_language = context.get("language", "en")
                 pam = await get_pam(user_id, user_language=user_language)
 
-                pam_logger.info(
-                    f"👤 User voice input: {user_text[:50]}...",
-                    extra={"user_id": user_id, "input_length": len(user_text)}
-                )
+                # Build message with context for Claude
+                # Include conversation summary if available
+                enhanced_message = user_request
+                if conversation_summary:
+                    enhanced_message = f"[Context: {conversation_summary}]\n\nUser request: {user_request}"
 
-                # Forward to Claude (existing PAM system)
-                # PAM.chat() now returns dict: {"text": str, "ui_actions": list}
+                # Execute via Claude
                 pam_result = await pam.chat(
-                    message=user_text,
+                    message=enhanced_message,
                     context=context,
-                    stream=False  # Get complete response
+                    stream=False
                 )
 
-                # Extract text from dict response
+                # Extract response
                 if isinstance(pam_result, dict):
                     claude_response = pam_result.get("text", "")
                     ui_actions = pam_result.get("ui_actions", [])
                 else:
-                    # Fallback for old string response format
                     claude_response = pam_result
                     ui_actions = []
 
-                # Send Claude's response back to browser
+                # Update conversation history
+                conversation_history.append({"role": "user", "content": user_request})
+                conversation_history.append({"role": "assistant", "content": claude_response})
+
+                # Keep history manageable (last 20 turns)
+                if len(conversation_history) > 40:
+                    conversation_history = conversation_history[-40:]
+
+                # Send response back
                 await websocket.send_json({
-                    "type": "assistant_response",
+                    "type": "supervisor_response",
                     "text": claude_response,
-                    "ui_actions": ui_actions,  # Include UI actions for voice mode
-                    "timestamp": data.get("timestamp")
+                    "ui_actions": ui_actions,
+                    "request_type": request_type
                 })
 
                 pam_logger.info(
-                    f"🤖 Claude response sent: {claude_response[:50]}...",
+                    f"🤖 Supervisor response: {claude_response[:50]}...",
                     extra={"user_id": user_id, "response_length": len(claude_response)}
                 )
 
+            # =====================================================
+            # LEGACY: DIRECT USER MESSAGE
+            # Kept for backward compatibility
+            # =====================================================
+            elif message_type == "user_message":
+                user_text = data.get("text", "")
+                browser_context = data.get("context", {})
+
+                pam_logger.info(
+                    f"📨 Direct message (legacy mode): {user_text[:50]}...",
+                    extra={"user_id": user_id}
+                )
+
+                # Load context
+                context = await _load_voice_context(user_id, browser_context)
+                context["conversation_history"] = conversation_history
+
+                # Get PAM instance
+                user_language = context.get("language", "en")
+                pam = await get_pam(user_id, user_language=user_language)
+
+                # Execute via Claude
+                pam_result = await pam.chat(
+                    message=user_text,
+                    context=context,
+                    stream=False
+                )
+
+                # Extract response
+                if isinstance(pam_result, dict):
+                    claude_response = pam_result.get("text", "")
+                    ui_actions = pam_result.get("ui_actions", [])
+                else:
+                    claude_response = pam_result
+                    ui_actions = []
+
+                # Update conversation history
+                conversation_history.append({"role": "user", "content": user_text})
+                conversation_history.append({"role": "assistant", "content": claude_response})
+
+                # Send response
+                await websocket.send_json({
+                    "type": "assistant_response",
+                    "text": claude_response,
+                    "ui_actions": ui_actions,
+                    "timestamp": data.get("timestamp")
+                })
+
             elif message_type == "ping":
-                # Keepalive
                 await websocket.send_json({"type": "pong"})
+
+            elif message_type == "clear_history":
+                # Allow client to reset conversation context
+                conversation_history = []
+                await websocket.send_json({"type": "history_cleared"})
+                pam_logger.info(f"🧹 Conversation history cleared for user {user_id}")
 
             else:
                 logger.warning(f"Unknown message type: {message_type}")
@@ -371,7 +534,39 @@ async def voice_to_claude_bridge(
         )
     except Exception as e:
         logger.error(f"Error in voice bridge: {e}")
+        logger.error(traceback.format_exc())
         await websocket.close(code=1011, reason=str(e))
+
+
+async def _load_voice_context(user_id: str, browser_context: dict) -> dict:
+    """
+    Load full user context for voice requests.
+    Combines cached server-side context with browser-provided context.
+    """
+    try:
+        from app.services.pam.cache_warming import get_cache_warming_service
+        cache_service = await get_cache_warming_service()
+
+        # Load cached context (profile, financial, preferences)
+        cached_context = await cache_service.get_cached_user_context(user_id)
+
+        # Merge: cached context first, browser context on top
+        context = {
+            **(cached_context or {}),
+            **browser_context,
+            "is_voice": True,  # Always true for voice requests
+        }
+
+        pam_logger.debug(
+            f"📦 Voice context loaded: {list(context.keys())}",
+            extra={"user_id": user_id}
+        )
+
+        return context
+
+    except Exception as e:
+        pam_logger.warning(f"⚠️ Failed to load cached context: {e}")
+        return {**browser_context, "is_voice": True}
 
 
 # =====================================================
