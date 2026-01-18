@@ -57,9 +57,9 @@
     <link rel="dns-prefetch" href="https://api.mapbox.com" />
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     
-    <!-- Preload critical assets -->
-    <link rel="preload" href="/src/main.tsx" as="script" crossorigin />
-    <link rel="modulepreload" href="/src/index.css" as="style" />
+    <!-- Preload critical assets - hero image is LCP element -->
+    <link rel="preload" as="image" href="/images/hero-unimog-fire.webp" type="image/webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="/images/hero-unimog-fire-800.webp" type="image/webp" media="(max-width: 768px)" />
     
     <!-- Schema.org LocalBusiness + SoftwareApplication -->
     <script type="application/ld+json">

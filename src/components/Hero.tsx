@@ -120,13 +120,30 @@ const Hero = () => {
               {/* Decorative element behind image */}
               <div className="absolute -inset-4 bg-accent/10 rounded-3xl transform rotate-2" />
 
-              {/* Main image */}
+              {/* Main image - optimized with WebP and responsive sizes */}
               <div className="relative rounded-2xl overflow-hidden shadow-warm-lg">
-                <img
-                  src="/images/hero-unimog-fire.jpg"
-                  alt="RV adventure by campfire at sunset"
-                  className="w-full h-auto object-cover aspect-[4/3]"
-                />
+                <picture>
+                  {/* WebP for modern browsers - mobile and desktop sizes */}
+                  <source
+                    type="image/webp"
+                    srcSet="/images/hero-unimog-fire-800.webp 800w, /images/hero-unimog-fire.webp 1472w"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
+                  {/* JPEG fallback for older browsers */}
+                  <source
+                    type="image/jpeg"
+                    srcSet="/images/hero-unimog-fire-fallback.jpg"
+                  />
+                  <img
+                    src="/images/hero-unimog-fire-fallback.jpg"
+                    alt="RV adventure by campfire at sunset"
+                    className="w-full h-auto object-cover aspect-[4/3]"
+                    width={1472}
+                    height={704}
+                    fetchPriority="high"
+                    decoding="async"
+                  />
+                </picture>
                 {/* Subtle gradient overlay for depth */}
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/10 to-transparent" />
               </div>
