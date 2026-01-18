@@ -383,16 +383,17 @@ export class PAMVoiceHybridService {
   private handleOpenAIMessage(message: any): void {
     switch (message.type) {
       case 'session.created':
-        logger.info('[PAMVoiceHybrid] ✅ OpenAI session created (waiting for session.updated)');
-        // Don't greet yet - wait for session.updated after our config is applied
+        logger.info('[PAMVoiceHybrid] ✅ OpenAI session created - triggering greeting');
+        // Session is already fully configured by backend at creation time
+        // Trigger greeting immediately (small delay to ensure audio is ready)
+        setTimeout(() => {
+          this.speakGreeting();
+        }, 300);
         break;
 
       case 'session.updated':
-        logger.info('[PAMVoiceHybrid] ✅ OpenAI session configured - triggering greeting');
-        // Small delay to ensure OpenAI is fully ready for TTS
-        setTimeout(() => {
-          this.speakGreeting();
-        }, 200);
+        logger.info('[PAMVoiceHybrid] ✅ OpenAI session updated');
+        // Session updates can happen but we already greeted on creation
         break;
 
       case 'conversation.item.created':
