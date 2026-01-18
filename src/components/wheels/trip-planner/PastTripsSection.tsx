@@ -77,7 +77,6 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-lg">
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
             Past Trips
             <Badge variant="secondary" className="ml-2">
               {mockPastTrips.length}

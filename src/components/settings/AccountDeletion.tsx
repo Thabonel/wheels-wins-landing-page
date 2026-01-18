@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -52,10 +52,7 @@ export const AccountDeletion = () => {
   return (
     <Card className="border-red-200">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-red-600">
-          <AlertTriangle className="h-5 w-5" />
-          Danger Zone
-        </CardTitle>
+        <CardTitle className="text-red-600">Danger Zone</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="bg-red-50 p-4 rounded-lg border border-red-200">

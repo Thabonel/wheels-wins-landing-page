@@ -349,10 +349,7 @@ const TripImageManager: React.FC<TripImageManagerProps> = ({ templateId, onImage
       {/* Upload Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload Images
-          </CardTitle>
+          <CardTitle>Upload Images</CardTitle>
           <CardDescription>
             Drag and drop images or click to browse
           </CardDescription>
@@ -394,10 +391,7 @@ const TripImageManager: React.FC<TripImageManagerProps> = ({ templateId, onImage
       {/* Image Search */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Search for Images
-          </CardTitle>
+          <CardTitle>Search for Images</CardTitle>
           <CardDescription>
             Find representative images from online sources
           </CardDescription>

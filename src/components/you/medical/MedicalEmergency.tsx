@@ -4,12 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { 
-  AlertCircle,
-  Phone,
+import {
   User,
-  Heart,
-  Shield,
   Plus,
   Edit,
   Save,
@@ -145,10 +141,7 @@ export default function MedicalEmergency() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            Emergency Information
-          </CardTitle>
+          <CardTitle>Emergency Information</CardTitle>
           <CardDescription>
             Add your medical emergency info so it's available when you need it
           </CardDescription>
@@ -205,10 +198,7 @@ export default function MedicalEmergency() {
       {/* Emergency Contacts */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Phone className="h-4 w-4" />
-            Emergency Contacts
-          </CardTitle>
+          <CardTitle className="text-lg">Emergency Contacts</CardTitle>
         </CardHeader>
         <CardContent>
           {isEditing ? (
@@ -298,10 +288,7 @@ export default function MedicalEmergency() {
         {/* Basic Info */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Heart className="h-4 w-4" />
-              Medical Information
-            </CardTitle>
+            <CardTitle className="text-lg">Medical Information</CardTitle>
           </CardHeader>
           <CardContent>
             {isEditing ? (
@@ -399,10 +386,7 @@ export default function MedicalEmergency() {
         {/* Doctor & Insurance */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Healthcare Providers
-            </CardTitle>
+            <CardTitle className="text-lg">Healthcare Providers</CardTitle>
           </CardHeader>
           <CardContent>
             {isEditing ? (

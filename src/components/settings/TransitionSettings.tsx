@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Clock, Archive } from 'lucide-react';
+import { Archive } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -91,10 +91,7 @@ export const TransitionSettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Transition Planner
-          </CardTitle>
+          <CardTitle>Transition Planner</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">

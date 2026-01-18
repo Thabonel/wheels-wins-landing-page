@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Key, Mail } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -94,10 +93,7 @@ export const AccountSecurity = () => {
           {/* Password Change */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="h-5 w-5" />
-                Change Password
-              </CardTitle>
+              <CardTitle>Change Password</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePasswordChange} className="space-y-4">
@@ -148,10 +144,7 @@ export const AccountSecurity = () => {
           {/* Email Change */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Change Email
-              </CardTitle>
+              <CardTitle>Change Email</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleEmailChange} className="space-y-4">

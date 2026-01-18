@@ -8,7 +8,7 @@ import { testRealJWTTransmission, attemptJWTFix } from '@/utils/authJWTTest';
 import { runQuickDiagnosis } from '@/utils/authQuickTest';
 import { getAuthDebugInfo } from '@/utils/authDebug';
 import { investigateAuthIssue, generateAuthDiagnosis } from '@/utils/authInvestigation';
-import { CheckCircle, XCircle, AlertCircle, Loader2, Bug, Shield, Database } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Loader2, Bug, Shield } from 'lucide-react';
 
 const AuthDebugAdmin: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -214,10 +214,7 @@ const AuthDebugAdmin: React.FC = () => {
       {/* Current Status */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Current Authentication Status
-          </CardTitle>
+          <CardTitle>Current Authentication Status</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -244,10 +241,7 @@ const AuthDebugAdmin: React.FC = () => {
       {/* Test Actions */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            Authentication Tests
-          </CardTitle>
+          <CardTitle>Authentication Tests</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

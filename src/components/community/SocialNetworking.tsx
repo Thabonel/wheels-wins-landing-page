@@ -13,7 +13,7 @@ import { useCommunityFeatures, type Friendship } from '@/hooks/useCommunityFeatu
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Users, UserPlus, Heart, MessageSquare, Share2, MapPin, Calendar, Star } from 'lucide-react';
+import { Users, Heart, MessageSquare, Share2, MapPin, Calendar, Star, UserPlus } from 'lucide-react';
 
 interface User {
   id: string;
@@ -179,10 +179,7 @@ export default function SocialNetworking() {
       {pendingFriendRequests.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              Friend Requests ({pendingFriendRequests.length})
-            </CardTitle>
+            <CardTitle>Friend Requests ({pendingFriendRequests.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

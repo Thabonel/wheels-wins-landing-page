@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileText, Trash2, Eye, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, Trash2, Eye, Clock, CheckCircle, AlertCircle, Loader2, FileText } from 'lucide-react';
 import { useUserKnowledge } from '@/hooks/useUserKnowledge';
 import type { UserKnowledgeDocument } from '@/types/knowledgeTypes';
 
@@ -115,10 +115,7 @@ export const DocumentUploader = ({ bucketId, bucketName, documents }: DocumentUp
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          Documents in "{bucketName}"
-        </CardTitle>
+        <CardTitle>Documents in "{bucketName}"</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Upload Area */}

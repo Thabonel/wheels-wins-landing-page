@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { Volume2, Play, RotateCcw } from 'lucide-react';
+import { Play, RotateCcw, Volume2 } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { pamVoiceService } from '@/lib/voiceService';
 import { useState } from 'react';
@@ -17,10 +17,7 @@ export const VoiceSettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Volume2 className="h-5 w-5" />
-            Pam's Voice Settings
-          </CardTitle>
+          <CardTitle>Pam's Voice Settings</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4">Loading voice settings...</div>
@@ -33,10 +30,7 @@ export const VoiceSettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Volume2 className="h-5 w-5" />
-            Pam's Voice Settings
-          </CardTitle>
+          <CardTitle>Pam's Voice Settings</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-gray-600">

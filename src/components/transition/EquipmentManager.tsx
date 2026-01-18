@@ -383,10 +383,7 @@ export const EquipmentManager: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Equipment Checklist
-            </span>
+            <span>Equipment Checklist</span>
             <div className="flex gap-2">
               <Button onClick={exportToPDF} variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />

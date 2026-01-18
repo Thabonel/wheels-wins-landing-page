@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Link as LinkIcon } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 const AIIndexer: React.FC = () => {
   const [url, setUrl] = useState('');
@@ -49,9 +49,7 @@ const AIIndexer: React.FC = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <LinkIcon className="h-5 w-5" /> AI Index Builder
-          </CardTitle>
+          <CardTitle>AI Index Builder</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

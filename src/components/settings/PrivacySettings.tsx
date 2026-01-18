@@ -5,7 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, AlertCircle, RefreshCw, Info } from 'lucide-react';
+import { AlertCircle, RefreshCw, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useAuth } from '@/context/AuthContext';
@@ -60,10 +60,7 @@ export const PrivacySettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Privacy
-          </CardTitle>
+          <CardTitle>Privacy</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4">Loading privacy settings...</div>
@@ -76,10 +73,7 @@ export const PrivacySettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Privacy
-          </CardTitle>
+          <CardTitle>Privacy</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-gray-600">

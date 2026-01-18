@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useWheels } from '@/context/WheelsContext';
 import { useWheelsIntegration } from '@/hooks/useWheelsIntegration';
-import { AlertTriangle, CheckCircle, Fuel, Wrench, Package, Shield } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Wrench, Package, Shield, Fuel } from 'lucide-react';
 
 export default function WheelsIntegrationDashboard() {
   const { state } = useWheels();
@@ -68,8 +68,7 @@ export default function WheelsIntegrationDashboard() {
       {state.currentTrip && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Fuel className="w-5 h-5" />
+            <CardTitle>
               Current Trip: {state.currentTrip.origin} → {state.currentTrip.destination}
             </CardTitle>
           </CardHeader>

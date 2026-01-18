@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, BrainCircuit, Activity } from 'lucide-react';
+import { RefreshCw, BrainCircuit } from 'lucide-react';
 
 interface RouterMetrics {
   providers: string[];
@@ -115,9 +115,7 @@ const AIRouterMetrics: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-4 w-4" /> Latency
-          </CardTitle>
+          <CardTitle>Latency</CardTitle>
         </CardHeader>
         <CardContent>
           {!metrics ? (

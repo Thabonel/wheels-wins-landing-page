@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Package, Search, Loader2 } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { useAuth } from '@/context/AuthContext';
 import { useStorageData } from './storage/useStorageData';
 import DrawerSelector from './DrawerSelector';
@@ -170,8 +170,7 @@ const RVStorageOrganizer = () => {
         const isComplete = drawer.items.length > 0 && drawer.items.every(item => item.packed);
         return <Card key={drawer.id} className={isComplete ? "border-green-200" : "border-gray-200"}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
+                <CardTitle>
                   {drawer.name}
                 </CardTitle>
                 <CardDescription>

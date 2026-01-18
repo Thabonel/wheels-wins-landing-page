@@ -2,7 +2,7 @@
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { History, MapPin, Monitor } from 'lucide-react';
+import { MapPin, Monitor } from 'lucide-react';
 import { useLoginHistory } from '@/hooks/useLoginHistory';
 
 export const LoginHistory = () => {
@@ -36,10 +36,7 @@ export const LoginHistory = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <History className="h-5 w-5" />
-          Login History
-        </CardTitle>
+        <CardTitle>Login History</CardTitle>
       </CardHeader>
       <CardContent>
         {loginHistory.length === 0 ? (

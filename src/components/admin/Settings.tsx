@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Save, RefreshCw, Settings as SettingsIcon, Shield, Mail, Users, BrainCircuit } from 'lucide-react';
+import { Save, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 
 interface SystemSetting {
@@ -193,10 +193,7 @@ const Settings = () => {
       {/* Site Maintenance Settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Site Maintenance
-          </CardTitle>
+          <CardTitle>Site Maintenance</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
@@ -233,10 +230,7 @@ const Settings = () => {
       {/* Email Notification Settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Email Notifications
-          </CardTitle>
+          <CardTitle>Email Notifications</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
@@ -273,10 +267,7 @@ const Settings = () => {
       {/* AI Router Settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BrainCircuit className="h-5 w-5" />
-            AI Routing
-          </CardTitle>
+          <CardTitle>AI Routing</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
@@ -308,10 +299,7 @@ const Settings = () => {
       {/* User Registration Settings */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            User Registration
-          </CardTitle>
+          <CardTitle>User Registration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">

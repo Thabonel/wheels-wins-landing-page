@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2, Car, DollarSign, MapPin, Heart } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface ProfileCompletionProps {
   isOpen: boolean;
@@ -181,10 +181,7 @@ export const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         return (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Car className="w-5 h-5" />
-                Vehicle Information
-              </CardTitle>
+              <CardTitle>Vehicle Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -255,10 +252,7 @@ export const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         return (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Travel Preferences
-              </CardTitle>
+              <CardTitle>Travel Preferences</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -330,10 +324,7 @@ export const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         return (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Budget Preferences
-              </CardTitle>
+              <CardTitle>Budget Preferences</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -373,10 +364,7 @@ export const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         return (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Heart className="w-5 h-5" />
-                Interests & Region
-              </CardTitle>
+              <CardTitle>Interests & Region</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">

@@ -12,7 +12,6 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar,
-  ListChecks,
   Users,
   Lightbulb,
   ArrowRight,
@@ -247,10 +246,7 @@ export function RealityCheck() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ListChecks className="h-5 w-5" />
-            Reality Check
-          </CardTitle>
+          <CardTitle>Reality Check</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-64">
@@ -265,10 +261,7 @@ export function RealityCheck() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ListChecks className="h-5 w-5" />
-            Reality Check
-          </CardTitle>
+          <CardTitle>Reality Check</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-gray-500">
@@ -282,10 +275,7 @@ export function RealityCheck() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ListChecks className="h-5 w-5" />
-          Reality Check
-        </CardTitle>
+        <CardTitle>Reality Check</CardTitle>
         <CardDescription>
           Is your timeline realistic? Get data-driven insights on your transition feasibility
         </CardDescription>

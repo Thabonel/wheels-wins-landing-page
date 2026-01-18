@@ -42,8 +42,7 @@ export default function SharedTrips() {
       {/* Import Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Import className="w-5 h-5" />
+          <CardTitle>
             Import Shared Trip
           </CardTitle>
         </CardHeader>

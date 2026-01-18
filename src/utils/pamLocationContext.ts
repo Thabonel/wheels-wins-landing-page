@@ -4,7 +4,7 @@
  * This enables PAM with Claude to provide detailed weather and local information without asking for location
  */
 
-import { useUserSettings } from '@/hooks/useUserSettings';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface LocationContext {
   latitude?: number;
@@ -19,17 +19,76 @@ export interface LocationContext {
 }
 
 /**
+ * Profile location data from Supabase
+ * Note: These columns exist in DB but may not be in generated types
+ */
+interface ProfileLocationData {
+  current_latitude: number | null;
+  current_longitude: number | null;
+  region: string | null;
+}
+
+/**
+ * Try to get location from user's profile in database
+ * This is the most reliable source for logged-in users who have set their location
+ */
+async function tryGetProfileLocation(userId: string): Promise<Partial<LocationContext> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('current_latitude, current_longitude, region')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      console.debug('Profile location not available:', error?.message);
+      return null;
+    }
+
+    // Cast to known schema - these columns exist but may not be in generated types
+    const profile = data as unknown as ProfileLocationData;
+
+    if (profile.current_latitude && profile.current_longitude) {
+      return {
+        latitude: profile.current_latitude,
+        longitude: profile.current_longitude,
+        country: profile.region ?? undefined,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.debug('Failed to get profile location:', error);
+    return null;
+  }
+}
+
+/**
  * Get comprehensive location context for PAM requests
- * Tries multiple sources: GPS -> Database -> IP detection -> Browser
+ * Priority: Profile -> GPS -> Cached -> IP detection -> Browser
  */
 export async function getPamLocationContext(userId?: string): Promise<LocationContext | null> {
   try {
-    console.log('🌍 Gathering location context for PAM...');
+    console.log('Gathering location context for PAM...');
 
-    // Try to get precise GPS location first (with user permission)
+    // Priority 1: For logged-in users, check profile location first
+    if (userId) {
+      const profileLocation = await tryGetProfileLocation(userId);
+      if (profileLocation) {
+        console.log('Using profile location for PAM context');
+        return {
+          ...profileLocation,
+          source: 'gps', // Mark as 'gps' since it's user-specified precise coordinates
+          timestamp: Date.now()
+        };
+      }
+    }
+
+    // Priority 2: Try to get precise GPS location (with user permission)
     const gpsLocation = await tryGetGPSLocation();
     if (gpsLocation) {
-      console.log('📍 Using GPS location for PAM context');
+      console.log('Using GPS location for PAM context');
       return {
         ...gpsLocation,
         source: 'gps',
@@ -37,10 +96,10 @@ export async function getPamLocationContext(userId?: string): Promise<LocationCo
       };
     }
 
-    // Try to get location from browser cache (localStorage)
+    // Priority 3: Try to get location from browser cache (localStorage)
     const cachedLocation = getCachedLocation();
     if (cachedLocation) {
-      console.log('💾 Using cached location for PAM context');
+      console.log('Using cached location for PAM context');
       return {
         ...cachedLocation,
         source: 'cached',
@@ -48,10 +107,10 @@ export async function getPamLocationContext(userId?: string): Promise<LocationCo
       };
     }
 
-    // Try to get location from IP detection
+    // Priority 4: Try to get location from IP detection
     const ipLocation = await tryGetIPLocation();
     if (ipLocation) {
-      console.log('🌐 Using IP-based location for PAM context');
+      console.log('Using IP-based location for PAM context');
       return {
         ...ipLocation,
         source: 'ip',
@@ -59,10 +118,10 @@ export async function getPamLocationContext(userId?: string): Promise<LocationCo
       };
     }
 
-    // Fallback to browser-based location hints
+    // Priority 5: Fallback to browser-based location hints
     const browserLocation = getBrowserLocationHints();
     if (browserLocation) {
-      console.log('🌏 Using browser hints for PAM context');
+      console.log('Using browser hints for PAM context');
       return {
         ...browserLocation,
         source: 'browser',
@@ -70,11 +129,11 @@ export async function getPamLocationContext(userId?: string): Promise<LocationCo
       };
     }
 
-    console.log('❌ No location context available for PAM');
+    console.log('No location context available for PAM');
     return null;
 
   } catch (error) {
-    console.error('❌ Error getting PAM location context:', error);
+    console.error('Error getting PAM location context:', error);
     return null;
   }
 }
@@ -192,46 +251,6 @@ function getBrowserLocationHints(): Partial<LocationContext> | null {
     console.debug('Browser location hints failed:', error);
     return null;
   }
-}
-
-/**
- * Get approximate location data for regions
- */
-function getRegionLocationData(region: string): Partial<LocationContext> {
-  const regionMap: Record<string, Partial<LocationContext>> = {
-    'Australia': {
-      latitude: -25.2744,
-      longitude: 133.7751,
-      city: 'Alice Springs',
-      country: 'Australia'
-    },
-    'New Zealand': {
-      latitude: -40.9006,
-      longitude: 174.8860,
-      city: 'Wellington',
-      country: 'New Zealand'
-    },
-    'United States': {
-      latitude: 39.8283,
-      longitude: -98.5795,
-      city: 'Lebanon',
-      country: 'United States'
-    },
-    'Canada': {
-      latitude: 56.1304,
-      longitude: -106.3468,
-      city: 'Saskatoon',
-      country: 'Canada'
-    },
-    'United Kingdom': {
-      latitude: 55.3781,
-      longitude: -3.4360,
-      city: 'Manchester',
-      country: 'United Kingdom'
-    }
-  };
-
-  return regionMap[region] || regionMap['United States'];
 }
 
 /**

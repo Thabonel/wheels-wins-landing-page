@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { enhancedSecurity } from '@/services/enhancedSecurity';
 import { useAuth } from '@/context/AuthContext';
-import { Shield, Smartphone, Key, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Shield, Key, CheckCircle } from 'lucide-react';
 
 export function SecurityDashboard() {
   const { user } = useAuth();
@@ -95,10 +95,7 @@ export function SecurityDashboard() {
       {/* MFA Setup */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5" />
-            Multi-Factor Authentication
-          </CardTitle>
+          <CardTitle>Multi-Factor Authentication</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
@@ -164,10 +161,7 @@ export function SecurityDashboard() {
       {/* Security Events */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" />
-            Recent Security Events
-          </CardTitle>
+          <CardTitle>Recent Security Events</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">

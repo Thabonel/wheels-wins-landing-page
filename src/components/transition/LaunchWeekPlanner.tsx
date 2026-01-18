@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Rocket, Calendar, CheckCircle2, Clock, AlertCircle, Loader2, PartyPopper, MapPin, Phone, Heart } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, AlertCircle, Loader2, MapPin, Phone, Heart } from 'lucide-react';
 
 interface LaunchWeekTask {
   id: string;
@@ -356,10 +356,7 @@ export function LaunchWeekPlanner() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Rocket className="h-6 w-6 text-orange-500" />
-            Launch Week Planner
-          </CardTitle>
+          <CardTitle>Launch Week Planner</CardTitle>
           <CardDescription>
             Set your departure date to begin your launch week countdown
           </CardDescription>
@@ -550,10 +547,7 @@ export function LaunchWeekPlanner() {
         {selectedDay === 0 && (
           <Card className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PartyPopper className="h-6 w-6 text-orange-600" />
-                Launch Day Celebration!
-              </CardTitle>
+              <CardTitle>Launch Day Celebration!</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {launchDate.first_destination && (

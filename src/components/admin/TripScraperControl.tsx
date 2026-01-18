@@ -31,20 +31,15 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import {
-  Globe,
   Play,
-  Pause,
   RefreshCw,
-  Download,
   CheckCircle,
   XCircle,
-  AlertCircle,
   Clock,
   Search,
   Settings,
   Database,
   Plus,
-  Edit,
   Trash2,
   Eye,
   Brain
@@ -349,10 +344,7 @@ const TripScraperControl: React.FC<TripScraperControlProps> = ({ onTemplatesScra
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                Scraping Jobs
-              </span>
+              <span>Scraping Jobs</span>
               <Button onClick={startScraping} disabled={isProcessing}>
                 {isProcessing ? (
                   <>
@@ -578,10 +570,7 @@ const TripScraperControl: React.FC<TripScraperControlProps> = ({ onTemplatesScra
       <TabsContent value="ai" className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="h-5 w-5" />
-              AI Enhancement Configuration
-            </CardTitle>
+          <CardTitle>AI Enhancement Configuration</CardTitle>
             <CardDescription>
               Configure AI-powered content enhancement settings
             </CardDescription>
@@ -666,10 +655,7 @@ const TripScraperControl: React.FC<TripScraperControlProps> = ({ onTemplatesScra
       <TabsContent value="add" className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Add New Source
-            </CardTitle>
+          <CardTitle>Add New Source</CardTitle>
             <CardDescription>
               Configure a new website or API to scrape content from
             </CardDescription>

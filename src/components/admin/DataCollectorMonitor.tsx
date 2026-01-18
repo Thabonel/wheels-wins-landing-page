@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
-import { RefreshCw, Database, TrendingUp, Calendar, CheckCircle, AlertCircle, Clock, Target } from 'lucide-react';
+import { RefreshCw, Database, Calendar, CheckCircle, AlertCircle, Clock, Target } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
@@ -281,10 +281,7 @@ const DataCollectorMonitor = () => {
         {/* Monthly Growth Chart */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Monthly Collection Growth
-            </CardTitle>
+            <CardTitle>Monthly Collection Growth</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
@@ -309,10 +306,7 @@ const DataCollectorMonitor = () => {
         {/* Data Sources Breakdown */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Data Sources
-            </CardTitle>
+            <CardTitle>Data Sources</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] flex items-center">
@@ -355,10 +349,7 @@ const DataCollectorMonitor = () => {
       {/* Collection Activity Chart */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Recent Collection Activity
-          </CardTitle>
+          <CardTitle>Recent Collection Activity</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[200px]">

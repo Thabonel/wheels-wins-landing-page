@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { MapPin, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useAuth } from '@/context/AuthContext';
 import { locationService } from '@/services/locationService';
@@ -14,10 +14,7 @@ export const LocationSettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Location
-          </CardTitle>
+          <CardTitle>Location</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4">Loading location settings...</div>

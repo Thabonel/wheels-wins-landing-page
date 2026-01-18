@@ -96,7 +96,6 @@ export default function HustleBoardSuggestions({ onAddToIncome }: HustleBoardSug
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <TrendingUp size={20} className="text-purple-600" />
           Trending Hustle Ideas
           <TooltipProvider>
             <Tooltip>

@@ -7,12 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Play, 
-  Pause, 
-  Square, 
-  Volume2, 
-  VolumeX, 
+import {
+  Play,
+  Pause,
+  Square,
   SkipForward,
   Settings,
   Mic,
@@ -70,10 +68,7 @@ export const TextToSpeechDemo: React.FC = () => {
     return (
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <VolumeX className="h-5 w-5" />
-            Text-to-Speech Not Supported
-          </CardTitle>
+          <CardTitle>Text-to-Speech Not Supported</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
@@ -90,10 +85,7 @@ export const TextToSpeechDemo: React.FC = () => {
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Volume2 className="h-5 w-5" />
-          Text-to-Speech Demo
-        </CardTitle>
+        <CardTitle>Text-to-Speech Demo</CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-6">

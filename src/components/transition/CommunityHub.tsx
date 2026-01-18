@@ -343,10 +343,7 @@ export function CommunityHub() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Community Hub
-          </CardTitle>
+          <CardTitle>Community Hub</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-64">
@@ -360,10 +357,7 @@ export function CommunityHub() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Community Hub
-        </CardTitle>
+        <CardTitle>Community Hub</CardTitle>
         <CardDescription>
           Connect with fellow travelers, find your tribe, and share your journey
         </CardDescription>

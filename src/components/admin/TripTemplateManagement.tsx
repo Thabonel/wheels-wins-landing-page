@@ -35,18 +35,9 @@ import {
   Edit,
   Trash2,
   Image,
-  Globe,
-  Archive,
   Star,
-  MapPin,
   Search,
-  Upload,
-  Download,
-  Eye,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  AlertCircle
+  RefreshCw
 } from 'lucide-react';
 import TripScraperControl from './TripScraperControl';
 import TripImageManager from './TripImageManager';
@@ -266,10 +257,7 @@ const TripTemplateManagement: React.FC = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Trip Template Management
-          </CardTitle>
+          <CardTitle>Trip Template Management</CardTitle>
           <CardDescription>
             Manage trip templates, scrape new routes, and handle user-generated content
           </CardDescription>
