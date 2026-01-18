@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { X, MapPin, Clock, Sparkles, Loader2, DollarSign } from 'lucide-react';
+import { X, MapPin, Clock, Loader2, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchTripTemplatesForRegion, TripTemplate, incrementTemplateUsage } from '@/services/tripTemplateService';
 import { useRegion } from '@/context/RegionContext';
@@ -125,8 +125,7 @@ export default function FreshTemplatesPanel({
     <Card className="absolute top-16 right-2 z-[10001] w-96 max-h-[calc(100vh-100px)] overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Sparkles className="w-5 h-5" />
+          <CardTitle className="text-lg">
             Trip Templates
           </CardTitle>
           <button

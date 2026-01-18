@@ -14,12 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { 
-  Route, 
-  Star,
-  Sparkles,
+import {
+  Route,
   Play,
-  ChevronRight,
   Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -179,7 +176,6 @@ export default function TripPlannerApp() {
                 </p>
               </Card>
               <Card className="p-6">
-                <Sparkles className="w-8 h-8 text-primary mb-4 mx-auto" />
                 <h3 className="font-semibold mb-2">PAM AI Assistant</h3>
                 <p className="text-sm text-muted-foreground">
                   Get personalized recommendations and real-time trip optimization
@@ -213,13 +209,11 @@ export default function TripPlannerApp() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <TabsList className="grid grid-cols-2 w-full sm:w-auto">
-              <TabsTrigger value="trip-templates" className="flex items-center gap-2 text-xs sm:text-sm">
-                <Sparkles className="w-4 h-4" />
+              <TabsTrigger value="trip-templates" className="text-xs sm:text-sm">
                 <span className="hidden sm:inline">Plan Your Trip</span>
                 <span className="sm:hidden">Plan Trip</span>
               </TabsTrigger>
-              <TabsTrigger value="plan-trip" className="flex items-center gap-2 text-xs sm:text-sm">
-                <Route className="w-4 h-4" />
+              <TabsTrigger value="plan-trip" className="text-xs sm:text-sm">
                 <span className="hidden sm:inline">Trip Map Planner</span>
                 <span className="sm:hidden">Map</span>
               </TabsTrigger>

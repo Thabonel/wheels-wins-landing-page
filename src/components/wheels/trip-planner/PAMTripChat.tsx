@@ -4,15 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  MessageSquare, 
-  Send, 
-  Minimize2, 
+import {
+  MessageSquare,
+  Send,
+  Minimize2,
   Maximize2,
   X,
   Mic,
-  MicOff,
-  Sparkles
+  MicOff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePAMContext } from './PAMContext';
@@ -147,9 +146,8 @@ export default function PAMTripChat({
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="font-semibold text-sm flex items-center gap-2">
+                <h3 className="font-semibold text-sm">
                   PAM Trip Assistant
-                  <Sparkles className="w-4 h-4 text-primary" />
                 </h3>
                 <div className="flex items-center gap-2">
                   <div className={cn(
@@ -181,7 +179,6 @@ export default function PAMTripChat({
         <CardContent className="flex-1 overflow-y-auto space-y-3 pb-3">
           {context.chatHistory.length === 0 && (
             <div className="text-center py-8">
-              <Sparkles className="w-12 h-12 text-primary/50 mx-auto mb-4" />
               <h4 className="font-medium text-sm mb-2">Ready to plan your RV adventure?</h4>
               <p className="text-xs text-muted-foreground mb-4">
                 I can help you plan routes, optimize budgets, find friends, and more!

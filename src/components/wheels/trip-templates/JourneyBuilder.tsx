@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  GripVertical, 
-  X, 
+import {
+  GripVertical,
+  X,
   Calendar,
   MapPin,
   DollarSign,
@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Download,
   Share2,
-  Sparkles,
   AlertCircle
 } from 'lucide-react';
 import { TripTemplate } from '@/services/tripTemplateService';
@@ -278,7 +277,7 @@ Highlights: ${trip.highlights.join(', ')}
           onClick={onUseJourney}
           className="flex items-center justify-center gap-2"
         >
-          <Sparkles className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4" />
           Use This Journey
         </Button>
       </div>

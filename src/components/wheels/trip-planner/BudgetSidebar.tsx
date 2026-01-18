@@ -21,7 +21,6 @@ import {
   MessageSquare,
   X,
   Brain,
-  Sparkles,
   Target
 } from 'lucide-react';
 import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';

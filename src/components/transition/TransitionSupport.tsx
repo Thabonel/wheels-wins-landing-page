@@ -563,7 +563,6 @@ export function TransitionSupport() {
           <TabsContent value="motivation" className="space-y-4">
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
-                <Sparkles className="h-8 w-8 text-purple-600 mx-auto mb-3" />
                 <p className="text-center text-lg font-medium text-purple-900">
                   {dailyAffirmation}
                 </p>

@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Sparkles, Mic, MicOff, Send, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Send, Loader2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -138,15 +138,13 @@ export default function PAMTripAssistant({ templates, onSelectTemplate }: PAMTri
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Sparkles className="w-4 h-4" />
+        <Button variant="outline" size="sm">
           Ask PAM
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-blue-600" />
+          <DialogTitle>
             PAM Trip Assistant
           </DialogTitle>
           <DialogDescription>
@@ -207,12 +205,9 @@ export default function PAMTripAssistant({ templates, onSelectTemplate }: PAMTri
           {/* PAM Response */}
           {pamResponse && (
             <Card className="p-4 bg-blue-50 border-blue-200">
-              <div className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-blue-900 mb-1">PAM says:</p>
-                  <p className="text-sm text-blue-800">{pamResponse}</p>
-                </div>
+              <div>
+                <p className="text-sm font-medium text-blue-900 mb-1">PAM says:</p>
+                <p className="text-sm text-blue-800">{pamResponse}</p>
               </div>
             </Card>
           )}

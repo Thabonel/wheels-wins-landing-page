@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  Undo2, 
-  Redo2, 
-  Plus, 
-  Trash2, 
-  Navigation, 
-  Save, 
+import {
+  Undo2,
+  Redo2,
+  Plus,
+  Trash2,
+  Navigation,
+  Save,
   Share2,
   Menu,
   X,
@@ -16,7 +16,7 @@ import {
   Send,
   MapPin,
   Search,
-  Sparkles
+  FileText
 } from 'lucide-react';
 
 interface FreshRouteToolbarProps {
@@ -149,14 +149,14 @@ const FreshRouteToolbar: React.FC<FreshRouteToolbarProps> = ({
           {onToggleTemplates && (
             <button
               onClick={onToggleTemplates}
-              className={`p-2 rounded transition-all ${ 
-                showTemplates 
-                  ? 'bg-purple-100 text-purple-600 hover:bg-purple-200' 
+              className={`p-2 rounded transition-all ${
+                showTemplates
+                  ? 'bg-purple-100 text-purple-600 hover:bg-purple-200'
                   : 'hover:bg-gray-100'
               }`}
               title="Trip Templates"
             >
-              <Sparkles className="w-4 h-4" />
+              <FileText className="w-4 h-4" />
             </button>
           )}
           {onSearchLocation && (
