@@ -768,12 +768,12 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               clearTimeout(conversationEndTimeoutRef.current);
             }
 
-            // Start 5-second silence timeout
-            logger.debug('🔇 Both silent - starting 5s conversation end timer');
+            // Start 10-second silence timeout (gives user time to respond after PAM speaks)
+            logger.debug('🔇 Both silent - starting 10s conversation end timer');
             conversationEndTimeoutRef.current = setTimeout(() => {
-              logger.info('⏱️ Conversation ended (5s silence) - auto-switching to wake word');
+              logger.info('⏱️ Conversation ended (10s silence) - auto-switching to wake word');
               stopContinuousVoiceMode();
-            }, 5000); // 5 seconds of silence
+            }, 10000); // 10 seconds of silence
           } else {
             // User is speaking or PAM is speaking - clear timeout
             if (conversationEndTimeoutRef.current) {
