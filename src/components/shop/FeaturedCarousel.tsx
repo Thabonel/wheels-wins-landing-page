@@ -1,6 +1,5 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Star } from "lucide-react";
 import { ShopProduct } from "./types";
 import { Region } from "@/context/RegionContext";
 
@@ -11,11 +10,10 @@ interface FeaturedCarouselProps {
 
 export default function FeaturedCarousel({ products, region }: FeaturedCarouselProps) {
   const featuredProducts = products.slice(0, 3);
-  
+
   return (
     <div className="mb-8 bg-blue-50 p-6 rounded-xl">
-      <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-        <Star className="text-yellow-500" />
+      <h2 className="text-xl font-semibold mb-4">
         Top Picks for {region}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

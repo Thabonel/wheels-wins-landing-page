@@ -3,7 +3,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Sparkles,
   TrendingUp,
   Users,
   Cloud,
@@ -230,7 +229,7 @@ export default function PAMTripSuggestions({
       {filteredSuggestions.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-primary" />
+            <Brain className="w-4 h-4 text-primary" />
             <h3 className="font-medium text-sm">PAM Suggestions</h3>
             <Badge variant="secondary" className="text-xs">
               {filteredSuggestions.length} active

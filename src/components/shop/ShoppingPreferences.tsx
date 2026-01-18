@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useShoppingProfile } from "@/hooks/useShoppingProfile";
 import { usePersonalizedRecommendations } from "@/hooks/usePersonalizedRecommendations";
-import { Sparkles } from "lucide-react";
 
 type TravelStyle = 'budget' | 'mid-range' | 'luxury' | 'adventure' | 'business' | 'leisure';
 
@@ -148,10 +147,7 @@ export default function ShoppingPreferences() {
                   Saving...
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Save Preferences
-                </>
+                'Save Preferences'
               )}
             </Button>
           </div>

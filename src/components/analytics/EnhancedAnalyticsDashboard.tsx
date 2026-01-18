@@ -52,7 +52,6 @@ import {
   Navigation,
   Brain,
   Target,
-  Sparkles,
   BarChart3,
   PieChart as PieChartIcon,
   LineChart as LineChartIcon
@@ -1079,8 +1078,7 @@ export const EnhancedAnalyticsDashboard: React.FC = () => {
           </Card>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center">
-                <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+              <CardTitle className="text-sm">
                 Insights
               </CardTitle>
             </CardHeader>

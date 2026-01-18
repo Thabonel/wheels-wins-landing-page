@@ -19,7 +19,6 @@ import {
   Heart,
   Clock,
   FileText,
-  Sparkles,
   Shield,
   Phone
 } from 'lucide-react';
@@ -304,12 +303,12 @@ How can I help you today?`,
           <Info className="h-4 w-4 mr-2" />
           Medication Info
         </Button>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
           onClick={() => setInput('Travel health tips for RV living')}
         >
-          <Sparkles className="h-4 w-4 mr-2" />
+          <Heart className="h-4 w-4 mr-2" />
           Travel Health
         </Button>
       </div>

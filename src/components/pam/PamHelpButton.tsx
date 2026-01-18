@@ -139,10 +139,7 @@ export const PamHelpButton: React.FC<PamHelpButtonProps> = ({
             align="end"
           >
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm flex items-center space-x-2">
-                <Sparkles size={14} className="text-purple-500" />
-                <span>PAM Assistant</span>
-              </h4>
+              <h4 className="font-semibold text-sm">PAM Assistant</h4>
               <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
                 {helpText || `I can help you with the ${page} section. Click to get personalized assistance!`}
               </p>

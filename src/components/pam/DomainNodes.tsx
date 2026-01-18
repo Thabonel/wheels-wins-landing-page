@@ -5,13 +5,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { 
-  MapPin, 
-  DollarSign, 
-  ShoppingBag, 
-  Users, 
-  Brain, 
-  Sparkles,
+import {
+  MapPin,
+  DollarSign,
+  ShoppingBag,
+  Users,
+  Brain,
+  Check,
   ChevronRight,
   Loader2
 } from 'lucide-react';
@@ -185,7 +185,7 @@ const DomainNodeCard: React.FC<DomainNodeCardProps> = ({ node, isActive, onClick
               <div className="space-y-1">
                 {node.capabilities.slice(0, 3).map((capability, index) => (
                   <div key={index} className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-                    <Sparkles size={12} className="text-blue-500" />
+                    <Check size={12} className="text-blue-500" />
                     <span>{capability}</span>
                   </div>
                 ))}
