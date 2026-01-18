@@ -5,7 +5,7 @@
  */
 
 import React, { Component, ReactNode, ErrorInfo } from 'react';
-import { AlertCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { AlertCircle, RefreshCw, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -169,10 +169,7 @@ export class PamErrorBoundary extends Component<Props, State> {
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-600">
-            <AlertCircle className="w-5 h-5" />
-            PAM Assistant Unavailable
-          </CardTitle>
+          <CardTitle className="text-red-600">PAM Assistant Unavailable</CardTitle>
           <CardDescription>
             {errorType} • {lastErrorTime?.toLocaleTimeString()}
           </CardDescription>

@@ -30,6 +30,30 @@ When coding:
 - Ensure error handling is complete
 - Verify the solution matches the original request fully
 
+### Code Simplifier Protocol
+
+Run the `code-simplifier` agent regularly to maintain code clarity and consistency:
+
+**When to run:**
+- After completing a feature or significant code changes
+- Before creating a PR
+- Weekly on actively developed areas
+- When revisiting code that feels cluttered or complex
+
+**How to invoke:**
+```
+Task tool with subagent_type: "code-simplifier:code-simplifier"
+```
+
+**What it does:**
+- Simplifies and refines code for clarity
+- Ensures consistency across the codebase
+- Improves maintainability while preserving functionality
+- Focuses on recently modified code by default
+
+**Example prompt:**
+"Review and simplify the recently modified files in src/components/pam/"
+
 ---
 
 ## 🚨 CRITICAL: Read Before PAM/Database Work

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { captureException, captureMessage, addBreadcrumb, setContext, setTag } from '@/lib/sentry';
-import { Shield, AlertTriangle, CheckCircle, Bug, MessageSquare, Activity } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Bug, MessageSquare, Activity } from 'lucide-react';
 
 export function SentryDemo() {
   const [lastAction, setLastAction] = useState<string>('');
@@ -63,12 +63,9 @@ export function SentryDemo() {
   return (
     <Card className="w-full max-w-2xl">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-blue-600" />
-          Sentry Error Monitoring Demo
-          <Badge variant="outline" className="ml-auto">
-            Development Tool
-          </Badge>
+        <CardTitle className="flex items-center justify-between">
+          <span>Sentry Error Monitoring Demo</span>
+          <Badge variant="outline">Development Tool</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

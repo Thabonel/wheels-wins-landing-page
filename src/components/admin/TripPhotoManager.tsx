@@ -12,11 +12,7 @@ import {
   Trash2,
   Plus,
   RefreshCw,
-  X,
-  Camera,
-  Link,
-  Check,
-  AlertCircle
+  Camera
 } from 'lucide-react';
 
 interface TripPhotoManagerProps {
@@ -280,10 +276,7 @@ const TripPhotoManager: React.FC<TripPhotoManagerProps> = ({
       {/* Upload Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload Photos
-          </CardTitle>
+          <CardTitle>Upload Photos</CardTitle>
           <CardDescription>
             Drag and drop photos or click to browse. Photos will be uploaded to Supabase storage.
           </CardDescription>
@@ -325,10 +318,7 @@ const TripPhotoManager: React.FC<TripPhotoManagerProps> = ({
       {/* Add Photo by URL */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Link className="h-5 w-5" />
-            Add Photo by URL
-          </CardTitle>
+          <CardTitle>Add Photo by URL</CardTitle>
           <CardDescription>
             Add photos that are already hosted online (including existing Supabase photos)
           </CardDescription>
@@ -410,10 +400,7 @@ const TripPhotoManager: React.FC<TripPhotoManagerProps> = ({
       {/* Quick Reference */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            Quick Reference
-          </CardTitle>
+          <CardTitle>Quick Reference</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p><strong>Storage Location:</strong> Photos are stored in the Supabase 'trip-images' bucket</p>

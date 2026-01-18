@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, DollarSign, TrendingUp, Calendar } from 'lucide-react';
+import { Plus, DollarSign, TrendingUp } from 'lucide-react';
 import { ModificationCard } from './ModificationCard';
 import { AddModificationDialog } from './AddModificationDialog';
 import { ModificationTimeline } from './ModificationTimeline';
@@ -399,10 +399,7 @@ export const VehicleModifications: React.FC = () => {
         <TabsContent value="timeline" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Installation Timeline
-              </CardTitle>
+              <CardTitle>Installation Timeline</CardTitle>
             </CardHeader>
             <CardContent>
               <ModificationTimeline

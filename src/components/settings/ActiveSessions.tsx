@@ -2,7 +2,7 @@ import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, MapPin, Clock, Trash2, Shield } from 'lucide-react';
+import { Monitor, MapPin, Clock, Trash2 } from 'lucide-react';
 import { useActiveSessions } from '@/hooks/useActiveSessions';
 
 export const ActiveSessions = () => {
@@ -51,10 +51,7 @@ export const ActiveSessions = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5" />
-          Active Sessions
-        </CardTitle>
+        <CardTitle>Active Sessions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {activeSessions.length === 0 ? (

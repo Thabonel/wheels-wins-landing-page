@@ -2,7 +2,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Globe } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const RegionalSettings = () => {
@@ -12,10 +11,7 @@ export const RegionalSettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            Regional
-          </CardTitle>
+          <CardTitle>Regional</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4">Loading regional settings...</div>
@@ -28,10 +24,7 @@ export const RegionalSettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            Regional
-          </CardTitle>
+          <CardTitle>Regional</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-gray-600">

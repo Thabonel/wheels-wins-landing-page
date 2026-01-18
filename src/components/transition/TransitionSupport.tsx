@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Smile, Frown, Meh, Heart, Loader2, Trophy, Shield, MessageCircle, AlertCircle, Sparkles, Users } from 'lucide-react';
+import { Smile, Frown, Meh, Heart, Loader2, Trophy, Shield, MessageCircle, AlertCircle, Sparkles } from 'lucide-react';
 
 interface MoodCheckIn {
   id: string;
@@ -399,10 +399,7 @@ export function TransitionSupport() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Heart className="h-6 w-6 text-red-500" />
-          Transition Support
-        </CardTitle>
+        <CardTitle>Transition Support</CardTitle>
         <CardDescription>
           Emotional and psychological support for your journey
         </CardDescription>

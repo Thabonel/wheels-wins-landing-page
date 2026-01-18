@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronRight, Plus, Pencil } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -88,10 +88,7 @@ export function TransitionChecklist({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5" />
-            Transition Checklist
-          </CardTitle>
+          <CardTitle>Transition Checklist</CardTitle>
           <Button onClick={onAddTask} size="sm" variant="outline">
             <Plus className="h-4 w-4 mr-1" />
             Add Task

@@ -2,7 +2,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Network } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const IntegrationSettings = () => {
@@ -12,10 +11,7 @@ export const IntegrationSettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Network className="h-5 w-5" />
-            Integrations
-          </CardTitle>
+          <CardTitle>Integrations</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4">Loading integration settings...</div>
@@ -28,10 +24,7 @@ export const IntegrationSettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Network className="h-5 w-5" />
-            Integrations
-          </CardTitle>
+          <CardTitle>Integrations</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-gray-600">

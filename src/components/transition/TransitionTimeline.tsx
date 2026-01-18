@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flag, CheckCircle2, Circle, Calendar } from 'lucide-react';
+import { CheckCircle2, Circle, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { TransitionTimeline as TimelineEvent, MilestoneType } from '@/types/transition.types';
@@ -92,10 +92,7 @@ export function TransitionTimeline({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Flag className="h-5 w-5" />
-            Milestone Timeline
-          </CardTitle>
+          <CardTitle>Milestone Timeline</CardTitle>
           <Button onClick={onAddMilestone} size="sm" variant="outline">
             Add Milestone
           </Button>

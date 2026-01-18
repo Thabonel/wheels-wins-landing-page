@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Clock, RefreshCw, AlertTriangle } from 'lucide-react';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface PAMTimeoutHandlerProps {
   children: React.ReactNode;
@@ -143,7 +143,6 @@ const PAMTimeoutHandler: React.FC<PAMTimeoutHandlerProps> = ({
       <Card className="max-w-md mx-auto border-orange-200 bg-orange-50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-orange-800">
-            <Clock className="h-5 w-5" />
             Connection Timeout
             <Badge variant="outline" className="ml-auto">
               Attempt {retryCount + 1}/{maxRetries + 1}

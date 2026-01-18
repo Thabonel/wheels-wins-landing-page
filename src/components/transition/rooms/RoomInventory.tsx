@@ -4,7 +4,7 @@ import { RoomDetail } from "./RoomDetail";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Home, TrendingUp, DollarSign } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import type { TransitionRoom, DownsizingStats } from "@/types/transition.types";
 
 export function RoomInventory() {
@@ -97,10 +97,7 @@ export function RoomInventory() {
       {stats && !loading && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Overall Progress
-            </CardTitle>
+            <CardTitle>Overall Progress</CardTitle>
             <CardDescription>
               Your downsizing journey across all rooms
             </CardDescription>

@@ -13,7 +13,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertTriangle,
-  Bot,
   Send,
   Loader2,
   Info,
@@ -266,10 +265,7 @@ How can I help you today?`,
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5" />
-                AI Health Information Assistant
-              </CardTitle>
+              <CardTitle>AI Health Information Assistant</CardTitle>
               <CardDescription>
                 Get health information and prepare for medical appointments
               </CardDescription>

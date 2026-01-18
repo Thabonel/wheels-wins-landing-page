@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Shield, QrCode, Copy } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { useTwoFactorAuth } from '@/hooks/useTwoFactorAuth';
 import { toast } from 'sonner';
 import QRCode from 'qrcode';
@@ -79,10 +79,7 @@ export const TwoFactorAuth = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5" />
-          Two-Factor Authentication
-        </CardTitle>
+        <CardTitle>Two-Factor Authentication</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {!twoFactorData?.enabled && !showSetup && (

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { BarChart3, Users, Activity, TrendingUp, Zap } from 'lucide-react';
+import { BarChart3, Users, Activity, TrendingUp } from 'lucide-react';
 
 interface AnalyticsData {
   totalUsers: number;
@@ -177,10 +177,7 @@ export function AnalyticsDashboard() {
         {/* Real-time Interactions */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5" />
-              Real-time Interactions
-            </CardTitle>
+            <CardTitle>Real-time Interactions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">

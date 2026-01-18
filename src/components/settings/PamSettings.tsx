@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Brain, Mic, BookOpen, Lightbulb } from 'lucide-react';
+import { Mic, BookOpen, Lightbulb } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
 export const PamSettings = () => {
@@ -32,10 +32,7 @@ export const PamSettings = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Brain className="h-5 w-5" />
-          Pam AI Assistant
-        </CardTitle>
+        <CardTitle>Pam AI Assistant</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">

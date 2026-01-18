@@ -2,7 +2,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, Sparkles, TrendingUp, Calendar } from "lucide-react";
 import { ShopProduct } from "./types";
 import ProductCard from "./ProductCard";
 import { usePersonalizedRecommendations } from "@/hooks/usePersonalizedRecommendations";
@@ -19,7 +18,6 @@ export default function PamRecommendations({ onExternalLinkClick, onBuyProduct }
   const { trackProductInteraction } = useShoppingAnalytics();
 
   useEffect(() => {
-    // Generate recommendations if we don't have any
     if (recommendations.length === 0) {
       generateRecommendations();
     }
@@ -31,19 +29,6 @@ export default function PamRecommendations({ onExternalLinkClick, onBuyProduct }
       interactionType: 'click',
       contextData: { section: 'pam_recommendations' }
     });
-  };
-
-  const getRecommendationIcon = (type: string) => {
-    switch (type) {
-      case 'trending':
-        return <TrendingUp className="w-4 h-4" />;
-      case 'seasonal':
-        return <Calendar className="w-4 h-4" />;
-      case 'pam_pick':
-        return <Star className="w-4 h-4" />;
-      default:
-        return <Sparkles className="w-4 h-4" />;
-    }
   };
 
   const getRecommendationLabel = (type: string) => {
@@ -67,10 +52,7 @@ export default function PamRecommendations({ onExternalLinkClick, onBuyProduct }
       <div className="mb-8">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-600" />
-              Pam's Personalized Picks
-            </CardTitle>
+            <CardTitle>Pam's Personalized Picks</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center py-8">
@@ -85,21 +67,16 @@ export default function PamRecommendations({ onExternalLinkClick, onBuyProduct }
 
   return (
     <div className="mb-8 space-y-6">
-      {/* Pam's Top Picks */}
       <Card className="border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-purple-600" />
-              Pam's Top Picks for You
-            </CardTitle>
-            <Button 
-              variant="outline" 
+            <CardTitle>Pam's Top Picks for You</CardTitle>
+            <Button
+              variant="outline"
               size="sm"
               onClick={generateRecommendations}
               className="text-purple-600 border-purple-300 hover:bg-purple-50"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
               Refresh
             </Button>
           </div>
@@ -114,14 +91,13 @@ export default function PamRecommendations({ onExternalLinkClick, onBuyProduct }
               return (
                 <div key={product.id} className="relative" onClick={() => handleProductClick(product)}>
                   {recommendation && (
-                    <Badge 
+                    <Badge
                       className="absolute -top-2 -right-2 z-10 bg-purple-600 hover:bg-purple-700"
                     >
-                      {getRecommendationIcon(recommendation.recommendationType)}
-                      <span className="ml-1">{getRecommendationLabel(recommendation.recommendationType)}</span>
+                      {getRecommendationLabel(recommendation.recommendationType)}
                     </Badge>
                   )}
-                  <ProductCard 
+                  <ProductCard
                     product={product}
                     onExternalLinkClick={onExternalLinkClick}
                     onBuyProduct={onBuyProduct}
@@ -133,20 +109,16 @@ export default function PamRecommendations({ onExternalLinkClick, onBuyProduct }
         </CardContent>
       </Card>
 
-      {/* Trending Now */}
       {trendingProducts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-orange-600" />
-              Trending with Travelers Like You
-            </CardTitle>
+            <CardTitle>Trending with Travelers Like You</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {trendingProducts.map((product) => (
                 <div key={product.id} onClick={() => handleProductClick(product)}>
-                  <ProductCard 
+                  <ProductCard
                     product={product}
                     onExternalLinkClick={onExternalLinkClick}
                     onBuyProduct={onBuyProduct}

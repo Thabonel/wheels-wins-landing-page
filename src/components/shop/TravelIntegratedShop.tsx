@@ -7,7 +7,7 @@ import { useShopWheelsIntegration } from '@/lib/shopWheelsIntegration';
 import { useWheels } from '@/context/WheelsContext';
 import TravelProductGrid from './TravelProductGrid';
 import { ShopProduct } from './types';
-import { MapPin, Calendar, Wrench, Shield, Fuel } from 'lucide-react';
+import { Calendar, Wrench, Shield, MapPin, Fuel } from 'lucide-react';
 
 export default function TravelIntegratedShop() {
   const integration = useShopWheelsIntegration();
@@ -109,10 +109,7 @@ export default function TravelIntegratedShop() {
       {wheelsState.currentTrip && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
-              Current Trip Context
-            </CardTitle>
+            <CardTitle>Current Trip Context</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -171,10 +168,7 @@ export default function TravelIntegratedShop() {
       {efficiencyReport && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Fuel className="w-5 h-5" />
-              Travel Efficiency Impact
-            </CardTitle>
+            <CardTitle>Travel Efficiency Impact</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

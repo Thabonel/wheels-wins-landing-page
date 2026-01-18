@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useShoppingProfile } from "@/hooks/useShoppingProfile";
 import { usePersonalizedRecommendations } from "@/hooks/usePersonalizedRecommendations";
-import { Settings, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 type TravelStyle = 'budget' | 'mid-range' | 'luxury' | 'adventure' | 'business' | 'leisure';
 
@@ -63,10 +63,7 @@ export default function ShoppingPreferences() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Shopping Preferences
-          </CardTitle>
+          <CardTitle>Shopping Preferences</CardTitle>
           <p className="text-sm text-gray-600">
             Help Pam understand your travel style and preferences for better recommendations
           </p>

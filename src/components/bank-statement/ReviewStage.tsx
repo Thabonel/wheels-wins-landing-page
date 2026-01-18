@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Eye, EyeOff, CheckCircle, AlertCircle, TrendingUp, TrendingDown, DollarSign, Calendar, Tag } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, TrendingUp, TrendingDown, Calendar, Tag } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -269,10 +269,7 @@ export const ReviewStage: React.FC<ReviewStageProps> = ({ transactions, onImport
       ) : (
         <Card className="border-primary">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-primary" />
-              Confirm Import
-            </CardTitle>
+            <CardTitle>Confirm Import</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>

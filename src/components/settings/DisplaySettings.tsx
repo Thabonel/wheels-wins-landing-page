@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Monitor } from 'lucide-react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useTranslation } from 'react-i18next';
@@ -17,10 +16,7 @@ export const DisplaySettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Monitor className="h-5 w-5" />
-            Display
-          </CardTitle>
+          <CardTitle>Display</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4">Loading display settings...</div>
@@ -33,10 +29,7 @@ export const DisplaySettings = () => {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Monitor className="h-5 w-5" />
-            Display
-          </CardTitle>
+          <CardTitle>Display</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-gray-600">

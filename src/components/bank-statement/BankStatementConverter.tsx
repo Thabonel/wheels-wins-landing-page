@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Shield, Lock, Eye, AlertTriangle, CheckCircle, FileText, Upload } from 'lucide-react';
+import { Shield, Lock, Eye, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 import { UploadStage } from './UploadStage';
 import { ProcessingStage } from './ProcessingStage';
 import { ReviewStage } from './ReviewStage';
@@ -269,10 +269,7 @@ export const BankStatementConverter: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <Card className="max-w-2xl w-full">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-6 h-6 text-green-600" />
-                Your Privacy is Our Priority
-              </CardTitle>
+              <CardTitle>Your Privacy is Our Priority</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Alert>

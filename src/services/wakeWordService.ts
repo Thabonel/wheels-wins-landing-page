@@ -26,6 +26,8 @@ class WakeWordService {
   private restartTimeout: NodeJS.Timeout | null = null;
   private shouldRestart: boolean = true;
   private lastError: string | null = null;
+  private lastDetectionTime: number = 0;
+  private static readonly DEBOUNCE_MS = 2000; // Prevent rapid re-triggering
 
   /**
    * Check if wake word detection is supported in this browser
@@ -61,7 +63,7 @@ class WakeWordService {
 
       // Configure for wake word detection
       this.recognition.continuous = true; // Keep listening
-      this.recognition.interimResults = true; // Get partial results for faster response
+      this.recognition.interimResults = false; // Only process final results to prevent double-detection
       this.recognition.lang = 'en-US';
       this.recognition.maxAlternatives = 1;
 
@@ -80,7 +82,14 @@ class WakeWordService {
         const wakeWordDetected = this.checkWakeWord(transcript, confidence);
 
         if (wakeWordDetected) {
-          logger.info(`✨ Wake word detected: "${transcript}"`);
+          // Debounce: skip if triggered too recently
+          const now = Date.now();
+          if (now - this.lastDetectionTime < WakeWordService.DEBOUNCE_MS) {
+            logger.debug(`🔇 Debounced wake word (${now - this.lastDetectionTime}ms since last)`);
+            return;
+          }
+          this.lastDetectionTime = now;
+          logger.info(`Wake word detected: "${transcript}"`);
           this.options?.onWakeWordDetected();
         }
       };
@@ -181,17 +190,18 @@ class WakeWordService {
   private checkWakeWord(transcript: string, confidence: number): boolean {
     if (!this.options) return false;
 
-    const minConfidence = this.options.confidence ?? 0.7;
+    // Higher threshold (0.85) reduces false positives from ambient noise
+    const minConfidence = this.options.confidence ?? 0.85;
 
     // Check confidence threshold
     if (confidence < minConfidence) {
-      logger.debug(`🔇 Confidence ${confidence.toFixed(2)} below threshold ${minConfidence}`);
+      logger.debug(`Confidence ${confidence.toFixed(2)} below threshold ${minConfidence}`);
       return false;
     }
 
     // Normalize transcript
     const normalizedTranscript = transcript.replace(/[,.\s]+/g, ' ').trim();
-    logger.debug(`🔍 Checking normalized: "${normalizedTranscript}"`);
+    logger.debug(`Checking normalized: "${normalizedTranscript}"`);
 
     // All PAM wake word variations - any greeting + "pam"
     const pamWakeWords = [
@@ -208,12 +218,12 @@ class WakeWordService {
       'okay pam'
     ];
 
-    // Check if transcript matches any wake word pattern
+    // Strict matching: only exact match or starts with wake word
+    // Removed containsWakeWord to prevent false positives from partial phrases
     return pamWakeWords.some(wakeWord => {
       const exactMatch = normalizedTranscript === wakeWord;
       const startsWithWakeWord = normalizedTranscript.startsWith(wakeWord + ' ');
-      const containsWakeWord = normalizedTranscript.includes(wakeWord);
-      return exactMatch || startsWithWakeWord || containsWakeWord;
+      return exactMatch || startsWithWakeWord;
     });
   }
 

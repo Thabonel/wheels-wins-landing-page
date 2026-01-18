@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Shield, Heart, Users, Activity } from 'lucide-react';
+import { Users, Activity } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,10 +20,7 @@ export const PersonalizedSafetyCard = () => {
       {genderIdentity === 'Woman' && (
         <Card className="bg-blue-50 border-blue-200">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-blue-600" />
-              Additional Resources for Women Solo Travelers
-            </CardTitle>
+            <CardTitle>Additional Resources for Women Solo Travelers</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -87,10 +84,7 @@ export const PersonalizedSafetyCard = () => {
       {genderIdentity === 'Man' && (
         <Card className="bg-green-50 border-green-200">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5 text-green-600" />
-              Additional Resources for Men Solo Travelers
-            </CardTitle>
+            <CardTitle>Additional Resources for Men Solo Travelers</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>

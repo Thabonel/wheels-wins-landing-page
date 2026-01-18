@@ -19,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  History,
   Search,
   Calendar,
   AlertTriangle,
@@ -112,10 +111,7 @@ export default function ConsultationHistory() {
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Consultation History
-              </CardTitle>
+              <CardTitle>Consultation History</CardTitle>
               <CardDescription>
                 Review your past health information queries
               </CardDescription>

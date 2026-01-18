@@ -11,7 +11,6 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  BarChart3,
   Download,
   RefreshCw,
   TestTube,
@@ -201,10 +200,7 @@ const IntegrationTestingDashboard = () => {
       {summary.total > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Test Summary
-            </CardTitle>
+            <CardTitle>Test Summary</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
