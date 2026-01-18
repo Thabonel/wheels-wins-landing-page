@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getUserRegion } from '@/services/locationDetectionService';
+import { getUserRegion, cacheDetectedRegion } from '@/services/locationDetectionService';
+import { supabase } from '@/integrations/supabase/client';
 
 export type Region = 'Australia' | 'New Zealand' | 'United States' | 'Canada' | 'United Kingdom' | 'Rest of the World';
 
@@ -62,11 +63,37 @@ const RegionContext = createContext<RegionContextType | undefined>(undefined);
 export const RegionProvider = ({ children }: { children: React.ReactNode }) => {
   const [region, setRegion] = useState<Region>('Rest of the World');
   const [isDetecting, setIsDetecting] = useState(true);
-  
-  // Auto-detect user's region on mount
+
+  // Auto-detect user's region on mount, preferring profile region for logged-in users
   useEffect(() => {
     async function detectRegion() {
       try {
+        // First, check if user is logged in and has a region in their profile
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session?.user?.id) {
+          // Cast to any to bypass generated types that may not include region column
+          const { data: profile, error } = await (supabase as any)
+            .from('profiles')
+            .select('region')
+            .eq('id', session.user.id)
+            .single();
+
+          if (!error && profile?.region) {
+            // Validate that the profile region is a valid Region type
+            const validRegions: Region[] = ['Australia', 'New Zealand', 'United States', 'Canada', 'United Kingdom', 'Rest of the World'];
+            const profileRegion = profile.region as string;
+            if (validRegions.includes(profileRegion as Region)) {
+              console.log(`Using profile region: ${profileRegion}`);
+              setRegion(profileRegion as Region);
+              cacheDetectedRegion(profileRegion as Region);
+              setIsDetecting(false);
+              return;
+            }
+          }
+        }
+
+        // Fallback to IP-based detection if not logged in or no profile region
         const detectedRegion = await getUserRegion();
         setRegion(detectedRegion);
       } catch (error) {
@@ -76,7 +103,7 @@ export const RegionProvider = ({ children }: { children: React.ReactNode }) => {
         setIsDetecting(false);
       }
     }
-    
+
     detectRegion();
   }, []);
   
