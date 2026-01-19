@@ -231,6 +231,32 @@ class PAM:
         )
         return self.default_anthropic_model
 
+    def _get_current_datetime_for_user(self) -> str:
+        """
+        Get current date/time in user's timezone for system prompt.
+
+        This is critical for correct interpretation of relative dates like "today", "tomorrow".
+        Without timezone-aware dates, a user in Sydney saying "today at 2pm" could get
+        an event created for "yesterday" because the server is in UTC.
+
+        Returns:
+            String like "2026-01-20 09:30 (Australia/Sydney)" or "2026-01-20 09:30 (UTC)"
+        """
+        from zoneinfo import ZoneInfo
+
+        # Check if timezone is in user context
+        tz_str = self.user_context.get('timezone')
+        if tz_str:
+            try:
+                user_tz = ZoneInfo(tz_str)
+                user_now = datetime.now(user_tz)
+                return f"{user_now.strftime('%Y-%m-%d %H:%M')} ({tz_str})"
+            except Exception as e:
+                logger.warning(f"Invalid timezone '{tz_str}': {e}")
+
+        # Fallback to UTC
+        return f"{datetime.now().strftime('%Y-%m-%d %H:%M')} (UTC - timezone not detected)"
+
     def _build_system_prompt(self) -> str:
         """
         Build PAM's system prompt with security and personality
@@ -409,7 +435,7 @@ The user pays AU$14/month for your service. Your job is to save them MORE than t
 - Periodically remind users about their monthly savings: "You've saved $X this month so far!"
 - Your goal is to make yourself FREE by saving users more than their subscription cost.
 
-**Current date:** {datetime.now().strftime("%Y-%m-%d")}
+**Current date and time:** {self._get_current_datetime_for_user()}
 
 {self._build_user_context_section()}
 
