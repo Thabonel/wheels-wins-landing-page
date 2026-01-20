@@ -1,6 +1,5 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { getPublicAssetUrl } from "@/utils/publicAssets";
 
 const PamSpotlight = () => {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -89,7 +88,7 @@ const PamSpotlight = () => {
               {/* Video container with organic border */}
               <div className="relative rounded-[2rem] overflow-hidden shadow-warm-lg border-4 border-card">
                 <video
-                  src={getPublicAssetUrl("images/Pam.mp4")}
+                  src="/images/Pam.mp4"
                   autoPlay
                   loop
                   muted
