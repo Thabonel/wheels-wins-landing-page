@@ -15,6 +15,30 @@
 - Simple hyphens (-) not em-dashes (—)
 - Human, handcrafted feel - avoid generic "tech startup" look
 
+### Production Push Protection
+
+**NEVER push directly to production (main branch) without explicit approval.**
+
+**Required workflow:**
+1. Push to `staging` branch first
+2. Wait for user to test on staging
+3. Only push to `main` (production) after user types **"yes"** or **"approve"**
+
+**What counts as approval:**
+- "yes" - APPROVED
+- "approve" - APPROVED
+- "approved" - APPROVED
+
+**What does NOT count as approval:**
+- "go" - NOT sufficient
+- "ok" - NOT sufficient
+- "do it" - NOT sufficient
+- "sure" - NOT sufficient
+- "push it" - NOT sufficient
+
+**If user says anything other than explicit approval words, ASK:**
+> "Ready to push to production? Please confirm with 'yes' when you've tested on staging."
+
 ### Ralph Loop Protocol
 
 After completing any task:
