@@ -73,14 +73,33 @@ export default function TripPlannerApp() {
       try {
         const template = JSON.parse(templateData) as TripTemplate;
         console.log('📦 Loading template from sessionStorage:', template.name);
-        
+
         // Clear the sessionStorage to prevent reloading on refresh
         sessionStorage.removeItem('selectedTripTemplate');
-        
+
         // Apply the template
         handleUseTemplate(template);
       } catch (error) {
         console.error('Error loading template from sessionStorage:', error);
+      }
+    }
+  }, []);
+
+  // Check for saved trip to load (from My Trips)
+  useEffect(() => {
+    const savedTripData = sessionStorage.getItem('loadTripData');
+    if (savedTripData) {
+      try {
+        const tripData = JSON.parse(savedTripData);
+        console.log('📦 Loading saved trip from sessionStorage:', tripData.title);
+
+        // Clear sessionStorage to prevent reloading on refresh
+        sessionStorage.removeItem('loadTripData');
+
+        // Load the saved trip
+        handleLoadSavedTrip(tripData);
+      } catch (error) {
+        console.error('Error loading saved trip from sessionStorage:', error);
       }
     }
   }, []);
@@ -129,12 +148,52 @@ export default function TripPlannerApp() {
       title: "Template Applied",
       description: `${template.name} has been loaded. ${template.route ? 'Route and waypoints have been set on the map.' : 'Customize it to your needs!'}`
     });
-    
+
     setActiveTab('plan-trip');
     setIsPlannerInitialized(true);
   };
 
+  const handleLoadSavedTrip = (tripData: { id: string; title: string; description?: string; metadata?: any }) => {
+    // Create a template-like structure from saved trip data
+    const tripAsTemplate: TripTemplate = {
+      id: tripData.id,
+      name: tripData.title,
+      description: tripData.description || '',
+      category: 'saved',
+      difficulty: 'intermediate',
+      estimatedDays: tripData.metadata?.estimatedDays || 1,
+      estimatedMiles: tripData.metadata?.estimatedMiles || 0,
+      suggestedBudget: tripData.metadata?.suggestedBudget || 0,
+      tags: tripData.metadata?.tags || [],
+      highlights: tripData.metadata?.highlights || [],
+      route: tripData.metadata?.route || tripData.metadata || null,
+      region: tripData.metadata?.region || 'Rest of the World',
+      usageCount: 0,
+      isPublic: false
+    };
 
+    setSelectedTemplate(tripAsTemplate);
+
+    // Extract route data from metadata if available
+    if (tripData.metadata) {
+      const { origin, destination, waypoints } = tripData.metadata;
+      if (origin || destination || waypoints) {
+        setRouteData({
+          origin: origin || null,
+          destination: destination || null,
+          waypoints: waypoints || []
+        });
+      }
+    }
+
+    toast({
+      title: "Trip Loaded",
+      description: `${tripData.title} has been loaded into the map.`
+    });
+
+    setActiveTab('plan-trip');
+    setIsPlannerInitialized(true);
+  };
 
   // Welcome screen for non-authenticated users
   if (showWelcome) {
