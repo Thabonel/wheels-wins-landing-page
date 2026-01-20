@@ -86,15 +86,18 @@ const PamSpotlight = () => {
                 />
               </svg>
 
-              {/* Image container with organic border */}
+              {/* Video container with organic border */}
               <div className="relative rounded-[2rem] overflow-hidden shadow-warm-lg border-4 border-card">
-                <img
-                  src={getPublicAssetUrl("Pam.webp")}
-                  alt="Pam AI Assistant"
+                <video
+                  src={getPublicAssetUrl("images/Pam.mp4")}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
                   className="w-full h-auto object-cover aspect-square"
                 />
                 {/* Subtle gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent pointer-events-none" />
               </div>
             </div>
           </motion.div>
