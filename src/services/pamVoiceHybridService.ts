@@ -414,8 +414,21 @@ export class PAMVoiceHybridService {
       // CHAT-SUPERVISOR PATTERN: Tool Call Handling
       // OpenAI decides when to delegate to Claude
       // =====================================================
+      case 'response.function_call_arguments.delta':
+        // Accumulate streaming function call arguments (OpenAI sends in chunks)
+        if (message.call_id && message.delta) {
+          const currentArgs = this.functionCallArguments.get(message.call_id) || '';
+          this.functionCallArguments.set(message.call_id, currentArgs + message.delta);
+          logger.debug('[PAMVoiceHybrid] 📦 Accumulating tool arguments:', {
+            callId: message.call_id,
+            chunkLength: message.delta.length,
+            totalLength: (currentArgs + message.delta).length
+          });
+        }
+        break;
+
       case 'response.function_call_arguments.done':
-        // OpenAI is calling our delegate_to_supervisor tool
+        // OpenAI finished sending arguments - process the accumulated data
         this.handleSupervisorToolCall(message);
         break;
 
@@ -467,7 +480,18 @@ export class PAMVoiceHybridService {
   private async handleSupervisorToolCall(message: any): Promise<void> {
     try {
       const callId = message.call_id;
-      const args = JSON.parse(message.arguments || '{}');
+
+      // Use accumulated arguments from streaming deltas, fallback to message.arguments
+      const argsString = this.functionCallArguments.get(callId) || message.arguments || '{}';
+      this.functionCallArguments.delete(callId); // Clean up after use
+
+      logger.debug('[PAMVoiceHybrid] 📦 Final tool arguments:', {
+        callId,
+        argsLength: argsString.length,
+        fromAccumulator: this.functionCallArguments.has(callId) === false
+      });
+
+      const args = JSON.parse(argsString);
 
       logger.info('[PAMVoiceHybrid] 🎯 Supervisor delegation requested:', {
         callId,
@@ -526,6 +550,9 @@ export class PAMVoiceHybridService {
 
   // Track pending supervisor calls
   private pendingSupervisorCallId: string | null = null;
+
+  // Accumulate streaming function call arguments (OpenAI sends in chunks)
+  private functionCallArguments: Map<string, string> = new Map();
 
   // =====================================================
   // CLAUDE BRIDGE WEBSOCKET
