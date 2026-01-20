@@ -2,6 +2,7 @@
 import PamSpotlight from "@/components/PamSpotlight";
 import TransitionNavigatorFeature from "@/components/TransitionNavigatorFeature";
 import HowItWorks from "@/components/HowItWorks";
+import FeatureTour from "@/components/FeatureTour";
 import FeaturedProduct from "@/components/FeaturedProduct";
 import Testimonials from "@/components/Testimonials";
 import CallToAction from "@/components/CallToAction";
@@ -15,6 +16,7 @@ const Index = () => {
       <PamSpotlight />
       <TransitionNavigatorFeature />
       <HowItWorks />
+      <FeatureTour />
       <FeaturedProduct />
       <PricingPlans />
       <FAQ />
