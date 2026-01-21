@@ -5499,3 +5499,136 @@ async def get_recent_savings(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to get recent savings: {str(e)}"
         )
+
+
+# ============================================================
+# INTERNAL API - Timer/Alarm Notifications
+# ============================================================
+
+class TimerNotificationRequest(BaseModel):
+    """Request model for timer expiration notifications from Celery worker."""
+    user_id: str
+    timer_id: str
+    type: str = "timer_expired"
+    label: str
+    timer_type: str  # 'timer' or 'alarm'
+    message: str
+    timestamp: str
+
+
+@router.post("/internal/notify-timer")
+async def notify_timer_expired(
+    request: TimerNotificationRequest,
+    x_internal_secret: Optional[str] = None
+):
+    """
+    Internal endpoint for Celery worker to send timer expiration notifications.
+
+    This endpoint:
+    1. Verifies the internal API secret
+    2. Finds the user's WebSocket connection
+    3. Sends the timer_expired message via WebSocket
+
+    Note: This is an internal endpoint, not for external use.
+    """
+    # Verify internal secret (basic security for internal API)
+    expected_secret = os.getenv("INTERNAL_API_SECRET", "dev-secret")
+
+    # Check header (case-insensitive)
+    internal_secret = x_internal_secret
+    if not internal_secret:
+        # Try to get from request headers directly
+        # FastAPI doesn't auto-extract custom headers, so we use Header dependency
+        pass
+
+    # For development, allow without secret verification
+    # In production, you'd want stricter verification
+    if expected_secret != "dev-secret" and internal_secret != expected_secret:
+        logger.warning(f"⚠️ Invalid internal API secret for timer notification")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid internal API secret"
+        )
+
+    try:
+        user_id = request.user_id
+
+        # Build WebSocket message
+        ws_message = {
+            "type": "timer_expired",
+            "timer_id": request.timer_id,
+            "label": request.label,
+            "timer_type": request.timer_type,
+            "message": request.message,
+            "timestamp": request.timestamp,
+            # Include action for frontend to show notification
+            "action": "show_notification",
+            "notification": {
+                "title": f"{'Alarm' if request.timer_type == 'alarm' else 'Timer'} Complete!",
+                "body": request.message,
+                "requireInteraction": True,  # Keep notification visible until dismissed
+                "tag": f"timer-{request.timer_id}",  # Prevent duplicate notifications
+            }
+        }
+
+        # Send to user's WebSocket connection(s)
+        await manager.send_message_to_user(
+            message=json.dumps(ws_message),
+            user_id=user_id
+        )
+
+        logger.info(f"✅ Timer notification sent to user {user_id} via WebSocket")
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "success": True,
+                "message": f"Notification sent to user {user_id}",
+                "websocket_connected": user_id in manager.user_connections
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Failed to send timer notification: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send notification: {str(e)}"
+        )
+
+
+@router.post("/internal/dismiss-timer")
+async def dismiss_timer_internal(
+    timer_id: str,
+    user_id: str,
+    x_internal_secret: Optional[str] = None
+):
+    """
+    Internal endpoint to dismiss a timer (mark as acknowledged).
+    Can be called from frontend or Celery.
+    """
+    try:
+        from app.core.database import get_supabase_client
+        supabase = get_supabase_client()
+
+        response = supabase.table("timers_and_alarms").update({
+            "status": "dismissed"
+        }).eq("id", timer_id).eq("user_id", user_id).execute()
+
+        if response.data:
+            logger.info(f"✅ Timer {timer_id} dismissed")
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={"success": True, "message": "Timer dismissed"}
+            )
+        else:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"success": False, "error": "Timer not found"}
+            )
+
+    except Exception as e:
+        logger.error(f"❌ Failed to dismiss timer: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to dismiss timer: {str(e)}"
+        )

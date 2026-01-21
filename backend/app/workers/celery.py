@@ -18,7 +18,8 @@ celery_app = Celery(
         "app.workers.tasks.analytics_tasks",
         "app.workers.tasks.cleanup_tasks",
         "app.workers.tasks.notification_tasks",
-        "app.workers.tasks.reset_quotas"
+        "app.workers.tasks.reset_quotas",
+        "app.workers.tasks.timer_tasks"
     ]
 )
 
@@ -32,6 +33,10 @@ celery_app.conf.update(
         "app.workers.tasks.cleanup_tasks.*": {"queue": "cleanup"},
         "app.workers.tasks.notification_tasks.*": {"queue": "notifications"},
         "app.workers.tasks.reset_quotas.*": {"queue": "maintenance"},
+        "app.workers.tasks.timer_tasks.*": {"queue": "notifications"},
+        "check_timer_expiration": {"queue": "notifications"},
+        "cleanup_old_timers": {"queue": "cleanup"},
+        "dismiss_timer": {"queue": "notifications"},
     },
     
     # Queue definitions
@@ -90,6 +95,16 @@ celery_app.conf.update(
         },
         "check-quota-health-daily": {
             "task": "check_quota_health",
+            "schedule": 86400.0,  # Daily
+        },
+        # Timer/Alarm expiration check - runs every 30 seconds
+        "check-timer-expiration": {
+            "task": "check_timer_expiration",
+            "schedule": 30.0,  # Every 30 seconds
+        },
+        # Timer cleanup - runs daily
+        "cleanup-old-timers-daily": {
+            "task": "cleanup_old_timers",
             "schedule": 86400.0,  # Daily
         },
     },

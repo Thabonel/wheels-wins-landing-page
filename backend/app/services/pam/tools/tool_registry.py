@@ -901,6 +901,69 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Calendar Event tool registration failed: {e}")
         failed_count += 1
 
+    # Timer/Alarm Tool - Set timers and alarms via voice/text
+    try:
+        logger.debug("🔄 Attempting to register Timer/Alarm tool...")
+        TimerAlarmTool = lazy_import("app.services.pam.tools.timer_alarm_tool", "TimerAlarmTool")
+
+        if TimerAlarmTool is None:
+            raise ImportError("TimerAlarmTool not available")
+
+        registry.register_tool(
+            tool=TimerAlarmTool(),
+            function_definition={
+                "name": "set_timer_or_alarm",
+                "description": "Set a timer or alarm for the user. Use this when user asks to: set a timer (e.g., 'set a timer for 10 minutes'), set an alarm (e.g., 'set an alarm for 3pm'), remind them in a specific time, or list/cancel active timers.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["create", "list", "cancel"],
+                            "description": "Action to perform: create a new timer/alarm, list active ones, or cancel one"
+                        },
+                        "type": {
+                            "type": "string",
+                            "enum": ["timer", "alarm"],
+                            "description": "Type: 'timer' for countdown (e.g., 10 minutes from now), 'alarm' for specific time (e.g., 3pm)"
+                        },
+                        "duration": {
+                            "type": "string",
+                            "description": "Duration for timer (e.g., '10 minutes', '1 hour', '30 seconds')"
+                        },
+                        "duration_seconds": {
+                            "type": "number",
+                            "description": "Duration in seconds (alternative to duration string)"
+                        },
+                        "alarm_time": {
+                            "type": "string",
+                            "description": "Time for alarm (e.g., '3pm', '15:00', 'tomorrow at 7am')"
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": "Optional label for the timer/alarm (e.g., 'Coffee break', 'Wake up')"
+                        },
+                        "timer_id": {
+                            "type": "string",
+                            "description": "Timer ID for cancel action"
+                        }
+                    },
+                    "required": ["action"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=1
+        )
+        logger.info("✅ Timer/Alarm tool registered")
+        registered_count += 1
+
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Timer/Alarm tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Timer/Alarm tool registration failed: {e}")
+        failed_count += 1
+
     # ============================================================
     # PHASE 1 TOOLS - Budget, Trip, Calendar (Week 1)
     # ============================================================

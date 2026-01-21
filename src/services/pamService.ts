@@ -471,6 +471,203 @@ class PamService {
     logger.debug('🏓 Pong received');
   }
 
+  /**
+   * Handle timer/alarm expiration notification from backend
+   */
+  private handleTimerExpired(data: {
+    timer_id: string;
+    label: string;
+    timer_type: string;
+    message: string;
+    notification?: {
+      title: string;
+      body: string;
+      requireInteraction?: boolean;
+      tag?: string;
+    };
+  }): void {
+    logger.info(`⏰ Timer expired: ${data.label} (${data.timer_type})`);
+
+    // Show browser notification
+    this.showTimerNotification(data);
+
+    // Play audio alert
+    this.playTimerSound(data.timer_type);
+
+    // Dispatch custom event for UI components to react
+    window.dispatchEvent(new CustomEvent('timer-expired', {
+      detail: {
+        timerId: data.timer_id,
+        label: data.label,
+        timerType: data.timer_type,
+        message: data.message
+      }
+    }));
+
+    // Show toast notification as fallback
+    toast.info(data.notification?.title || 'Timer Complete!', {
+      description: data.message,
+      duration: 10000, // Keep visible for 10 seconds
+      action: {
+        label: 'Dismiss',
+        onClick: () => this.dismissTimer(data.timer_id)
+      }
+    });
+  }
+
+  /**
+   * Show browser notification for timer expiration
+   */
+  private async showTimerNotification(data: {
+    timer_id: string;
+    label: string;
+    timer_type: string;
+    message: string;
+    notification?: {
+      title: string;
+      body: string;
+      requireInteraction?: boolean;
+      tag?: string;
+    };
+  }): Promise<void> {
+    // Check if notifications are supported and permitted
+    if (!('Notification' in window)) {
+      logger.warn('Browser notifications not supported');
+      return;
+    }
+
+    if (Notification.permission === 'denied') {
+      logger.warn('Browser notifications denied by user');
+      return;
+    }
+
+    // Request permission if not granted
+    if (Notification.permission !== 'granted') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        logger.warn('User did not grant notification permission');
+        return;
+      }
+    }
+
+    // Show the notification
+    // Note: vibrate is a valid NotificationOptions property but may not be in TS types
+    const notificationOptions: NotificationOptions & { vibrate?: number[] } = {
+      body: data.message,
+      icon: '/pwa-192x192.png', // Use PWA icon
+      badge: '/pwa-192x192.png',
+      tag: data.notification?.tag || `timer-${data.timer_id}`,
+      requireInteraction: data.notification?.requireInteraction ?? true,
+    };
+
+    // Add vibrate pattern for mobile devices (not in all TS type definitions)
+    if ('vibrate' in navigator) {
+      (notificationOptions as any).vibrate = [200, 100, 200, 100, 200];
+    }
+
+    const notification = new Notification(
+      data.notification?.title || `${data.timer_type === 'alarm' ? 'Alarm' : 'Timer'} Complete!`,
+      notificationOptions
+    );
+
+    // Handle notification click
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+      // Navigate to timers view or dismiss
+      this.dismissTimer(data.timer_id);
+    };
+
+    // Auto-close after 30 seconds if not interacted with
+    setTimeout(() => {
+      notification.close();
+    }, 30000);
+  }
+
+  /**
+   * Play audio alert for timer expiration
+   */
+  private playTimerSound(timerType: string): void {
+    try {
+      // Create audio context for sound
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) {
+        logger.warn('AudioContext not supported');
+        return;
+      }
+
+      const audioContext = new AudioContext();
+
+      // Create a simple beep sound
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Different sounds for timer vs alarm
+      if (timerType === 'alarm') {
+        // Alarm: Higher pitched, longer beeps
+        oscillator.frequency.value = 880; // A5 note
+        oscillator.type = 'sine';
+
+        // Create repeating beep pattern
+        const now = audioContext.currentTime;
+        for (let i = 0; i < 4; i++) {
+          gainNode.gain.setValueAtTime(0.3, now + i * 0.4);
+          gainNode.gain.setValueAtTime(0, now + i * 0.4 + 0.2);
+        }
+
+        oscillator.start(now);
+        oscillator.stop(now + 1.6);
+      } else {
+        // Timer: Single pleasant chime
+        oscillator.frequency.value = 523.25; // C5 note
+        oscillator.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.5);
+      }
+    } catch (error) {
+      logger.warn('Could not play timer sound:', error);
+    }
+  }
+
+  /**
+   * Dismiss a timer (mark as acknowledged)
+   */
+  private async dismissTimer(timerId: string): Promise<void> {
+    try {
+      const env = this.getEnvironment();
+      const baseUrl = env === 'production'
+        ? 'https://pam-backend.onrender.com'
+        : 'https://wheels-wins-backend-staging.onrender.com';
+
+      const response = await fetch(`${baseUrl}/api/v1/pam/internal/dismiss-timer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.currentToken ? { 'Authorization': `Bearer ${this.currentToken}` } : {})
+        },
+        body: JSON.stringify({
+          timer_id: timerId,
+          user_id: this.currentUserId
+        })
+      });
+
+      if (response.ok) {
+        logger.info(`✅ Timer ${timerId} dismissed`);
+      } else {
+        logger.warn(`⚠️ Failed to dismiss timer: ${response.status}`);
+      }
+    } catch (error) {
+      logger.error('Error dismissing timer:', error);
+    }
+  }
+
   // =====================================================
   // WEBSOCKET CONNECTION METHODS
   // =====================================================
@@ -568,6 +765,12 @@ class PamService {
             if (data.type === 'pong') {
               this.handlePongResponse();
               return; // Don't log pong messages (too noisy)
+            }
+
+            // Handle timer/alarm expiration notifications
+            if (data.type === 'timer_expired') {
+              this.handleTimerExpired(data);
+              return;
             }
 
             console.log('📨 PAM 2.0 WebSocket message received:', data);
