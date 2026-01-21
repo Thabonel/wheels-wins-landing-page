@@ -552,12 +552,14 @@ const ShopManagement = () => {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={() => openEditDialog(product)}
-                              className="h-8 w-8 p-0"
+                              className="h-8 px-2"
+                              title="Edit product"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-4 w-4 mr-1" />
+                              Edit
                             </Button>
                             <Select
                               value={product.status}
