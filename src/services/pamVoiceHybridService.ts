@@ -746,6 +746,13 @@ export class PAMVoiceHybridService {
     silentGain.gain.setValueAtTime(0.0, this.audioContext.currentTime);
 
     this.processorNode.onaudioprocess = (e) => {
+      // CRITICAL: Skip sending audio while PAM is speaking to prevent feedback loop
+      // Without this check, the microphone captures PAM's own voice through speakers
+      // and sends it to OpenAI, causing PAM to respond to herself
+      if (this.status.isSpeaking) {
+        return;
+      }
+
       const inputData = e.inputBuffer.getChannelData(0);
 
       // Resample mic audio from AudioContext rate → 24k mono Float32
