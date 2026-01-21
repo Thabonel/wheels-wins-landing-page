@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/common/AnimatedDialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { RefreshCw, Plus, Package, ShoppingCart, DollarSign, TrendingUp, Pencil } from "lucide-react";
+import { RefreshCw, Plus, Package, ShoppingCart, DollarSign, TrendingUp, Pencil, ExternalLink } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -571,6 +571,17 @@ const ShopManagement = () => {
                         <TableCell>{getStatusBadge(product.status, 'product')}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            {product.affiliate_url && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(product.affiliate_url, '_blank')}
+                                className="h-8 px-2"
+                                title="Open in new tab"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
