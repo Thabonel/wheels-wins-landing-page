@@ -9,19 +9,37 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/common/AnimatedDialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { RefreshCw, Plus, Package, ShoppingCart, DollarSign, TrendingUp } from "lucide-react";
+import { RefreshCw, Plus, Package, ShoppingCart, DollarSign, TrendingUp, Pencil } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Product {
   id: string;
   name: string;
   description?: string;
+  short_description?: string;
   price: number;
   category: string;
   status: string;
   inventory_count: number;
   created_at: string;
+  image_url?: string;
+  affiliate_url?: string;
+  is_featured?: boolean;
+  sort_order?: number;
+  tags?: string[];
 }
+
+const PRODUCT_CATEGORIES = [
+  { value: 'recovery_gear', label: 'Recovery Gear' },
+  { value: 'camping_expedition', label: 'Camping & Expedition' },
+  { value: 'tools_maintenance', label: 'Tools & Maintenance' },
+  { value: 'parts_upgrades', label: 'Parts & Upgrades' },
+  { value: 'books_manuals', label: 'Books & Manuals' },
+  { value: 'apparel_merchandise', label: 'Apparel & Merchandise' },
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'outdoor_gear', label: 'Outdoor Gear' },
+];
 
 interface Order {
   id: string;
@@ -45,6 +63,8 @@ const ShopManagement = () => {
     category: '',
     inventory_count: ''
   });
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -89,11 +109,17 @@ const ShopManagement = () => {
         id: product.id,
         name: product.title,
         description: product.description || '',
+        short_description: product.short_description || '',
         price: product.price || 0,
         category: product.category || 'uncategorized',
         status: product.is_active ? 'active' : 'inactive',
         inventory_count: 999, // Affiliate products don't have inventory
-        created_at: product.created_at
+        created_at: product.created_at,
+        image_url: product.image_url || '',
+        affiliate_url: product.affiliate_url || '',
+        is_featured: product.is_featured || false,
+        sort_order: product.sort_order || 0,
+        tags: product.tags || [],
       }));
 
       setProducts(transformedProducts);
@@ -217,6 +243,62 @@ const ShopManagement = () => {
       console.error('Error updating product:', error);
       toast.error("Failed to update product (check admin permissions)");
     }
+  };
+
+  const handleEditProduct = async () => {
+    if (!editingProduct) return;
+
+    try {
+      const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-affiliate-products/${editingProduct.id}`;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      const updatePayload = {
+        title: editingProduct.name,
+        description: editingProduct.description,
+        short_description: editingProduct.short_description,
+        price: editingProduct.price,
+        category: editingProduct.category,
+        image_url: editingProduct.image_url,
+        affiliate_url: editingProduct.affiliate_url,
+        is_featured: editingProduct.is_featured,
+        is_active: editingProduct.status === 'active',
+        sort_order: editingProduct.sort_order,
+        tags: editingProduct.tags,
+      };
+
+      const res = await fetch(baseUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatePayload)
+      });
+
+      if (!res.ok) {
+        throw new Error(`Update failed (${res.status})`);
+      }
+
+      // Update local state
+      setProducts(prev =>
+        prev.map(product =>
+          product.id === editingProduct.id ? editingProduct : product
+        )
+      );
+
+      setEditDialogOpen(false);
+      setEditingProduct(null);
+      toast.success("Product updated successfully");
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast.error("Failed to update product (check admin permissions)");
+    }
+  };
+
+  const openEditDialog = (product: Product) => {
+    setEditingProduct({ ...product });
+    setEditDialogOpen(true);
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
@@ -468,19 +550,29 @@ const ShopManagement = () => {
                         <TableCell>{getStatusBadge(product.status, 'product')}</TableCell>
                         <TableCell>{new Date(product.created_at).toLocaleDateString()}</TableCell>
                         <TableCell>
-                          <Select
-                            value={product.status}
-                            onValueChange={(value) => handleUpdateProductStatus(product.id, value)}
-                          >
-                            <SelectTrigger className="w-[100px] h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="draft">Draft</SelectItem>
-                              <SelectItem value="active">Active</SelectItem>
-                              <SelectItem value="inactive">Inactive</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditDialog(product)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Select
+                              value={product.status}
+                              onValueChange={(value) => handleUpdateProductStatus(product.id, value)}
+                            >
+                              <SelectTrigger className="w-[100px] h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="inactive">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -491,6 +583,156 @@ const ShopManagement = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Product Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+          </DialogHeader>
+          {editingProduct && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Product Name</Label>
+                <Input
+                  id="edit-name"
+                  value={editingProduct.name}
+                  onChange={(e) => setEditingProduct(prev => prev ? { ...prev, name: e.target.value } : null)}
+                  placeholder="Enter product name"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-short-desc">Short Description</Label>
+                <Input
+                  id="edit-short-desc"
+                  value={editingProduct.short_description || ''}
+                  onChange={(e) => setEditingProduct(prev => prev ? { ...prev, short_description: e.target.value } : null)}
+                  placeholder="Brief description for cards"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-description">Full Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editingProduct.description || ''}
+                  onChange={(e) => setEditingProduct(prev => prev ? { ...prev, description: e.target.value } : null)}
+                  placeholder="Detailed product description"
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-price">Price ($)</Label>
+                  <Input
+                    id="edit-price"
+                    type="number"
+                    step="0.01"
+                    value={editingProduct.price}
+                    onChange={(e) => setEditingProduct(prev => prev ? { ...prev, price: parseFloat(e.target.value) || 0 } : null)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-category">Category</Label>
+                  <Select
+                    value={editingProduct.category}
+                    onValueChange={(value) => setEditingProduct(prev => prev ? { ...prev, category: value } : null)}
+                  >
+                    <SelectTrigger id="edit-category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRODUCT_CATEGORIES.map(cat => (
+                        <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-image">Image URL</Label>
+                <Input
+                  id="edit-image"
+                  value={editingProduct.image_url || ''}
+                  onChange={(e) => setEditingProduct(prev => prev ? { ...prev, image_url: e.target.value } : null)}
+                  placeholder="https://..."
+                />
+                {editingProduct.image_url && (
+                  <img
+                    src={editingProduct.image_url}
+                    alt="Preview"
+                    className="mt-2 h-20 w-20 object-cover rounded border"
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                  />
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="edit-affiliate">Affiliate URL</Label>
+                <Input
+                  id="edit-affiliate"
+                  value={editingProduct.affiliate_url || ''}
+                  onChange={(e) => setEditingProduct(prev => prev ? { ...prev, affiliate_url: e.target.value } : null)}
+                  placeholder="https://amazon.com/..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-sort">Sort Order</Label>
+                  <Input
+                    id="edit-sort"
+                    type="number"
+                    value={editingProduct.sort_order || 0}
+                    onChange={(e) => setEditingProduct(prev => prev ? { ...prev, sort_order: parseInt(e.target.value) || 0 } : null)}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-status">Status</Label>
+                  <Select
+                    value={editingProduct.status}
+                    onValueChange={(value) => setEditingProduct(prev => prev ? { ...prev, status: value } : null)}
+                  >
+                    <SelectTrigger id="edit-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div className="space-y-0.5">
+                  <Label>Featured Product</Label>
+                  <p className="text-sm text-muted-foreground">Show in featured section</p>
+                </div>
+                <Switch
+                  checked={editingProduct.is_featured || false}
+                  onCheckedChange={(checked) => setEditingProduct(prev => prev ? { ...prev, is_featured: checked } : null)}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button onClick={handleEditProduct} className="flex-1">
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Orders Tab */}
       {activeTab === 'orders' && (
