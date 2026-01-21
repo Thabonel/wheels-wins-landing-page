@@ -49,7 +49,7 @@ const PamSpotlight = () => {
   };
 
   return (
-    <section className="py-20 md:py-28 bg-card relative overflow-hidden">
+    <section className="pt-8 pb-16 md:pt-12 md:pb-20 bg-card relative overflow-hidden">
       {/* Subtle paper texture background */}
       <div
         className="absolute inset-0 opacity-[0.03]"
