@@ -525,11 +525,8 @@ const ShopManagement = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
                       <TableHead>Price</TableHead>
-                      <TableHead>Inventory</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -544,11 +541,8 @@ const ShopManagement = () => {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{product.category}</TableCell>
                         <TableCell>${product.price.toFixed(2)}</TableCell>
-                        <TableCell>{product.inventory_count}</TableCell>
                         <TableCell>{getStatusBadge(product.status, 'product')}</TableCell>
-                        <TableCell>{new Date(product.created_at).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Button
