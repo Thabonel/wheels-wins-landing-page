@@ -45,24 +45,19 @@ export function useTripPlannerHandlers({
 
   const handleRouteChange = async () => {
     if (isOffline || !directionsControl.current) return;
-    
+
     try {
       const origin = directionsControl.current.getOrigin();
       const destination = directionsControl.current.getDestination();
-      
+
       if (origin && destination) {
         const originCoords = origin.geometry.coordinates as [number, number];
         const destCoords = destination.geometry.coordinates as [number, number];
-        
-        const fetchedSuggestions = await TripService.fetchTripSuggestions(
-          { coordinates: originCoords, name: originName },
-          { coordinates: destCoords, name: destName },
-          waypoints,
-          routeProfile,
-          mode
-        );
-        
-        setSuggestions(fetchedSuggestions);
+
+        // Suggestions now come from PAM's plan_trip tool via WebSocket
+        // For now, cache route data without suggestions
+        const currentSuggestions: Suggestion[] = [];
+        setSuggestions(currentSuggestions);
 
         // Cache the trip data
         saveTripData(
@@ -71,7 +66,7 @@ export function useTripPlannerHandlers({
           originCoords,
           destCoords,
           waypoints,
-          fetchedSuggestions,
+          currentSuggestions,
           routeProfile,
           mode
         );
@@ -82,7 +77,7 @@ export function useTripPlannerHandlers({
             originCoords,
             destCoords,
             routeProfile,
-            fetchedSuggestions,
+            currentSuggestions,
             mode,
             waypoints
           );
@@ -92,7 +87,7 @@ export function useTripPlannerHandlers({
       console.error("Error handling route change:", error);
       toast({
         title: "Route Error",
-        description: "Failed to update route suggestions",
+        description: "Failed to update route",
         variant: "destructive",
       });
     }
@@ -137,14 +132,14 @@ export function useTripPlannerHandlers({
       };
 
       if (isOffline) {
-        // Store for later submission
+        // Store for later sync
         localStorage.setItem('pending-trip', JSON.stringify(payload));
         toast({
           title: "Trip Queued",
-          description: "Your trip has been saved and will be sent to Pam when you're back online",
+          description: "Your trip has been saved and will sync when you're back online",
         });
       } else {
-        await TripService.submitTripPlan(payload);
+        // Save trip to Supabase - PAM can access via plan_trip tool
         if (!tripId) {
           const newId = await TripService.saveTrip(
             user.id,
@@ -160,8 +155,8 @@ export function useTripPlannerHandlers({
           if (newId) setTripId(newId);
         }
         toast({
-          title: "Trip Sent to Pam",
-          description: "Pam will analyze your route and provide personalized recommendations",
+          title: "Trip Saved",
+          description: "Ask Pam for route suggestions and travel tips",
         });
       }
     } catch (error) {
