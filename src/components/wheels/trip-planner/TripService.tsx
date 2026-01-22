@@ -1,30 +1,10 @@
 
 import { supabase } from "@/integrations/supabase";
-import { TripPayload, Waypoint, Suggestion } from "./types";
+import { Waypoint, Suggestion } from "./types";
 
 export class TripService {
-  // n8n integration discontinued - webhook functionality removed
-
-  static async submitTripPlan(payload: TripPayload): Promise<void> {
-    console.log('📦 Trip payload saved locally (n8n webhook discontinued):', payload);
-    
-    // Note: n8n webhook integration has been discontinued
-    // Trip data is now saved directly to Supabase database
-    console.log('✅ Trip data processed locally - webhook integration removed');
-  }
-
-  static async fetchTripSuggestions(
-    origin: { coordinates: [number, number]; name: string },
-    destination: { coordinates: [number, number]; name: string },
-    waypoints: Waypoint[],
-    profile: string,
-    mode: string
-  ): Promise<Suggestion[]> {
-    // n8n webhook discontinued - return empty suggestions for now
-    // This functionality can be implemented directly in backend if needed
-    console.log('Trip suggestions: n8n integration discontinued, returning empty array');
-    return [];
-  }
+  // Trip planning now handled by PAM's plan_trip tool via WebSocket
+  // Frontend TripService only handles direct Supabase operations
 
   static async saveTrip(
     userId: string,
