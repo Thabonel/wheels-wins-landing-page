@@ -1035,7 +1035,8 @@ class EnhancedPamOrchestrator:
             ai_response = await self.ai_orchestrator.complete(
                 messages=messages,
                 temperature=0.7,
-                max_tokens=2048
+                max_tokens=2048,
+                user_id=user_id  # Enable tier-based AI routing
             )
             
             logger.debug(f"📤 AI service response type: {type(ai_response)}")
@@ -1165,6 +1166,7 @@ class EnhancedPamOrchestrator:
                 temperature=0.7,
                 max_tokens=2048,
                 required_capabilities=required_capabilities or None,
+                user_id=user_id,  # Enable tier-based AI routing
                 **completion_kwargs
             )
 
@@ -1190,11 +1192,12 @@ Based on these results, please provide a helpful response to the user's original
                     AIMessage(role="system", content="You are PAM, a helpful AI assistant. Provide a response based on the tool execution results."),
                     AIMessage(role="user", content=tool_context)
                 ]
-                
+
                 ai_response = await self.ai_orchestrator.complete(
                     messages=messages,
                     temperature=0.7,
-                    max_tokens=2048
+                    max_tokens=2048,
+                    user_id=user_id  # Enable tier-based AI routing
                 )
             
             if isinstance(ai_response, AIResponse):

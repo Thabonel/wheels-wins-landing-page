@@ -45,6 +45,22 @@ OPENAI_THINKING_MAX_COMPLETION_TOKENS = 4096
 PROVIDER_PRIORITY = ["anthropic", "openai"]
 
 # =============================================================================
+# FREE TIER PROVIDER (DeepSeek V3) - For free/trial users
+# =============================================================================
+
+DEEPSEEK_MODEL = "deepseek-chat"
+DEEPSEEK_MAX_TOKENS = 8192
+DEEPSEEK_TEMPERATURE = 0.7
+
+# Costs (per 1M tokens) - 90% cheaper than Claude!
+DEEPSEEK_INPUT_COST = 0.27    # US$0.27 per 1M input tokens
+DEEPSEEK_OUTPUT_COST = 1.10   # US$1.10 per 1M output tokens
+
+# Provider priority by subscription tier
+PROVIDER_PRIORITY_FREE = ["deepseek", "openai"]  # Free/trial users
+PROVIDER_PRIORITY_PAID = ["anthropic", "openai", "deepseek"]  # Paid/admin users
+
+# =============================================================================
 # DISABLE TERTIARY PROVIDER (Unstable)
 # =============================================================================
 
@@ -98,7 +114,7 @@ def get_provider_config(provider: str) -> dict:
     Get configuration for a specific provider.
 
     Args:
-        provider: Provider name (anthropic, openai)
+        provider: Provider name (anthropic, openai, deepseek)
 
     Returns:
         dict: Provider configuration
@@ -121,6 +137,14 @@ def get_provider_config(provider: str) -> dict:
             "temperature": OPENAI_TEMPERATURE,
             "input_cost": OPENAI_INPUT_COST,
             "output_cost": OPENAI_OUTPUT_COST,
+        }
+    elif provider == "deepseek":
+        return {
+            "model": DEEPSEEK_MODEL,
+            "max_tokens": DEEPSEEK_MAX_TOKENS,
+            "temperature": DEEPSEEK_TEMPERATURE,
+            "input_cost": DEEPSEEK_INPUT_COST,
+            "output_cost": DEEPSEEK_OUTPUT_COST,
         }
     elif provider == "gemini":
         if not GEMINI_ENABLED:

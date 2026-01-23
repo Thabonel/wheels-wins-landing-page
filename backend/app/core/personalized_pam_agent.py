@@ -776,11 +776,15 @@ Respond naturally and conversationally, leveraging all context available.""")
 
         # Process with AI orchestrator (now WITH tools!)
         # We disable auto_handle_tools to manually execute them with user context
+        # TIERED AI ROUTING: Pass user_id for subscription-based provider selection
+        # Free/trial users -> DeepSeek V3 (cost-effective)
+        # Paid/admin users -> Claude Sonnet 4.5 (premium quality)
         response = await ai_orchestrator.complete(
             messages=messages,
             temperature=0.7,
             max_tokens=2048,
             functions=tools,  # Pass tools to AI orchestrator
+            user_id=user_context.user_id,  # Enable tier-based AI routing
             auto_handle_tools=False  # CRITICAL: We handle tools manually to pass user context
         )
 
@@ -839,12 +843,13 @@ Respond naturally and conversationally, leveraging all context available.""")
                 "content": tool_results
             })
             
-            # Get next response from AI
+            # Get next response from AI (with tier-based routing)
             response = await ai_orchestrator.complete(
                 messages=messages,
                 temperature=0.7,
                 max_tokens=2048,
                 functions=tools,
+                user_id=user_context.user_id,  # Enable tier-based AI routing
                 auto_handle_tools=False
             )
 

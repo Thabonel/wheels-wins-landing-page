@@ -53,6 +53,15 @@ MODEL_PRICING = {
     "gpt-4-turbo": {
         "input": 0.01,
         "output": 0.03
+    },
+    # DeepSeek V3 - Free tier provider (90% cheaper than Claude!)
+    "deepseek-chat": {
+        "input": 0.00027,   # US$0.27/1M input tokens
+        "output": 0.0011    # US$1.10/1M output tokens
+    },
+    "deepseek-reasoner": {
+        "input": 0.00055,   # US$0.55/1M input tokens
+        "output": 0.00219   # US$2.19/1M output tokens
     }
 }
 
