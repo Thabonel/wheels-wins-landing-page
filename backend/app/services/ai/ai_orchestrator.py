@@ -18,6 +18,7 @@ from .provider_interface import (
 )
 from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
+from .deepseek_provider import DeepSeekProvider
 # Gemini provider disabled - using OpenAI + Anthropic only
 # from .gemini_provider import GeminiProvider
 from app.core.config import get_settings
@@ -26,6 +27,9 @@ from app.services.mcp_config import mcp_config
 from app.config.ai_providers import (
     ANTHROPIC_MODEL,
     OPENAI_MODEL,
+    DEEPSEEK_MODEL,
+    PROVIDER_PRIORITY_FREE,
+    PROVIDER_PRIORITY_PAID,
 )
 
 logger = logging.getLogger(__name__)
@@ -161,9 +165,32 @@ class AIOrchestrator:
             except Exception as e:
                 logger.error(f"Error initializing OpenAI provider: {e}")
 
+        # Initialize DeepSeek provider for free-tier users (cost-effective)
+        # Best for: High volume free-tier traffic, ~90% cost reduction vs Claude
+        deepseek_available = hasattr(infra_settings, 'DEEPSEEK_API_KEY') and infra_settings.DEEPSEEK_API_KEY
+        logger.info(f"🔑 DeepSeek API Key available: {deepseek_available}")
+
+        if deepseek_available:
+            try:
+                deepseek_config = ProviderConfig(
+                    name="deepseek",
+                    api_key=infra_settings.DEEPSEEK_API_KEY.get_secret_value() if infra_settings.DEEPSEEK_API_KEY else None,
+                    default_model=DEEPSEEK_MODEL,
+                    max_retries=3,
+                    timeout_seconds=30
+                )
+                deepseek_provider = DeepSeekProvider(deepseek_config)
+                if await deepseek_provider.initialize():
+                    self.providers.append(deepseek_provider)
+                    logger.info("✅ DeepSeek (V3) initialized successfully (free-tier provider)")
+                else:
+                    logger.error("❌ Failed to initialize DeepSeek provider")
+            except Exception as e:
+                logger.error(f"Error initializing DeepSeek provider: {e}")
+
         # Gemini provider DISABLED - Using OpenAI (GPT-5.1) + Anthropic (Claude) only
         # Simplifies provider management and avoids message formatting issues
-        logger.info("ℹ️ Gemini provider disabled - using OpenAI + Anthropic only")
+        logger.info("ℹ️ Gemini provider disabled - using OpenAI + Anthropic + DeepSeek")
         
         # Initialize metrics for each provider
         for provider in self.providers:
@@ -196,6 +223,58 @@ class AIOrchestrator:
             logger.error("❌ AI Orchestrator initialized but NO PROVIDERS are available!")
             logger.error("🚨 This will cause 'unable to process' errors in PAM WebSocket")
     
+    async def get_providers_for_tier(self, user_id: str) -> List[AIProviderInterface]:
+        """
+        Select providers based on user subscription tier.
+
+        Free/trial users -> DeepSeek V3 primary (90% cost savings)
+        Paid/admin users -> Claude Sonnet 4.5 primary (best quality)
+
+        Args:
+            user_id: User UUID for subscription lookup
+
+        Returns:
+            List of providers in priority order for this user's tier
+        """
+        from app.services.usage.quota_manager import check_user_quota
+
+        try:
+            quota = await check_user_quota(user_id)
+            tier = quota.subscription_tier
+            logger.info(f"🎯 User {user_id[:8]} has subscription tier: {tier}")
+        except ValueError:
+            # No quota record found, default to free tier
+            tier = "free"
+            logger.info(f"⚠️ No quota record for user {user_id[:8]}, defaulting to free tier")
+        except Exception as e:
+            # Any other error, default to free tier for safety
+            tier = "free"
+            logger.warning(f"⚠️ Error checking quota for user {user_id[:8]}: {e}, defaulting to free tier")
+
+        # Determine provider priority based on subscription tier
+        if tier in ("monthly", "annual", "admin"):
+            # Paid users get Claude Sonnet 4.5 primary
+            priority_order = PROVIDER_PRIORITY_PAID
+            logger.info(f"💎 Routing paid user to premium providers: {priority_order}")
+        else:
+            # Free/trial users get DeepSeek V3 primary (92% cost savings)
+            priority_order = PROVIDER_PRIORITY_FREE
+            logger.info(f"🆓 Routing free user to cost-effective providers: {priority_order}")
+
+        # Build provider list in priority order
+        ordered_providers = []
+        for provider_name in priority_order:
+            matching = [p for p in self.providers if p.name == provider_name]
+            if matching:
+                ordered_providers.extend(matching)
+
+        # Add any remaining providers not in the priority list
+        for provider in self.providers:
+            if provider not in ordered_providers:
+                ordered_providers.append(provider)
+
+        return ordered_providers
+
     async def complete(
         self,
         messages: List[AIMessage],
@@ -205,28 +284,43 @@ class AIOrchestrator:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
         functions: Optional[List[Dict[str, Any]]] = None,
+        user_id: Optional[str] = None,  # NEW: For tier-based routing
         **kwargs
     ) -> AIResponse:
         """
         Generate a completion using the best available provider
         with automatic failover.
+
+        Args:
+            user_id: Optional user ID for tier-based provider selection.
+                     Free/trial users route to DeepSeek, paid users route to Claude.
         """
         if not self._initialized:
             await self.initialize()
-        
+
         if not self.providers:
             raise RuntimeError("No AI providers available")
-        
+
         capabilities_required: Set[AICapability] = set(required_capabilities or [])
 
         if functions:
             capabilities_required.add(AICapability.FUNCTION_CALLING)
 
         # Get ordered list of providers to try
-        providers_to_try = await self._select_providers(
-            capabilities_required or None,
-            preferred_provider
-        )
+        # Use tier-based routing if user_id provided
+        if user_id:
+            providers_to_try = await self.get_providers_for_tier(user_id)
+            # Filter by capabilities
+            if capabilities_required:
+                providers_to_try = [
+                    p for p in providers_to_try
+                    if all(p.supports(cap) for cap in capabilities_required)
+                ]
+        else:
+            providers_to_try = await self._select_providers(
+                capabilities_required or None,
+                preferred_provider
+            )
         
         last_error = None
         
