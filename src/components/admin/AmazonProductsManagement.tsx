@@ -136,9 +136,9 @@ function detectCurrencyFromUrl(urlOrAsin: string): string {
   return 'USD'; // Default for amazon.com
 }
 
-// Build Amazon affiliate link
+// Build Amazon affiliate link (Australian affiliate account)
 function buildAmazonAffiliateLink(asin: string): string {
-  return `https://www.amazon.com/dp/${asin}?tag=unimogcommuni-22`;
+  return `https://www.amazon.com.au/dp/${asin}?tag=unimogcommuni-22`;
 }
 
 // Sortable row component
