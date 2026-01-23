@@ -138,7 +138,7 @@ function detectCurrencyFromUrl(urlOrAsin: string): string {
 
 // Build Amazon affiliate link (Australian affiliate account)
 function buildAmazonAffiliateLink(asin: string): string {
-  return `https://www.amazon.com.au/dp/${asin}?tag=unimogcommuni-22`;
+  return `https://www.amazon.com.au/dp/${asin}?tag=wheelsandwins-22`;
 }
 
 // Sortable row component
