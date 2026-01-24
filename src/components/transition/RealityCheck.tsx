@@ -15,6 +15,7 @@ import {
   Users,
   Lightbulb,
   ArrowRight,
+  ListChecks,
 } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
