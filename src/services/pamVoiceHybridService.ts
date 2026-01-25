@@ -61,6 +61,7 @@ export interface VoiceStatus {
   isConnected: boolean;
   isListening: boolean;
   isSpeaking: boolean;
+  isWaitingForSupervisor: boolean; // True when waiting for Claude to respond to supervisor delegation
   latency?: number;
 }
 
@@ -220,7 +221,8 @@ export class PAMVoiceHybridService {
   private status: VoiceStatus = {
     isConnected: false,
     isListening: false,
-    isSpeaking: false
+    isSpeaking: false,
+    isWaitingForSupervisor: false
   };
 
   // Track when we're waiting for audio playback to actually complete
@@ -499,6 +501,9 @@ export class PAMVoiceHybridService {
         requestType: args.request_type
       });
 
+      // CRITICAL: Set waiting flag to prevent silence timeout from killing the bridge
+      this.updateStatus({ isWaitingForSupervisor: true });
+
       // Forward to Claude via the bridge
       this.sendToClaudeBridge({
         type: 'supervisor_request',
@@ -520,6 +525,9 @@ export class PAMVoiceHybridService {
 
     } catch (error) {
       logger.error('[PAMVoiceHybrid] Failed to handle supervisor tool call:', error);
+
+      // Clear waiting flag on error
+      this.updateStatus({ isWaitingForSupervisor: false });
 
       // Return error to OpenAI so it can tell the user
       this.sendToolResult(message.call_id, {
@@ -598,6 +606,9 @@ export class PAMVoiceHybridService {
       const responseText = message.text;
       logger.info('[PAMVoiceHybrid] 🤖 Supervisor (Claude) response:', responseText);
       this.config.onResponse?.(responseText);
+
+      // CRITICAL: Clear waiting flag - Claude has responded
+      this.updateStatus({ isWaitingForSupervisor: false });
 
       // Handle UI actions
       this.handleUIActions(message.ui_actions);
@@ -877,7 +888,8 @@ export class PAMVoiceHybridService {
     this.updateStatus({
       isConnected: false,
       isListening: false,
-      isSpeaking: false
+      isSpeaking: false,
+      isWaitingForSupervisor: false
     });
   }
 }

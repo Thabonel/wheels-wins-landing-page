@@ -758,11 +758,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           setIsListening(status.isListening);
 
           // Automatic conversation end detection
-          // When PAM finishes speaking AND user is silent → start 5-second timeout
+          // When PAM finishes speaking AND user is silent → start 10-second timeout
           // If user speaks again → clear timeout
+          // CRITICAL: Don't timeout if waiting for Claude supervisor response
           const bothSilent = !status.isSpeaking && !status.isListening;
+          const waitingForResponse = status.isWaitingForSupervisor;
 
-          if (bothSilent) {
+          if (bothSilent && !waitingForResponse) {
             // Clear any existing timeout
             if (conversationEndTimeoutRef.current) {
               clearTimeout(conversationEndTimeoutRef.current);
@@ -774,6 +776,13 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               logger.info('⏱️ Conversation ended (10s silence) - auto-switching to wake word');
               stopContinuousVoiceMode();
             }, 10000); // 10 seconds of silence
+          } else if (waitingForResponse) {
+            // Waiting for Claude - clear any timeout and don't start new one
+            if (conversationEndTimeoutRef.current) {
+              logger.debug('🔄 Waiting for supervisor response - clearing silence timer');
+              clearTimeout(conversationEndTimeoutRef.current);
+              conversationEndTimeoutRef.current = null;
+            }
           } else {
             // User is speaking or PAM is speaking - clear timeout
             if (conversationEndTimeoutRef.current) {

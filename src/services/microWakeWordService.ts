@@ -17,9 +17,13 @@
  * - Predictable, consistent behavior
  */
 
-import * as tflite from '@tensorflow/tfjs-tflite';
-import * as tf from '@tensorflow/tfjs';
 import { logger } from '@/lib/logger';
+
+// TensorFlow modules loaded dynamically to avoid Vite bundling issues
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let tflite: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let tf: any = null;
 
 // Configuration matching training parameters
 const WAKE_WORD_CONFIG = {
@@ -45,7 +49,8 @@ export interface WakeWordOptions {
 }
 
 class MicroWakeWordService {
-  private model: tflite.TFLiteModel | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private model: any = null;
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private processorNode: ScriptProcessorNode | null = null;
@@ -91,6 +96,17 @@ class MicroWakeWordService {
 
     try {
       logger.info('[MicroWakeWord] Loading Hey Pam TFLite model...');
+
+      // Dynamic imports to avoid Vite bundling issues with tfjs-tflite
+      // These packages have internal module paths that don't resolve correctly in Rollup
+      if (!tf) {
+        logger.info('[MicroWakeWord] Loading TensorFlow.js...');
+        tf = await import('@tensorflow/tfjs');
+      }
+      if (!tflite) {
+        logger.info('[MicroWakeWord] Loading TFLite runtime...');
+        tflite = await import('@tensorflow/tfjs-tflite');
+      }
 
       // Load TFLite model directly using the official runtime
       this.model = await tflite.loadTFLiteModel(WAKE_WORD_CONFIG.modelPath);
@@ -352,7 +368,8 @@ class MicroWakeWordService {
       );
 
       // Run TFLite inference
-      const output = this.model.predict(inputTensor) as tf.Tensor;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const output = this.model.predict(inputTensor) as any;
 
       // Get prediction from output tensor
       const prediction = await output.data();
