@@ -42,7 +42,7 @@ export interface VoiceSessionConfig {
   userId: string;
   apiBaseUrl: string;
   authToken: string;
-  voice?: 'marin' | 'cedar' | 'alloy' | 'echo' | 'nova' | 'shimmer';
+  voice?: 'marin' | 'cedar' | 'alloy' | 'echo' | 'nova' | 'shimmer' | 'coral';
   temperature?: number;
   language?: string; // User's preferred language (e.g., 'en', 'es', 'fr')
   location?: {
@@ -228,7 +228,7 @@ export class PAMVoiceHybridService {
 
   constructor(config: VoiceSessionConfig) {
     this.config = {
-      voice: 'marin', // Natural expressive voice
+      voice: 'coral', // Warm, friendly female voice
       ...config
     };
   }
