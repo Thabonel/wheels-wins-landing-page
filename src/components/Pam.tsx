@@ -25,7 +25,7 @@ import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { pamAgenticService } from "@/services/pamAgenticService";
 import { logger } from '../lib/logger';
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
-import { wakeWordService } from "@/services/wakeWordService";
+import { wakeWordHybridService as wakeWordService } from "@/services/wakeWordHybridService";
 
 // Using Backend PersonalizedPamAgent API for proper authentication and tool execution
 
@@ -698,7 +698,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         userId: user.id,
         apiBaseUrl,
         authToken,
-        voice: 'marin', // Natural expressive voice
+        voice: 'coral', // Warm, friendly female voice
         language: userLanguage, // User's preferred language
         location: userLocation ? {
           lat: userLocation.latitude || 0,
