@@ -27,6 +27,13 @@ export interface TripTemplate {
   total_ratings?: number;
   status?: 'draft' | 'published' | 'archived';
   is_featured?: boolean;
+  // Direct waypoints from database column (used when route is not available)
+  waypoints?: Array<{
+    name: string;
+    latitude: number;
+    longitude: number;
+    type?: string;
+  }>;
 }
 
 export interface ScrapedTripData {
@@ -157,7 +164,9 @@ function transformDatabaseToTemplate(dbRecord: any): TripTemplate | null {
       imageUrl: templateData.imageUrl || templateData.photo_url || dbRecord.image_url,
       image_url: templateData.imageUrl || templateData.photo_url || dbRecord.image_url,
       thumbnailUrl: templateData.thumbnailUrl || templateData.thumbnail_url || dbRecord.thumbnail_url,
-      thumbnail_url: templateData.thumbnailUrl || templateData.thumbnail_url || dbRecord.thumbnail_url
+      thumbnail_url: templateData.thumbnailUrl || templateData.thumbnail_url || dbRecord.thumbnail_url,
+      // Include waypoints from database column for direct location data
+      waypoints: Array.isArray(dbRecord.waypoints) ? dbRecord.waypoints : []
     };
     
     console.log(`✅ Transformed template: ${transformed.name} (${transformed.estimatedDays} days, $${transformed.suggestedBudget})`);
@@ -520,7 +529,16 @@ function getExpandedAustralianTemplates(): TripTemplate[] {
       difficulty: 'beginner',
       highlights: ['Twelve Apostles', 'Port Campbell', 'Lorne Beach', 'Apollo Bay'],
       suggestedBudget: 1200,
-      route: null,
+      route: {
+        origin: { name: 'Melbourne', coords: [144.9631, -37.8136] },
+        destination: { name: 'Adelaide', coords: [138.6007, -34.9285] },
+        waypoints: [
+          { name: 'Lorne', coords: [143.9889, -38.5423] },
+          { name: 'Apollo Bay', coords: [143.6722, -38.7597] },
+          { name: 'Twelve Apostles', coords: [143.1042, -38.6632] },
+          { name: 'Port Campbell', coords: [142.9958, -38.6194] }
+        ]
+      },
       region: 'Australia',
       category: 'coastal',
       tags: ['australia', 'coastal', 'scenic', 'victoria'],
@@ -554,7 +572,17 @@ function getExpandedAustralianTemplates(): TripTemplate[] {
       difficulty: 'intermediate',
       highlights: ['Great Barrier Reef', 'Byron Bay', 'Gold Coast', 'Whitsundays'],
       suggestedBudget: 3500,
-      route: null,
+      route: {
+        origin: { name: 'Sydney', coords: [151.2093, -33.8688] },
+        destination: { name: 'Cairns', coords: [145.7781, -16.9186] },
+        waypoints: [
+          { name: 'Byron Bay', coords: [153.6150, -28.6434] },
+          { name: 'Gold Coast', coords: [153.4000, -28.0167] },
+          { name: 'Noosa', coords: [153.0939, -26.3886] },
+          { name: 'Airlie Beach', coords: [148.7172, -20.2684] },
+          { name: 'Townsville', coords: [146.8169, -19.2590] }
+        ]
+      },
       region: 'Australia',
       category: 'coastal',
       tags: ['australia', 'beaches', 'reef', 'queensland'],
@@ -571,7 +599,16 @@ function getExpandedAustralianTemplates(): TripTemplate[] {
       difficulty: 'advanced',
       highlights: ['Uluru', 'Kings Canyon', 'Alice Springs', 'MacDonnell Ranges'],
       suggestedBudget: 2800,
-      route: null,
+      route: {
+        origin: { name: 'Alice Springs', coords: [133.8807, -23.6980] },
+        destination: { name: 'Alice Springs', coords: [133.8807, -23.6980] },
+        waypoints: [
+          { name: 'MacDonnell Ranges', coords: [133.1000, -23.6500] },
+          { name: 'Kings Canyon', coords: [131.4929, -24.2527] },
+          { name: 'Uluru', coords: [131.0369, -25.3444] },
+          { name: 'Kata Tjuta', coords: [130.7387, -25.3018] }
+        ]
+      },
       region: 'Australia',
       category: 'outback',
       tags: ['australia', 'outback', 'desert', 'cultural'],
@@ -605,7 +642,17 @@ function getExpandedAustralianTemplates(): TripTemplate[] {
       difficulty: 'beginner',
       highlights: ['Cradle Mountain', 'Wineglass Bay', 'Port Arthur', 'MONA'],
       suggestedBudget: 1800,
-      route: null,
+      route: {
+        origin: { name: 'Hobart', coords: [147.3250, -42.8821] },
+        destination: { name: 'Hobart', coords: [147.3250, -42.8821] },
+        waypoints: [
+          { name: 'Port Arthur', coords: [147.8517, -43.1453] },
+          { name: 'Wineglass Bay', coords: [148.2819, -42.1369] },
+          { name: 'Launceston', coords: [147.1389, -41.4332] },
+          { name: 'Cradle Mountain', coords: [145.9447, -41.6420] },
+          { name: 'Strahan', coords: [145.3280, -42.1522] }
+        ]
+      },
       region: 'Australia',
       category: 'island',
       tags: ['australia', 'tasmania', 'wilderness', 'gourmet'],

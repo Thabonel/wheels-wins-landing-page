@@ -109,6 +109,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
   const directionsRef = useRef<MapboxDirections | null>(null);
+  const pendingTemplateRef = useRef<any>(null);
 
   // Hooks
   const { user } = useAuth();
@@ -810,6 +811,59 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     setShowSearch(false);
   };
   
+  // Unified template application function - handles both template and saved trip formats
+  const applyTemplateToMap = (template: any) => {
+    const waypoints: any[] = [];
+
+    // Handle different data structures
+    if (template.route) {
+      // Template format: route.origin, route.destination, route.waypoints
+      if (template.route.origin) {
+        waypoints.push({
+          name: template.route.origin.name || 'Origin',
+          coordinates: template.route.origin.coords || template.route.origin.coordinates,
+          type: 'origin'
+        });
+      }
+
+      if (template.route.waypoints) {
+        template.route.waypoints.forEach((wp: any) => {
+          waypoints.push({
+            name: wp.name || 'Waypoint',
+            coordinates: wp.coords || wp.coordinates,
+            type: 'waypoint'
+          });
+        });
+      }
+
+      if (template.route.destination) {
+        waypoints.push({
+          name: template.route.destination.name || 'Destination',
+          coordinates: template.route.destination.coords || template.route.destination.coordinates,
+          type: 'destination'
+        });
+      }
+    } else if (template.route_data?.waypoints) {
+      // Saved trip format: route_data.waypoints array
+      const wps = template.route_data.waypoints;
+      wps.forEach((wp: any, index: number) => {
+        const type = index === 0 ? 'origin' : index === wps.length - 1 ? 'destination' : 'waypoint';
+        waypoints.push({
+          name: wp.name || wp.address || `Stop ${index + 1}`,
+          coordinates: wp.coordinates || [wp.lng, wp.lat],
+          type
+        });
+      });
+    }
+
+    if (waypoints.length > 0) {
+      handleApplyTemplate({ ...template, waypoints });
+    } else {
+      console.warn('No waypoints found in template:', template);
+      toast.info(`Template "${template.name}" loaded but contains no route data`);
+    }
+  };
+
   // Handle template application
   const handleApplyTemplate = (template: any) => {
     // Clear existing waypoints
@@ -836,70 +890,42 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     toast.success(`Template "${template.name}" applied successfully`);
   };
   
-  // Check for template from sessionStorage when component mounts
+  // Effect 1: Store pending template when it arrives from props
   useEffect(() => {
+    if (initialTemplate) {
+      console.log('📦 Received initialTemplate, storing as pending:', initialTemplate.name);
+      pendingTemplateRef.current = initialTemplate;
+    }
+  }, [initialTemplate]);
+
+  // Effect 2: Apply template when map is ready
+  useEffect(() => {
+    // Check sessionStorage first
     const templateData = sessionStorage.getItem('selectedTripTemplate');
     if (templateData) {
       try {
         const template = JSON.parse(templateData);
         console.log('📦 Loading template from sessionStorage:', template.name);
-        
-        // Clear sessionStorage to prevent reloading on refresh
         sessionStorage.removeItem('selectedTripTemplate');
-        
-        // Wait for map to be ready before applying template
+
         if (map && waypointManager) {
-          // Apply the template
-          if (template.route) {
-            const waypoints = [];
-            
-            // Add origin
-            if (template.route.origin) {
-              waypoints.push({
-                name: template.route.origin.name,
-                coordinates: template.route.origin.coords,
-                type: 'origin'
-              });
-            }
-            
-            // Add waypoints
-            if (template.route.waypoints) {
-              template.route.waypoints.forEach((wp: any) => {
-                waypoints.push({
-                  name: wp.name,
-                  coordinates: wp.coords,
-                  type: 'waypoint'
-                });
-              });
-            }
-            
-            // Add destination
-            if (template.route.destination) {
-              waypoints.push({
-                name: template.route.destination.name,
-                coordinates: template.route.destination.coords,
-                type: 'destination'
-              });
-            }
-            
-            // Apply template with waypoints
-            handleApplyTemplate({
-              ...template,
-              waypoints
-            });
-          }
+          applyTemplateToMap(template);
+        } else {
+          // Store for later if map not ready
+          pendingTemplateRef.current = template;
         }
       } catch (error) {
         console.error('Error loading template from sessionStorage:', error);
-        toast.error('Failed to load template');
       }
     }
-    
-    // Also check for initialTemplate prop
-    if (initialTemplate && map && waypointManager) {
-      handleApplyTemplate(initialTemplate);
+
+    // Then check pending template from props or sessionStorage
+    if (pendingTemplateRef.current && map && waypointManager) {
+      console.log('📦 Map ready, applying pending template:', pendingTemplateRef.current.name);
+      applyTemplateToMap(pendingTemplateRef.current);
+      pendingTemplateRef.current = null; // Clear after applying
     }
-  }, [map, waypointManager, initialTemplate]);
+  }, [map, waypointManager]); // Only depends on map readiness
 
   // PAM Trip Bridge subscription - listen for route actions from PAM
   useEffect(() => {
