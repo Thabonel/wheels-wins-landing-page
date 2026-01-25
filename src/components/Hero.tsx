@@ -1,8 +1,44 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useMemo } from "react";
+
+// Map locale/country codes to region names for social proof text
+const getRegionName = (): string => {
+  try {
+    const locale = navigator.language || 'en-AU';
+    const countryCode = locale.split('-')[1]?.toUpperCase() || '';
+
+    const regionMap: Record<string, string> = {
+      'AU': 'Australia',
+      'US': 'America',
+      'CA': 'Canada',
+      'NZ': 'New Zealand',
+      'GB': 'the UK',
+      'UK': 'the UK',
+      'ZA': 'South Africa',
+      'DE': 'Europe',
+      'FR': 'Europe',
+      'ES': 'Europe',
+      'IT': 'Europe',
+      'NL': 'Europe',
+      'BE': 'Europe',
+      'AT': 'Europe',
+      'CH': 'Europe',
+      'SE': 'Sweden',
+      'NO': 'Norway',
+      'DK': 'Denmark',
+      'FI': 'Finland',
+    };
+
+    return regionMap[countryCode] || 'the world';
+  } catch {
+    return 'the world';
+  }
+};
 
 const Hero = () => {
+  const regionName = useMemo(() => getRegionName(), []);
   // Animation variants for staggered entrance
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -104,7 +140,7 @@ const Hero = () => {
               className="flex items-center gap-3 pt-4"
             >
               <p className="text-sm text-muted-foreground">
-                Join RVers across Australia planning smarter trips
+                Join RVers across {regionName} planning smarter trips
               </p>
             </motion.div>
           </motion.div>
