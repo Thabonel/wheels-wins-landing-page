@@ -407,7 +407,14 @@ class WAFMiddleware(BaseHTTPMiddleware):
             "/health",
             "/docs",
             "/openapi.json",
-            "/favicon.ico"
+            "/favicon.ico",
+            # PAM endpoints are exempt - they have their own security validation
+            # (JWT auth, rate limiting, content size limits, suspicious pattern detection)
+            # and the conversation history can trigger false positives
+            "/api/v1/pam/chat",
+            "/api/v1/pam/ws",
+            "/api/v1/pam-simple/chat",
+            "/api/v1/pam-2/chat",
         ]
     
     async def dispatch(self, request: Request, call_next) -> Response:
