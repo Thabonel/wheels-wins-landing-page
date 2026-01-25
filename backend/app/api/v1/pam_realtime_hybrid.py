@@ -503,13 +503,9 @@ async def voice_to_claude_bridge(
                 # Add conversation history for multi-turn context
                 context["conversation_history"] = conversation_history
 
-                # Get PAM instance with timezone context for correct date interpretation
+                # Get PAM instance
                 user_language = context.get("language", "en")
-                user_context = {
-                    "timezone": context.get("timezone"),
-                    "user_location": context.get("user_location")
-                }
-                pam = await get_pam(user_id, user_language=user_language, user_context=user_context)
+                pam = await get_pam(user_id, user_language=user_language)
 
                 # Build message with context for Claude
                 # Include conversation summary if available
@@ -570,13 +566,9 @@ async def voice_to_claude_bridge(
                 context = await _load_voice_context(user_id, browser_context)
                 context["conversation_history"] = conversation_history
 
-                # Get PAM instance with timezone context for correct date interpretation
+                # Get PAM instance
                 user_language = context.get("language", "en")
-                user_context = {
-                    "timezone": context.get("timezone"),
-                    "user_location": context.get("user_location")
-                }
-                pam = await get_pam(user_id, user_language=user_language, user_context=user_context)
+                pam = await get_pam(user_id, user_language=user_language)
 
                 # Execute via Claude
                 pam_result = await pam.chat(
