@@ -166,7 +166,7 @@ export default function TripPlannerApp() {
       suggestedBudget: tripData.metadata?.suggestedBudget || 0,
       tags: tripData.metadata?.tags || [],
       highlights: tripData.metadata?.highlights || [],
-      route: tripData.metadata?.route || tripData.metadata || null,
+      route: tripData.metadata?.route_data || tripData.metadata?.route || tripData.metadata || null,
       region: tripData.metadata?.region || 'Rest of the World',
       usageCount: 0,
       isPublic: false
@@ -174,14 +174,22 @@ export default function TripPlannerApp() {
 
     setSelectedTemplate(tripAsTemplate);
 
-    // Extract route data from metadata if available
+    // Extract route data from metadata - handle nested structure
     if (tripData.metadata) {
-      const { origin, destination, waypoints } = tripData.metadata;
-      if (origin || destination || waypoints) {
+      // Saved trips store waypoints under route_data
+      const routeData = tripData.metadata.route_data || tripData.metadata;
+      const waypoints = routeData?.waypoints || [];
+
+      if (waypoints.length > 0) {
+        // First waypoint is origin, last is destination
+        const origin = waypoints[0];
+        const destination = waypoints.length > 1 ? waypoints[waypoints.length - 1] : null;
+        const intermediateWaypoints = waypoints.length > 2 ? waypoints.slice(1, -1) : [];
+
         setRouteData({
           origin: origin || null,
           destination: destination || null,
-          waypoints: waypoints || []
+          waypoints: intermediateWaypoints
         });
       }
     }

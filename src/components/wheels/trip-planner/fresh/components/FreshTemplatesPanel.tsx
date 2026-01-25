@@ -67,9 +67,19 @@ export default function FreshTemplatesPanel({
 
   const handleApplyTemplate = async (template: TripTemplate) => {
     // Convert TripTemplate to the format expected by FreshTripPlanner
-    const waypoints = [];
-    
-    if (template.route) {
+    const waypoints: Array<{
+      name: string;
+      coordinates: [number, number];
+      type: 'origin' | 'destination' | 'waypoint';
+    }> = [];
+
+    console.log('Applying template:', template.name);
+    console.log('Template route:', template.route);
+    console.log('Template waypoints:', template.waypoints);
+
+    // Option 1: Use route data if available (legacy format)
+    if (template.route && (template.route.origin || template.route.destination)) {
+      console.log('Using route data format');
       // Add origin
       if (template.route.origin) {
         waypoints.push({
@@ -78,7 +88,7 @@ export default function FreshTemplatesPanel({
           type: 'origin' as const
         });
       }
-      
+
       // Add waypoints
       if (template.route.waypoints) {
         template.route.waypoints.forEach((wp: any) => {
@@ -89,7 +99,7 @@ export default function FreshTemplatesPanel({
           });
         });
       }
-      
+
       // Add destination
       if (template.route.destination) {
         waypoints.push({
@@ -99,6 +109,25 @@ export default function FreshTemplatesPanel({
         });
       }
     }
+    // Option 2: Use direct waypoints column from database
+    else if (template.waypoints && template.waypoints.length > 0) {
+      console.log('Using waypoints column format, count:', template.waypoints.length);
+      template.waypoints.forEach((wp, index) => {
+        // Determine type based on position: first = origin, last = destination, middle = waypoint
+        const type = index === 0 ? 'origin' :
+                     index === template.waypoints!.length - 1 ? 'destination' : 'waypoint';
+
+        waypoints.push({
+          name: wp.name || `Stop ${index + 1}`,
+          coordinates: [wp.longitude, wp.latitude] as [number, number],
+          type: type as 'origin' | 'destination' | 'waypoint'
+        });
+      });
+    } else {
+      console.log('No route or waypoints data available for template');
+    }
+
+    console.log('Extracted waypoints:', waypoints);
 
     const formattedTemplate: Template = {
       id: template.id,
@@ -155,7 +184,10 @@ export default function FreshTemplatesPanel({
         ) : (
           <div className="max-h-[500px] overflow-y-auto px-4 pb-4 space-y-3">
             {templates.map((template) => {
-              const waypointCount = (template.route?.waypoints?.length || 0) + 2; // +2 for origin and destination
+              // Calculate waypoint count from route OR direct waypoints column
+              const waypointCount = template.route?.waypoints?.length
+                ? template.route.waypoints.length + 2  // +2 for origin and destination
+                : template.waypoints?.length || 0;
               
               return (
                 <div
