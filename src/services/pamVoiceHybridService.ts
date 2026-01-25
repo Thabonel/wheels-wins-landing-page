@@ -228,6 +228,16 @@ export class PAMVoiceHybridService {
   // Track when we're waiting for audio playback to actually complete
   private audioCompletionPending = false;
 
+  // Pre-rendered greeting audio files for instant playback (eliminates wake word delay)
+  private static readonly LOCAL_GREETINGS = [
+    '/audio/greetings/greeting-1.mp3', // "Hi! How can I help you?"
+    '/audio/greetings/greeting-2.mp3', // "Hey there! What can I do for you?"
+    '/audio/greetings/greeting-3.mp3', // "Hi! What's on your mind?"
+    '/audio/greetings/greeting-4.mp3'  // "Hello! How can I help?"
+  ];
+  private localGreetingPlayed = false;
+  private localGreetingAudio: HTMLAudioElement | null = null;
+
   constructor(config: VoiceSessionConfig) {
     this.config = {
       voice: 'coral', // Warm, friendly female voice
@@ -242,6 +252,10 @@ export class PAMVoiceHybridService {
   async start(): Promise<void> {
     try {
       logger.info('[PAMVoiceHybrid] Starting hybrid voice session...');
+
+      // INSTANT GREETING: Play local audio immediately (no network latency!)
+      // This happens BEFORE any API calls to eliminate the wake word delay
+      this.playLocalGreeting();
 
       // Step 1: Create OpenAI Realtime session (voice I/O only)
       const sessionData = await this.createOpenAISession();
@@ -385,12 +399,16 @@ export class PAMVoiceHybridService {
   private handleOpenAIMessage(message: any): void {
     switch (message.type) {
       case 'session.created':
-        logger.info('[PAMVoiceHybrid] ✅ OpenAI session created - triggering greeting');
-        // Session is already fully configured by backend at creation time
-        // Trigger greeting immediately (small delay to ensure audio is ready)
-        setTimeout(() => {
-          this.speakGreeting();
-        }, 300);
+        logger.info('[PAMVoiceHybrid] ✅ OpenAI session created');
+        // Skip OpenAI greeting if we already played local greeting (instant response)
+        if (this.localGreetingPlayed) {
+          logger.info('[PAMVoiceHybrid] ⚡ Local greeting already playing - skipping OpenAI greeting');
+        } else {
+          // Fallback: trigger OpenAI greeting if local greeting failed
+          setTimeout(() => {
+            this.speakGreeting();
+          }, 300);
+        }
         break;
 
       case 'session.updated':
@@ -740,6 +758,56 @@ export class PAMVoiceHybridService {
     logger.info('[PAMVoiceHybrid] ✅ Greeting request sent to OpenAI');
   }
 
+  /**
+   * Play a pre-rendered local greeting audio file INSTANTLY
+   * This eliminates the delay between wake word and response by playing
+   * cached audio while OpenAI connection is established in background.
+   */
+  private playLocalGreeting(): void {
+    try {
+      // Pick a random greeting for variety
+      const greetingPath = PAMVoiceHybridService.LOCAL_GREETINGS[
+        Math.floor(Math.random() * PAMVoiceHybridService.LOCAL_GREETINGS.length)
+      ];
+
+      logger.info(`[PAMVoiceHybrid] ⚡ Playing instant local greeting: ${greetingPath}`);
+
+      // Create and play audio element
+      this.localGreetingAudio = new Audio(greetingPath);
+      this.localGreetingAudio.volume = 1.0;
+
+      // Mark that we've played local greeting (skip OpenAI greeting later)
+      this.localGreetingPlayed = true;
+      this.updateStatus({ isSpeaking: true });
+
+      // Handle playback completion
+      this.localGreetingAudio.onended = () => {
+        logger.info('[PAMVoiceHybrid] ⚡ Local greeting playback complete');
+        this.updateStatus({ isSpeaking: false });
+        this.localGreetingAudio = null;
+      };
+
+      // Handle errors gracefully - fall back to OpenAI greeting
+      this.localGreetingAudio.onerror = (error) => {
+        logger.warn('[PAMVoiceHybrid] ⚠️ Local greeting failed, will use OpenAI greeting:', error);
+        this.localGreetingPlayed = false; // Allow OpenAI greeting as fallback
+        this.updateStatus({ isSpeaking: false });
+        this.localGreetingAudio = null;
+      };
+
+      // Start playback immediately
+      this.localGreetingAudio.play().catch((error) => {
+        logger.warn('[PAMVoiceHybrid] ⚠️ Local greeting play() failed:', error);
+        this.localGreetingPlayed = false; // Allow OpenAI greeting as fallback
+        this.updateStatus({ isSpeaking: false });
+      });
+
+    } catch (error) {
+      logger.warn('[PAMVoiceHybrid] ⚠️ Local greeting setup failed:', error);
+      this.localGreetingPlayed = false; // Allow OpenAI greeting as fallback
+    }
+  }
+
   // =====================================================
   // MICROPHONE STREAMING
   // =====================================================
@@ -850,6 +918,13 @@ export class PAMVoiceHybridService {
   }
 
   private cleanup(): void {
+    // Stop local greeting audio if playing
+    if (this.localGreetingAudio) {
+      this.localGreetingAudio.pause();
+      this.localGreetingAudio = null;
+    }
+    this.localGreetingPlayed = false;
+
     // Stop audio processor
     if (this.processorNode) {
       this.processorNode.disconnect();
