@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/context/AuthContext";
+import { getTodayDateLocal } from "@/utils/format";
 
 interface MaintenanceTask {
   id: number;
@@ -34,7 +35,7 @@ export default function VehicleMaintenance() {
       toast.error("Error loading tasks.");
       return;
     }
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayDateLocal();
     const mapped = data!.map((r) => {
       const status: MaintenanceTask["status"] = r.date < today ? "overdue" : "upcoming";
       return { id: r.id, task: r.task, date: r.date, mileage: r.mileage, status };

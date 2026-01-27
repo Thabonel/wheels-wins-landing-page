@@ -10,8 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getMapboxPublicToken } from "@/utils/mapboxConfig";
 import { Pencil, Trash2 } from "lucide-react";
-
-const getTodayDate = () => new Date().toISOString().split("T")[0];
+import { getTodayDateLocal } from "@/utils/format";
 
 export default function FuelLog() {
   const { region } = useRegion();
@@ -24,7 +23,7 @@ export default function FuelLog() {
 
   const [fuelEntries, setFuelEntries] = useState<any[]>([]);
   const [newEntry, setNewEntry] = useState({
-    date: getTodayDate(),
+    date: getTodayDateLocal(),
     location: '',
     odometer: '',
     volume: '',
@@ -136,7 +135,7 @@ export default function FuelLog() {
     if (error) console.error('Error saving fuel entry:', error);
     else if (data && data[0]) {
       setFuelEntries(prev => [data[0], ...prev]);
-      setNewEntry({ date: getTodayDate(), location: '', odometer: '', volume: '', price: '', total: '' });
+      setNewEntry({ date: getTodayDateLocal(), location: '', odometer: '', volume: '', price: '', total: '' });
     }
   };
 
