@@ -9,6 +9,7 @@ import { Dialog, DialogTrigger, DialogContent } from "@/components/common/Animat
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getMapboxPublicToken } from "@/utils/mapboxConfig";
+import { Pencil, Trash2 } from "lucide-react";
 
 const getTodayDate = () => new Date().toISOString().split("T")[0];
 
@@ -30,6 +31,16 @@ export default function FuelLog() {
     price: '',
     total: ''
   });
+  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({
+    date: '',
+    location: '',
+    odometer: '',
+    volume: '',
+    price: '',
+    total: ''
+  });
+  const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Fetch entries from Supabase
@@ -129,6 +140,81 @@ export default function FuelLog() {
     }
   };
 
+  const handleEditClick = (entry: any) => {
+    setEditingEntry(entry);
+    setEditFormData({
+      date: entry.date,
+      location: entry.location || '',
+      odometer: entry.odometer?.toString() || '',
+      volume: entry.volume?.toString() || '',
+      price: entry.price?.toString() || '',
+      total: entry.total?.toString() || ''
+    });
+  };
+
+  const handleUpdateEntry = async () => {
+    if (!user || !editingEntry) return;
+    const odometer = parseFloat(editFormData.odometer);
+    const volume = parseFloat(editFormData.volume);
+    const price = parseFloat(editFormData.price);
+    const total = parseFloat(editFormData.total);
+
+    // Calculate consumption
+    let consumption: number | null = null;
+    const sortedEntries = [...fuelEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const entryIndex = sortedEntries.findIndex(e => e.id === editingEntry.id);
+    const previousEntry = sortedEntries[entryIndex + 1];
+
+    if (odometer && previousEntry?.odometer && volume) {
+      const distance = odometer - previousEntry.odometer;
+      if (isImperial) {
+        const miles = distance * 0.621371;
+        consumption = miles / volume;
+      } else {
+        consumption = (volume / distance) * 100;
+      }
+    }
+
+    const updatedEntry = {
+      date: editFormData.date,
+      location: editFormData.location,
+      odometer,
+      volume,
+      price,
+      total,
+      consumption
+    };
+
+    const { data, error } = await (supabase as any)
+      .from('fuel_log')
+      .update(updatedEntry)
+      .eq('id', editingEntry.id)
+      .select();
+
+    if (error) {
+      console.error('Error updating fuel entry:', error);
+    } else if (data && data[0]) {
+      setFuelEntries(prev => prev.map(e => e.id === editingEntry.id ? data[0] : e));
+      setEditingEntry(null);
+    }
+  };
+
+  const handleDeleteEntry = async () => {
+    if (!deleteEntryId) return;
+
+    const { error } = await (supabase as any)
+      .from('fuel_log')
+      .delete()
+      .eq('id', deleteEntryId);
+
+    if (error) {
+      console.error('Error deleting fuel entry:', error);
+    } else {
+      setFuelEntries(prev => prev.filter(e => e.id !== deleteEntryId));
+      setDeleteEntryId(null);
+    }
+  };
+
   // Summaries
   const avgPrice =
     fuelEntries.reduce((sum, e) => sum + (e.price || 0), 0) / (fuelEntries.length || 1);
@@ -186,6 +272,7 @@ export default function FuelLog() {
           <TableHead>Total</TableHead>
           <TableHead>{consumptionLabel}</TableHead>
           <TableHead>Odometer</TableHead>
+          <TableHead>Actions</TableHead>
         </TableRow></TableHeader>
         <TableBody>{fuelEntries.map(entry => (
           <TableRow key={entry.id}>
@@ -196,9 +283,62 @@ export default function FuelLog() {
             <TableCell>{regionConfig.currencySymbol}{entry.total.toFixed(2)}</TableCell>
             <TableCell>{entry.consumption != null ? entry.consumption.toFixed(2) : '-'} {consumptionLabel}</TableCell>
             <TableCell>{entry.odometer ?? '-'}</TableCell>
+            <TableCell>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditClick(entry)}
+                  className="h-8 w-8 p-0"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeleteEntryId(entry.id)}
+                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </TableCell>
           </TableRow>
         ))}</TableBody>
       </Table></div>}
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
+        <DialogContent>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Edit Fuel Entry</h2>
+            <div><Label>Date</Label><Input type="date" value={editFormData.date} onChange={e => setEditFormData({ ...editFormData, date: e.target.value })} /></div>
+            <div><Label>Location</Label><Input value={editFormData.location} onChange={e => setEditFormData({ ...editFormData, location: e.target.value })} /></div>
+            <div><Label>Odometer (km)</Label><Input type="number" value={editFormData.odometer} onChange={e => setEditFormData({ ...editFormData, odometer: e.target.value })} /></div>
+            <div><Label>Volume ({volumeLabel})</Label><Input type="number" value={editFormData.volume} onChange={e => setEditFormData({ ...editFormData, volume: e.target.value })} /></div>
+            <div><Label>{priceLabel}</Label><Input type="number" value={editFormData.price} onChange={e => setEditFormData({ ...editFormData, price: e.target.value })} /></div>
+            <div><Label>Total</Label><Input type="number" value={editFormData.total} onChange={e => setEditFormData({ ...editFormData, total: e.target.value })} /></div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setEditingEntry(null)}>Cancel</Button>
+              <Button onClick={handleUpdateEntry} disabled={!editFormData.volume || !editFormData.price || !editFormData.total}>Update Entry</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteEntryId} onOpenChange={(open) => !open && setDeleteEntryId(null)}>
+        <DialogContent>
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Delete Fuel Entry</h2>
+            <p className="text-gray-600">Are you sure you want to delete this fuel entry? This action cannot be undone.</p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setDeleteEntryId(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDeleteEntry}>Delete</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
