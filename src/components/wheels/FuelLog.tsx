@@ -183,7 +183,10 @@ export default function FuelLog() {
       .from('fuel_log')
       .insert(entry)
       .select();
-    if (error) console.error('Error saving fuel entry:', error);
+    if (error) {
+      console.error('Error saving fuel entry:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+    }
     else if (data && data[0]) {
       setFuelEntries(prev => [data[0], ...prev]);
       setNewEntry({ date: getTodayDateLocal(), location: '', odometer: '', volume: '', price: '', total: '', filled_to_top: true });
