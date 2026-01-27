@@ -9,7 +9,7 @@ import { Dialog, DialogTrigger, DialogContent } from "@/components/common/Animat
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getMapboxPublicToken } from "@/utils/mapboxConfig";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { getTodayDateLocal } from "@/utils/format";
 
 export default function FuelLog() {
@@ -28,7 +28,8 @@ export default function FuelLog() {
     odometer: '',
     volume: '',
     price: '',
-    total: ''
+    total: '',
+    filled_to_top: true
   });
   const [editingEntry, setEditingEntry] = useState<any>(null);
   const [editFormData, setEditFormData] = useState({
@@ -37,7 +38,8 @@ export default function FuelLog() {
     odometer: '',
     volume: '',
     price: '',
-    total: ''
+    total: '',
+    filled_to_top: true
   });
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -96,6 +98,54 @@ export default function FuelLog() {
     }
   }, []);
 
+  // Auto-calculate missing values for new entry
+  useEffect(() => {
+    const volume = parseFloat(newEntry.volume);
+    const price = parseFloat(newEntry.price);
+    const total = parseFloat(newEntry.total);
+
+    // If we have volume and total, calculate price
+    if (volume && total && !newEntry.price) {
+      const calculatedPrice = total / volume;
+      setNewEntry(prev => ({ ...prev, price: calculatedPrice.toFixed(2) }));
+    }
+    // If we have price and total, calculate volume
+    else if (price && total && !newEntry.volume) {
+      const calculatedVolume = total / price;
+      setNewEntry(prev => ({ ...prev, volume: calculatedVolume.toFixed(2) }));
+    }
+    // If we have volume and price, calculate total
+    else if (volume && price && !newEntry.total) {
+      const calculatedTotal = volume * price;
+      setNewEntry(prev => ({ ...prev, total: calculatedTotal.toFixed(2) }));
+    }
+  }, [newEntry.volume, newEntry.price, newEntry.total]);
+
+  // Auto-calculate missing values for edit form
+  useEffect(() => {
+    if (!editingEntry) return;
+
+    const volume = parseFloat(editFormData.volume);
+    const price = parseFloat(editFormData.price);
+    const total = parseFloat(editFormData.total);
+
+    // If we have volume and total, calculate price
+    if (volume && total && !editFormData.price) {
+      const calculatedPrice = total / volume;
+      setEditFormData(prev => ({ ...prev, price: calculatedPrice.toFixed(2) }));
+    }
+    // If we have price and total, calculate volume
+    else if (price && total && !editFormData.volume) {
+      const calculatedVolume = total / price;
+      setEditFormData(prev => ({ ...prev, volume: calculatedVolume.toFixed(2) }));
+    }
+    // If we have volume and price, calculate total
+    else if (volume && price && !editFormData.total) {
+      const calculatedTotal = volume * price;
+      setEditFormData(prev => ({ ...prev, total: calculatedTotal.toFixed(2) }));
+    }
+  }, [editFormData.volume, editFormData.price, editFormData.total, editingEntry]);
+
   const handleAddEntry = async () => {
     if (!user) return;
     const odometer = parseFloat(newEntry.odometer);
@@ -103,10 +153,10 @@ export default function FuelLog() {
     const price = parseFloat(newEntry.price);
     const total = parseFloat(newEntry.total);
 
-    // Calculate consumption
+    // Calculate consumption only if tank was filled to top
     let consumption: number | null = null;
     const last = fuelEntries[0];
-    if (odometer && last?.odometer && volume) {
+    if (newEntry.filled_to_top && odometer && last?.odometer && volume && last?.filled_to_top) {
       const distance = odometer - last.odometer;
       if (isImperial) {
         const miles = distance * 0.621371;
@@ -125,6 +175,7 @@ export default function FuelLog() {
       price,
       total,
       consumption,
+      filled_to_top: newEntry.filled_to_top,
       region
     };
 
@@ -135,7 +186,7 @@ export default function FuelLog() {
     if (error) console.error('Error saving fuel entry:', error);
     else if (data && data[0]) {
       setFuelEntries(prev => [data[0], ...prev]);
-      setNewEntry({ date: getTodayDateLocal(), location: '', odometer: '', volume: '', price: '', total: '' });
+      setNewEntry({ date: getTodayDateLocal(), location: '', odometer: '', volume: '', price: '', total: '', filled_to_top: true });
     }
   };
 
@@ -147,7 +198,8 @@ export default function FuelLog() {
       odometer: entry.odometer?.toString() || '',
       volume: entry.volume?.toString() || '',
       price: entry.price?.toString() || '',
-      total: entry.total?.toString() || ''
+      total: entry.total?.toString() || '',
+      filled_to_top: entry.filled_to_top ?? true
     });
   };
 
@@ -158,13 +210,13 @@ export default function FuelLog() {
     const price = parseFloat(editFormData.price);
     const total = parseFloat(editFormData.total);
 
-    // Calculate consumption
+    // Calculate consumption only if tank was filled to top
     let consumption: number | null = null;
     const sortedEntries = [...fuelEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const entryIndex = sortedEntries.findIndex(e => e.id === editingEntry.id);
     const previousEntry = sortedEntries[entryIndex + 1];
 
-    if (odometer && previousEntry?.odometer && volume) {
+    if (editFormData.filled_to_top && odometer && previousEntry?.odometer && volume && previousEntry?.filled_to_top) {
       const distance = odometer - previousEntry.odometer;
       if (isImperial) {
         const miles = distance * 0.621371;
@@ -181,7 +233,8 @@ export default function FuelLog() {
       volume,
       price,
       total,
-      consumption
+      consumption,
+      filled_to_top: editFormData.filled_to_top
     };
 
     const { data, error } = await (supabase as any)
@@ -254,10 +307,24 @@ export default function FuelLog() {
             <div><Label>Date</Label><Input type="date" value={newEntry.date} onChange={e => setNewEntry({ ...newEntry, date: e.target.value })} /></div>
             <div><Label>Location</Label><Input value={newEntry.location} onChange={e => setNewEntry({ ...newEntry, location: e.target.value })} /></div>
             <div><Label>Odometer (km)</Label><Input type="number" value={newEntry.odometer} onChange={e => setNewEntry({ ...newEntry, odometer: e.target.value })} /></div>
-            <div><Label>Volume ({volumeLabel})</Label><Input type="number" value={newEntry.volume} onChange={e => setNewEntry({ ...newEntry, volume: e.target.value })} /></div>
-            <div><Label>{priceLabel}</Label><Input type="number" value={newEntry.price} onChange={e => setNewEntry({ ...newEntry, price: e.target.value })} /></div>
-            <div><Label>Total</Label><Input type="number" value={newEntry.total} onChange={e => setNewEntry({ ...newEntry, total: e.target.value })} /></div>
-            <Button onClick={handleAddEntry} disabled={!newEntry.volume || !newEntry.price || !newEntry.total}>Save Entry</Button>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Volume ({volumeLabel})</Label><Input type="number" step="0.01" value={newEntry.volume} onChange={e => setNewEntry({ ...newEntry, volume: e.target.value, price: '' })} placeholder="Auto-calc if price+total" /></div>
+              <div><Label>{priceLabel} (optional)</Label><Input type="number" step="0.01" value={newEntry.price} onChange={e => setNewEntry({ ...newEntry, price: e.target.value, volume: '' })} placeholder="Auto-calc if volume+total" /></div>
+            </div>
+            <div><Label>Total Cost</Label><Input type="number" step="0.01" value={newEntry.total} onChange={e => setNewEntry({ ...newEntry, total: e.target.value })} /></div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="filled_to_top"
+                checked={newEntry.filled_to_top}
+                onChange={e => setNewEntry({ ...newEntry, filled_to_top: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="filled_to_top" className="text-sm font-normal cursor-pointer">
+                Filled to top (needed for accurate consumption calculation)
+              </Label>
+            </div>
+            <Button onClick={handleAddEntry} disabled={(!newEntry.volume && !newEntry.price) || !newEntry.total}>Save Entry</Button>
           </div></DialogContent>
         </Dialog>
       </div>
@@ -277,10 +344,19 @@ export default function FuelLog() {
           <TableRow key={entry.id}>
             <TableCell>{entry.date}</TableCell>
             <TableCell>{entry.location}</TableCell>
-            <TableCell>{entry.volume.toFixed(1)}</TableCell>
-            <TableCell>{regionConfig.currencySymbol}{entry.price.toFixed(2)}</TableCell>
+            <TableCell>{entry.volume?.toFixed(1) || '-'}</TableCell>
+            <TableCell>{entry.price ? `${regionConfig.currencySymbol}${entry.price.toFixed(2)}` : '-'}</TableCell>
             <TableCell>{regionConfig.currencySymbol}{entry.total.toFixed(2)}</TableCell>
-            <TableCell>{entry.consumption != null ? entry.consumption.toFixed(2) : '-'} {consumptionLabel}</TableCell>
+            <TableCell>
+              <div className="flex items-center gap-1">
+                {entry.consumption != null ? `${entry.consumption.toFixed(2)} ${consumptionLabel}` : '-'}
+                {entry.filled_to_top && (
+                  <span className="inline-block" title="Filled to top">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  </span>
+                )}
+              </div>
+            </TableCell>
             <TableCell>{entry.odometer ?? '-'}</TableCell>
             <TableCell>
               <div className="flex gap-2">
@@ -314,12 +390,26 @@ export default function FuelLog() {
             <div><Label>Date</Label><Input type="date" value={editFormData.date} onChange={e => setEditFormData({ ...editFormData, date: e.target.value })} /></div>
             <div><Label>Location</Label><Input value={editFormData.location} onChange={e => setEditFormData({ ...editFormData, location: e.target.value })} /></div>
             <div><Label>Odometer (km)</Label><Input type="number" value={editFormData.odometer} onChange={e => setEditFormData({ ...editFormData, odometer: e.target.value })} /></div>
-            <div><Label>Volume ({volumeLabel})</Label><Input type="number" value={editFormData.volume} onChange={e => setEditFormData({ ...editFormData, volume: e.target.value })} /></div>
-            <div><Label>{priceLabel}</Label><Input type="number" value={editFormData.price} onChange={e => setEditFormData({ ...editFormData, price: e.target.value })} /></div>
-            <div><Label>Total</Label><Input type="number" value={editFormData.total} onChange={e => setEditFormData({ ...editFormData, total: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Volume ({volumeLabel})</Label><Input type="number" step="0.01" value={editFormData.volume} onChange={e => setEditFormData({ ...editFormData, volume: e.target.value, price: '' })} placeholder="Auto-calc if price+total" /></div>
+              <div><Label>{priceLabel} (optional)</Label><Input type="number" step="0.01" value={editFormData.price} onChange={e => setEditFormData({ ...editFormData, price: e.target.value, volume: '' })} placeholder="Auto-calc if volume+total" /></div>
+            </div>
+            <div><Label>Total Cost</Label><Input type="number" step="0.01" value={editFormData.total} onChange={e => setEditFormData({ ...editFormData, total: e.target.value })} /></div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="edit_filled_to_top"
+                checked={editFormData.filled_to_top}
+                onChange={e => setEditFormData({ ...editFormData, filled_to_top: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="edit_filled_to_top" className="text-sm font-normal cursor-pointer">
+                Filled to top (needed for accurate consumption calculation)
+              </Label>
+            </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setEditingEntry(null)}>Cancel</Button>
-              <Button onClick={handleUpdateEntry} disabled={!editFormData.volume || !editFormData.price || !editFormData.total}>Update Entry</Button>
+              <Button onClick={handleUpdateEntry} disabled={(!editFormData.volume && !editFormData.price) || !editFormData.total}>Update Entry</Button>
             </div>
           </div>
         </DialogContent>
