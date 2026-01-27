@@ -19,6 +19,7 @@ import { TaskDialog } from './TaskDialog';
 import { Button } from '@/components/ui/button';
 import { Settings, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDateToLocal } from '@/utils/format';
 import type {
   TransitionProfile,
   TransitionTask,
@@ -467,7 +468,7 @@ export function TransitionDashboard() {
             .from('transition_profiles')
             .insert({
               user_id: user.id,
-              departure_date: data.departure_date.toISOString().split('T')[0],
+              departure_date: formatDateToLocal(data.departure_date),
               transition_type: data.transition_type,
               current_phase: 'planning',
               motivation: data.motivation || null,
@@ -512,7 +513,7 @@ export function TransitionDashboard() {
         const { data: updatedProfile, error } = await supabase
           .from('transition_profiles')
           .update({
-            departure_date: data.departure_date.toISOString().split('T')[0],
+            departure_date: formatDateToLocal(data.departure_date),
             transition_type: data.transition_type,
             current_phase: 'planning',
             motivation: data.motivation || null,
@@ -580,7 +581,7 @@ export function TransitionDashboard() {
             .insert({
               user_id: user.id,
               departure_date: stepData.departure_date
-                ? stepData.departure_date.toISOString().split('T')[0]
+                ? formatDateToLocal(stepData.departure_date)
                 : null,
               transition_type: stepData.transition_type || null,
               current_phase: 'planning',
@@ -603,7 +604,7 @@ export function TransitionDashboard() {
               'start_transition_profile',
               {
                 p_departure_date: stepData.departure_date
-                  ? stepData.departure_date.toISOString().split('T')[0]
+                  ? formatDateToLocal(stepData.departure_date)
                   : null,
                 p_is_enabled: true,
               }
@@ -625,7 +626,7 @@ export function TransitionDashboard() {
         };
 
         if (stepData.departure_date) {
-          updateData.departure_date = stepData.departure_date.toISOString().split('T')[0];
+          updateData.departure_date = formatDateToLocal(stepData.departure_date);
         }
         if (stepData.transition_type) {
           updateData.transition_type = stepData.transition_type;

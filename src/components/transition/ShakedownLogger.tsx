@@ -36,6 +36,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { getTodayDateLocal } from '@/utils/format';
 
 interface ShakedownTrip {
   id: string;
@@ -289,7 +290,7 @@ export function ShakedownLogger() {
         is_resolved: !!issueSolution,
         parts_needed: issuePartsNeeded || null,
         estimated_cost: issueCost ? parseFloat(issueCost) : null,
-        resolved_date: issueSolution ? new Date().toISOString().split('T')[0] : null,
+        resolved_date: issueSolution ? getTodayDateLocal() : null,
       });
 
       if (error) throw error;
@@ -328,7 +329,7 @@ export function ShakedownLogger() {
         .from('shakedown_issues')
         .update({
           is_resolved: isResolved,
-          resolved_date: isResolved ? new Date().toISOString().split('T')[0] : null,
+          resolved_date: isResolved ? getTodayDateLocal() : null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', issueId);
@@ -341,7 +342,7 @@ export function ShakedownLogger() {
             ? {
                 ...issue,
                 is_resolved: isResolved,
-                resolved_date: isResolved ? new Date().toISOString().split('T')[0] : undefined,
+                resolved_date: isResolved ? getTodayDateLocal() : undefined,
               }
             : issue
         )

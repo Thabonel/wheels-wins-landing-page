@@ -26,6 +26,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import equipmentTemplates from '@/data/equipment-templates.json';
+import { getTodayDateLocal } from '@/utils/format';
 
 interface EquipmentItem {
   id: string;
@@ -219,7 +220,7 @@ export const EquipmentManager: React.FC = () => {
         .from('transition_equipment')
         .update({
           is_purchased: isPurchased,
-          purchased_date: isPurchased ? new Date().toISOString().split('T')[0] : null,
+          purchased_date: isPurchased ? getTodayDateLocal() : null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', itemId);
@@ -232,7 +233,7 @@ export const EquipmentManager: React.FC = () => {
             ? {
                 ...item,
                 is_purchased: isPurchased,
-                purchased_date: isPurchased ? new Date().toISOString().split('T')[0] : undefined,
+                purchased_date: isPurchased ? getTodayDateLocal() : undefined,
               }
             : item
         )
