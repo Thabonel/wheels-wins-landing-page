@@ -42,6 +42,7 @@ export default function FuelLog() {
     filled_to_top: true
   });
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Fetch entries from Supabase
@@ -190,6 +191,7 @@ export default function FuelLog() {
     else if (data && data[0]) {
       setFuelEntries(prev => [data[0], ...prev]);
       setNewEntry({ date: getTodayDateLocal(), location: '', odometer: '', volume: '', price: '', total: '', filled_to_top: true });
+      setIsAddDialogOpen(false);
     }
   };
 
@@ -305,7 +307,8 @@ export default function FuelLog() {
 
       <div className="flex flex-col items-end gap-2">
         <p className="text-sm text-gray-600 text-right">You can ask Pam to log fuel, or add it manually:</p>
-        <Dialog><DialogTrigger asChild><Button>Add Fuel Entry</Button></DialogTrigger>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild><Button>Add Fuel Entry</Button></DialogTrigger>
           <DialogContent><div className="space-y-4">
             <div><Label>Date</Label><Input type="date" value={newEntry.date} onChange={e => setNewEntry({ ...newEntry, date: e.target.value })} /></div>
             <div><Label>Location</Label><Input value={newEntry.location} onChange={e => setNewEntry({ ...newEntry, location: e.target.value })} /></div>
