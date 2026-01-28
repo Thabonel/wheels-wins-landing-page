@@ -6,18 +6,23 @@ Example usage:
 - "PAM, add a $50 gas expense"
 - "Log $120 for groceries today"
 - "I spent $30 on propane"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
-from decimal import Decimal
-from pydantic import ValidationError
 
-from app.integrations.supabase import get_supabase_client
-from app.services.pam.schemas.budget import CreateExpenseInput
+from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    validate_date_format,
+    safe_db_insert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,69 +47,60 @@ async def create_expense(
 
     Returns:
         Dict with created expense details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
-        try:
-            validated = CreateExpenseInput(
-                user_id=user_id,
-                amount=amount,
-                category=category,
-                description=description,
-                date=date
+        validate_uuid(user_id, "user_id")
+        validate_positive_number(amount, "amount")
+
+        if not category or not category.strip():
+            raise ValidationError(
+                "category is required and cannot be empty",
+                context={"field": "category"}
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
-            error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
 
-        # Get Supabase client
-        supabase = get_supabase_client()
-
-        # Parse date or use today
-        if validated.date:
+        if date:
+            validate_date_format(date, "date")
             try:
-                expense_date = datetime.fromisoformat(validated.date.replace('Z', '+00:00'))
+                expense_date = datetime.fromisoformat(date.replace('Z', '+00:00'))
             except ValueError:
                 expense_date = datetime.now()
         else:
             expense_date = datetime.now()
 
-        # Build expense data using validated inputs
         expense_data = {
-            "user_id": validated.user_id,
-            "amount": float(validated.amount),  # Already validated as positive
-            "category": validated.category,  # Already a string due to use_enum_values=True
-            "description": validated.description or f"{validated.category} expense",
+            "user_id": user_id,
+            "amount": float(amount),
+            "category": category.lower(),
+            "description": description or f"{category} expense",
             "date": expense_date.isoformat(),
             "created_at": datetime.now().isoformat()
         }
 
-        # Insert into database
-        response = supabase.table("expenses").insert(expense_data).execute()
+        expense = await safe_db_insert("expenses", expense_data, user_id)
 
-        if response.data:
-            expense = response.data[0]
-            logger.info(f"Created expense: {expense['id']} for user {validated.user_id}")
+        logger.info(f"Created expense: {expense['id']} for user {user_id}")
 
-            return {
-                "success": True,
-                "expense": expense,
-                "message": f"Added ${validated.amount:.2f} {validated.category} expense"
-            }
-        else:
-            logger.error(f"Failed to create expense: {response}")
-            return {
-                "success": False,
-                "error": "Failed to create expense"
-            }
-
-    except Exception as e:
-        logger.error(f"Error creating expense: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "expense": expense,
+            "message": f"Added ${amount:.2f} {category} expense"
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            "Unexpected error creating expense",
+            extra={"user_id": user_id, "amount": amount, "category": category},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to create expense",
+            context={"user_id": user_id, "error": str(e)}
+        )

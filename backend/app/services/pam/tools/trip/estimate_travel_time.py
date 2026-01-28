@@ -14,6 +14,14 @@ from typing import Any, Dict, Optional
 from pydantic import ValidationError
 
 from app.services.pam.schemas.trip import EstimateTravelTimeInput
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,24 +46,43 @@ async def estimate_travel_time(
 
     Returns:
         Dict with travel time estimates
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
+        if not origin or not origin.strip():
+            raise CustomValidationError(
+                "Origin location is required",
+                context={"field": "origin"}
+            )
+
+        if not destination or not destination.strip():
+            raise CustomValidationError(
+                "Destination location is required",
+                context={"field": "destination"}
+            )
+
+        if distance_miles is not None:
+            validate_positive_number(distance_miles, "distance_miles")
+
         try:
             validated = EstimateTravelTimeInput(
                 user_id=user_id,
                 origin=origin,
                 destination=destination,
                 include_breaks=include_breaks,
-                distance_miles=distance_miles  # Extra field, allowed by schema
+                distance_miles=distance_miles
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         # Use provided distance or estimate (would use Mapbox in production)
         distance = getattr(validated, 'distance_miles', None) or 500.0  # Default estimate
@@ -104,9 +131,17 @@ async def estimate_travel_time(
                       (f" (suggested {days + 1} days with breaks)" if days > 0 else "")
         }
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error estimating travel time: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error estimating travel time",
+            extra={"user_id": user_id, "origin": origin, "destination": destination},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to estimate travel time",
+            context={"user_id": user_id, "origin": origin, "destination": destination, "error": str(e)}
+        )

@@ -19,6 +19,15 @@ from supabase import create_client, Client
 from app.services.external.eia_gas_prices import get_fuel_price_for_region
 from app.services.pam.schemas.trip import FindCheapGasInput
 from app.services.pam.tools.budget.auto_track_savings import auto_record_savings
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,22 +36,29 @@ async def _detect_user_region(user_id: str) -> str:
     """
     Detect user's region from their settings
 
-    Returns: Region code (US, CA, AU, UK, NZ, EU)
+    Args:
+        user_id: User's UUID
+
+    Returns:
+        Region code (US, CA, AU, UK, NZ, EU)
+
+    Raises:
+        ValidationError: Invalid user_id format
+        DatabaseError: Database query failed
     """
     try:
-        supabase: Client = create_client(
-            os.getenv("SUPABASE_URL"),
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        validate_uuid(user_id, "user_id")
+
+        response = await safe_db_select(
+            "user_settings",
+            filters={"user_id": user_id},
+            columns="regional_preferences",
+            single=True
         )
 
-        response = supabase.table("user_settings").select(
-            "regional_preferences"
-        ).eq("user_id", user_id).single().execute()
+        if response and response.get("regional_preferences"):
+            prefs = response["regional_preferences"]
 
-        if response.data and response.data.get("regional_preferences"):
-            prefs = response.data["regional_preferences"]
-
-            # Detect from currency
             currency = prefs.get("currency", "USD")
             if currency == "CAD":
                 return "CA"
@@ -57,10 +73,17 @@ async def _detect_user_region(user_id: str) -> str:
             else:
                 return "US"
 
-        return "US"  # Default
+        return "US"
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.warning(f"Could not detect user region: {e}")
+        logger.warning(
+            f"Could not detect user region, using default",
+            extra={"user_id": user_id, "error": str(e)}
+        )
         return "US"
 
 
@@ -82,9 +105,23 @@ async def find_cheap_gas(
 
     Returns:
         Dict with gas station listings sorted by price
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
+        if not location or not location.strip():
+            raise CustomValidationError(
+                "Location is required",
+                context={"field": "location"}
+            )
+
+        if radius_miles is not None:
+            validate_positive_number(radius_miles, "radius_miles")
+
         try:
             validated = FindCheapGasInput(
                 user_id=user_id,
@@ -93,32 +130,27 @@ async def find_cheap_gas(
                 fuel_type=fuel_type
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
-        # Detect user's region and get regional fuel price
         region = await _detect_user_region(validated.user_id)
-        fuel_price_data = await get_fuel_price_for_region(region, validated.fuel_type.value)  # ✅ Extract enum value
+        fuel_price_data = await get_fuel_price_for_region(region, validated.fuel_type.value)
 
         base_price = fuel_price_data["price"]
         currency = fuel_price_data["currency"]
         unit = fuel_price_data["unit"]
 
         logger.info(
-            f"Using {region} fuel price for {validated.fuel_type.value}: "  # ✅ Extract enum value
+            f"Using {region} fuel price for {validated.fuel_type.value}: "
             f"{base_price:.2f} {currency}/{unit} "
             f"(source: {fuel_price_data['source']})"
         )
 
-        # Generate mock station data with realistic price variations
-        # Variation amounts scale with region (smaller for per-liter pricing)
-        variation = 0.20 if region == "US" else 0.05  # 20¢/gal vs 5¢/L
+        variation = 0.20 if region == "US" else 0.05
 
-        # Region-specific station names
         station_names = {
             "US": ["Shell", "Chevron", "Exxon", "Circle K", "76"],
             "CA": ["Petro-Canada", "Shell", "Esso", "Husky", "Canadian Tire Gas+"],
@@ -129,7 +161,6 @@ async def find_cheap_gas(
         }
         stations = station_names.get(region, station_names["US"])
 
-        # In production, integrate with paid API (GasBuddy, Gas Guru) for actual station data
         mock_stations = [
             {
                 "name": f"{stations[0]} Station",
@@ -155,7 +186,7 @@ async def find_cheap_gas(
             {
                 "name": stations[3],
                 "address": "321 Elm St",
-                "price": round(base_price - variation, 2),  # Cheapest
+                "price": round(base_price - variation, 2),
                 "distance_miles": 8.1,
                 "has_diesel": True
             },
@@ -168,18 +199,15 @@ async def find_cheap_gas(
             }
         ]
 
-        # Sort by price
         sorted_stations = sorted(mock_stations, key=lambda x: x["price"])
 
-        # Filter by fuel type if diesel
-        if validated.fuel_type.value == "diesel":  # ✅ Extract enum value
+        if validated.fuel_type.value == "diesel":
             sorted_stations = [s for s in sorted_stations if s.get("has_diesel", False)]
 
         cheapest_price = sorted_stations[0]["price"] if sorted_stations else None
 
         logger.info(f"Found {len(sorted_stations)} gas stations near {validated.location} for user {validated.user_id}")
 
-        # Build region-aware message
         price_source = {
             "US": "U.S. Energy Information Administration (EIA)",
             "CA": "Natural Resources Canada (NRCan)",
@@ -189,16 +217,13 @@ async def find_cheap_gas(
             "EU": "European fuel price data"
         }.get(region, "regional fuel data")
 
-        # Calculate and auto-track potential savings
         potential_savings = 0.0
         savings_tracked = False
         if cheapest_price and base_price > cheapest_price:
-            # Estimate savings based on typical RV fill-up (20-30 gallons)
-            estimated_gallons = 25.0 if region == "US" else 95.0  # 95 liters for non-US
+            estimated_gallons = 25.0 if region == "US" else 95.0
             price_diff = base_price - cheapest_price
             potential_savings = round(price_diff * estimated_gallons, 2)
 
-            # Auto-track savings if meaningful (>$2)
             if potential_savings >= 2.0:
                 cheapest_station = sorted_stations[0]["name"] if sorted_stations else "nearby station"
                 savings_tracked = await auto_record_savings(
@@ -227,23 +252,31 @@ async def find_cheap_gas(
             "success": True,
             "location": validated.location,
             "radius_miles": validated.radius_miles,
-            "fuel_type": validated.fuel_type.value,  # ✅ Extract enum value
+            "fuel_type": validated.fuel_type.value,
             "region": region,
             "regional_average": base_price,
             "currency": currency,
             "unit": unit,
             "stations_found": len(sorted_stations),
             "cheapest_price": cheapest_price,
-            "stations": sorted_stations[:10],  # Top 10
+            "stations": sorted_stations[:10],
             "potential_savings": potential_savings,
             "savings_tracked": savings_tracked,
             "message": message,
             "note": f"Prices are representative estimates based on {price_source}. For real-time prices, check local fuel price apps."
         }
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error finding cheap gas: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error finding cheap gas",
+            extra={"user_id": user_id, "location": location},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to find cheap gas",
+            context={"user_id": user_id, "location": location, "error": str(e)}
+        )

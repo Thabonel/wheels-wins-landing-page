@@ -13,10 +13,19 @@ import logging
 from typing import Any, Dict
 from datetime import datetime
 import json
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.profile import ExportDataInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +42,14 @@ async def export_data(
 
     Returns:
         Dict with export details and data
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
         try:
             validated = ExportDataInput(
                 user_id=user_id,
@@ -46,15 +60,12 @@ async def export_data(
                 include_posts=kwargs.get("include_posts", True),
                 include_favorites=kwargs.get("include_favorites", True)
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
-
-        supabase = get_supabase_client()
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         export_data_obj = {
             "export_date": datetime.now().isoformat(),
@@ -62,60 +73,67 @@ async def export_data(
             "format": validated.format
         }
 
-        # Export profile (always included)
-        profile_response = supabase.table("profiles").select("*").eq(
-            "id", validated.user_id
-        ).execute()
-        export_data_obj["profile"] = profile_response.data[0] if profile_response.data else None
+        profile_data = await safe_db_select(
+            "profiles",
+            columns="*",
+            filters={"id": validated.user_id}
+        )
+        export_data_obj["profile"] = profile_data[0] if profile_data else None
 
-        # Export settings (always included)
-        settings_response = supabase.table("user_settings").select("*").eq(
-            "user_id", validated.user_id
-        ).execute()
-        export_data_obj["settings"] = settings_response.data[0] if settings_response.data else None
+        settings_data = await safe_db_select(
+            "user_settings",
+            columns="*",
+            filters={"user_id": validated.user_id}
+        )
+        export_data_obj["settings"] = settings_data[0] if settings_data else None
 
-        # Export privacy settings (always included)
-        privacy_response = supabase.table("privacy_settings").select("*").eq(
-            "user_id", validated.user_id
-        ).execute()
-        export_data_obj["privacy_settings"] = privacy_response.data[0] if privacy_response.data else None
+        privacy_data = await safe_db_select(
+            "privacy_settings",
+            columns="*",
+            filters={"user_id": validated.user_id}
+        )
+        export_data_obj["privacy_settings"] = privacy_data[0] if privacy_data else None
 
-        # Export expenses (conditional)
         if validated.include_expenses:
-            expenses_response = supabase.table("expenses").select("*").eq(
-                "user_id", validated.user_id
-            ).execute()
-            export_data_obj["expenses"] = expenses_response.data or []
+            expenses_data = await safe_db_select(
+                "expenses",
+                columns="*",
+                filters={"user_id": validated.user_id}
+            )
+            export_data_obj["expenses"] = expenses_data or []
 
-        # Export budgets (conditional)
         if validated.include_budgets:
-            budgets_response = supabase.table("budgets").select("*").eq(
-                "user_id", validated.user_id
-            ).execute()
-            export_data_obj["budgets"] = budgets_response.data or []
+            budgets_data = await safe_db_select(
+                "budgets",
+                columns="*",
+                filters={"user_id": validated.user_id}
+            )
+            export_data_obj["budgets"] = budgets_data or []
 
-        # Export trips (conditional, schema uses user_trips, not trips)
         if validated.include_trips:
-            trips_response = supabase.table("user_trips").select("*").eq(
-                "user_id", validated.user_id
-            ).execute()
-            export_data_obj["trips"] = trips_response.data or []
+            trips_data = await safe_db_select(
+                "user_trips",
+                columns="*",
+                filters={"user_id": validated.user_id}
+            )
+            export_data_obj["trips"] = trips_data or []
 
-        # Export posts (conditional)
         if validated.include_posts:
-            posts_response = supabase.table("posts").select("*").eq(
-                "user_id", validated.user_id
-            ).execute()
-            export_data_obj["posts"] = posts_response.data or []
+            posts_data = await safe_db_select(
+                "posts",
+                columns="*",
+                filters={"user_id": validated.user_id}
+            )
+            export_data_obj["posts"] = posts_data or []
 
-        # Export favorite locations (conditional)
         if validated.include_favorites:
-            favorites_response = supabase.table("favorite_locations").select("*").eq(
-                "user_id", validated.user_id
-            ).execute()
-            export_data_obj["favorite_locations"] = favorites_response.data or []
+            favorites_data = await safe_db_select(
+                "favorite_locations",
+                columns="*",
+                filters={"user_id": validated.user_id}
+            )
+            export_data_obj["favorite_locations"] = favorites_data or []
 
-        # Count total records
         total_records = (
             len(export_data_obj.get("expenses", [])) +
             len(export_data_obj.get("budgets", [])) +
@@ -126,12 +144,6 @@ async def export_data(
 
         logger.info(f"Exported {total_records} records for user {validated.user_id}")
 
-        # In production, this would:
-        # 1. Save to temporary file/S3
-        # 2. Generate download link
-        # 3. Send email with link
-        # 4. Auto-delete after 48 hours
-
         return {
             "success": True,
             "export_date": export_data_obj["export_date"],
@@ -140,9 +152,17 @@ async def export_data(
             "message": f"Exported {total_records} records. Download link sent to your email."
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error exporting data: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error exporting data",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to export data",
+            context={"user_id": user_id, "error": str(e)}
+        )

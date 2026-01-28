@@ -5,17 +5,25 @@ Plan community meetups and gatherings
 Example usage:
 - "Create a meetup event at Yellowstone next weekend"
 - "Plan a campfire gathering for Saturday night"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.social import CreateEventInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_required,
+    validate_date_format,
+    safe_db_insert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +54,19 @@ async def create_event(
 
     Returns:
         Dict with created event details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
+        validate_uuid(user_id, "user_id")
+        validate_required(title, "title")
+        validate_required(description, "description")
+        validate_required(event_date, "event_date")
+        validate_required(location, "location")
+        validate_date_format(event_date, "event_date")
+
         # Validate inputs using Pydantic schema
         try:
             is_public = kwargs.get("is_public", True)
@@ -63,15 +82,12 @@ async def create_event(
                 max_attendees=max_attendees,
                 is_public=is_public
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
-
-        supabase = get_supabase_client()
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"field": e.errors()[0]['loc'][0], "error": error_msg}
+            )
 
         # Build event data
         event_data = {
@@ -84,43 +100,43 @@ async def create_event(
             "longitude": validated.longitude,
             "max_attendees": validated.max_attendees,
             "is_public": validated.is_public,
-            "attendee_count": 1,  # Creator is automatically attending
+            "attendee_count": 1,
             "created_at": datetime.now().isoformat(),
             "status": "upcoming"
         }
 
-        # Save to database
-        response = supabase.table("events").insert(event_data).execute()
+        event = await safe_db_insert("events", event_data, user_id)
 
-        if response.data:
-            event = response.data[0]
-
-            # Add creator as attendee
-            attendee_data = {
-                "event_id": event["id"],
-                "user_id": validated.user_id,
-                "status": "attending",
-                "created_at": datetime.now().isoformat()
-            }
-            supabase.table("event_attendees").insert(attendee_data).execute()
-
-            logger.info(f"Created event '{validated.title}' for user {validated.user_id}")
-
-            return {
-                "success": True,
-                "event": event,
-                "message": f"Event '{validated.title}' created successfully at {validated.location}"
-            }
-        else:
-            logger.error(f"Failed to create event: {response}")
-            return {
-                "success": False,
-                "error": "Failed to create event"
-            }
-
-    except Exception as e:
-        logger.error(f"Error creating event: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
+        # Add creator as attendee
+        attendee_data = {
+            "event_id": event["id"],
+            "user_id": validated.user_id,
+            "status": "attending",
+            "created_at": datetime.now().isoformat()
         }
+
+        supabase = get_supabase_client()
+        supabase.table("event_attendees").insert(attendee_data).execute()
+
+        logger.info(f"Created event '{validated.title}' for user {validated.user_id}")
+
+        return {
+            "success": True,
+            "event": event,
+            "message": f"Event '{validated.title}' created successfully at {validated.location}"
+        }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error creating event",
+            extra={"user_id": user_id, "title": title},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to create event",
+            context={"user_id": user_id, "title": title, "error": str(e)}
+        )

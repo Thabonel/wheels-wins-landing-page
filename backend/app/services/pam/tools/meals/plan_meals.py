@@ -10,6 +10,16 @@ from datetime import datetime, timedelta
 
 from app.core.database import get_supabase_client
 from app.core.ai import get_ai_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_insert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +44,11 @@ async def plan_meals(
     Returns:
         Dict with success status and meal plan
 
+    Raises:
+        ValidationError: Invalid input parameters
+        ResourceNotFoundError: No recipes found
+        DatabaseError: Database operation failed
+
     Examples:
         User: "Plan my meals for this week"
         PAM: *Calls plan_meals(days=7)*
@@ -42,6 +57,15 @@ async def plan_meals(
         PAM: *Calls plan_meals(days=3, use_pantry_items=True)*
     """
     try:
+        validate_uuid(user_id, "user_id")
+        validate_positive_number(days, "days")
+
+        if days > 30:
+            raise ValidationError(
+                "Cannot plan meals for more than 30 days at a time",
+                context={"days": days}
+            )
+
         supabase = get_supabase_client()
         meal_types = meal_types or ['breakfast', 'lunch', 'dinner']
 
@@ -50,10 +74,10 @@ async def plan_meals(
         recipes = recipes_result.data or []
 
         if not recipes:
-            return {
-                "success": False,
-                "error": "No recipes found. Please add some recipes first before planning meals."
-            }
+            raise ResourceNotFoundError(
+                "No recipes found. Please add some recipes first before planning meals.",
+                context={"user_id": user_id}
+            )
 
         # Get pantry items if requested
         pantry_items = []
@@ -139,7 +163,10 @@ IMPORTANT: Only use recipe_id values from the available recipes list above.
             if json_match:
                 meal_plan = json.loads(json_match.group(0))
             else:
-                raise ValueError("AI did not return valid JSON")
+                raise ValidationError(
+                    "AI did not return valid JSON meal plan",
+                    context={"response": response[:200]}
+                )
 
         # Save meal plan to database
         plan_date = datetime.now().date()
@@ -155,8 +182,8 @@ IMPORTANT: Only use recipe_id values from the available recipes list above.
                     "notes": meal.get('notes', '')
                 }
 
-                result = supabase.table("meal_plans").insert(meal_data).execute()
-                saved_plans.append(result.data[0])
+                saved_plan = await safe_db_insert("meal_plans", meal_data, user_id)
+                saved_plans.append(saved_plan)
 
             plan_date += timedelta(days=1)
 
@@ -171,12 +198,22 @@ IMPORTANT: Only use recipe_id values from the available recipes list above.
             "allergies_filtered": user_allergies
         }
 
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error planning meals: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error planning meals",
+            extra={"user_id": user_id, "days": days},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to plan meals",
+            context={"user_id": user_id, "days": days, "error": str(e)}
+        )
 
 
 def _format_recipes_for_ai(recipes: List[Dict]) -> str:

@@ -5,17 +5,24 @@ Send direct messages to other users
 Example usage:
 - "Send a message to John asking about his RV setup"
 - "DM Sarah about the campground recommendation"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.social import MessageFriendInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_required,
+    safe_db_insert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +43,16 @@ async def message_friend(
 
     Returns:
         Dict with message details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
+        validate_uuid(user_id, "user_id")
+        validate_uuid(recipient_id, "recipient_id")
+        validate_required(message, "message")
+
         # Validate inputs using Pydantic schema
         try:
             validated = MessageFriendInput(
@@ -45,15 +60,12 @@ async def message_friend(
                 recipient_id=recipient_id,
                 message=message
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
-
-        supabase = get_supabase_client()
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"field": e.errors()[0]['loc'][0], "error": error_msg}
+            )
 
         # Build message data
         message_data = {
@@ -64,28 +76,27 @@ async def message_friend(
             "read": False
         }
 
-        # Save to database
-        response = supabase.table("messages").insert(message_data).execute()
+        msg = await safe_db_insert("messages", message_data, user_id)
 
-        if response.data:
-            msg = response.data[0]
-            logger.info(f"Sent message from {validated.user_id} to {validated.recipient_id}")
+        logger.info(f"Sent message from {validated.user_id} to {validated.recipient_id}")
 
-            return {
-                "success": True,
-                "message": msg,
-                "message_text": "Message sent successfully"
-            }
-        else:
-            logger.error(f"Failed to send message: {response}")
-            return {
-                "success": False,
-                "error": "Failed to send message"
-            }
-
-    except Exception as e:
-        logger.error(f"Error sending message: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "message": msg,
+            "message_text": "Message sent successfully"
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error sending message",
+            extra={"user_id": user_id, "recipient_id": recipient_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to send message",
+            context={"user_id": user_id, "recipient_id": recipient_id, "error": str(e)}
+        )

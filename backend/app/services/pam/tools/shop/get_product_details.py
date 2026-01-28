@@ -12,6 +12,15 @@ from typing import Any, Dict, Optional
 from uuid import UUID
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,23 +41,29 @@ async def get_product_details(
 
     Returns:
         Dict with product details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        ResourceNotFoundError: Product not found
+        DatabaseError: Database operation failed
     """
     try:
+        validate_uuid(user_id, "user_id")
+
         if not product_id and not product_title:
-            return {
-                "success": False,
-                "error": "Either product_id or product_title is required"
-            }
+            raise ValidationError(
+                "Either product_id or product_title is required",
+                context={"product_id": product_id, "product_title": product_title}
+            )
+
+        if product_id:
+            validate_uuid(product_id, "product_id")
 
         supabase = get_supabase_client()
 
-        # Build query
         db_query = supabase.table("affiliate_products").select("*")
-
-        # Only show active products
         db_query = db_query.eq("is_active", True)
 
-        # Search by ID or title
         if product_id:
             db_query = db_query.eq("id", product_id)
         elif product_title:
@@ -57,16 +72,19 @@ async def get_product_details(
         response = db_query.limit(1).execute()
 
         if not response.data or len(response.data) == 0:
-            return {
-                "success": False,
-                "error": "Product not found"
-            }
+            raise ResourceNotFoundError(
+                "Product not found",
+                context={
+                    "product_id": product_id,
+                    "product_title": product_title,
+                    "user_id": user_id
+                }
+            )
 
         product = response.data[0]
 
         logger.info(f"Retrieved product details for '{product['title']}' by user {user_id}")
 
-        # Format detailed response
         details = {
             "id": product.get("id"),
             "title": product.get("title"),
@@ -79,7 +97,6 @@ async def get_product_details(
             "features": product.get("features", [])
         }
 
-        # Create detailed message
         message = f"""
 Product: {details['title']}
 Price: ${details['price']:.2f}
@@ -97,12 +114,31 @@ You can purchase this product through our affiliate link to support Wheels & Win
             "message": message
         }
 
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error getting product details: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error getting product details",
+            extra={
+                "user_id": user_id,
+                "product_id": product_id,
+                "product_title": product_title
+            },
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to retrieve product details",
+            context={
+                "user_id": user_id,
+                "product_id": product_id,
+                "product_title": product_title,
+                "error": str(e)
+            }
+        )
 
 
 # Tool metadata for registration

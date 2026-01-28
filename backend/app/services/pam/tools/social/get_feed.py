@@ -5,16 +5,21 @@ Load social feed with posts from friends and community
 Example usage:
 - "Show me my feed"
 - "What's new in the community?"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.social import GetFeedInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +42,14 @@ async def get_feed(
 
     Returns:
         Dict with feed posts
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
+        validate_uuid(user_id, "user_id")
+
         # Validate inputs using Pydantic schema
         try:
             validated = GetFeedInput(
@@ -47,36 +58,59 @@ async def get_feed(
                 limit=limit,
                 offset=offset
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"field": e.errors()[0]['loc'][0], "error": error_msg}
+            )
 
         supabase = get_supabase_client()
 
-        # Build query based on filter type
-        if validated.filter_type == "friends":
-            # Get posts from friends only
-            response = supabase.rpc(
-                "get_friends_feed",
-                {"p_user_id": validated.user_id, "p_limit": validated.limit, "p_offset": validated.offset}
-            ).execute()
-        elif validated.filter_type == "following":
-            # Get posts from users the user is following
-            response = supabase.rpc(
-                "get_following_feed",
-                {"p_user_id": validated.user_id, "p_limit": validated.limit, "p_offset": validated.offset}
-            ).execute()
-        else:
-            # Get all public posts
-            response = supabase.table("posts").select(
-                "*, profiles(username, avatar_url)"
-            ).order("created_at", desc=True).range(validated.offset, validated.offset + validated.limit - 1).execute()
+        try:
+            if validated.filter_type == "friends":
+                response = supabase.rpc(
+                    "get_friends_feed",
+                    {
+                        "p_user_id": validated.user_id,
+                        "p_limit": validated.limit,
+                        "p_offset": validated.offset
+                    }
+                ).execute()
+            elif validated.filter_type == "following":
+                response = supabase.rpc(
+                    "get_following_feed",
+                    {
+                        "p_user_id": validated.user_id,
+                        "p_limit": validated.limit,
+                        "p_offset": validated.offset
+                    }
+                ).execute()
+            else:
+                response = supabase.table("posts").select(
+                    "*, profiles(username, avatar_url)"
+                ).order(
+                    "created_at", desc=True
+                ).range(
+                    validated.offset, validated.offset + validated.limit - 1
+                ).execute()
 
-        posts = response.data if response.data else []
+            posts = response.data if response.data else []
+
+        except Exception as db_error:
+            logger.error(
+                f"Database error getting feed",
+                extra={"user_id": user_id, "filter_type": filter_type},
+                exc_info=True
+            )
+            raise DatabaseError(
+                "Failed to retrieve feed",
+                context={
+                    "user_id": user_id,
+                    "filter_type": filter_type,
+                    "error": str(db_error)
+                }
+            )
 
         logger.info(f"Retrieved {len(posts)} posts for user {validated.user_id} feed")
 
@@ -89,9 +123,17 @@ async def get_feed(
             "message": f"Loaded {len(posts)} posts"
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error getting feed: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error getting feed",
+            extra={"user_id": user_id, "filter_type": filter_type},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to retrieve feed",
+            context={"user_id": user_id, "error": str(e)}
+        )

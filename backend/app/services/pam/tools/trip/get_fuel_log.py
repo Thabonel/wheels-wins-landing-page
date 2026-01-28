@@ -3,6 +3,16 @@ Get user's fuel log entries from database.
 """
 from typing import Dict, Any, Optional
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    validate_date_format,
+    safe_db_select,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,8 +34,21 @@ async def get_fuel_log(
 
     Returns:
         Dict with success status and fuel log entries
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
+        validate_uuid(user_id, "user_id")
+        validate_positive_number(limit, "limit")
+
+        if start_date:
+            validate_date_format(start_date, "start_date")
+
+        if end_date:
+            validate_date_format(end_date, "end_date")
+
         supabase = get_supabase_client()
 
         query = (
@@ -43,18 +66,25 @@ async def get_fuel_log(
 
         result = query.execute()
 
-        logger.info(f"📊 Retrieved {len(result.data)} fuel log entries for user {user_id}")
+        logger.info(f"Retrieved {len(result.data)} fuel log entries for user {user_id}")
 
         return {
             "success": True,
             "fuel_logs": result.data,
             "count": len(result.data)
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"❌ Failed to get fuel log for user {user_id}: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e),
-            "fuel_logs": [],
-            "count": 0
-        }
+        logger.error(
+            f"Unexpected error getting fuel log",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to retrieve fuel log",
+            context={"user_id": user_id, "error": str(e)}
+        )

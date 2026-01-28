@@ -22,6 +22,16 @@ from .unit_conversion import (
 )
 from app.services.external.eia_gas_prices import get_fuel_price_for_region
 from app.services.pam.schemas.trip import CalculateGasCostInput
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,22 +40,34 @@ async def _detect_user_region(user_id: str) -> str:
     """
     Detect user's region from their settings
 
-    Returns: Region code (US, CA, AU, UK, NZ, EU)
+    Args:
+        user_id: User's UUID
+
+    Returns:
+        Region code (US, CA, AU, UK, NZ, EU)
+
+    Raises:
+        ValidationError: Invalid user_id format
+        DatabaseError: Database query failed
     """
     try:
+        validate_uuid(user_id, "user_id")
+
         supabase: Client = create_client(
             os.getenv("SUPABASE_URL"),
             os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         )
 
-        response = supabase.table("user_settings").select(
-            "regional_preferences"
-        ).eq("user_id", user_id).single().execute()
+        response = await safe_db_select(
+            "user_settings",
+            filters={"user_id": user_id},
+            columns="regional_preferences",
+            single=True
+        )
 
-        if response.data and response.data.get("regional_preferences"):
-            prefs = response.data["regional_preferences"]
+        if response and response.get("regional_preferences"):
+            prefs = response["regional_preferences"]
 
-            # Detect from currency
             currency = prefs.get("currency", "USD")
             if currency == "CAD":
                 return "CA"
@@ -60,10 +82,17 @@ async def _detect_user_region(user_id: str) -> str:
             else:
                 return "US"
 
-        return "US"  # Default
+        return "US"
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.warning(f"Could not detect user region: {e}")
+        logger.warning(
+            f"Could not detect user region, using default",
+            extra={"user_id": user_id, "error": str(e)}
+        )
         return "US"
 
 
@@ -87,9 +116,24 @@ async def calculate_gas_cost(
 
     Returns:
         Dict with gas cost estimate formatted in user's preferred units
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
+        ResourceNotFoundError: Vehicle data not found
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
+        if distance_miles is not None:
+            validate_positive_number(distance_miles, "distance_miles")
+        if distance_km is not None:
+            validate_positive_number(distance_km, "distance_km")
+        if mpg is not None:
+            validate_positive_number(mpg, "mpg")
+        if gas_price is not None:
+            validate_positive_number(gas_price, "gas_price")
+
         try:
             validated = CalculateGasCostInput(
                 user_id=user_id,
@@ -99,12 +143,11 @@ async def calculate_gas_cost(
                 gas_price=gas_price
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         # Handle distance input (accept either miles or km, convert to miles internally)
         if validated.distance_km is not None:
@@ -112,26 +155,28 @@ async def calculate_gas_cost(
         else:
             distance_miles = validated.distance_miles
 
-        # If MPG not provided, try to get from user's primary vehicle
         if validated.mpg is None:
             try:
-                supabase: Client = create_client(
-                    os.getenv("SUPABASE_URL"),
-                    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+                vehicle_response = await safe_db_select(
+                    "vehicles",
+                    filters={"user_id": validated.user_id, "is_primary": True},
+                    columns="fuel_consumption_mpg, name",
+                    single=True
                 )
 
-                vehicle_response = supabase.table("vehicles").select("fuel_consumption_mpg, name").eq("user_id", validated.user_id).eq("is_primary", True).single().execute()
-
-                if vehicle_response.data and vehicle_response.data.get("fuel_consumption_mpg"):
-                    mpg = float(vehicle_response.data["fuel_consumption_mpg"])
-                    vehicle_name = vehicle_response.data.get("name", "your vehicle")
+                if vehicle_response and vehicle_response.get("fuel_consumption_mpg"):
+                    mpg = float(vehicle_response["fuel_consumption_mpg"])
+                    vehicle_name = vehicle_response.get("name", "your vehicle")
                     logger.info(f"Using stored fuel consumption: {mpg} MPG from {vehicle_name}")
                 else:
-                    mpg = 10.0  # Fallback to RV default
+                    mpg = 10.0
                     logger.info(f"No stored fuel consumption found, using default: {mpg} MPG")
-            except Exception as e:
-                logger.warning(f"Could not fetch vehicle fuel consumption: {e}")
-                mpg = 10.0  # Fallback to RV default
+            except DatabaseError as e:
+                logger.warning(
+                    f"Could not fetch vehicle fuel consumption, using default",
+                    extra={"user_id": validated.user_id, "error": str(e)}
+                )
+                mpg = 10.0
         else:
             mpg = validated.mpg
 
@@ -209,9 +254,19 @@ async def calculate_gas_cost(
             "message": message
         }
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except ResourceNotFoundError:
+        raise
     except Exception as e:
-        logger.error(f"Error calculating gas cost: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error calculating gas cost",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to calculate gas cost",
+            context={"user_id": user_id, "error": str(e)}
+        )

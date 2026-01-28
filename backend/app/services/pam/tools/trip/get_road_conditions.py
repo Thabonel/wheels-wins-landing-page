@@ -14,6 +14,13 @@ from typing import Any, Dict, Optional
 from pydantic import ValidationError
 
 from app.services.pam.schemas.trip import GetRoadConditionsInput
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,30 +41,34 @@ async def get_road_conditions(
 
     Returns:
         Dict with road condition data
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
+        if not location or not location.strip():
+            raise CustomValidationError(
+                "Location is required",
+                context={"field": "location"}
+            )
+
         try:
             validated = GetRoadConditionsInput(
                 user_id=user_id,
-                route=location,  # Map location parameter to route field
+                route=location,
                 start_location=kwargs.get('start_location'),
                 end_location=kwargs.get('end_location')
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
-        # In production, integrate with:
-        # - State DOT APIs
-        # - Mapbox Traffic API
-        # - Weather.gov alerts
-
-        # Mock road conditions
         conditions = {
             "overall_status": "fair",
             "alerts": [
@@ -92,9 +103,17 @@ async def get_road_conditions(
                       (f" ({alert_count} alerts)" if alert_count > 0 else " (no alerts)")
         }
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error getting road conditions: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error getting road conditions",
+            extra={"user_id": user_id, "location": location},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to get road conditions",
+            context={"user_id": user_id, "location": location, "error": str(e)}
+        )

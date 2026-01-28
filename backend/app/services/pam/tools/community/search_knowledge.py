@@ -12,6 +12,17 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from app.services.database import DatabaseService
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_select,
+    safe_db_update,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,52 +49,52 @@ async def search_knowledge(
         - success: bool
         - articles: List of relevant articles
         - count: Number of articles found
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate category
+        validate_uuid(user_id, "user_id")
+        validate_positive_number(limit, "limit")
+
         valid_categories = ['shipping', 'maintenance', 'travel_tips', 'camping', 'routes', 'general']
         if category and category not in valid_categories:
-            return {
-                "success": False,
-                "articles": [],
-                "count": 0,
-                "error": f"Invalid category. Must be one of: {', '.join(valid_categories)}"
-            }
+            raise ValidationError(
+                f"Invalid category. Must be one of: {', '.join(valid_categories)}",
+                context={"category": category, "valid_categories": valid_categories}
+            )
 
-        # Validate difficulty
         valid_difficulties = ['beginner', 'intermediate', 'advanced']
         if difficulty and difficulty not in valid_difficulties:
-            return {
-                "success": False,
-                "articles": [],
-                "count": 0,
-                "error": f"Invalid difficulty. Must be one of: {', '.join(valid_difficulties)}"
-            }
+            raise ValidationError(
+                f"Invalid difficulty. Must be one of: {', '.join(valid_difficulties)}",
+                context={"difficulty": difficulty, "valid_difficulties": valid_difficulties}
+            )
 
         db = DatabaseService()
 
-        # Build query
         query_builder = db.client.table('community_knowledge').select('*').eq('status', 'approved')
 
-        # Apply category filter
         if category:
             query_builder = query_builder.eq('category', category)
 
-        # Apply difficulty filter
         if difficulty:
             query_builder = query_builder.eq('difficulty_level', difficulty)
 
-        # Search in title and excerpt
         if query:
             query_builder = query_builder.or_(f"title.ilike.%{query}%,excerpt.ilike.%{query}%")
 
-        # Order by relevance (views and helpful count)
         query_builder = query_builder.order('helpful_count', desc=True).order('views', desc=True)
-
-        # Apply limit
         query_builder = query_builder.limit(limit)
 
-        result = query_builder.execute()
+        try:
+            result = query_builder.execute()
+        except Exception as db_error:
+            raise DatabaseError(
+                "Failed to search knowledge articles",
+                context={"user_id": user_id, "query": query, "error": str(db_error)}
+            )
 
         if not result.data:
             return {
@@ -99,7 +110,7 @@ async def search_knowledge(
                 "id": article['id'],
                 "title": article['title'],
                 "excerpt": article['excerpt'],
-                "content": article['content'][:500] + "..." if len(article['content']) > 500 else article['content'],  # Preview
+                "content": article['content'][:500] + "..." if len(article['content']) > 500 else article['content'],
                 "category": article['category'],
                 "difficulty_level": article['difficulty_level'],
                 "estimated_read_time": article['estimated_read_time'],
@@ -121,14 +132,20 @@ async def search_knowledge(
             "message": f"Found {len(articles)} knowledge article(s)"
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error searching knowledge articles: {str(e)}")
-        return {
-            "success": False,
-            "articles": [],
-            "count": 0,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error searching knowledge articles",
+            extra={"user_id": user_id, "query": query},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to search knowledge articles",
+            context={"user_id": user_id, "query": query, "error": str(e)}
+        )
 
 
 async def get_knowledge_article(article_id: str) -> Dict[str, Any]:
@@ -140,52 +157,75 @@ async def get_knowledge_article(article_id: str) -> Dict[str, Any]:
 
     Returns:
         Dict with article details
+
+    Raises:
+        ValidationError: Invalid article ID
+        ResourceNotFoundError: Article not found
+        DatabaseError: Database operation failed
     """
     try:
-        if not article_id:
-            return {
-                "success": False,
-                "error": "Article ID is required"
-            }
+        validate_uuid(article_id, "article_id")
 
         db = DatabaseService()
 
-        result = db.client.table('community_knowledge').select('*').eq('id', article_id).eq('status', 'approved').single().execute()
+        try:
+            result = db.client.table('community_knowledge').select('*').eq('id', article_id).eq('status', 'approved').single().execute()
+        except Exception as db_error:
+            raise DatabaseError(
+                "Failed to retrieve knowledge article",
+                context={"article_id": article_id, "error": str(db_error)}
+            )
 
-        if result.data:
-            article = result.data
+        if not result.data:
+            raise ResourceNotFoundError(
+                "Article not found or not approved",
+                context={"article_id": article_id}
+            )
 
-            # Increment view count
-            db.client.table('community_knowledge').update({'views': article['views'] + 1}).eq('id', article_id).execute()
+        article = result.data
 
-            return {
-                "success": True,
-                "article": {
-                    "id": article['id'],
-                    "title": article['title'],
-                    "content": article['content'],
-                    "excerpt": article['excerpt'],
-                    "category": article['category'],
-                    "difficulty_level": article['difficulty_level'],
-                    "estimated_read_time": article['estimated_read_time'],
-                    "tags": article.get('tags', []),
-                    "views": article['views'] + 1,  # Updated count
-                    "helpful_count": article['helpful_count'],
-                    "url": f"/knowledge/{article['id']}"
-                }
-            }
-        else:
-            return {
-                "success": False,
-                "error": "Article not found or not approved"
-            }
+        await safe_db_update(
+            "community_knowledge",
+            article_id,
+            {'views': article['views'] + 1},
+            None
+        )
 
-    except Exception as e:
-        logger.error(f"Error getting knowledge article {article_id}: {str(e)}")
+        logger.info(f"Retrieved knowledge article {article_id}")
+
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "article": {
+                "id": article['id'],
+                "title": article['title'],
+                "content": article['content'],
+                "excerpt": article['excerpt'],
+                "category": article['category'],
+                "difficulty_level": article['difficulty_level'],
+                "estimated_read_time": article['estimated_read_time'],
+                "tags": article.get('tags', []),
+                "views": article['views'] + 1,
+                "helpful_count": article['helpful_count'],
+                "url": f"/knowledge/{article['id']}"
+            }
         }
+
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error getting knowledge article",
+            extra={"article_id": article_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to retrieve knowledge article",
+            context={"article_id": article_id, "error": str(e)}
+        )
 
 
 async def get_knowledge_by_category(category: str, limit: int = 10) -> Dict[str, Any]:
@@ -198,20 +238,30 @@ async def get_knowledge_by_category(category: str, limit: int = 10) -> Dict[str,
 
     Returns:
         Dict with articles in the category
+
+    Raises:
+        ValidationError: Invalid category
+        DatabaseError: Database operation failed
     """
     try:
+        validate_positive_number(limit, "limit")
+
         valid_categories = ['shipping', 'maintenance', 'travel_tips', 'camping', 'routes', 'general']
         if category not in valid_categories:
-            return {
-                "success": False,
-                "articles": [],
-                "count": 0,
-                "error": f"Invalid category. Must be one of: {', '.join(valid_categories)}"
-            }
+            raise ValidationError(
+                f"Invalid category. Must be one of: {', '.join(valid_categories)}",
+                context={"category": category, "valid_categories": valid_categories}
+            )
 
         db = DatabaseService()
 
-        result = db.client.table('community_knowledge').select('*').eq('status', 'approved').eq('category', category).order('helpful_count', desc=True).limit(limit).execute()
+        try:
+            result = db.client.table('community_knowledge').select('*').eq('status', 'approved').eq('category', category).order('helpful_count', desc=True).limit(limit).execute()
+        except Exception as db_error:
+            raise DatabaseError(
+                "Failed to retrieve knowledge by category",
+                context={"category": category, "error": str(db_error)}
+            )
 
         if not result.data:
             return {
@@ -234,6 +284,8 @@ async def get_knowledge_by_category(category: str, limit: int = 10) -> Dict[str,
                 "url": f"/knowledge/{article['id']}"
             })
 
+        logger.info(f"Retrieved {len(articles)} knowledge articles in category {category}")
+
         return {
             "success": True,
             "articles": articles,
@@ -241,11 +293,17 @@ async def get_knowledge_by_category(category: str, limit: int = 10) -> Dict[str,
             "message": f"Found {len(articles)} article(s) in {category}"
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error getting knowledge by category {category}: {str(e)}")
-        return {
-            "success": False,
-            "articles": [],
-            "count": 0,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error getting knowledge by category",
+            extra={"category": category},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to retrieve knowledge by category",
+            context={"category": category, "error": str(e)}
+        )

@@ -13,10 +13,20 @@ Amendment #4: Input validation with Pydantic models
 import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.profile import CreateVehicleInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_insert,
+    safe_db_update,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +57,14 @@ async def create_vehicle(
 
     Returns:
         Dict with created vehicle data
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
         try:
             validated = CreateVehicleInput(
                 user_id=user_id,
@@ -61,38 +76,37 @@ async def create_vehicle(
                 fuel_type=fuel_type,
                 set_as_primary=set_as_primary
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
-        supabase = get_supabase_client()
-
-        # If setting as primary, unset other primary vehicles first
         if validated.set_as_primary:
             try:
+                supabase = get_supabase_client()
                 supabase.table("vehicles").update({
                     "is_primary": False
                 }).eq("user_id", validated.user_id).eq("is_primary", True).execute()
                 logger.info(f"Unset previous primary vehicles for user {validated.user_id}")
             except Exception as e:
-                logger.warning(f"Could not unset primary vehicles: {e}")
+                logger.warning(
+                    f"Could not unset primary vehicles",
+                    extra={"user_id": validated.user_id},
+                    exc_info=True
+                )
 
-        # Prepare vehicle data
         vehicle_data = {
             "user_id": validated.user_id,
             "name": validated.name,
             "is_primary": validated.set_as_primary,
-            "vehicle_type": validated.vehicle_type.value,  # ✅ Extract enum value
-            "fuel_type": validated.fuel_type.value,        # ✅ Extract enum value
+            "vehicle_type": validated.vehicle_type.value,
+            "fuel_type": validated.fuel_type.value,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat()
         }
 
-        # Add optional fields if provided
         if validated.make:
             vehicle_data["make"] = validated.make
         if validated.model:
@@ -100,19 +114,10 @@ async def create_vehicle(
         if validated.year:
             vehicle_data["year"] = validated.year
 
-        # Create vehicle
-        response = supabase.table("vehicles").insert(vehicle_data).execute()
+        vehicle = await safe_db_insert("vehicles", vehicle_data, user_id)
 
-        if not response.data or len(response.data) == 0:
-            return {
-                "success": False,
-                "error": "Failed to create vehicle. Please try again."
-            }
-
-        vehicle = response.data[0]
         logger.info(f"Created vehicle {vehicle['id']} for user {validated.user_id}: {validated.name}")
 
-        # Build friendly response
         vehicle_description = validated.name
         if validated.make and validated.model:
             vehicle_description = f"{validated.year or ''} {validated.make} {validated.model}".strip()
@@ -133,9 +138,17 @@ async def create_vehicle(
                       f"You can now tell me the fuel consumption for trip cost calculations."
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error creating vehicle: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error creating vehicle",
+            extra={"user_id": user_id, "name": name},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to create vehicle",
+            context={"user_id": user_id, "error": str(e)}
+        )

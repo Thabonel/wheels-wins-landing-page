@@ -15,6 +15,14 @@ import logging
 from typing import Any, Dict, Optional
 
 from app.services.pam.tools.budget.auto_track_savings import auto_record_savings
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,35 +43,45 @@ async def compare_prices(
 
     Returns:
         Dict with price comparison results and potential savings
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: External service failure
     """
     try:
-        if not product_name or len(product_name.strip()) == 0:
-            return {
-                "success": False,
-                "error": "Product name is required"
-            }
+        validate_uuid(user_id, "user_id")
 
-        # Import RapidAPI service
+        if not product_name or len(product_name.strip()) == 0:
+            raise ValidationError(
+                "Product name is required",
+                context={"product_name": product_name}
+            )
+
+        valid_countries = ["au", "us", "uk", "ca", "nz"]
+        if country not in valid_countries:
+            raise ValidationError(
+                f"Invalid country code. Must be one of: {', '.join(valid_countries)}",
+                context={"country": country, "valid_countries": valid_countries}
+            )
+
         try:
             from app.services.external.rapidapi_price_search import compare_prices as rapidapi_compare
         except ImportError:
-            return {
-                "success": False,
-                "error": "Price comparison service not available"
-            }
+            raise DatabaseError(
+                "Price comparison service not available",
+                context={"service": "rapidapi"}
+            )
 
-        # Perform price comparison
         results = await rapidapi_compare(product_name, country=country)
 
         if not results.get("success"):
-            return {
-                "success": False,
-                "error": results.get("error", "No products found for comparison")
-            }
+            raise ResourceNotFoundError(
+                results.get("error", "No products found for comparison"),
+                context={"product_name": product_name, "country": country}
+            )
 
         comparison = results.get("comparison", {})
 
-        # Auto-track savings if meaningful (>$5)
         savings_tracked = False
         potential_savings = comparison.get("potential_savings", 0)
 
@@ -75,12 +93,12 @@ async def compare_prices(
                 category="shopping",
                 savings_type="price_comparison",
                 description=f"Found {product_name} cheaper at {cheapest.get('store', 'retailer')} - saving ${potential_savings:.2f}",
-                confidence_score=0.70,  # Lower confidence for price comparison
+                confidence_score=0.70,
                 baseline_cost=comparison.get("most_expensive", {}).get("price", 0),
                 optimized_cost=cheapest.get("price", 0)
             )
 
-        savings_msg = " 💰 Savings tracked!" if savings_tracked else ""
+        savings_msg = " Savings tracked!" if savings_tracked else ""
 
         return {
             "success": True,
@@ -91,12 +109,22 @@ async def compare_prices(
             "message": f"{results.get('message', '')}{savings_msg}"
         }
 
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error comparing prices: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error comparing prices",
+            extra={"user_id": user_id, "product_name": product_name},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to compare prices",
+            context={"user_id": user_id, "product_name": product_name, "error": str(e)}
+        )
 
 
 # Tool metadata for registration

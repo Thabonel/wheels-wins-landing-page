@@ -16,6 +16,15 @@ import logging
 from typing import Any, Dict, Optional, List
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -90,45 +99,77 @@ async def search_products(
 
     Returns:
         Dict with product search results
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
+        validate_uuid(user_id, "user_id")
+
         if not query or len(query.strip()) == 0:
-            return {
-                "success": False,
-                "error": "Search query is required"
-            }
+            raise ValidationError(
+                "Search query is required",
+                context={"query": query}
+            )
+
+        if max_price is not None:
+            validate_positive_number(max_price, "max_price")
+
+        if min_price is not None:
+            validate_positive_number(min_price, "min_price")
+
+        if min_price is not None and max_price is not None and min_price > max_price:
+            raise ValidationError(
+                "min_price cannot be greater than max_price",
+                context={"min_price": min_price, "max_price": max_price}
+            )
+
+        if limit is not None and (limit < 1 or limit > 100):
+            raise ValidationError(
+                "Limit must be between 1 and 100",
+                context={"limit": limit}
+            )
+
+        valid_categories = [
+            "tools_maintenance",
+            "camping_expedition",
+            "recovery_gear",
+            "parts_upgrades",
+            "safety_equipment",
+            "power_electronics",
+            "comfort_living",
+            "navigation_tech"
+        ]
+        if category and category not in valid_categories:
+            raise ValidationError(
+                f"Invalid category. Must be one of: {', '.join(valid_categories)}",
+                context={"category": category, "valid_categories": valid_categories}
+            )
 
         supabase = get_supabase_client()
 
-        # Build query - affiliate_products table
         db_query = supabase.table("affiliate_products").select("*")
-
-        # Only show active products
         db_query = db_query.eq("is_active", True)
 
-        # Filter by category
         if category:
             db_query = db_query.eq("category", category)
 
-        # Filter by price range
         if max_price:
             db_query = db_query.lte("price", max_price)
         if min_price:
             db_query = db_query.gte("price", min_price)
 
-        # Search in title and description
         db_query = db_query.or_(
             f"title.ilike.%{query}%,description.ilike.%{query}%"
         )
 
-        # Order by created date (newest first) and limit
         db_query = db_query.order("created_at", desc=True).limit(limit)
 
         response = db_query.execute()
 
         products = response.data if response.data else []
 
-        # Format products for better display
         formatted_products = []
         for product in products:
             formatted_products.append({
@@ -143,22 +184,19 @@ async def search_products(
 
         logger.info(f"Found {len(products)} internal products for query '{query}' by user {user_id}")
 
-        # If few internal results, supplement with RapidAPI
         external_products = []
         if len(formatted_products) < 5:
             external_products = await _search_rapidapi_fallback(
                 query=query,
                 max_price=max_price,
                 min_price=min_price,
-                limit=10 - len(formatted_products)  # Fill up to 10 total
+                limit=10 - len(formatted_products)
             )
             if external_products:
                 logger.info(f"Added {len(external_products)} external products from RapidAPI")
 
-        # Combine results (internal first, then external)
         all_products = formatted_products + external_products
 
-        # Create response message
         if len(all_products) == 0:
             message = f"No products found for '{query}'"
         elif len(all_products) == 1:
@@ -181,12 +219,25 @@ async def search_products(
             "message": message
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error searching products: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error searching products",
+            extra={"user_id": user_id, "query": query, "category": category},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to search products",
+            context={
+                "user_id": user_id,
+                "query": query,
+                "category": category,
+                "error": str(e)
+            }
+        )
 
 
 # Tool metadata for registration

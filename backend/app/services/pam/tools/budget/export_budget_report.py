@@ -5,17 +5,22 @@ Generate budget reports for the user
 Example usage:
 - "Export my budget report"
 - "Generate spending report for this month"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
-from pydantic import ValidationError
 
-from app.integrations.supabase import get_supabase_client
-from app.services.pam.schemas.budget import ExportBudgetReportInput
+from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_date_format,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,47 +45,58 @@ async def export_budget_report(
 
     Returns:
         Dict with report data
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
-        try:
-            validated = ExportBudgetReportInput(
-                user_id=user_id,
-                format=format,
-                period=period,
-                start_date=start_date,
-                end_date=end_date
+        validate_uuid(user_id, "user_id")
+
+        if start_date:
+            validate_date_format(start_date, "start_date")
+        if end_date:
+            validate_date_format(end_date, "end_date")
+
+        valid_formats = ["pdf", "csv", "json"]
+        if format not in valid_formats:
+            raise ValidationError(
+                f"Invalid format. Must be one of: {', '.join(valid_formats)}",
+                context={"format": format, "valid_formats": valid_formats}
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
-            error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
 
-        supabase = get_supabase_client()
-
-        # Get current month
         month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        # Get all data for current month using validated user_id
-        expenses = supabase.table("expenses").select("*").eq("user_id", validated.user_id).gte("date", month_start.isoformat()).execute()
-        budgets = supabase.table("budgets").select("*").eq("user_id", validated.user_id).execute()
-        savings = supabase.table("pam_savings_events").select("*").eq("user_id", validated.user_id).gte("created_at", month_start.isoformat()).execute()
+        expenses = await safe_db_select(
+            "expenses",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
+        expenses = [e for e in expenses if datetime.fromisoformat(e.get("date", "1970-01-01")) >= month_start]
 
-        # Calculate totals (schema uses monthly_limit for budgets, actual_savings for savings)
-        total_expenses = sum(float(e.get("amount", 0)) for e in (expenses.data if expenses.data else []))
-        total_budgeted = sum(float(b.get("monthly_limit", 0)) for b in (budgets.data if budgets.data else []))  # Correct field name
-        total_savings = sum(float(s.get("actual_savings", 0)) for s in (savings.data if savings.data else []))  # Correct field name
+        budgets = await safe_db_select(
+            "budgets",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
 
-        # Build report
+        savings = await safe_db_select(
+            "pam_savings_events",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
+        savings = [s for s in savings if datetime.fromisoformat(s.get("created_at", "1970-01-01")) >= month_start]
+
+        total_expenses = sum(float(e.get("amount", 0)) for e in expenses)
+        total_budgeted = sum(float(b.get("monthly_limit", 0)) for b in budgets)
+        total_savings = sum(float(s.get("actual_savings", 0)) for s in savings)
+
         report = {
-            "user_id": validated.user_id,
+            "user_id": user_id,
             "period": {
-                "period_type": validated.period.value,  # ✅ Extract enum value
-                "start": validated.start_date or month_start.isoformat(),
-                "end": validated.end_date or datetime.now().isoformat(),
+                "period_type": period,
+                "start": start_date or month_start.isoformat(),
+                "end": end_date or datetime.now().isoformat(),
                 "month": month_start.strftime("%B %Y")
             },
             "summary": {
@@ -88,21 +104,32 @@ async def export_budget_report(
                 "total_budgeted": total_budgeted,
                 "total_savings": total_savings,
                 "budget_remaining": total_budgeted - total_expenses,
-                "expense_count": len(expenses.data) if expenses.data else 0,
-                "savings_event_count": len(savings.data) if savings.data else 0
+                "expense_count": len(expenses),
+                "savings_event_count": len(savings)
             },
-            "expenses": expenses.data if expenses.data else [],
-            "budgets": budgets.data if budgets.data else [],
-            "savings_events": savings.data if savings.data else [],
+            "expenses": expenses,
+            "budgets": budgets,
+            "savings_events": savings,
             "generated_at": datetime.now().isoformat()
         }
 
         return {
             "success": True,
             "report": report,
-            "format": validated.format.value  # ✅ Extract enum value
+            "format": format
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error exporting report: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        logger.error(
+            "Unexpected error exporting budget report",
+            extra={"user_id": user_id, "format": format},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to export budget report",
+            context={"user_id": user_id, "error": str(e)}
+        )

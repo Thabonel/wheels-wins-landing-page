@@ -24,6 +24,16 @@ from datetime import datetime
 from typing import Optional
 import os
 
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_insert,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,7 +68,6 @@ async def auto_record_savings(
     Returns:
         True if savings were recorded successfully, False otherwise
     """
-    # Minimum threshold to avoid noise - savings must be at least $1
     MIN_SAVINGS_THRESHOLD = 1.0
 
     if amount < MIN_SAVINGS_THRESHOLD:
@@ -66,24 +75,22 @@ async def auto_record_savings(
         return False
 
     try:
-        from supabase import create_client, Client
+        validate_uuid(user_id, "user_id")
+        validate_positive_number(amount, "amount")
 
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-        if not supabase_url or not supabase_key:
-            logger.warning("Supabase not configured, cannot auto-record savings")
+        if not category or not category.strip():
+            logger.warning("Category is required for auto-recording savings")
             return False
 
-        supabase: Client = create_client(supabase_url, supabase_key)
+        if not savings_type or not savings_type.strip():
+            logger.warning("Savings type is required for auto-recording savings")
+            return False
 
-        # Calculate baseline/optimized if not provided
         if baseline_cost is None:
-            baseline_cost = amount  # Assume full savings
+            baseline_cost = amount
         if optimized_cost is None:
             optimized_cost = max(0, baseline_cost - amount)
 
-        # Build savings event data
         savings_data = {
             "user_id": user_id,
             "savings_type": savings_type,
@@ -102,22 +109,22 @@ async def auto_record_savings(
             }
         }
 
-        # Insert savings event
-        response = supabase.table("pam_savings_events").insert(savings_data).execute()
+        await safe_db_insert("pam_savings_events", savings_data, user_id)
 
-        if response.data:
-            logger.info(
-                f"✅ Auto-recorded savings: ${amount:.2f} for user {user_id} "
-                f"(category: {category}, type: {savings_type})"
-            )
-            return True
-        else:
-            logger.warning(f"Failed to auto-record savings: no data returned")
-            return False
+        logger.info(
+            f"Auto-recorded savings: ${amount:.2f} for user {user_id} "
+            f"(category: {category}, type: {savings_type})"
+        )
+        return True
 
+    except ValidationError as e:
+        logger.warning(f"Validation error auto-recording savings: {e}")
+        return False
+    except DatabaseError as e:
+        logger.error(f"Database error auto-recording savings: {e}")
+        return False
     except Exception as e:
-        # Don't let savings tracking failures break the main tool
-        logger.error(f"Error auto-recording savings: {e}")
+        logger.error(f"Unexpected error auto-recording savings: {e}")
         return False
 
 

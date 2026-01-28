@@ -5,17 +5,24 @@ Share travel updates with the community
 Example usage:
 - "Post about my trip to Yellowstone"
 - "Share this photo with my followers"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.social import CreatePostInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_required,
+    safe_db_insert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +49,15 @@ async def create_post(
 
     Returns:
         Dict with created post details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
+        validate_uuid(user_id, "user_id")
+        validate_required(content, "content")
+
         # Validate inputs using Pydantic schema
         try:
             validated = CreatePostInput(
@@ -54,15 +68,12 @@ async def create_post(
                 image_url=image_url,
                 tags=tags
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
-
-        supabase = get_supabase_client()
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"field": e.errors()[0]['loc'][0], "error": error_msg}
+            )
 
         # Build post data
         post_data = {
@@ -77,29 +88,28 @@ async def create_post(
             "comments_count": 0
         }
 
-        # Save to database
-        response = supabase.table("posts").insert(post_data).execute()
+        post = await safe_db_insert("posts", post_data, user_id)
 
-        if response.data:
-            post = response.data[0]
-            logger.info(f"Created post {post['id']} for user {validated.user_id}")
+        logger.info(f"Created post {post['id']} for user {validated.user_id}")
 
-            return {
-                "success": True,
-                "post": post,
-                "message": "Post created successfully" +
-                          (f" at {validated.location}" if validated.location else "")
-            }
-        else:
-            logger.error(f"Failed to create post: {response}")
-            return {
-                "success": False,
-                "error": "Failed to create post"
-            }
-
-    except Exception as e:
-        logger.error(f"Error creating post: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "post": post,
+            "message": "Post created successfully" +
+                      (f" at {validated.location}" if validated.location else "")
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error creating post",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to create post",
+            context={"user_id": user_id, "error": str(e)}
+        )

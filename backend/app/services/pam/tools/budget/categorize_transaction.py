@@ -5,16 +5,18 @@ Auto-categorize expenses based on description
 Example usage:
 - "Categorize my Shell station purchase"
 - "What category is this expense?"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 import re
 from typing import Any, Dict, Optional
-from pydantic import ValidationError
 
-from app.services.pam.schemas.budget import CategorizeTransactionInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,48 +54,50 @@ async def categorize_transaction(
 
     Returns:
         Dict with suggested category
+
+    Raises:
+        ValidationError: Invalid input parameters
     """
     try:
-        # Validate inputs using Pydantic schema
-        try:
-            validated = CategorizeTransactionInput(
-                user_id=user_id,
-                description=description,
-                amount=amount,
-                merchant=merchant
+        validate_uuid(user_id, "user_id")
+
+        if not description or not description.strip():
+            raise ValidationError(
+                "description is required and cannot be empty",
+                context={"field": "description"}
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
-            error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
 
-        description_lower = validated.description.lower()
+        description_lower = description.lower()
 
-        # Check each category pattern
         for category, pattern in CATEGORY_PATTERNS.items():
             if re.search(pattern, description_lower, re.IGNORECASE):
                 return {
                     "success": True,
                     "category": category,
                     "confidence": "high",
-                    "description": validated.description,
-                    "amount": validated.amount,
-                    "merchant": validated.merchant
+                    "description": description,
+                    "amount": amount,
+                    "merchant": merchant
                 }
 
-        # Default to "other" if no match
         return {
             "success": True,
             "category": "other",
             "confidence": "low",
-            "description": validated.description,
-            "amount": validated.amount,
-            "merchant": validated.merchant
+            "description": description,
+            "amount": amount,
+            "merchant": merchant
         }
 
+    except ValidationError:
+        raise
     except Exception as e:
-        logger.error(f"Error categorizing transaction: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        logger.error(
+            "Unexpected error categorizing transaction",
+            extra={"user_id": user_id, "description": description},
+            exc_info=True
+        )
+        raise ValidationError(
+            "Failed to categorize transaction",
+            context={"user_id": user_id, "error": str(e)}
+        )

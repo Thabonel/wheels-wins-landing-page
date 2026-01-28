@@ -5,17 +5,21 @@ Forecasts end-of-month spending based on current trends
 Example usage:
 - "Will I stay within budget this month?"
 - "Predict my end of month spending"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
-from pydantic import ValidationError
 
-from app.integrations.supabase import get_supabase_client
-from app.services.pam.schemas.budget import PredictEndOfMonthInput
+from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,53 +40,40 @@ async def predict_end_of_month(
 
     Returns:
         Dict with predictions
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
-        try:
-            validated = PredictEndOfMonthInput(
-                user_id=user_id,
-                category=category,
-                include_trends=include_trends
-            )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
-            error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+        validate_uuid(user_id, "user_id")
 
-        supabase = get_supabase_client()
-
-        # Get current month info
         now = datetime.now()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         days_elapsed = now.day
 
-        # Calculate days in month (simple approximation)
         if now.month == 12:
             next_month = now.replace(year=now.year + 1, month=1, day=1)
         else:
             next_month = now.replace(month=now.month + 1, day=1)
         days_in_month = (next_month - month_start).days
 
-        # Get expenses for current month using validated user_id
-        expense_query = supabase.table("expenses").select("category, amount").eq("user_id", validated.user_id).gte("date", month_start.isoformat())
+        expenses = await safe_db_select(
+            "expenses",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
 
-        # Filter by category if specified
-        if validated.category:
-            expense_query = expense_query.eq("category", validated.category.value)  # ✅ Extract enum value
+        expenses = [e for e in expenses if datetime.fromisoformat(e.get("date", "1970-01-01")) >= month_start]
 
-        expenses = expense_query.execute()
+        if category:
+            expenses = [e for e in expenses if e.get("category") == category.lower()]
 
-        # Calculate spending by category
         spending = {}
-        for exp in expenses.data if expenses.data else []:
+        for exp in expenses:
             cat = exp.get("category", "other")
             spending[cat] = spending.get(cat, 0) + float(exp.get("amount", 0))
 
-        # Project to end of month
         predictions = {}
         for cat, spent in spending.items():
             daily_rate = spent / days_elapsed if days_elapsed > 0 else 0
@@ -99,12 +90,23 @@ async def predict_end_of_month(
             "success": True,
             "days_elapsed": days_elapsed,
             "days_in_month": days_in_month,
-            "category_filter": validated.category,
-            "include_trends": validated.include_trends,
+            "category_filter": category,
+            "include_trends": include_trends,
             "predictions": predictions,
             "total_projected": total_projected
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error predicting spending: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        logger.error(
+            "Unexpected error predicting end of month spending",
+            extra={"user_id": user_id, "category": category},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to predict end of month spending",
+            context={"user_id": user_id, "error": str(e)}
+        )

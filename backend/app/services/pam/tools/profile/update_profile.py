@@ -12,10 +12,19 @@ Amendment #4: Input validation with Pydantic models
 import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.profile import UpdateProfileInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_update,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +53,14 @@ async def update_profile(
 
     Returns:
         Dict with updated profile
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
         try:
             validated = UpdateProfileInput(
                 user_id=user_id,
@@ -57,17 +71,13 @@ async def update_profile(
                 rv_type=rv_type,
                 rv_year=rv_year
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
-        supabase = get_supabase_client()
-
-        # Build update data (only include provided fields)
         update_data = {
             "updated_at": datetime.now().isoformat()
         }
@@ -85,30 +95,43 @@ async def update_profile(
         if validated.rv_year is not None:
             update_data["rv_year"] = validated.rv_year
 
-        # Update profile
+        if not update_data or (len(update_data) == 1 and "updated_at" in update_data):
+            raise ValidationError(
+                "No profile fields provided to update",
+                context={"user_id": user_id}
+            )
+
+        supabase = get_supabase_client()
         response = supabase.table("profiles").update(
             update_data
         ).eq("id", validated.user_id).execute()
 
-        if response.data:
-            profile = response.data[0]
-            logger.info(f"Updated profile for user {validated.user_id}")
+        if not response.data:
+            raise DatabaseError(
+                "Failed to update profile",
+                context={"user_id": validated.user_id}
+            )
 
-            return {
-                "success": True,
-                "profile": profile,
-                "message": "Profile updated successfully"
-            }
-        else:
-            logger.error(f"Failed to update profile: {response}")
-            return {
-                "success": False,
-                "error": "Failed to update profile"
-            }
+        profile = response.data[0]
+        logger.info(f"Updated profile for user {validated.user_id}")
 
-    except Exception as e:
-        logger.error(f"Error updating profile: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "profile": profile,
+            "message": "Profile updated successfully"
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error updating profile",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to update profile",
+            context={"user_id": user_id, "error": str(e)}
+        )

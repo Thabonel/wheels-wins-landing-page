@@ -2,10 +2,15 @@
 Load User Profile Tool - Retrieves comprehensive user information
 """
 from typing import Dict, Any
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError as PydanticValidationError
 from .base_tool import BaseTool
 from app.core.database import get_supabase_client, get_user_context_supabase_client
 from app.core.config import get_settings
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import validate_uuid
 
 
 class _ExecuteParams(BaseModel):
@@ -27,14 +32,23 @@ class LoadUserProfileTool(BaseTool):
             self.supabase = get_supabase_client()
     
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Load user profile from database"""
+        """Load user profile from database
+
+        Raises:
+            ValidationError: Invalid user_id
+            DatabaseError: Database operation failed
+        """
         try:
             # Validate inputs
             try:
+                validate_uuid(user_id, "user_id")
                 _ExecuteParams(user_id=user_id, parameters=parameters)
-            except ValidationError as ve:
+            except PydanticValidationError as ve:
                 self.logger.error(f"Input validation failed: {ve.errors()}")
-                return self._create_error_response("Invalid parameters")
+                raise ValidationError(
+                    "Invalid parameters",
+                    context={"validation_errors": ve.errors()}
+                )
 
             self.logger.info(f"🔍 PROFILE DEBUG: Loading profile for user {user_id}")
             
@@ -140,10 +154,21 @@ class LoadUserProfileTool(BaseTool):
             
             self.logger.info(f"Successfully loaded profile for user {user_id}")
             return self._create_success_response(enhanced_profile)
-            
+
+        except ValidationError:
+            raise
+        except DatabaseError:
+            raise
         except Exception as e:
-            self.logger.error(f"Error loading user profile: {e}")
-            return self._create_error_response(f"Could not load user profile: {str(e)}")
+            self.logger.error(
+                f"Unexpected error loading user profile",
+                extra={"user_id": user_id},
+                exc_info=True
+            )
+            raise DatabaseError(
+                "Could not load user profile",
+                context={"user_id": user_id, "error": str(e)}
+            )
     
     def _extract_travel_preferences(self, profile: Dict[str, Any]) -> Dict[str, Any]:
         """Extract and structure travel preferences from unified profile"""

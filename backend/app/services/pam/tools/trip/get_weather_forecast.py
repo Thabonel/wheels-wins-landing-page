@@ -15,6 +15,14 @@ from typing import Any, Dict, Optional
 from pydantic import ValidationError
 
 from app.services.pam.schemas.trip import GetWeatherForecastInput
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,29 +43,33 @@ async def get_weather_forecast(
 
     Returns:
         Dict with weather forecast data from OpenMeteo
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Auto-inject user location from context if not provided
+        validate_uuid(user_id, "user_id")
+
         if not location and 'context' in kwargs:
             user_loc = kwargs.get('context', {}).get('user_location', {})
             if isinstance(user_loc, dict):
-                # Prefer city name for better weather descriptions
                 if user_loc.get('city') and user_loc.get('region'):
                     location = f"{user_loc['city']}, {user_loc['region']}"
-                    logger.info(f"📍 Using user location from context: {location}")
-                # Fallback to lat/lng coordinates
+                    logger.info(f"Using user location from context: {location}")
                 elif user_loc.get('lat') and user_loc.get('lng'):
                     location = f"{user_loc['lat']},{user_loc['lng']}"
-                    logger.info(f"📍 Using user coordinates from context: {location}")
+                    logger.info(f"Using user coordinates from context: {location}")
 
-        # If still no location, return error
         if not location:
-            return {
-                "success": False,
-                "error": "Location not provided and user location not available. Please specify a location or enable location services."
-            }
+            raise CustomValidationError(
+                "Location not provided and user location not available. Please specify a location or enable location services.",
+                context={"field": "location"}
+            )
 
-        # Validate inputs using Pydantic schema
+        if days is not None:
+            validate_positive_number(days, "days")
+
         try:
             validated = GetWeatherForecastInput(
                 user_id=user_id,
@@ -65,39 +77,41 @@ async def get_weather_forecast(
                 days=days
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
-        # Import the actual working weather API function
         from app.services.pam.tools.weather import get_weather_forecast as weather_api_call
 
-        # Call the working OpenMeteo API function directly (FREE - no API key required!)
         result = await weather_api_call(location=validated.location, days=validated.days)
 
-        # Transform result to standard PAM tool format
         if "error" in result:
-            # Error case from weather API
-            return {
-                "success": False,
-                "error": result.get("error"),
-                "location": result.get("location"),
-                "suggestion": result.get("suggestion", "")
-            }
+            raise CustomValidationError(
+                result.get("error"),
+                context={
+                    "location": result.get("location"),
+                    "suggestion": result.get("suggestion", "")
+                }
+            )
         else:
-            # Success case - add success field to existing data
             return {
                 "success": True,
-                **result  # Spread operator to include all weather data
+                **result
             }
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error getting weather forecast from OpenMeteo: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "Unable to fetch weather data. Please try again."
-        }
+        logger.error(
+            f"Unexpected error getting weather forecast",
+            extra={"user_id": user_id, "location": location},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to get weather forecast",
+            context={"user_id": user_id, "location": location, "error": str(e)}
+        )

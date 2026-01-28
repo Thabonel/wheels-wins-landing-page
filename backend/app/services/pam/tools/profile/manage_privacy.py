@@ -12,10 +12,20 @@ Amendment #4: Input validation with Pydantic models
 import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.profile import ManagePrivacyInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_insert,
+    safe_db_update,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +52,14 @@ async def manage_privacy(
 
     Returns:
         Dict with updated privacy settings
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
         try:
             validated = ManagePrivacyInput(
                 user_id=user_id,
@@ -54,17 +69,13 @@ async def manage_privacy(
                 allow_messages=allow_messages,
                 data_collection=data_collection
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
-        supabase = get_supabase_client()
-
-        # Build update data (only include provided fields)
         update_data = {
             "updated_at": datetime.now().isoformat()
         }
@@ -84,31 +95,38 @@ async def manage_privacy(
         if validated.data_collection is not None:
             update_data["data_collection"] = validated.data_collection
 
-        # Update or insert privacy settings
+        supabase = get_supabase_client()
         response = supabase.table("privacy_settings").upsert({
             "user_id": validated.user_id,
             **update_data
         }).execute()
 
-        if response.data:
-            privacy_settings = response.data[0]
-            logger.info(f"Updated privacy settings for user {validated.user_id}")
+        if not response.data:
+            raise DatabaseError(
+                "Failed to update privacy settings",
+                context={"user_id": validated.user_id}
+            )
 
-            return {
-                "success": True,
-                "privacy_settings": privacy_settings,
-                "message": "Privacy settings updated successfully"
-            }
-        else:
-            logger.error(f"Failed to update privacy settings: {response}")
-            return {
-                "success": False,
-                "error": "Failed to update privacy settings"
-            }
+        privacy_settings = response.data[0]
+        logger.info(f"Updated privacy settings for user {validated.user_id}")
 
-    except Exception as e:
-        logger.error(f"Error managing privacy: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "privacy_settings": privacy_settings,
+            "message": "Privacy settings updated successfully"
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error managing privacy",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to manage privacy settings",
+            context={"user_id": user_id, "error": str(e)}
+        )

@@ -3,12 +3,17 @@ Load Recent Memory Tool - Retrieves conversation history and context
 """
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 from .base_tool import BaseTool
 from app.services.database import get_database_service
 from app.core.database import get_user_context_supabase_client
 from app.services.cache import cache_service
 from .validation_models import RecentMemoryParams
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import validate_uuid
 
 class LoadRecentMemoryTool(BaseTool):
     """Tool to load recent conversation memory and context"""

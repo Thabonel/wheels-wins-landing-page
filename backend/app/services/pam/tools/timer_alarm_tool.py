@@ -17,6 +17,12 @@ from zoneinfo import ZoneInfo
 
 from .base_tool import BaseTool, ToolResult
 from .tool_capabilities import ToolCapability
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import validate_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -183,10 +189,21 @@ async def create_timer_or_alarm(
 
     Returns:
         Dict with created timer/alarm details
+
+    Raises:
+        ValidationError: Invalid parameters
+        DatabaseError: Database operation failed
     """
     from app.database.supabase_client import get_supabase_service
 
     try:
+        validate_uuid(user_id, "user_id")
+
+        if timer_type not in ['timer', 'alarm']:
+            raise ValidationError(
+                f"Invalid type: {timer_type}. Must be 'timer' or 'alarm'",
+                context={"timer_type": timer_type}
+            )
         supabase = get_supabase_service()
 
         # Detect user timezone
@@ -204,10 +221,10 @@ async def create_timer_or_alarm(
         # Calculate scheduled_time based on type
         if timer_type == 'timer':
             if not duration_seconds or duration_seconds <= 0:
-                return {
-                    "success": False,
-                    "error": "Timer duration must be positive"
-                }
+                raise ValidationError(
+                    "Timer duration must be positive",
+                    context={"duration_seconds": duration_seconds}
+                )
 
             scheduled_time = now + timedelta(seconds=duration_seconds)
 
@@ -228,17 +245,17 @@ async def create_timer_or_alarm(
 
         elif timer_type == 'alarm':
             if not alarm_time:
-                return {
-                    "success": False,
-                    "error": "Alarm time is required"
-                }
+                raise ValidationError(
+                    "Alarm time is required",
+                    context={"timer_type": timer_type}
+                )
 
             parsed_time = parse_alarm_time(alarm_time, context)
             if not parsed_time:
-                return {
-                    "success": False,
-                    "error": f"Could not parse alarm time: {alarm_time}"
-                }
+                raise ValidationError(
+                    f"Could not parse alarm time: {alarm_time}",
+                    context={"alarm_time": alarm_time}
+                )
 
             scheduled_time = parsed_time
             duration_seconds = int((scheduled_time - now).total_seconds())
@@ -247,18 +264,12 @@ async def create_timer_or_alarm(
             if not label:
                 label = f"Alarm for {scheduled_time.strftime('%I:%M %p')}"
 
-        else:
-            return {
-                "success": False,
-                "error": f"Invalid type: {timer_type}. Must be 'timer' or 'alarm'"
-            }
-
         # Validate scheduled time is in the future
         if scheduled_time <= now:
-            return {
-                "success": False,
-                "error": "Scheduled time must be in the future"
-            }
+            raise ValidationError(
+                "Scheduled time must be in the future",
+                context={"scheduled_time": scheduled_time.isoformat(), "now": now.isoformat()}
+            )
 
         # Build timer/alarm data
         timer_data = {
@@ -301,24 +312,38 @@ async def create_timer_or_alarm(
             }
         else:
             logger.error(f"Failed to create {timer_type}: {response}")
-            return {
-                "success": False,
-                "error": f"Failed to create {timer_type}"
-            }
+            raise DatabaseError(
+                f"Failed to create {timer_type}",
+                context={"user_id": user_id, "timer_type": timer_type}
+            )
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error creating {timer_type}: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error creating {timer_type}",
+            extra={"user_id": user_id, "timer_type": timer_type},
+            exc_info=True
+        )
+        raise DatabaseError(
+            f"Failed to create {timer_type}",
+            context={"user_id": user_id, "timer_type": timer_type, "error": str(e)}
+        )
 
 
 async def list_active_timers(user_id: str) -> Dict[str, Any]:
-    """List all active timers and alarms for a user."""
+    """List all active timers and alarms for a user.
+
+    Raises:
+        ValidationError: Invalid user_id
+        DatabaseError: Database operation failed
+    """
     from app.database.supabase_client import get_supabase_service
 
     try:
+        validate_uuid(user_id, "user_id")
         supabase = get_supabase_service()
 
         response = supabase.table("timers_and_alarms").select("*").eq(
@@ -333,19 +358,33 @@ async def list_active_timers(user_id: str) -> Dict[str, Any]:
             "count": len(response.data or [])
         }
 
+    except ValidationError:
+        raise
     except Exception as e:
-        logger.error(f"Error listing timers: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error listing timers",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to list timers",
+            context={"user_id": user_id, "error": str(e)}
+        )
 
 
 async def cancel_timer(user_id: str, timer_id: str) -> Dict[str, Any]:
-    """Cancel a timer or alarm."""
+    """Cancel a timer or alarm.
+
+    Raises:
+        ValidationError: Invalid parameters
+        ResourceNotFoundError: Timer not found
+        DatabaseError: Database operation failed
+    """
     from app.database.supabase_client import get_supabase_service
 
     try:
+        validate_uuid(user_id, "user_id")
+        validate_uuid(timer_id, "timer_id")
         supabase = get_supabase_service()
 
         # Update timer status to cancelled
@@ -361,17 +400,25 @@ async def cancel_timer(user_id: str, timer_id: str) -> Dict[str, Any]:
                 "timer": timer
             }
         else:
-            return {
-                "success": False,
-                "error": "Timer not found or already cancelled"
-            }
+            raise ResourceNotFoundError(
+                "Timer not found or already cancelled",
+                context={"user_id": user_id, "timer_id": timer_id}
+            )
 
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
     except Exception as e:
-        logger.error(f"Error cancelling timer: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error cancelling timer",
+            extra={"user_id": user_id, "timer_id": timer_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to cancel timer",
+            context={"user_id": user_id, "timer_id": timer_id, "error": str(e)}
+        )
 
 
 class TimerAlarmTool(BaseTool):

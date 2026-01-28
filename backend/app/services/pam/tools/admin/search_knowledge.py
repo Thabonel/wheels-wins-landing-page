@@ -11,11 +11,20 @@ import logging
 import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.core.database import get_supabase_client
 from app.core.logging import get_logger
 from app.services.pam.schemas.admin import SearchKnowledgeInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_insert,
+)
 
 logger = get_logger(__name__)
 
@@ -78,6 +87,10 @@ async def search_knowledge(
     Returns:
         Dict with success status and list of matching knowledge entries
 
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
+
     Example Usage:
         User asks: "When should I visit Port Headland?"
 
@@ -91,7 +104,6 @@ async def search_knowledge(
         Returns: "May to August is the best time to travel in Port Headland vicinity"
     """
     try:
-        # Validate inputs using Pydantic schema
         try:
             validated = SearchKnowledgeInput(
                 user_id=user_id,
@@ -103,23 +115,19 @@ async def search_knowledge(
                 min_priority=min_priority,
                 limit=limit
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}",
-                "knowledge": []
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         logger.info(f"Searching admin knowledge: query='{validated.query}', category={validated.category}, type={validated.knowledge_type}")
 
         supabase = get_supabase_client()
 
-        # Start with base query - only active knowledge
         query_builder = supabase.table("pam_admin_knowledge").select("*").eq("is_active", True)
 
-        # Apply filters
         if validated.category:
             query_builder = query_builder.eq("category", validated.category.value)
 
@@ -127,39 +135,35 @@ async def search_knowledge(
             query_builder = query_builder.eq("knowledge_type", validated.knowledge_type.value)
 
         if validated.location_context:
-            # Case-insensitive partial match for location
             query_builder = query_builder.ilike("location_context", f"%{validated.location_context}%")
 
         if validated.min_priority > 1:
             query_builder = query_builder.gte("priority", validated.min_priority)
 
-        # Tag filtering (matches ANY tag in the list)
         if validated.tags:
             query_builder = query_builder.overlaps("tags", validated.tags)
 
-        # Text search in title and content
         if validated.query:
-            # Note: Supabase text search syntax
             query_builder = query_builder.or_(
                 f"title.ilike.%{validated.query}%,content.ilike.%{validated.query}%"
             )
 
-        # Order by priority (high to low) and recency
         query_builder = query_builder.order("priority", desc=True).order("created_at", desc=True)
-
-        # Apply limit
         query_builder = query_builder.limit(validated.limit)
 
-        # Execute query
-        result = query_builder.execute()
+        try:
+            result = query_builder.execute()
+        except Exception as db_error:
+            raise DatabaseError(
+                "Failed to search admin knowledge",
+                context={"user_id": user_id, "query": query, "error": str(db_error)}
+            )
 
         if result.data:
             logger.info(f"Found {len(result.data)} knowledge entries")
 
-            # Format results with sanitization
             knowledge_items = []
             for item in result.data:
-                # SECURITY: Sanitize content before returning
                 sanitized_content = sanitize_knowledge_content(item["content"])
                 sanitized_title = sanitize_knowledge_content(item["title"])
 
@@ -177,15 +181,15 @@ async def search_knowledge(
                     "created_at": item["created_at"]
                 })
 
-            # Log usage for each knowledge entry
             for item in result.data:
                 try:
-                    supabase.table("pam_knowledge_usage_log").insert({
+                    usage_data = {
                         "knowledge_id": item["id"],
                         "user_id": validated.user_id,
                         "conversation_context": validated.query or "search",
                         "used_at": datetime.utcnow().isoformat()
-                    }).execute()
+                    }
+                    await safe_db_insert("pam_knowledge_usage_log", usage_data, validated.user_id)
                 except Exception as log_error:
                     logger.warning(f"Failed to log knowledge usage: {log_error}")
 
@@ -204,10 +208,17 @@ async def search_knowledge(
                 "message": "No matching knowledge found"
             }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error searching admin knowledge: {e}")
-        return {
-            "success": False,
-            "error": f"Failed to search knowledge: {str(e)}",
-            "knowledge": []
-        }
+        logger.error(
+            f"Unexpected error searching admin knowledge",
+            extra={"user_id": user_id, "query": query},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to search knowledge",
+            context={"user_id": user_id, "query": query, "error": str(e)}
+        )

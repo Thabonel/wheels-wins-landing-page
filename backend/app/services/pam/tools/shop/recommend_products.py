@@ -12,6 +12,15 @@ import logging
 from typing import Any, Dict, Optional, List
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,48 +76,60 @@ async def recommend_products(
 
     Returns:
         Dict with product recommendations
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
+        validate_uuid(user_id, "user_id")
+
+        if budget is not None:
+            validate_positive_number(budget, "budget")
+
+        if limit is not None and (limit < 1 or limit > 100):
+            raise ValidationError(
+                "Limit must be between 1 and 100",
+                context={"limit": limit}
+            )
+
+        valid_use_cases = list(RECOMMENDATIONS.keys())
+        if use_case and use_case not in valid_use_cases:
+            raise ValidationError(
+                f"Invalid use_case. Must be one of: {', '.join(valid_use_cases)}",
+                context={"use_case": use_case, "valid_use_cases": valid_use_cases}
+            )
+
         supabase = get_supabase_client()
 
-        # Determine recommendation strategy
         if use_case and use_case in RECOMMENDATIONS:
             rec_config = RECOMMENDATIONS[use_case]
             categories = rec_config["categories"]
             keywords = rec_config["keywords"]
         else:
-            # General recommendations - show popular items from each category
             categories = ["tools_maintenance", "camping_expedition", "recovery_gear"]
             keywords = []
 
-        # Build query
         db_query = supabase.table("affiliate_products").select("*")
-
-        # Only show active products
         db_query = db_query.eq("is_active", True)
 
-        # Filter by categories
         if categories:
             db_query = db_query.in_("category", categories)
 
-        # Filter by budget
         if budget:
             db_query = db_query.lte("price", budget)
 
-        # If we have keywords, search for them
         if keywords:
             keyword_filter = " | ".join([f"title.ilike.%{kw}%" for kw in keywords])
             keyword_filter += " | " + " | ".join([f"description.ilike.%{kw}%" for kw in keywords])
             db_query = db_query.or_(keyword_filter)
 
-        # Order by price (best value first) and limit
         db_query = db_query.order("price", desc=False).limit(limit)
 
         response = db_query.execute()
 
         products = response.data if response.data else []
 
-        # Format recommendations
         recommendations = []
         for product in products:
             recommendations.append({
@@ -122,7 +143,6 @@ async def recommend_products(
 
         logger.info(f"Generated {len(recommendations)} recommendations for user {user_id}")
 
-        # Create response message
         if len(recommendations) == 0:
             message = "No products found matching your criteria"
         else:
@@ -132,7 +152,6 @@ async def recommend_products(
             if budget:
                 message += f" under ${budget:.2f}"
 
-            # Add top 3 recommendations to message
             message += "\n\nTop recommendations:"
             for i, rec in enumerate(recommendations[:3], 1):
                 message += f"\n{i}. {rec['title']} - ${rec['price']:.2f}"
@@ -145,12 +164,25 @@ async def recommend_products(
             "message": message
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error recommending products: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error recommending products",
+            extra={"user_id": user_id, "use_case": use_case, "budget": budget},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to recommend products",
+            context={
+                "user_id": user_id,
+                "use_case": use_case,
+                "budget": budget,
+                "error": str(e)
+            }
+        )
 
 
 # Tool metadata for registration
