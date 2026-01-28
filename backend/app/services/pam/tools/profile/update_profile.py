@@ -78,9 +78,7 @@ async def update_profile(
                 context={"validation_errors": e.errors()}
             )
 
-        update_data = {
-            "updated_at": datetime.now().isoformat()
-        }
+        update_data = {"updated_at": datetime.now().isoformat()}
 
         if validated.username is not None:
             update_data["username"] = validated.username

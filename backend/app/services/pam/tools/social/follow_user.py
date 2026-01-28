@@ -52,7 +52,6 @@ async def follow_user(
         validate_uuid(user_id, "user_id")
         validate_uuid(target_user_id, "target_user_id")
 
-        # Validate inputs using Pydantic schema
         try:
             validated = FollowUserInput(
                 user_id=user_id,

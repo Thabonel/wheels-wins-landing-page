@@ -29,13 +29,16 @@ VALID_CATEGORIES = ["financial", "vehicle", "life", "downsizing", "equipment", "
 VALID_PRIORITIES = ["critical", "high", "medium", "low"]
 VALID_STATUSES = ["pending", "in_progress", "completed", "overdue"]
 
+DEFAULT_TASK_LIMIT = 20
+MAX_MATCHING_TASKS_TO_DISPLAY = 5
+
 
 async def get_transition_tasks(
     user_id: str,
     category: Optional[str] = None,
     status: Optional[str] = None,
     priority: Optional[str] = None,
-    limit: int = 20
+    limit: int = DEFAULT_TASK_LIMIT
 ) -> Dict[str, Any]:
     """
     List transition tasks with optional filtering.
@@ -65,16 +68,14 @@ async def get_transition_tasks(
         if limit and limit > 0:
             validate_positive_number(limit, "limit")
         else:
-            limit = 20
+            limit = DEFAULT_TASK_LIMIT
 
         supabase = get_supabase_client()
 
-        # Build query
         query = supabase.table("transition_tasks")\
             .select("*")\
             .eq("user_id", user_id)
 
-        # Apply filters
         if category and category in VALID_CATEGORIES:
             query = query.eq("category", category)
 
@@ -86,9 +87,7 @@ async def get_transition_tasks(
                 query = query.eq("is_completed", True)
             elif status in ["pending", "in_progress"]:
                 query = query.eq("is_completed", False)
-            # "overdue" handled in post-processing
 
-        # Order by priority and creation date
         query = query.order("priority", desc=False)\
             .order("created_at", desc=True)\
             .limit(limit)
@@ -96,7 +95,6 @@ async def get_transition_tasks(
         result = query.execute()
         tasks = result.data or []
 
-        # Get departure date for overdue calculation
         profile_result = supabase.table("transition_profiles")\
             .select("departure_date")\
             .eq("user_id", user_id)\
@@ -111,12 +109,10 @@ async def get_transition_tasks(
             ).date()
             days_until_departure = (departure - date.today()).days
 
-        # Process tasks and identify overdue
         processed_tasks = []
         for task in tasks:
             task_status = "completed" if task.get("is_completed") else "pending"
 
-            # Check if overdue
             if not task.get("is_completed") and days_until_departure is not None:
                 if task.get("days_before_departure") and task["days_before_departure"] > days_until_departure:
                     task_status = "overdue"
@@ -124,11 +120,9 @@ async def get_transition_tasks(
             task["status"] = task_status
             processed_tasks.append(task)
 
-        # Filter by overdue status if requested
         if status == "overdue":
             processed_tasks = [t for t in processed_tasks if t["status"] == "overdue"]
 
-        # Build summary
         all_tasks_result = supabase.table("transition_tasks")\
             .select("category, priority, is_completed")\
             .eq("user_id", user_id)\
@@ -484,7 +478,7 @@ async def complete_transition_task(
                     context={"user_id": user_id, "task_title": task_title}
                 )
             elif len(matching_tasks) > 1:
-                titles = [t["title"] for t in matching_tasks[:5]]
+                titles = [t["title"] for t in matching_tasks[:MAX_MATCHING_TASKS_TO_DISPLAY]]
                 raise ValidationError(
                     f"Multiple tasks match '{task_title}'. Please be more specific. Matches: {titles}",
                     context={"user_id": user_id, "task_title": task_title, "matches": titles}

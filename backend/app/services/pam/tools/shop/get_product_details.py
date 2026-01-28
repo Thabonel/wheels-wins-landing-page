@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 from uuid import UUID
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.tools.constants import ShopConstants
 from app.services.pam.tools.exceptions import (
     ValidationError,
     DatabaseError,
@@ -97,13 +98,14 @@ async def get_product_details(
             "features": product.get("features", [])
         }
 
+        truncate_length = ShopConstants.PRODUCT_DESCRIPTION_TRUNCATE_LENGTH
         message = f"""
 Product: {details['title']}
 Price: ${details['price']:.2f}
 Category: {details['category'].replace('_', ' ').title()}
 
 Description:
-{details['description'][:200]}...
+{details['description'][:truncate_length]}...
 
 You can purchase this product through our affiliate link to support Wheels & Wins.
         """.strip()

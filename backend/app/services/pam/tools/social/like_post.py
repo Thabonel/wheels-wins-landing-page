@@ -51,7 +51,6 @@ async def like_post(
         validate_uuid(user_id, "user_id")
         validate_uuid(post_id, "post_id")
 
-        # Validate inputs using Pydantic schema
         try:
             validated = LikePostInput(
                 user_id=user_id,

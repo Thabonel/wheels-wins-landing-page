@@ -28,6 +28,19 @@ VALID_TRIP_TYPES = ["weekend", "week", "extended"]
 VALID_ISSUE_CATEGORIES = ["power", "water", "comfort", "storage", "driving", "other"]
 VALID_SEVERITIES = ["minor", "major", "critical"]
 
+CONFIDENCE_RATING_MIN = 1
+CONFIDENCE_RATING_MAX = 10
+LOW_CONFIDENCE_THRESHOLD = 6
+
+TRIPS_PER_100_READINESS = 4
+AVG_CONFIDENCE_MULTIPLIER = 10
+DEFAULT_CONFIDENCE_SCORE = 50
+ISSUE_PENALTY_PER_OPEN = 10
+CRITICAL_ISSUE_PENALTY = 20
+MAX_ISSUE_PENALTY = 50
+
+MAX_RECENT_TRIPS_TO_SHOW = 3
+
 
 async def log_shakedown_trip(
     user_id: str,
@@ -79,9 +92,9 @@ async def log_shakedown_trip(
             )
 
         if confidence_rating is not None:
-            if not isinstance(confidence_rating, int) or confidence_rating < 1 or confidence_rating > 10:
+            if not isinstance(confidence_rating, int) or confidence_rating < CONFIDENCE_RATING_MIN or confidence_rating > CONFIDENCE_RATING_MAX:
                 raise ValidationError(
-                    "Confidence rating must be between 1 and 10",
+                    f"Confidence rating must be between {CONFIDENCE_RATING_MIN} and {CONFIDENCE_RATING_MAX}",
                     context={"confidence_rating": confidence_rating}
                 )
 
@@ -130,11 +143,11 @@ async def log_shakedown_trip(
         if destination:
             message += f" to {destination}"
         if confidence_rating:
-            message += f". Confidence: {confidence_rating}/10"
+            message += f". Confidence: {confidence_rating}/{CONFIDENCE_RATING_MAX}"
         message += f". You've now completed {total_trips} practice trip(s)."
 
-        if confidence_rating and confidence_rating < 6:
-            message += " Since confidence is below 6, consider logging any issues you encountered."
+        if confidence_rating and confidence_rating < LOW_CONFIDENCE_THRESHOLD:
+            message += f" Since confidence is below {LOW_CONFIDENCE_THRESHOLD}, consider logging any issues you encountered."
 
         return {
             "success": True,
@@ -321,7 +334,6 @@ async def get_shakedown_summary(user_id: str) -> Dict[str, Any]:
 
         supabase = get_supabase_client()
 
-        # Get all trips
         trips_result = supabase.table("shakedown_trips")\
             .select("*")\
             .eq("user_id", user_id)\
@@ -330,7 +342,6 @@ async def get_shakedown_summary(user_id: str) -> Dict[str, Any]:
 
         trips = trips_result.data or []
 
-        # Get all issues
         issues_result = supabase.table("shakedown_issues")\
             .select("*")\
             .eq("user_id", user_id)\
@@ -338,7 +349,6 @@ async def get_shakedown_summary(user_id: str) -> Dict[str, Any]:
 
         issues = issues_result.data or []
 
-        # Calculate stats
         trips_by_type = {"weekend": 0, "week": 0, "extended": 0}
         confidence_ratings = []
 
@@ -350,7 +360,6 @@ async def get_shakedown_summary(user_id: str) -> Dict[str, Any]:
 
         avg_confidence = round(sum(confidence_ratings) / len(confidence_ratings), 1) if confidence_ratings else None
 
-        # Issue stats
         issues_by_category = {}
         issues_by_severity = {"minor": 0, "major": 0, "critical": 0}
         resolved_count = 0
@@ -371,18 +380,16 @@ async def get_shakedown_summary(user_id: str) -> Dict[str, Any]:
         open_issues = total_issues - resolved_count
         resolution_rate = round((resolved_count / total_issues * 100) if total_issues > 0 else 100)
 
-        # Calculate readiness score (based on trips, confidence, and issues)
-        trip_score = min(100, len(trips) * 25)  # 4+ trips = 100
-        confidence_score = (avg_confidence * 10) if avg_confidence else 50
-        issue_penalty = min(50, open_issues * 10 + issues_by_severity["critical"] * 20)
+        trip_score = min(100, len(trips) * TRIPS_PER_100_READINESS)
+        confidence_score = (avg_confidence * AVG_CONFIDENCE_MULTIPLIER) if avg_confidence else DEFAULT_CONFIDENCE_SCORE
+        issue_penalty = min(MAX_ISSUE_PENALTY, open_issues * ISSUE_PENALTY_PER_OPEN + issues_by_severity["critical"] * CRITICAL_ISSUE_PENALTY)
         readiness_score = max(0, round((trip_score + confidence_score) / 2 - issue_penalty))
 
-        # Build message
         message_parts = []
         message_parts.append(f"You've completed {len(trips)} shakedown trip(s).")
 
         if avg_confidence:
-            message_parts.append(f"Average confidence: {avg_confidence}/10.")
+            message_parts.append(f"Average confidence: {avg_confidence}/{CONFIDENCE_RATING_MAX}.")
 
         if total_issues > 0:
             message_parts.append(f"Found {total_issues} issues, {resolved_count} resolved, {open_issues} open.")
@@ -399,7 +406,7 @@ async def get_shakedown_summary(user_id: str) -> Dict[str, Any]:
                 "total": len(trips),
                 "by_type": trips_by_type,
                 "average_confidence": avg_confidence,
-                "recent_trips": trips[:3]  # Last 3 trips
+                "recent_trips": trips[:MAX_RECENT_TRIPS_TO_SHOW]
             },
             "issues": {
                 "total": total_issues,

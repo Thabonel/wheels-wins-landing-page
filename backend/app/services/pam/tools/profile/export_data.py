@@ -95,43 +95,23 @@ async def export_data(
         export_data_obj["privacy_settings"] = privacy_data[0] if privacy_data else None
 
         if validated.include_expenses:
-            expenses_data = await safe_db_select(
-                "expenses",
-                columns="*",
-                filters={"user_id": validated.user_id}
-            )
+            expenses_data = await safe_db_select("expenses", columns="*", filters={"user_id": validated.user_id})
             export_data_obj["expenses"] = expenses_data or []
 
         if validated.include_budgets:
-            budgets_data = await safe_db_select(
-                "budgets",
-                columns="*",
-                filters={"user_id": validated.user_id}
-            )
+            budgets_data = await safe_db_select("budgets", columns="*", filters={"user_id": validated.user_id})
             export_data_obj["budgets"] = budgets_data or []
 
         if validated.include_trips:
-            trips_data = await safe_db_select(
-                "user_trips",
-                columns="*",
-                filters={"user_id": validated.user_id}
-            )
+            trips_data = await safe_db_select("user_trips", columns="*", filters={"user_id": validated.user_id})
             export_data_obj["trips"] = trips_data or []
 
         if validated.include_posts:
-            posts_data = await safe_db_select(
-                "posts",
-                columns="*",
-                filters={"user_id": validated.user_id}
-            )
+            posts_data = await safe_db_select("posts", columns="*", filters={"user_id": validated.user_id})
             export_data_obj["posts"] = posts_data or []
 
         if validated.include_favorites:
-            favorites_data = await safe_db_select(
-                "favorite_locations",
-                columns="*",
-                filters={"user_id": validated.user_id}
-            )
+            favorites_data = await safe_db_select("favorite_locations", columns="*", filters={"user_id": validated.user_id})
             export_data_obj["favorite_locations"] = favorites_data or []
 
         total_records = (

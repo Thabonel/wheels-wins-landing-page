@@ -20,6 +20,7 @@ from app.services.pam.tools.exceptions import (
 from app.services.pam.tools.utils import (
     validate_uuid,
 )
+from app.services.pam.tools.social.constants import DEFAULT_FEED_LIMIT
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 async def get_feed(
     user_id: str,
     filter_type: Optional[str] = "all",
-    limit: Optional[int] = 20,
+    limit: Optional[int] = DEFAULT_FEED_LIMIT,
     offset: Optional[int] = 0,
     **kwargs
 ) -> Dict[str, Any]:
@@ -37,8 +38,8 @@ async def get_feed(
     Args:
         user_id: UUID of the user
         filter_type: Type of feed (all, friends, following)
-        limit: Maximum number of posts (default: 20)
-        offset: Pagination offset (default: 0)
+        limit: Maximum number of posts
+        offset: Pagination offset
 
     Returns:
         Dict with feed posts
@@ -50,7 +51,6 @@ async def get_feed(
     try:
         validate_uuid(user_id, "user_id")
 
-        # Validate inputs using Pydantic schema
         try:
             validated = GetFeedInput(
                 user_id=user_id,

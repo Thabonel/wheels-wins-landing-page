@@ -1,12 +1,6 @@
 """Estimate Travel Time Tool for PAM
 
 Calculate estimated travel duration including breaks and rest stops
-
-Example usage:
-- "How long to drive from LA to Vegas?"
-- "Estimate travel time to Seattle with breaks"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
@@ -24,6 +18,15 @@ from app.services.pam.tools.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_DISTANCE_ESTIMATE_MILES = 500.0
+RV_AVERAGE_SPEED_MPH = 55.0
+BREAK_INTERVAL_HOURS = 2
+BREAK_DURATION_MINUTES = 15
+MEAL_INTERVAL_HOURS = 6
+MEAL_DURATION_MINUTES = 30
+MAX_DAILY_DRIVING_HOURS = 8
+MINUTES_PER_HOUR = 60
 
 
 async def estimate_travel_time(
@@ -84,24 +87,16 @@ async def estimate_travel_time(
                 context={"validation_errors": e.errors()}
             )
 
-        # Use provided distance or estimate (would use Mapbox in production)
-        distance = getattr(validated, 'distance_miles', None) or 500.0  # Default estimate
+        distance = getattr(validated, 'distance_miles', None) or DEFAULT_DISTANCE_ESTIMATE_MILES
 
-        # RV average speed (accounting for terrain, traffic)
-        avg_speed_mph = 55.0
+        driving_hours = distance / RV_AVERAGE_SPEED_MPH
 
-        # Calculate driving time
-        driving_hours = distance / avg_speed_mph
-
-        # Add breaks if requested
         if validated.include_breaks:
-            # Add 15 min break every 2 hours
-            num_breaks = int(driving_hours / 2)
-            break_time_hours = (num_breaks * 15) / 60
+            num_breaks = int(driving_hours / BREAK_INTERVAL_HOURS)
+            break_time_hours = (num_breaks * BREAK_DURATION_MINUTES) / MINUTES_PER_HOUR
 
-            # Add meal breaks (30 min per 6 hours)
-            num_meals = int(driving_hours / 6)
-            meal_time_hours = (num_meals * 30) / 60
+            num_meals = int(driving_hours / MEAL_INTERVAL_HOURS)
+            meal_time_hours = (num_meals * MEAL_DURATION_MINUTES) / MINUTES_PER_HOUR
 
             total_hours = driving_hours + break_time_hours + meal_time_hours
         else:
@@ -109,9 +104,8 @@ async def estimate_travel_time(
             num_breaks = 0
             num_meals = 0
 
-        # Convert to days if multi-day
-        days = int(total_hours / 8)  # 8 hours driving per day max for RVs
-        remaining_hours = total_hours % 8
+        days = int(total_hours / MAX_DAILY_DRIVING_HOURS)
+        remaining_hours = total_hours % MAX_DAILY_DRIVING_HOURS
 
         logger.info(f"Estimated travel time from {validated.origin} to {validated.destination}: {total_hours:.1f} hours for user {validated.user_id}")
 

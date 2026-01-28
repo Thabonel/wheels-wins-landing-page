@@ -23,6 +23,8 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DECEMBER_MONTH_NUMBER = 12
+
 
 async def predict_end_of_month(
     user_id: str,
@@ -52,7 +54,7 @@ async def predict_end_of_month(
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         days_elapsed = now.day
 
-        if now.month == 12:
+        if now.month == DECEMBER_MONTH_NUMBER:
             next_month = now.replace(year=now.year + 1, month=1, day=1)
         else:
             next_month = now.replace(month=now.month + 1, day=1)

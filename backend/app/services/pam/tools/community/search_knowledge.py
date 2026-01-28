@@ -26,13 +26,17 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_KNOWLEDGE_ARTICLE_SEARCH_LIMIT = 5
+DEFAULT_KNOWLEDGE_ARTICLE_CATEGORY_LIMIT = 10
+MAX_ARTICLE_PREVIEW_LENGTH = 500
+
 
 async def search_knowledge(
     user_id: str,
     query: str,
     category: Optional[str] = None,
     difficulty: Optional[str] = None,
-    limit: int = 5
+    limit: int = DEFAULT_KNOWLEDGE_ARTICLE_SEARCH_LIMIT
 ) -> Dict[str, Any]:
     """
     Search approved knowledge articles that might help answer user's question.
@@ -110,7 +114,7 @@ async def search_knowledge(
                 "id": article['id'],
                 "title": article['title'],
                 "excerpt": article['excerpt'],
-                "content": article['content'][:500] + "..." if len(article['content']) > 500 else article['content'],
+                "content": article['content'][:MAX_ARTICLE_PREVIEW_LENGTH] + "..." if len(article['content']) > MAX_ARTICLE_PREVIEW_LENGTH else article['content'],
                 "category": article['category'],
                 "difficulty_level": article['difficulty_level'],
                 "estimated_read_time": article['estimated_read_time'],
@@ -228,7 +232,7 @@ async def get_knowledge_article(article_id: str) -> Dict[str, Any]:
         )
 
 
-async def get_knowledge_by_category(category: str, limit: int = 10) -> Dict[str, Any]:
+async def get_knowledge_by_category(category: str, limit: int = DEFAULT_KNOWLEDGE_ARTICLE_CATEGORY_LIMIT) -> Dict[str, Any]:
     """
     Get top knowledge articles by category (for browsing).
 

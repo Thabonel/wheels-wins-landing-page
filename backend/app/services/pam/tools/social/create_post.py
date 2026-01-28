@@ -58,7 +58,6 @@ async def create_post(
         validate_uuid(user_id, "user_id")
         validate_required(content, "content")
 
-        # Validate inputs using Pydantic schema
         try:
             validated = CreatePostInput(
                 user_id=user_id,
@@ -75,7 +74,6 @@ async def create_post(
                 context={"field": e.errors()[0]['loc'][0], "error": error_msg}
             )
 
-        # Build post data
         post_data = {
             "user_id": validated.user_id,
             "content": validated.content,

@@ -23,6 +23,13 @@ from app.services.pam.tools.utils import (
     validate_required,
     safe_db_insert,
 )
+from app.services.pam.tools.social.constants import (
+    DEFAULT_LOCATION_SHARE_DURATION_HOURS,
+    LATITUDE_MIN,
+    LATITUDE_MAX,
+    LONGITUDE_MIN,
+    LONGITUDE_MAX,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -58,23 +65,21 @@ async def share_location(
         validate_uuid(user_id, "user_id")
         validate_required(location_name, "location_name")
 
-        # Validate latitude/longitude ranges
-        if not -90 <= latitude <= 90:
+        if not LATITUDE_MIN <= latitude <= LATITUDE_MAX:
             raise ValidationError(
-                "Latitude must be between -90 and 90",
+                f"Latitude must be between {LATITUDE_MIN} and {LATITUDE_MAX}",
                 context={"latitude": latitude}
             )
 
-        if not -180 <= longitude <= 180:
+        if not LONGITUDE_MIN <= longitude <= LONGITUDE_MAX:
             raise ValidationError(
-                "Longitude must be between -180 and 180",
+                f"Longitude must be between {LONGITUDE_MIN} and {LONGITUDE_MAX}",
                 context={"longitude": longitude}
             )
 
-        # Validate inputs using Pydantic schema
         try:
             share_with = "public" if is_public else "friends"
-            share_duration_hours = kwargs.get("share_duration_hours", 24)
+            share_duration_hours = kwargs.get("share_duration_hours", DEFAULT_LOCATION_SHARE_DURATION_HOURS)
 
             validated = ShareLocationInput(
                 user_id=user_id,
@@ -91,7 +96,6 @@ async def share_location(
                 context={"field": e.errors()[0]['loc'][0], "error": error_msg}
             )
 
-        # Build location share data
         location_data = {
             "user_id": validated.user_id,
             "location_name": validated.location_name,

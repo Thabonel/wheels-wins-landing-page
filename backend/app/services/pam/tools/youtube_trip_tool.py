@@ -1,9 +1,4 @@
-"""
-YouTube Trip Tool
-
-Search for travel videos, RV tips, destination guides, and camping tutorials.
-Uses YouTube Data API if available, falls back to curated recommendations.
-"""
+"""YouTube Trip Tool - Search for travel videos, RV tips, and camping tutorials."""
 
 import os
 import logging
@@ -16,7 +11,10 @@ from app.services.pam.tools.exceptions import (
 
 logger = logging.getLogger(__name__)
 
-# Try to import an async HTTP client
+MAX_RESULTS_LIMIT = 50
+DEFAULT_MAX_RESULTS = 5
+API_RESULT_LIMIT = 10
+
 try:
     import httpx
     HTTP_CLIENT = "httpx"
@@ -28,7 +26,6 @@ except ImportError:
         HTTP_CLIENT = None
         logger.warning("No async HTTP client available (httpx or aiohttp). YouTube API search disabled.")
 
-# Curated travel video channels for fallback
 CURATED_CHANNELS = {
     "rv_tips": [
         {"title": "Keep Your Daydream", "channel": "Keep Your Daydream", "focus": "Full-time RV living tips"},
@@ -94,12 +91,11 @@ class YouTubeTripTool:
                     context={"query": query}
                 )
 
-            if max_results < 1 or max_results > 50:
+            if max_results < 1 or max_results > MAX_RESULTS_LIMIT:
                 raise ValidationError(
-                    "Max results must be between 1 and 50",
+                    f"Max results must be between 1 and {MAX_RESULTS_LIMIT}",
                     context={"max_results": max_results}
                 )
-            # Try YouTube API if key available
             if self.api_key:
                 return await self._search_youtube_api(query, video_type, max_results)
 
@@ -132,14 +128,13 @@ class YouTubeTripTool:
             logger.warning("No HTTP client available, falling back to curated")
             return self._get_curated_recommendations(query, video_type, max_results)
 
-        # Enhance query based on video type
         enhanced_query = self._enhance_query(query, video_type)
 
         params = {
             "part": "snippet",
             "q": enhanced_query,
             "type": "video",
-            "maxResults": min(max_results, 10),
+            "maxResults": min(max_results, API_RESULT_LIMIT),
             "key": self.api_key,
             "relevanceLanguage": "en",
             "safeSearch": "moderate",
@@ -211,16 +206,13 @@ class YouTubeTripTool:
         """Return curated channel recommendations when API unavailable."""
         recommendations = []
 
-        # Get channels for the requested type
         if video_type and video_type in CURATED_CHANNELS:
             channels = CURATED_CHANNELS[video_type]
         else:
-            # Mix from all categories
             channels = []
             for category_channels in CURATED_CHANNELS.values():
                 channels.extend(category_channels[:2])
 
-        # Build recommendations with search suggestions
         for channel in channels[:max_results]:
             search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}+{channel['channel'].replace(' ', '+')}"
             recommendations.append({
@@ -259,7 +251,7 @@ class YouTubeTripTool:
 async def search_travel_videos(
     query: str,
     video_type: Optional[str] = None,
-    max_results: int = 5
+    max_results: int = DEFAULT_MAX_RESULTS
 ) -> Dict[str, Any]:
     """
     Search for travel videos on YouTube.

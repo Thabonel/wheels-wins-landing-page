@@ -1,13 +1,4 @@
-"""Timer and Alarm Tool for PAM
-
-Allows PAM to set timers and alarms via natural language commands.
-
-Example usage:
-- "Set a timer for 10 minutes"
-- "Set an alarm for 3pm"
-- "Remind me in 30 seconds"
-- "Wake me up at 7:00 AM tomorrow"
-"""
+"""Timer and Alarm Tool for PAM - Set timers and alarms via natural language."""
 
 import logging
 import re
@@ -26,69 +17,45 @@ from app.services.pam.tools.utils import validate_uuid
 
 logger = logging.getLogger(__name__)
 
+SECONDS_PER_HOUR = 3600
+SECONDS_PER_MINUTE = 60
+
 
 def parse_duration_to_seconds(duration_str: str) -> Optional[int]:
-    """
-    Parse a duration string into seconds.
-
-    Supports formats like:
-    - "10 minutes", "10 min", "10m"
-    - "1 hour", "2 hours", "1h"
-    - "30 seconds", "30 sec", "30s"
-    - "1 hour 30 minutes"
-    - Plain numbers (interpreted as minutes by default)
-
-    Returns:
-        Number of seconds, or None if parsing fails
-    """
+    """Parse a duration string into seconds (supports hours, minutes, seconds)."""
     if not duration_str:
         return None
 
     duration_str = duration_str.lower().strip()
     total_seconds = 0
 
-    # Pattern for hours
     hours_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b', duration_str)
     if hours_match:
-        total_seconds += int(float(hours_match.group(1)) * 3600)
+        total_seconds += int(float(hours_match.group(1)) * SECONDS_PER_HOUR)
 
-    # Pattern for minutes
     minutes_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)\b', duration_str)
     if minutes_match:
-        total_seconds += int(float(minutes_match.group(1)) * 60)
+        total_seconds += int(float(minutes_match.group(1)) * SECONDS_PER_MINUTE)
 
-    # Pattern for seconds
     seconds_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|s)\b', duration_str)
     if seconds_match:
         total_seconds += int(float(seconds_match.group(1)))
 
-    # If nothing matched but we have a plain number, treat as minutes
     if total_seconds == 0:
         plain_number = re.match(r'^(\d+(?:\.\d+)?)$', duration_str)
         if plain_number:
-            total_seconds = int(float(plain_number.group(1)) * 60)
+            total_seconds = int(float(plain_number.group(1)) * SECONDS_PER_MINUTE)
 
     return total_seconds if total_seconds > 0 else None
 
 
 def parse_alarm_time(time_str: str, context: Dict[str, Any] = None) -> Optional[datetime]:
-    """
-    Parse an alarm time string into a datetime.
-
-    Supports formats like:
-    - "3pm", "3:00 PM", "15:00"
-    - "tomorrow at 7am"
-    - ISO format: "2024-01-15T15:00:00"
-
-    Returns:
-        datetime object (timezone-aware), or None if parsing fails
-    """
+    """Parse an alarm time string into a timezone-aware datetime object."""
     if not time_str:
         return None
 
     time_str = time_str.strip()
 
-    # Detect user timezone from context
     user_tz = ZoneInfo('UTC')
     if context and 'timezone' in context:
         try:
@@ -98,7 +65,6 @@ def parse_alarm_time(time_str: str, context: Dict[str, Any] = None) -> Optional[
 
     now = datetime.now(user_tz)
 
-    # Try ISO format first
     try:
         dt = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
         if dt.tzinfo is None:
@@ -107,14 +73,12 @@ def parse_alarm_time(time_str: str, context: Dict[str, Any] = None) -> Optional[
     except ValueError:
         pass
 
-    # Check for "tomorrow" modifier
     tomorrow = False
     if 'tomorrow' in time_str.lower():
         tomorrow = True
         time_str = re.sub(r'\btomorrow\b', '', time_str, flags=re.IGNORECASE).strip()
         time_str = re.sub(r'\bat\b', '', time_str, flags=re.IGNORECASE).strip()
 
-    # Parse time patterns like "3pm", "3:00 PM", "15:00"
     time_patterns = [
         (r'(\d{1,2}):(\d{2})\s*(am|pm)', '%I:%M %p'),
         (r'(\d{1,2})\s*(am|pm)', '%I %p'),
@@ -125,12 +89,9 @@ def parse_alarm_time(time_str: str, context: Dict[str, Any] = None) -> Optional[
         match = re.search(pattern, time_str, re.IGNORECASE)
         if match:
             try:
-                # Reconstruct time string for parsing
                 matched_time = match.group(0)
 
-                # Handle 12-hour format
                 if 'am' in matched_time.lower() or 'pm' in matched_time.lower():
-                    # Normalize to "HH:MM AM/PM" format
                     parts = re.match(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)', matched_time, re.IGNORECASE)
                     if parts:
                         hour = int(parts.group(1))
@@ -144,7 +105,6 @@ def parse_alarm_time(time_str: str, context: Dict[str, Any] = None) -> Optional[
 
                         dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
                 else:
-                    # 24-hour format
                     parts = re.match(r'(\d{1,2}):(\d{2})', matched_time)
                     if parts:
                         hour = int(parts.group(1))
@@ -156,7 +116,6 @@ def parse_alarm_time(time_str: str, context: Dict[str, Any] = None) -> Optional[
                 if tomorrow:
                     dt = dt + timedelta(days=1)
                 elif dt <= now:
-                    # If time is in the past, assume tomorrow
                     dt = dt + timedelta(days=1)
 
                 return dt

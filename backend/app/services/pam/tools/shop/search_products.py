@@ -16,6 +16,7 @@ import logging
 from typing import Any, Dict, Optional, List
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.tools.constants import ShopConstants
 from app.services.pam.tools.exceptions import (
     ValidationError,
     DatabaseError,
@@ -33,7 +34,7 @@ async def _search_rapidapi_fallback(
     query: str,
     max_price: Optional[float] = None,
     min_price: Optional[float] = None,
-    limit: int = 10
+    limit: int = ShopConstants.SEARCH_FALLBACK_BASE_LIMIT
 ) -> List[Dict[str, Any]]:
     """
     Fallback to RapidAPI when internal products don't match.
@@ -51,10 +52,9 @@ async def _search_rapidapi_fallback(
         )
 
         if results.get("success") and results.get("products"):
-            # Format to match internal product structure
             return [
                 {
-                    "id": None,  # External product
+                    "id": None,
                     "title": p.get("title"),
                     "description": f"From {p.get('store', 'external retailer')}",
                     "price": p.get("price", 0),
@@ -83,7 +83,7 @@ async def search_products(
     category: Optional[str] = None,
     max_price: Optional[float] = None,
     min_price: Optional[float] = None,
-    limit: Optional[int] = 20,
+    limit: Optional[int] = ShopConstants.DEFAULT_SEARCH_LIMIT,
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -95,7 +95,7 @@ async def search_products(
         category: Optional category filter (tools_maintenance, camping_expedition, etc)
         max_price: Optional maximum price filter
         min_price: Optional minimum price filter
-        limit: Maximum number of results (default: 20)
+        limit: Maximum number of results
 
     Returns:
         Dict with product search results
@@ -125,9 +125,9 @@ async def search_products(
                 context={"min_price": min_price, "max_price": max_price}
             )
 
-        if limit is not None and (limit < 1 or limit > 100):
+        if limit is not None and (limit < ShopConstants.MIN_RESULTS_LIMIT or limit > ShopConstants.MAX_RESULTS_LIMIT):
             raise ValidationError(
-                "Limit must be between 1 and 100",
+                f"Limit must be between {ShopConstants.MIN_RESULTS_LIMIT} and {ShopConstants.MAX_RESULTS_LIMIT}",
                 context={"limit": limit}
             )
 
@@ -185,12 +185,12 @@ async def search_products(
         logger.info(f"Found {len(products)} internal products for query '{query}' by user {user_id}")
 
         external_products = []
-        if len(formatted_products) < 5:
+        if len(formatted_products) < ShopConstants.SEARCH_MIN_INTERNAL_RESULTS:
             external_products = await _search_rapidapi_fallback(
                 query=query,
                 max_price=max_price,
                 min_price=min_price,
-                limit=10 - len(formatted_products)
+                limit=ShopConstants.SEARCH_FALLBACK_BASE_LIMIT - len(formatted_products)
             )
             if external_products:
                 logger.info(f"Added {len(external_products)} external products from RapidAPI")

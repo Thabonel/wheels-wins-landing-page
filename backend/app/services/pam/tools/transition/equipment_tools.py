@@ -28,6 +28,9 @@ logger = logging.getLogger(__name__)
 VALID_CATEGORIES = ["recovery", "kitchen", "power", "climate", "safety", "comfort", "other"]
 VALID_PRIORITIES = ["critical", "high", "medium", "low"]
 
+MAX_MATCHING_ITEMS_TO_DISPLAY = 5
+DECIMAL_PLACES_FOR_COST = 2
+
 
 async def add_equipment_item(
     user_id: str,
@@ -130,8 +133,8 @@ async def add_equipment_item(
 
         message = f"Added '{name}' to your {category} equipment list"
         if estimated_cost:
-            message += f" (estimated ${estimated_cost:.2f})"
-        message += f". You now have {total_items} items totaling ${total_estimated:.2f} estimated."
+            message += f" (estimated ${estimated_cost:.{DECIMAL_PLACES_FOR_COST}f})"
+        message += f". You now have {total_items} items totaling ${total_estimated:.{DECIMAL_PLACES_FOR_COST}f} estimated."
 
         return {
             "success": True,
@@ -242,7 +245,7 @@ async def mark_equipment_purchased(
                     context={"user_id": user_id, "item_name": item_name}
                 )
             elif len(matching_items) > 1:
-                names = [i["equipment_name"] for i in matching_items[:5]]
+                names = [i["equipment_name"] for i in matching_items[:MAX_MATCHING_ITEMS_TO_DISPLAY]]
                 raise ValidationError(
                     f"Multiple items match '{item_name}'. Please be more specific. Matches: {names}",
                     context={"user_id": user_id, "item_name": item_name, "matches": names}
@@ -298,13 +301,13 @@ async def mark_equipment_purchased(
         message = f"Marked '{item['equipment_name']}' as purchased"
         if actual_cost is not None:
             savings = (item.get("estimated_cost", 0) or 0) - actual_cost
-            message += f" for ${actual_cost:.2f}"
+            message += f" for ${actual_cost:.{DECIMAL_PLACES_FOR_COST}f}"
             if savings > 0:
-                message += f" (saved ${savings:.2f} vs estimate!)"
+                message += f" (saved ${savings:.{DECIMAL_PLACES_FOR_COST}f} vs estimate!)"
             elif savings < 0:
-                message += f" (${abs(savings):.2f} over estimate)"
+                message += f" (${abs(savings):.{DECIMAL_PLACES_FOR_COST}f} over estimate)"
 
-        message += f". {acquired_count}/{total_items} items acquired. ${total_spent:.2f} spent, ${remaining_budget:.2f} remaining in budget."
+        message += f". {acquired_count}/{total_items} items acquired. ${total_spent:.{DECIMAL_PLACES_FOR_COST}f} spent, ${remaining_budget:.{DECIMAL_PLACES_FOR_COST}f} remaining in budget."
 
         return {
             "success": True,
@@ -425,7 +428,7 @@ async def get_equipment_list(
         else:
             message += f" ({acquired_count} purchased, {remaining_items} remaining)"
 
-        message += f". Total budget: ${total_estimated:.2f}, spent: ${total_spent:.2f}, remaining: ${remaining_budget:.2f}."
+        message += f". Total budget: ${total_estimated:.{DECIMAL_PLACES_FOR_COST}f}, spent: ${total_spent:.{DECIMAL_PLACES_FOR_COST}f}, remaining: ${remaining_budget:.{DECIMAL_PLACES_FOR_COST}f}."
 
         return {
             "success": True,

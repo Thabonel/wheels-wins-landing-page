@@ -1,12 +1,6 @@
 """Save Favorite Spot Tool for PAM
 
 Bookmark locations for future reference
-
-Example usage:
-- "Save this campground as a favorite"
-- "Bookmark this restaurant for later"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
@@ -27,6 +21,9 @@ from app.services.pam.tools.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+MIN_RATING = 1
+MAX_RATING = 5
 
 
 async def save_favorite_spot(
@@ -73,9 +70,9 @@ async def save_favorite_spot(
 
         if rating is not None:
             validate_positive_number(rating, "rating")
-            if rating < 1 or rating > 5:
+            if rating < MIN_RATING or rating > MAX_RATING:
                 raise CustomValidationError(
-                    "Rating must be between 1 and 5",
+                    f"Rating must be between {MIN_RATING} and {MAX_RATING}",
                     context={"rating": rating}
                 )
 

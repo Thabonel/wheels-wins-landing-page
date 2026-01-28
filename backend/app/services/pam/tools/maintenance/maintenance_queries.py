@@ -19,11 +19,15 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_QUERY_LIMIT = 10
+MIN_QUERY_LIMIT = 1
+MAX_QUERY_LIMIT = 100
+
 
 async def get_maintenance_schedule(
     user_id: str,
     status: str = "all",
-    limit: int = 10
+    limit: int = DEFAULT_QUERY_LIMIT
 ) -> Dict[str, Any]:
     """
     View upcoming and overdue maintenance.
@@ -55,9 +59,9 @@ async def get_maintenance_schedule(
                 context={"status": status, "valid_statuses": valid_statuses}
             )
 
-        if limit < 1 or limit > 100:
+        if limit < MIN_QUERY_LIMIT or limit > MAX_QUERY_LIMIT:
             raise ValidationError(
-                "Limit must be between 1 and 100",
+                f"Limit must be between {MIN_QUERY_LIMIT} and {MAX_QUERY_LIMIT}",
                 context={"limit": limit}
             )
 
@@ -170,7 +174,7 @@ async def get_maintenance_schedule(
 async def get_maintenance_history(
     user_id: str,
     task_type: Optional[str] = None,
-    limit: int = 10
+    limit: int = DEFAULT_QUERY_LIMIT
 ) -> Dict[str, Any]:
     """
     View past maintenance records.
@@ -195,9 +199,9 @@ async def get_maintenance_history(
     try:
         validate_uuid(user_id, "user_id")
 
-        if limit < 1 or limit > 100:
+        if limit < MIN_QUERY_LIMIT or limit > MAX_QUERY_LIMIT:
             raise ValidationError(
-                "Limit must be between 1 and 100",
+                f"Limit must be between {MIN_QUERY_LIMIT} and {MAX_QUERY_LIMIT}",
                 context={"limit": limit}
             )
 

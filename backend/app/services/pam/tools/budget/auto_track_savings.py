@@ -36,6 +36,9 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+MIN_SAVINGS_THRESHOLD = 1.0
+DEFAULT_CONFIDENCE_SCORE = 0.8
+
 
 async def auto_record_savings(
     user_id: str,
@@ -44,7 +47,7 @@ async def auto_record_savings(
     savings_type: str,
     description: str,
     verification_method: str = "pam_tool_detection",
-    confidence_score: float = 0.8,
+    confidence_score: float = DEFAULT_CONFIDENCE_SCORE,
     baseline_cost: Optional[float] = None,
     optimized_cost: Optional[float] = None
 ) -> bool:
@@ -68,8 +71,6 @@ async def auto_record_savings(
     Returns:
         True if savings were recorded successfully, False otherwise
     """
-    MIN_SAVINGS_THRESHOLD = 1.0
-
     if amount < MIN_SAVINGS_THRESHOLD:
         logger.debug(f"Savings amount ${amount:.2f} below threshold, not recording")
         return False
@@ -128,10 +129,15 @@ async def auto_record_savings(
         return False
 
 
+DEFAULT_RV_TANK_SIZE_GALLONS = 20.0
+DEFAULT_RV_FUEL_EFFICIENCY_MPG = 10.0
+DEFAULT_FUEL_PRICE_PER_GALLON = 3.50
+
+
 async def calculate_potential_fuel_savings(
     regional_average: float,
     cheapest_price: float,
-    estimated_gallons: float = 20.0
+    estimated_gallons: float = DEFAULT_RV_TANK_SIZE_GALLONS
 ) -> float:
     """
     Calculate potential fuel savings based on price difference.
@@ -139,7 +145,7 @@ async def calculate_potential_fuel_savings(
     Args:
         regional_average: Average regional fuel price per gallon/liter
         cheapest_price: Cheapest price found
-        estimated_gallons: Estimated fill-up amount (default 20 gallons for RV)
+        estimated_gallons: Estimated fill-up amount
 
     Returns:
         Potential savings amount
@@ -154,8 +160,8 @@ async def calculate_potential_fuel_savings(
 async def calculate_route_savings(
     original_distance: float,
     optimized_distance: float,
-    fuel_efficiency_mpg: float = 10.0,
-    fuel_price_per_gallon: float = 3.50
+    fuel_efficiency_mpg: float = DEFAULT_RV_FUEL_EFFICIENCY_MPG,
+    fuel_price_per_gallon: float = DEFAULT_FUEL_PRICE_PER_GALLON
 ) -> float:
     """
     Calculate savings from route optimization.
@@ -163,7 +169,7 @@ async def calculate_route_savings(
     Args:
         original_distance: Original route distance in miles
         optimized_distance: Optimized route distance in miles
-        fuel_efficiency_mpg: Vehicle fuel efficiency (default 10 mpg for RV)
+        fuel_efficiency_mpg: Vehicle fuel efficiency
         fuel_price_per_gallon: Current fuel price
 
     Returns:

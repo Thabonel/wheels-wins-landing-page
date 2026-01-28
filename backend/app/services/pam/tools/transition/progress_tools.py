@@ -20,6 +20,13 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+READINESS_WEIGHT_TASKS = 0.5
+READINESS_WEIGHT_FINANCIAL = 0.3
+READINESS_WEIGHT_EQUIPMENT = 0.2
+
+READINESS_HIGH_THRESHOLD = 80
+READINESS_MEDIUM_THRESHOLD = 50
+
 
 async def get_transition_progress(user_id: str) -> Dict[str, Any]:
     """
@@ -53,7 +60,6 @@ async def get_transition_progress(user_id: str) -> Dict[str, Any]:
 
         supabase = get_supabase_client()
 
-        # Get transition profile
         profile_result = supabase.table("transition_profiles")\
             .select("*")\
             .eq("user_id", user_id)\
@@ -68,7 +74,6 @@ async def get_transition_progress(user_id: str) -> Dict[str, Any]:
 
         profile = profile_result.data
 
-        # Calculate days until departure
         days_until = None
         if profile.get("departure_date"):
             departure = datetime.fromisoformat(profile["departure_date"].replace("Z", "+00:00"))
@@ -77,7 +82,6 @@ async def get_transition_progress(user_id: str) -> Dict[str, Any]:
             today = date.today()
             days_until = (departure - today).days
 
-        # Get task statistics
         tasks_result = supabase.table("transition_tasks")\
             .select("id, is_completed, priority, category, days_before_departure")\
             .eq("user_id", user_id)\
@@ -88,15 +92,12 @@ async def get_transition_progress(user_id: str) -> Dict[str, Any]:
         completed_tasks = len([t for t in tasks if t.get("is_completed")])
         critical_incomplete = len([t for t in tasks if t.get("priority") == "critical" and not t.get("is_completed")])
 
-        # Calculate overdue tasks
         overdue_tasks = 0
         if days_until is not None:
             for task in tasks:
                 if not task.get("is_completed") and task.get("days_before_departure"):
                     if task["days_before_departure"] > days_until:
                         overdue_tasks += 1
-
-        # Get financial bucket stats
         financial_result = supabase.table("transition_financial")\
             .select("bucket_type, estimated_amount, current_amount")\
             .eq("user_id", user_id)\
@@ -107,7 +108,6 @@ async def get_transition_progress(user_id: str) -> Dict[str, Any]:
         total_funded = sum(f.get("current_amount", 0) or 0 for f in financials)
         financial_readiness = round((total_funded / total_estimated * 100) if total_estimated > 0 else 0)
 
-        # Get equipment stats (if table exists)
         equipment_stats = {"total_items": 0, "purchased": 0, "total_cost": 0, "spent": 0}
         try:
             equip_result = supabase.table("transition_equipment")\
@@ -125,15 +125,13 @@ async def get_transition_progress(user_id: str) -> Dict[str, Any]:
         except Exception as e:
             logger.debug(f"Equipment table not available: {e}")
 
-        # Calculate overall readiness score
-        # Weighted: 50% tasks, 30% financial, 20% equipment
         task_readiness = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
         equip_readiness = (equipment_stats["purchased"] / equipment_stats["total_items"] * 100) if equipment_stats["total_items"] > 0 else 100
 
         readiness_score = round(
-            (task_readiness * 0.5) +
-            (financial_readiness * 0.3) +
-            (equip_readiness * 0.2)
+            (task_readiness * READINESS_WEIGHT_TASKS) +
+            (financial_readiness * READINESS_WEIGHT_FINANCIAL) +
+            (equip_readiness * READINESS_WEIGHT_EQUIPMENT)
         )
 
         return {
@@ -190,18 +188,15 @@ def _build_progress_message(
     overdue: int,
     critical: int
 ) -> str:
-    """Build a human-friendly progress message."""
     parts = []
 
-    # Readiness summary
-    if readiness >= 80:
+    if readiness >= READINESS_HIGH_THRESHOLD:
         parts.append(f"You're at {readiness}% readiness - looking great!")
-    elif readiness >= 50:
+    elif readiness >= READINESS_MEDIUM_THRESHOLD:
         parts.append(f"You're at {readiness}% readiness - making good progress.")
     else:
         parts.append(f"You're at {readiness}% readiness - let's pick up the pace!")
 
-    # Days until departure
     if days_until is not None:
         if days_until > 0:
             parts.append(f"{days_until} days until departure.")
@@ -210,14 +205,12 @@ def _build_progress_message(
         else:
             parts.append(f"You're {abs(days_until)} days into your journey!")
 
-    # Task summary
     remaining = total_tasks - completed
     if remaining > 0:
         parts.append(f"{completed} of {total_tasks} tasks completed, {remaining} remaining.")
     else:
         parts.append(f"All {total_tasks} tasks completed!")
 
-    # Warnings
     if critical > 0:
         parts.append(f"Warning: {critical} critical tasks still incomplete.")
     if overdue > 0:

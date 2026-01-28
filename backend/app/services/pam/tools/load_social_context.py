@@ -1,41 +1,63 @@
-"""
-Load Social Context Tool - Retrieves friends locations and nearby events for travel planning
-"""
+"""Load Social Context Tool - Retrieves friends locations and nearby events for travel planning."""
 from typing import Dict, Any, List, Tuple
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError as PydanticValidationError
 from datetime import datetime, timedelta
 from .base_tool import BaseTool
 from app.core.database import get_supabase_client, get_user_context_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import validate_uuid
 
+
+FRIEND_LIMIT = 20
+LOCATION_POST_LIMIT = 50
+EVENT_LIMIT = 25
+TRAVEL_POST_LIMIT = 30
+FRIEND_PREVIEW_LIMIT = 10
+LOCATION_PREVIEW_LIMIT = 15
+EVENT_PREVIEW_LIMIT = 10
+POST_PREVIEW_LIMIT = 10
+RECENT_LOCATION_DAYS = 30
+EVENT_FORECAST_DAYS = 90
+RECENT_TRAVEL_POST_DAYS = 14
 
 class _ExecuteParams(BaseModel):
-    """Validation model for execute parameters"""
+    """Validation model for execute parameters."""
 
     user_id: str = Field(min_length=1)
     parameters: Dict[str, Any] | None = None
 
 
 class LoadSocialContextTool(BaseTool):
-    """Tool to load social context including friends' locations and nearby events"""
+    """Tool to load social context including friends' locations and nearby events."""
 
     def __init__(self, user_jwt: str = None):
         super().__init__("load_social_context", user_jwt=user_jwt)
-        # Use user-context client for proper RLS authentication
         if user_jwt:
             self.supabase = get_user_context_supabase_client(user_jwt)
         else:
-            # Fallback to service role (for backward compatibility)
             self.supabase = get_supabase_client()
     
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Load social context for travel planning"""
+        """Load social context for travel planning
+
+        Raises:
+            ValidationError: Invalid parameters
+            DatabaseError: Database operation failed
+        """
         try:
             # Validate inputs
             try:
+                validate_uuid(user_id, "user_id")
                 _ExecuteParams(user_id=user_id, parameters=parameters)
-            except ValidationError as ve:
+            except PydanticValidationError as ve:
                 self.logger.error(f"Input validation failed: {ve.errors()}")
-                return self._create_error_response("Invalid parameters")
+                raise ValidationError(
+                    "Invalid parameters",
+                    context={"validation_errors": ve.errors()}
+                )
 
             self.logger.info(f"🤝 SOCIAL DEBUG: Loading social context for user {user_id}")
             
@@ -51,24 +73,23 @@ class LoadSocialContextTool(BaseTool):
             # Get travel-related posts from friends
             friend_travel_posts = await self._get_friend_travel_posts(user_id)
             
-            # Compile social context
             social_context = {
                 "user_id": user_id,
                 "friends": {
                     "count": len(friends_data),
-                    "list": friends_data[:10],  # Limit to 10 closest friends for context
+                    "list": friends_data[:FRIEND_PREVIEW_LIMIT],
                 },
                 "friend_locations": {
                     "count": len(friend_locations),
-                    "recent_locations": friend_locations[:15],  # Last 15 location posts
+                    "recent_locations": friend_locations[:LOCATION_PREVIEW_LIMIT],
                 },
                 "nearby_events": {
                     "count": len(upcoming_events),
-                    "upcoming": upcoming_events[:10],  # Next 10 upcoming events
+                    "upcoming": upcoming_events[:EVENT_PREVIEW_LIMIT],
                 },
                 "friend_travel_activity": {
                     "count": len(friend_travel_posts),
-                    "recent_posts": friend_travel_posts[:10],  # Last 10 travel posts
+                    "recent_posts": friend_travel_posts[:POST_PREVIEW_LIMIT],
                 },
                 "context_summary": {
                     "has_nearby_friends": len(friend_locations) > 0,
@@ -79,17 +100,27 @@ class LoadSocialContextTool(BaseTool):
             }
             
             self.logger.info(f"🤝 SOCIAL DEBUG: Found {len(friends_data)} friends, {len(friend_locations)} recent locations, {len(upcoming_events)} events")
-            
+
             return self._create_success_response(social_context)
-            
+
+        except ValidationError:
+            raise
+        except DatabaseError:
+            raise
         except Exception as e:
-            self.logger.error(f"Error loading social context: {e}")
-            return self._create_error_response(f"Could not load social context: {str(e)}")
+            self.logger.error(
+                f"Unexpected error loading social context",
+                extra={"user_id": user_id},
+                exc_info=True
+            )
+            raise DatabaseError(
+                "Could not load social context",
+                context={"user_id": user_id, "error": str(e)}
+            )
     
     async def _get_user_friends(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get user's accepted friends with their profile info"""
+        """Get user's accepted friends with their profile info."""
         try:
-            # Get accepted friendships with friend profile data
             friends_response = (
                 self.supabase.table("user_friendships")
                 .select("""
@@ -107,7 +138,7 @@ class LoadSocialContextTool(BaseTool):
                 .eq("user_id", user_id)
                 .eq("status", "accepted")
                 .order("created_at", desc=True)
-                .limit(20)
+                .limit(FRIEND_LIMIT)
                 .execute()
             )
             
@@ -133,12 +164,10 @@ class LoadSocialContextTool(BaseTool):
             return []
     
     async def _get_friend_recent_locations(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get recent location posts from friends"""
+        """Get recent location posts from friends."""
         try:
-            # Get location posts from friends in the last 30 days
-            since_date = (datetime.now() - timedelta(days=30)).isoformat()
-            
-            # Complex query to get posts from friends with location data
+            since_date = (datetime.now() - timedelta(days=RECENT_LOCATION_DAYS)).isoformat()
+
             location_posts_response = (
                 self.supabase.table("social_posts")
                 .select("""
@@ -153,15 +182,14 @@ class LoadSocialContextTool(BaseTool):
                         nickname
                     )
                 """)
-                .not_.is_("location", "null")  # Has location data
+                .not_.is_("location", "null")
                 .gte("created_at", since_date)
                 .in_("post_type", ["location", "trip_share", "text", "image"])
                 .order("created_at", desc=True)
-                .limit(50)
+                .limit(LOCATION_POST_LIMIT)
                 .execute()
             )
-            
-            # Filter to only include posts from actual friends
+
             friend_ids = await self._get_friend_ids(user_id)
             
             friend_locations = []
@@ -188,12 +216,11 @@ class LoadSocialContextTool(BaseTool):
             return []
     
     async def _get_upcoming_community_events(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get upcoming community events that might be relevant"""
+        """Get upcoming community events that might be relevant."""
         try:
-            # Get public events in the next 90 days
             start_date = datetime.now().isoformat()
-            end_date = (datetime.now() + timedelta(days=90)).isoformat()
-            
+            end_date = (datetime.now() + timedelta(days=EVENT_FORECAST_DAYS)).isoformat()
+
             events_response = (
                 self.supabase.table("community_events")
                 .select("""
@@ -218,7 +245,7 @@ class LoadSocialContextTool(BaseTool):
                 .lte("start_date", end_date)
                 .not_.is_("location_name", "null")
                 .order("start_date", desc=False)
-                .limit(25)
+                .limit(EVENT_LIMIT)
                 .execute()
             )
             
@@ -248,11 +275,10 @@ class LoadSocialContextTool(BaseTool):
             return []
     
     async def _get_friend_travel_posts(self, user_id: str) -> List[Dict[str, Any]]:
-        """Get recent travel-related posts from friends"""
+        """Get recent travel-related posts from friends."""
         try:
-            # Get travel posts from friends in the last 14 days
-            since_date = (datetime.now() - timedelta(days=14)).isoformat()
-            
+            since_date = (datetime.now() - timedelta(days=RECENT_TRAVEL_POST_DAYS)).isoformat()
+
             travel_posts_response = (
                 self.supabase.table("social_posts")
                 .select("""
@@ -270,11 +296,10 @@ class LoadSocialContextTool(BaseTool):
                 .eq("post_type", "trip_share")
                 .gte("created_at", since_date)
                 .order("created_at", desc=True)
-                .limit(30)
+                .limit(TRAVEL_POST_LIMIT)
                 .execute()
             )
-            
-            # Filter to friends only
+
             friend_ids = await self._get_friend_ids(user_id)
             
             travel_posts = []

@@ -22,6 +22,8 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+LAUNCH_WEEK_DAYS = 7
+
 
 async def get_launch_week_status(user_id: str) -> Dict[str, Any]:
     """
@@ -76,10 +78,8 @@ async def get_launch_week_status(user_id: str) -> Dict[str, Any]:
         today = date.today()
         days_until = (departure_date - today).days
 
-        # Determine if we're in launch week (7 days or less)
-        in_launch_week = days_until <= 7
+        in_launch_week = days_until <= LAUNCH_WEEK_DAYS
 
-        # Get system launch week tasks
         system_tasks_result = supabase.table("launch_week_tasks")\
             .select("*")\
             .order("day_offset")\
@@ -87,7 +87,6 @@ async def get_launch_week_status(user_id: str) -> Dict[str, Any]:
 
         system_tasks = system_tasks_result.data or []
 
-        # Get user's completion status for these tasks
         user_tasks_result = supabase.table("user_launch_tasks")\
             .select("task_id, completed, completed_at, notes")\
             .eq("user_id", user_id)\
@@ -95,7 +94,6 @@ async def get_launch_week_status(user_id: str) -> Dict[str, Any]:
 
         user_completions = {t["task_id"]: t for t in (user_tasks_result.data or [])}
 
-        # Organize tasks by day
         tasks_by_day = {}
         total_tasks = 0
         completed_tasks = 0
@@ -133,9 +131,8 @@ async def get_launch_week_status(user_id: str) -> Dict[str, Any]:
 
         completion_percentage = round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0)
 
-        # Build message
         if not in_launch_week:
-            message = f"Launch week starts in {days_until - 7} days. You have {total_tasks} tasks to complete during launch week."
+            message = f"Launch week starts in {days_until - LAUNCH_WEEK_DAYS} days. You have {total_tasks} tasks to complete during launch week."
         elif days_until > 0:
             message = f"You're in launch week! {days_until} days until departure. {completed_tasks}/{total_tasks} tasks complete ({completion_percentage}%)."
             if critical_incomplete > 0:

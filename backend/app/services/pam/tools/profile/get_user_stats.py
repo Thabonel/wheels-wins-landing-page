@@ -64,15 +64,9 @@ async def get_user_stats(
 
         stats = {}
 
-        expenses_data = await safe_db_select(
-            "expenses",
-            columns="amount",
-            filters={"user_id": validated.user_id}
-        )
+        expenses_data = await safe_db_select("expenses", columns="amount", filters={"user_id": validated.user_id})
 
-        total_expenses = sum(
-            expense["amount"] for expense in (expenses_data or [])
-        )
+        total_expenses = sum(expense["amount"] for expense in (expenses_data or []))
         expense_count = len(expenses_data or [])
 
         stats["budget"] = {
@@ -81,16 +75,10 @@ async def get_user_stats(
             "avg_expense": round(total_expenses / expense_count, 2) if expense_count > 0 else 0
         }
 
-        trips_data = await safe_db_select(
-            "user_trips",
-            columns="*",
-            filters={"user_id": validated.user_id}
-        )
+        trips_data = await safe_db_select("user_trips", columns="*", filters={"user_id": validated.user_id})
 
         trip_count = len(trips_data or [])
-        total_miles = sum(
-            trip.get("distance_miles", 0) for trip in (trips_data or [])
-        )
+        total_miles = sum(trip.get("distance_miles", 0) for trip in (trips_data or []))
 
         stats["trips"] = {
             "trip_count": trip_count,
@@ -98,16 +86,10 @@ async def get_user_stats(
             "avg_miles_per_trip": round(total_miles / trip_count, 2) if trip_count > 0 else 0
         }
 
-        posts_data = await safe_db_select(
-            "posts",
-            columns="*",
-            filters={"user_id": validated.user_id}
-        )
+        posts_data = await safe_db_select("posts", columns="*", filters={"user_id": validated.user_id})
 
         post_count = len(posts_data or [])
-        total_likes = sum(
-            post.get("likes_count", 0) for post in (posts_data or [])
-        )
+        total_likes = sum(post.get("likes_count", 0) for post in (posts_data or []))
 
         stats["social"] = {
             "post_count": post_count,
@@ -115,11 +97,7 @@ async def get_user_stats(
             "avg_likes_per_post": round(total_likes / post_count, 2) if post_count > 0 else 0
         }
 
-        profile_data = await safe_db_select(
-            "profiles",
-            columns="created_at",
-            filters={"id": validated.user_id}
-        )
+        profile_data = await safe_db_select("profiles", columns="created_at", filters={"id": validated.user_id})
 
         if profile_data:
             created_at = datetime.fromisoformat(profile_data[0]["created_at"].replace("Z", "+00:00"))

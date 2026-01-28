@@ -26,6 +26,8 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+MAX_FUZZY_MATCHES_DISPLAY = 5
+
 
 async def create_maintenance_record(
     user_id: str,
@@ -206,7 +208,7 @@ async def update_maintenance_record(
                     context={"user_id": user_id, "task_name": task_name}
                 )
             elif len(matching) > 1:
-                tasks = [f"{r['task']} ({r['date']})" for r in matching[:5]]
+                tasks = [f"{r['task']} ({r['date']})" for r in matching[:MAX_FUZZY_MATCHES_DISPLAY]]
                 raise ValidationError(
                     f"Multiple records match '{task_name}'. Please be more specific.",
                     context={
@@ -337,7 +339,7 @@ async def delete_maintenance_record(
                     context={"user_id": user_id, "task_name": task_name}
                 )
             elif len(matching) > 1:
-                tasks = [f"{r['task']} ({r['date']})" for r in matching[:5]]
+                tasks = [f"{r['task']} ({r['date']})" for r in matching[:MAX_FUZZY_MATCHES_DISPLAY]]
                 raise ValidationError(
                     f"Multiple records match '{task_name}'. Please be more specific.",
                     context={

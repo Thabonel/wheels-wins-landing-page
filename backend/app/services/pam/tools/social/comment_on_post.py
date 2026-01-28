@@ -53,7 +53,6 @@ async def comment_on_post(
         validate_uuid(post_id, "post_id")
         validate_required(comment, "comment")
 
-        # Validate inputs using Pydantic schema
         try:
             validated = CommentOnPostInput(
                 user_id=user_id,
@@ -67,7 +66,6 @@ async def comment_on_post(
                 context={"field": e.errors()[0]['loc'][0], "error": error_msg}
             )
 
-        # Build comment data
         comment_data = {
             "user_id": validated.user_id,
             "post_id": validated.post_id,
@@ -77,7 +75,6 @@ async def comment_on_post(
 
         comment_obj = await safe_db_insert("comments", comment_data, user_id)
 
-        # Increment post comments count
         supabase = get_supabase_client()
         supabase.rpc("increment_post_comments", {"post_id": validated.post_id}).execute()
 

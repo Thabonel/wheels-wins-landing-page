@@ -1,12 +1,6 @@
 """Find RV Parks Tool for PAM
 
 Search for campgrounds and RV parks near a route or location
-
-Example usage:
-- "Find RV parks near Yosemite"
-- "Show me campgrounds along my route to Denver"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
@@ -26,6 +20,10 @@ from app.services.pam.tools.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_SEARCH_RADIUS_MILES = 50
+MAX_CAMPGROUNDS_QUERY_LIMIT = 20
+MAX_RESULTS_RETURNED = 10
 
 
 async def find_rv_parks(
@@ -90,7 +88,7 @@ async def find_rv_parks(
         if validated.max_price:
             query = query.lte("price_per_night", validated.max_price)
 
-        response = query.limit(20).execute()
+        response = query.limit(MAX_CAMPGROUNDS_QUERY_LIMIT).execute()
 
         campgrounds = response.data if response.data else []
 
@@ -107,7 +105,7 @@ async def find_rv_parks(
             "location": validated.location,
             "radius_miles": validated.radius_miles,
             "parks_found": len(campgrounds),
-            "parks": campgrounds[:10],
+            "parks": campgrounds[:MAX_RESULTS_RETURNED],
             "message": f"Found {len(campgrounds)} RV parks within {validated.radius_miles} miles of {validated.location}"
         }
 

@@ -23,6 +23,12 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_MEAL_PLAN_DAYS = 7
+MAX_MEAL_PLAN_DAYS = 30
+MAX_RECIPES_IN_AI_PROMPT = 50
+MAX_PANTRY_ITEMS_IN_AI_PROMPT = 30
+REPEAT_RECIPE_COOLDOWN_DAYS = 3
+
 
 async def plan_meals(
     user_id: str,
@@ -60,9 +66,9 @@ async def plan_meals(
         validate_uuid(user_id, "user_id")
         validate_positive_number(days, "days")
 
-        if days > 30:
+        if days > MAX_MEAL_PLAN_DAYS:
             raise ValidationError(
-                "Cannot plan meals for more than 30 days at a time",
+                f"Cannot plan meals for more than {MAX_MEAL_PLAN_DAYS} days at a time",
                 context={"days": days}
             )
 
@@ -79,13 +85,11 @@ async def plan_meals(
                 context={"user_id": user_id}
             )
 
-        # Get pantry items if requested
         pantry_items = []
         if use_pantry_items:
             pantry_result = supabase.table("pantry_items").select("*").eq("user_id", user_id).execute()
             pantry_items = pantry_result.data or []
 
-        # Get user's dietary preferences
         prefs_result = supabase.table("user_dietary_preferences").select("*").eq("user_id", user_id).execute()
 
         user_restrictions = []
@@ -132,7 +136,7 @@ REQUIREMENTS:
 4. ONLY use recipes that match dietary restrictions: {user_restrictions}
 5. If using pantry items, prioritize recipes that use expiring ingredients
 6. Aim to meet nutrition goals if specified
-7. Avoid repeating the same recipe within 3 days
+7. Avoid repeating the same recipe within {REPEAT_RECIPE_COOLDOWN_DAYS} days
 
 Return a JSON array with this structure:
 [
@@ -152,12 +156,10 @@ IMPORTANT: Only use recipe_id values from the available recipes list above.
 
         response = await ai_client.generate_text(prompt)
 
-        # Parse AI response
         import json
         try:
             meal_plan = json.loads(response)
         except json.JSONDecodeError:
-            # Try to extract JSON from response
             import re
             json_match = re.search(r'\[.*\]', response, re.DOTALL)
             if json_match:
@@ -168,7 +170,6 @@ IMPORTANT: Only use recipe_id values from the available recipes list above.
                     context={"response": response[:200]}
                 )
 
-        # Save meal plan to database
         plan_date = datetime.now().date()
         saved_plans = []
 
@@ -217,7 +218,6 @@ IMPORTANT: Only use recipe_id values from the available recipes list above.
 
 
 def _format_recipes_for_ai(recipes: List[Dict]) -> str:
-    """Format recipes for AI prompt"""
     formatted = []
     for recipe in recipes:
         formatted.append(
@@ -225,11 +225,10 @@ def _format_recipes_for_ai(recipes: List[Dict]) -> str:
             f"Prep: {recipe.get('prep_time_minutes', 'N/A')}min, "
             f"Tags: {', '.join(recipe.get('dietary_tags', []))})"
         )
-    return '\n'.join(formatted[:50])  # Limit to 50 recipes to avoid token limits
+    return '\n'.join(formatted[:MAX_RECIPES_IN_AI_PROMPT])
 
 
 def _format_pantry_for_ai(pantry_items: List[Dict]) -> str:
-    """Format pantry items for AI prompt"""
     if not pantry_items:
         return "No pantry items"
 
@@ -240,4 +239,4 @@ def _format_pantry_for_ai(pantry_items: List[Dict]) -> str:
         formatted.append(
             f"- {item['ingredient_name']}: {item['quantity']} {item['unit']} ({expiry_str})"
         )
-    return '\n'.join(formatted[:30])  # Limit to avoid token bloat
+    return '\n'.join(formatted[:MAX_PANTRY_ITEMS_IN_AI_PROMPT])

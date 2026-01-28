@@ -15,6 +15,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from app.services.pam.tools.budget.auto_track_savings import auto_record_savings
+from app.services.pam.tools.constants import ShopConstants
 from app.services.pam.tools.exceptions import (
     ValidationError,
     DatabaseError,
@@ -85,7 +86,7 @@ async def compare_prices(
         savings_tracked = False
         potential_savings = comparison.get("potential_savings", 0)
 
-        if potential_savings >= 5.0:
+        if potential_savings >= ShopConstants.MIN_SAVINGS_TO_TRACK:
             cheapest = comparison.get("cheapest", {})
             savings_tracked = await auto_record_savings(
                 user_id=user_id,
@@ -93,7 +94,7 @@ async def compare_prices(
                 category="shopping",
                 savings_type="price_comparison",
                 description=f"Found {product_name} cheaper at {cheapest.get('store', 'retailer')} - saving ${potential_savings:.2f}",
-                confidence_score=0.70,
+                confidence_score=ShopConstants.PRICE_COMPARISON_CONFIDENCE,
                 baseline_cost=comparison.get("most_expensive", {}).get("price", 0),
                 optimized_cost=cheapest.get("price", 0)
             )

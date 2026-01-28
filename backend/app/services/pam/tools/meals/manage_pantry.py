@@ -25,6 +25,8 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DAYS_UNTIL_EXPIRY_WARNING = 7
+
 
 async def manage_pantry(
     user_id: str,
@@ -121,8 +123,7 @@ async def manage_pantry(
             }
 
         elif action == 'check_expiry':
-            # Check items expiring within 7 days
-            soon_date = (datetime.now() + timedelta(days=7)).date()
+            soon_date = (datetime.now() + timedelta(days=DAYS_UNTIL_EXPIRY_WARNING)).date()
 
             result = supabase.table("pantry_items").select("*").eq("user_id", user_id).lte("expiry_date", str(soon_date)).order("expiry_date").execute()
 
@@ -132,7 +133,7 @@ async def manage_pantry(
                 "success": True,
                 "expiring_soon": result.data,
                 "count": len(result.data),
-                "message": f"Found {len(result.data)} item(s) expiring within 7 days"
+                "message": f"Found {len(result.data)} item(s) expiring within {DAYS_UNTIL_EXPIRY_WARNING} days"
             }
 
         elif action == 'update':

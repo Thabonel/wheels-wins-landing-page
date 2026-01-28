@@ -31,10 +31,11 @@ from app.services.pam.tools.utils import (
     safe_db_select,
 )
 
-# Initialize logger first (before using it)
 logger = logging.getLogger(__name__)
 
-# Coordinate-based timezone detection (fallback)
+DEFAULT_REMINDER_MINUTES = 15
+DEFAULT_EVENT_DURATION_HOURS = 1
+
 try:
     from timezonefinder import TimezoneFinder
     TIMEZONE_FINDER_AVAILABLE = True
@@ -62,17 +63,15 @@ def detect_user_timezone(context: Dict[str, Any]) -> tuple[ZoneInfo, str, str]:
     Returns:
         tuple: (ZoneInfo object, timezone_string, detection_method)
     """
-    # Strategy 1: Browser-detected timezone (primary)
     if 'timezone' in context and context['timezone']:
         user_timezone_str = context['timezone']
         try:
             user_timezone = ZoneInfo(user_timezone_str)
-            logger.info(f"🌍 Timezone detected from browser: {user_timezone_str}")
+            logger.info(f"Timezone detected from browser: {user_timezone_str}")
             return user_timezone, user_timezone_str, "browser"
         except Exception as e:
             logger.warning(f"Invalid browser timezone '{user_timezone_str}': {e}")
 
-    # Strategy 2: Coordinate-based detection (fallback)
     if TIMEZONE_FINDER_AVAILABLE and 'user_location' in context:
         user_loc = context['user_location']
         lat = user_loc.get('lat')
@@ -84,12 +83,11 @@ def detect_user_timezone(context: Dict[str, Any]) -> tuple[ZoneInfo, str, str]:
                 timezone_str = tf.timezone_at(lat=lat, lng=lng)
                 if timezone_str:
                     user_timezone = ZoneInfo(timezone_str)
-                    logger.info(f"🌍 Timezone detected from coordinates ({lat}, {lng}): {timezone_str}")
+                    logger.info(f"Timezone detected from coordinates ({lat}, {lng}): {timezone_str}")
                     return user_timezone, timezone_str, "coordinates"
             except Exception as e:
                 logger.warning(f"Failed to detect timezone from coordinates ({lat}, {lng}): {e}")
 
-    # Strategy 3: UTC fallback
     logger.warning("No timezone detected - falling back to UTC")
     return ZoneInfo('UTC'), 'UTC', "fallback"
 
@@ -144,10 +142,8 @@ async def create_calendar_event(
     Amendment #6: Refactored to use exception hierarchy and utility functions
     """
     try:
-        # Validate user_id
         validate_uuid(user_id, "user_id")
 
-        # Validate inputs using Pydantic schema
         try:
             validated = CreateCalendarEventInput(
                 user_id=user_id,
@@ -169,35 +165,29 @@ async def create_calendar_event(
                 context={"validation_errors": e.errors()}
             )
 
-        # Detect user's timezone with fallback strategies
         ctx = context or kwargs.get('context', {})
         user_timezone, user_timezone_str, detection_method = detect_user_timezone(ctx)
 
-        # Parse dates with timezone awareness
         start_dt_raw = validated.start_date.replace('Z', '+00:00')
         start_dt = datetime.fromisoformat(start_dt_raw)
 
-        # If datetime is naive (no timezone), localize it to user's timezone
         if start_dt.tzinfo is None:
             start_dt = datetime.fromisoformat(validated.start_date).replace(tzinfo=user_timezone)
             logger.info(f"Interpreted naive datetime '{validated.start_date}' as {user_timezone_str}: {start_dt.isoformat()}")
 
-        # If no end date provided, default to 1 hour after start (unless all_day)
         if not validated.end_date:
             if validated.all_day:
                 end_dt = start_dt.replace(hour=23, minute=59, second=59)
             else:
-                end_dt = start_dt + timedelta(hours=1)
+                end_dt = start_dt + timedelta(hours=DEFAULT_EVENT_DURATION_HOURS)
         else:
             end_dt_raw = validated.end_date.replace('Z', '+00:00')
             end_dt = datetime.fromisoformat(end_dt_raw)
 
-            # If datetime is naive, localize it to user's timezone
             if end_dt.tzinfo is None:
                 end_dt = datetime.fromisoformat(validated.end_date).replace(tzinfo=user_timezone)
                 logger.info(f"Interpreted naive datetime '{validated.end_date}' as {user_timezone_str}: {end_dt.isoformat()}")
 
-            # Validate end_date is after start_date
             if end_dt <= start_dt:
                 raise ValidationError(
                     "End date must be after start date",
@@ -207,10 +197,8 @@ async def create_calendar_event(
                     }
                 )
 
-        # Default reminders: [15] minutes before (array of integers)
-        reminder_list = validated.reminder_minutes if validated.reminder_minutes else [15]
+        reminder_list = validated.reminder_minutes if validated.reminder_minutes else [DEFAULT_REMINDER_MINUTES]
 
-        # Log timezone-aware event creation
         logger.info(f"Creating calendar event")
         logger.info(f"   Title: {validated.title}")
         logger.info(f"   Timezone: {user_timezone_str} (detected via {detection_method})")
@@ -219,7 +207,6 @@ async def create_calendar_event(
         logger.info(f"   Start (UTC): {start_dt.astimezone(ZoneInfo('UTC')).strftime('%Y-%m-%d %I:%M %p %Z')}")
         logger.info(f"   End (UTC): {end_dt.astimezone(ZoneInfo('UTC')).strftime('%Y-%m-%d %I:%M %p %Z')}")
 
-        # Build event data matching actual database schema
         event_data = {
             "user_id": validated.user_id,
             "title": validated.title,
@@ -234,7 +221,6 @@ async def create_calendar_event(
             "is_private": validated.is_private,
         }
 
-        # Use safe database insert
         event = await safe_db_insert("calendar_events", event_data, user_id)
 
         logger.info(f"Created calendar event: {event['id']} for user {validated.user_id}")
@@ -273,8 +259,8 @@ class CreateCalendarEventTool(BaseTool):
                 "Supports various event types: personal, trip, maintenance, meeting, reminder, birthday, holiday."
             ),
             capabilities=[
-                ToolCapability.ACTION,  # This is an action tool
-                ToolCapability.WRITE,   # It writes data
+                ToolCapability.ACTION,
+                ToolCapability.WRITE,
             ],
             user_jwt=user_jwt
         )
@@ -285,13 +271,11 @@ class CreateCalendarEventTool(BaseTool):
         if not parameters:
             return self._create_error_result("No parameters provided")
 
-        # Required parameters
         if "title" not in parameters:
             return self._create_error_result("Missing required parameter: title")
         if "start_date" not in parameters:
             return self._create_error_result("Missing required parameter: start_date")
 
-        # Create the event
         result = await create_calendar_event(user_id=user_id, **parameters)
 
         if result.get("success"):
