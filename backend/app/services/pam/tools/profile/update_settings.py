@@ -79,9 +79,7 @@ async def update_settings(
                 context={"validation_errors": e.errors()}
             )
 
-        update_data = {
-            "updated_at": datetime.now().isoformat()
-        }
+        update_data = {"updated_at": datetime.now().isoformat()}
 
         if validated.email_notifications is not None:
             update_data["email_notifications"] = validated.email_notifications

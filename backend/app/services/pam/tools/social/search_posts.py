@@ -21,6 +21,7 @@ from app.services.pam.tools.utils import (
     validate_uuid,
     validate_required,
 )
+from app.services.pam.tools.social.constants import DEFAULT_SEARCH_LIMIT
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ async def search_posts(
     query: str,
     tags: Optional[List[str]] = None,
     location: Optional[str] = None,
-    limit: Optional[int] = 20,
+    limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -41,7 +42,7 @@ async def search_posts(
         query: Search query string
         tags: Optional list of tags to filter by
         location: Optional location to filter by
-        limit: Maximum number of results (default: 20)
+        limit: Maximum number of results
 
     Returns:
         Dict with search results
@@ -54,7 +55,6 @@ async def search_posts(
         validate_uuid(user_id, "user_id")
         validate_required(query, "query")
 
-        # Validate inputs using Pydantic schema
         try:
             validated = SearchPostsInput(
                 user_id=user_id,

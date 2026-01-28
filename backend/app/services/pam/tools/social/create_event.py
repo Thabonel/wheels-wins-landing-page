@@ -67,7 +67,6 @@ async def create_event(
         validate_required(location, "location")
         validate_date_format(event_date, "event_date")
 
-        # Validate inputs using Pydantic schema
         try:
             is_public = kwargs.get("is_public", True)
 
@@ -89,7 +88,6 @@ async def create_event(
                 context={"field": e.errors()[0]['loc'][0], "error": error_msg}
             )
 
-        # Build event data
         event_data = {
             "creator_id": validated.user_id,
             "title": validated.title,
@@ -107,7 +105,6 @@ async def create_event(
 
         event = await safe_db_insert("events", event_data, user_id)
 
-        # Add creator as attendee
         attendee_data = {
             "event_id": event["id"],
             "user_id": validated.user_id,

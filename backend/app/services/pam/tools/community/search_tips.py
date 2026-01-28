@@ -32,12 +32,15 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TIP_SEARCH_LIMIT = 5
+MAX_PAM_RESPONSE_LENGTH = 500
+
 
 async def search_community_tips(
     user_id: str,
     query: str,
     category: Optional[str] = None,
-    limit: int = 5
+    limit: int = DEFAULT_TIP_SEARCH_LIMIT
 ) -> Dict[str, Any]:
     """
     Search community tips that might help answer user's question.
@@ -184,7 +187,7 @@ async def log_tip_usage(
             'contributor_id': validated.contributor_id,
             'beneficiary_id': validated.beneficiary_id,
             'conversation_id': validated.conversation_id,
-            'pam_response': validated.pam_response[:500] if validated.pam_response else None
+            'pam_response': validated.pam_response[:MAX_PAM_RESPONSE_LENGTH] if validated.pam_response else None
         }
 
         await safe_db_insert("tip_usage_log", usage_data, validated.beneficiary_id)

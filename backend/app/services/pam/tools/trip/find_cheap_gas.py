@@ -2,13 +2,6 @@
 
 Locate cheapest gas stations near a location or along a route.
 Automatically tracks savings when cheaper gas is found.
-
-Example usage:
-- "Find cheap gas near me"
-- "Show cheapest gas stations along I-5"
-
-Amendment #4: Input validation with Pydantic models
-Amendment #5: Auto-track savings when cheaper gas found
 """
 
 import logging
@@ -30,6 +23,14 @@ from app.services.pam.tools.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_SEARCH_RADIUS_MILES = 25
+US_PRICE_VARIATION = 0.20
+INTERNATIONAL_PRICE_VARIATION = 0.05
+MAX_RESULTS_RETURNED = 10
+AVERAGE_TANK_SIZE_GALLONS = 25.0
+AVERAGE_TANK_SIZE_LITERS = 95.0
+MINIMUM_SAVINGS_THRESHOLD = 2.0
 
 
 async def _detect_user_region(user_id: str) -> str:
@@ -149,7 +150,7 @@ async def find_cheap_gas(
             f"(source: {fuel_price_data['source']})"
         )
 
-        variation = 0.20 if region == "US" else 0.05
+        variation = US_PRICE_VARIATION if region == "US" else INTERNATIONAL_PRICE_VARIATION
 
         station_names = {
             "US": ["Shell", "Chevron", "Exxon", "Circle K", "76"],
@@ -220,11 +221,11 @@ async def find_cheap_gas(
         potential_savings = 0.0
         savings_tracked = False
         if cheapest_price and base_price > cheapest_price:
-            estimated_gallons = 25.0 if region == "US" else 95.0
+            estimated_gallons = AVERAGE_TANK_SIZE_GALLONS if region == "US" else AVERAGE_TANK_SIZE_LITERS
             price_diff = base_price - cheapest_price
             potential_savings = round(price_diff * estimated_gallons, 2)
 
-            if potential_savings >= 2.0:
+            if potential_savings >= MINIMUM_SAVINGS_THRESHOLD:
                 cheapest_station = sorted_stations[0]["name"] if sorted_stations else "nearby station"
                 savings_tracked = await auto_record_savings(
                     user_id=validated.user_id,
@@ -238,7 +239,7 @@ async def find_cheap_gas(
                 )
 
         if cheapest_price:
-            savings_msg = f" 💰 Potential savings: {currency}{potential_savings:.2f} per fill-up!" if potential_savings >= 2.0 else ""
+            savings_msg = f" 💰 Potential savings: {currency}{potential_savings:.2f} per fill-up!" if potential_savings >= MINIMUM_SAVINGS_THRESHOLD else ""
             message = (
                 f"Based on current {region} averages ({base_price:.2f} {currency}/{unit} from {price_source}), "
                 f"the cheapest {validated.fuel_type.value} should be around {cheapest_price:.2f} {currency}/{unit} near {validated.location}. "
@@ -259,7 +260,7 @@ async def find_cheap_gas(
             "unit": unit,
             "stations_found": len(sorted_stations),
             "cheapest_price": cheapest_price,
-            "stations": sorted_stations[:10],
+            "stations": sorted_stations[:MAX_RESULTS_RETURNED],
             "potential_savings": potential_savings,
             "savings_tracked": savings_tracked,
             "message": message,

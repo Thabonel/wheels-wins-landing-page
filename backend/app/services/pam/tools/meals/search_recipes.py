@@ -20,6 +20,10 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SEARCH_LIMIT = 10
+MAX_SEARCH_LIMIT = 100
+SEARCH_RESULT_MULTIPLIER = 3
+
 
 async def search_recipes(
     user_id: str,
@@ -29,7 +33,7 @@ async def search_recipes(
     dietary_tags: Optional[List[str]] = None,
     max_prep_time: Optional[int] = None,
     include_public: bool = True,
-    limit: int = 10
+    limit: int = DEFAULT_SEARCH_LIMIT
 ) -> Dict[str, Any]:
     """
     Search recipes (own + shared + optionally public).
@@ -72,15 +76,14 @@ async def search_recipes(
         if max_prep_time is not None:
             validate_positive_number(max_prep_time, "max_prep_time")
 
-        if limit > 100:
+        if limit > MAX_SEARCH_LIMIT:
             raise ValidationError(
-                "Limit cannot exceed 100",
+                f"Limit cannot exceed {MAX_SEARCH_LIMIT}",
                 context={"limit": limit}
             )
 
         supabase = get_supabase_client()
 
-        # Get user's dietary restrictions (ENFORCED)
         prefs_result = supabase.table("user_dietary_preferences").select("*").eq("user_id", user_id).execute()
 
         user_restrictions = []
@@ -90,10 +93,8 @@ async def search_recipes(
             user_restrictions = prefs_result.data[0].get("dietary_restrictions", []) or []
             user_allergies = prefs_result.data[0].get("allergies", []) or []
 
-        # Build query (RLS handles access control for own/shared/public)
         query_builder = supabase.table("recipes").select("*")
 
-        # Apply filters
         if query:
             query_builder = query_builder.or_(f"title.ilike.%{query}%,description.ilike.%{query}%")
 
@@ -107,16 +108,13 @@ async def search_recipes(
         if max_prep_time:
             query_builder = query_builder.lte("prep_time_minutes", max_prep_time)
 
-        # Execute query (get extra for filtering)
-        result = query_builder.order("created_at", desc=True).limit(limit * 3).execute()
+        result = query_builder.order("created_at", desc=True).limit(limit * SEARCH_RESULT_MULTIPLIER).execute()
 
-        # ENFORCE dietary restrictions (filter out non-compliant recipes)
         filtered_recipes = []
 
         for recipe in result.data:
             recipe_tags = set(recipe.get("dietary_tags", []) or [])
 
-            # Check allergies (CRITICAL - never show recipes with allergens)
             if user_allergies:
                 recipe_ingredients_str = str(recipe.get("ingredients", [])).lower()
                 has_allergen = any(
@@ -125,19 +123,15 @@ async def search_recipes(
                 )
                 if has_allergen:
                     logger.info(f"Filtering out recipe with allergen: {recipe['title']}")
-                    continue  # Skip recipes with allergens
+                    continue
 
-            # Check dietary restrictions (e.g., if user is vegan, recipe must be vegan)
             if user_restrictions:
-                # Recipe must have ALL user's dietary restrictions as tags
                 if not all(restriction in recipe_tags for restriction in user_restrictions):
                     logger.info(f"Filtering out non-compliant recipe: {recipe['title']}")
-                    continue  # Skip non-compliant recipes
+                    continue
 
-            # Search by ingredients if specified
             if ingredients:
                 recipe_ingredients_str = str(recipe.get("ingredients", [])).lower()
-                # Check if at least one ingredient matches
                 has_ingredient = any(
                     ing.lower() in recipe_ingredients_str
                     for ing in ingredients

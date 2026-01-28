@@ -86,16 +86,10 @@ async def create_vehicle(
         if validated.set_as_primary:
             try:
                 supabase = get_supabase_client()
-                supabase.table("vehicles").update({
-                    "is_primary": False
-                }).eq("user_id", validated.user_id).eq("is_primary", True).execute()
+                supabase.table("vehicles").update({"is_primary": False}).eq("user_id", validated.user_id).eq("is_primary", True).execute()
                 logger.info(f"Unset previous primary vehicles for user {validated.user_id}")
             except Exception as e:
-                logger.warning(
-                    f"Could not unset primary vehicles",
-                    extra={"user_id": validated.user_id},
-                    exc_info=True
-                )
+                logger.warning(f"Could not unset primary vehicles", extra={"user_id": validated.user_id}, exc_info=True)
 
         vehicle_data = {
             "user_id": validated.user_id,

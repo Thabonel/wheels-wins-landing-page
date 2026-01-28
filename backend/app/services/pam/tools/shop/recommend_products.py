@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict, Optional, List
 
 from app.integrations.supabase import get_supabase_client
+from app.services.pam.tools.constants import ShopConstants
 from app.services.pam.tools.exceptions import (
     ValidationError,
     DatabaseError,
@@ -62,7 +63,7 @@ async def recommend_products(
     user_id: str,
     use_case: Optional[str] = None,
     budget: Optional[float] = None,
-    limit: Optional[int] = 10,
+    limit: Optional[int] = ShopConstants.DEFAULT_RECOMMENDATION_LIMIT,
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -72,7 +73,7 @@ async def recommend_products(
         user_id: UUID of the user
         use_case: Type of recommendation (tire_maintenance, boondocking, recovery, etc)
         budget: Optional budget constraint
-        limit: Maximum number of recommendations (default: 10)
+        limit: Maximum number of recommendations
 
     Returns:
         Dict with product recommendations
@@ -87,9 +88,9 @@ async def recommend_products(
         if budget is not None:
             validate_positive_number(budget, "budget")
 
-        if limit is not None and (limit < 1 or limit > 100):
+        if limit is not None and (limit < ShopConstants.MIN_RESULTS_LIMIT or limit > ShopConstants.MAX_RESULTS_LIMIT):
             raise ValidationError(
-                "Limit must be between 1 and 100",
+                f"Limit must be between {ShopConstants.MIN_RESULTS_LIMIT} and {ShopConstants.MAX_RESULTS_LIMIT}",
                 context={"limit": limit}
             )
 

@@ -23,6 +23,14 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+LOOKBACK_DAYS = 60
+GAS_HIGH_SPENDING_THRESHOLD = 200.0
+GAS_POTENTIAL_SAVINGS = 20.0
+CAMPGROUND_HIGH_SPENDING_THRESHOLD = 300.0
+CAMPGROUND_POTENTIAL_SAVINGS = 50.0
+FOOD_HIGH_SPENDING_THRESHOLD = 400.0
+FOOD_POTENTIAL_SAVINGS = 80.0
+
 
 async def find_savings_opportunities(
     user_id: str,
@@ -44,7 +52,7 @@ async def find_savings_opportunities(
     try:
         validate_uuid(user_id, "user_id")
 
-        start_date = datetime.now() - timedelta(days=60)
+        start_date = datetime.now() - timedelta(days=LOOKBACK_DAYS)
 
         expenses = await safe_db_select(
             "expenses",
@@ -61,25 +69,25 @@ async def find_savings_opportunities(
 
         suggestions = []
 
-        if spending_by_category.get("gas", 0) > 200:
+        if spending_by_category.get("gas", 0) > GAS_HIGH_SPENDING_THRESHOLD:
             suggestions.append({
                 "category": "gas",
-                "potential_savings": 20,
-                "suggestion": "Use GasBuddy app to find cheaper stations. Could save $20-40/month."
+                "potential_savings": GAS_POTENTIAL_SAVINGS,
+                "suggestion": f"Use GasBuddy app to find cheaper stations. Could save ${GAS_POTENTIAL_SAVINGS}-{GAS_POTENTIAL_SAVINGS*2:.0f}/month."
             })
 
-        if spending_by_category.get("campground", 0) > 300:
+        if spending_by_category.get("campground", 0) > CAMPGROUND_HIGH_SPENDING_THRESHOLD:
             suggestions.append({
                 "category": "campground",
-                "potential_savings": 50,
-                "suggestion": "Try free boondocking sites or Harvest Hosts. Could save $50-100/month."
+                "potential_savings": CAMPGROUND_POTENTIAL_SAVINGS,
+                "suggestion": f"Try free boondocking sites or Harvest Hosts. Could save ${CAMPGROUND_POTENTIAL_SAVINGS}-{CAMPGROUND_POTENTIAL_SAVINGS*2:.0f}/month."
             })
 
-        if spending_by_category.get("food", 0) > 400:
+        if spending_by_category.get("food", 0) > FOOD_HIGH_SPENDING_THRESHOLD:
             suggestions.append({
                 "category": "food",
-                "potential_savings": 80,
-                "suggestion": "Cook more meals vs eating out. Could save $80-120/month."
+                "potential_savings": FOOD_POTENTIAL_SAVINGS,
+                "suggestion": f"Cook more meals vs eating out. Could save ${FOOD_POTENTIAL_SAVINGS}-{FOOD_POTENTIAL_SAVINGS*1.5:.0f}/month."
             })
 
         total_potential = sum(s["potential_savings"] for s in suggestions)

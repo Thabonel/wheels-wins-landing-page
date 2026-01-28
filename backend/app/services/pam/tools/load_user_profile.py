@@ -1,6 +1,4 @@
-"""
-Load User Profile Tool - Retrieves comprehensive user information
-"""
+"""Load User Profile Tool - Retrieves comprehensive user information."""
 from typing import Dict, Any
 from pydantic import BaseModel, Field, ValidationError as PydanticValidationError
 from .base_tool import BaseTool
@@ -14,21 +12,19 @@ from app.services.pam.tools.utils import validate_uuid
 
 
 class _ExecuteParams(BaseModel):
-    """Validation model for execute parameters"""
+    """Validation model for execute parameters."""
 
     user_id: str = Field(min_length=1)
     parameters: Dict[str, Any] | None = None
 
 class LoadUserProfileTool(BaseTool):
-    """Tool to load comprehensive user profile information"""
+    """Tool to load comprehensive user profile information."""
 
     def __init__(self, user_jwt: str = None):
         super().__init__("load_user_profile", user_jwt=user_jwt)
-        # Use user-context client for proper RLS authentication
         if user_jwt:
             self.supabase = get_user_context_supabase_client(user_jwt)
         else:
-            # Fallback to service role (for backward compatibility)
             self.supabase = get_supabase_client()
     
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -51,18 +47,14 @@ class LoadUserProfileTool(BaseTool):
                 )
 
             self.logger.info(f"🔍 PROFILE DEBUG: Loading profile for user {user_id}")
-            
-            # Get comprehensive user profile from unified profiles table
-            # This now includes all onboarding data (vehicle, travel preferences, etc.)
+
             profile_response = (
                 self.supabase.table("profiles")
                 .select("*")
-                .eq("id", user_id)  # profiles uses id as primary key (Supabase standard)
+                .eq("id", user_id)
                 .single()
                 .execute()
             )
-            
-            # Sanitize logging: avoid dumping full profile (PII) and base64 image blobs
             try:
                 settings = get_settings()
             except Exception:
@@ -85,15 +77,12 @@ class LoadUserProfileTool(BaseTool):
                 'fields': len(_data) if isinstance(_data, dict) else 0,
             }
 
-            # Only log summary; use debug level in non-development environments
             if settings and getattr(settings, 'ENVIRONMENT', 'production') != 'development':
                 self.logger.debug(f"🔍 PROFILE DEBUG: Profile summary: {profile_summary}")
             else:
                 self.logger.info(f"🔍 PROFILE DEBUG: Profile summary: {profile_summary}")
-            
-            # Debug vehicle-specific fields
+
             if profile_response.data:
-                # Check both old and new field names
                 vehicle_fields = {
                     'vehicle_type': profile_response.data.get('vehicle_type'),
                     'make_model_year': profile_response.data.get('make_model_year'),
@@ -103,18 +92,16 @@ class LoadUserProfileTool(BaseTool):
                 }
                 self.logger.info(f"🚐 VEHICLE DEBUG: Vehicle fields found: {vehicle_fields}")
 
-                # Log which field contains the make/model data
                 if profile_response.data.get('vehicle_make_model_year'):
                     self.logger.info(f"🚐 VEHICLE DEBUG: Using vehicle_make_model_year: {profile_response.data.get('vehicle_make_model_year')}")
                 elif profile_response.data.get('make_model_year'):
                     self.logger.info(f"🚐 VEHICLE DEBUG: Using make_model_year: {profile_response.data.get('make_model_year')}")
-            
+
             if not profile_response.data:
-                # Return basic profile structure if none exists
                 return self._create_success_response({
                     "user_id": user_id,
                     "profile_exists": False,
-                    "language": "en",  # Default language for new users
+                    "language": "en",
                     "travel_preferences": {},
                     "vehicle_info": {},
                     "budget_preferences": {},
@@ -122,20 +109,19 @@ class LoadUserProfileTool(BaseTool):
                     "accessibility_needs": {},
                     "communication_preferences": {}
                 })
-            
+
             profile = profile_response.data
-            
-            # Enhance profile with structured data
+
             enhanced_profile = {
                 "user_id": user_id,
                 "profile_exists": True,
-                "language": profile.get("language", "en"),  # User's preferred language for PAM responses
+                "language": profile.get("language", "en"),
                 "personal_details": {
                     "full_name": profile.get("full_name", ""),
-                    "nickname": profile.get("nickname", ""),  # Now from onboarding
+                    "nickname": profile.get("nickname", ""),
                     "email": profile.get("email", ""),
-                    "region": profile.get("region", "Australia"),  # Now from onboarding
-                    "age_range": profile.get("age_range", ""),  # Now from onboarding
+                    "region": profile.get("region", "Australia"),
+                    "age_range": profile.get("age_range", ""),
                     "onboarding_completed": profile.get("onboarding_completed", False)
                 },
                 "travel_preferences": self._extract_travel_preferences(profile),
@@ -145,13 +131,12 @@ class LoadUserProfileTool(BaseTool):
                 "communication_preferences": self._extract_communication_preferences(profile),
                 "family_details": self._extract_family_details(profile)
             }
-            
-            # Debug the extracted vehicle info
+
             vehicle_info = enhanced_profile.get('vehicle_info', {})
             self.logger.info(f"🚐 VEHICLE DEBUG: Extracted vehicle_info: {vehicle_info}")
             self.logger.info(f"🚐 VEHICLE DEBUG: Is RV detected: {vehicle_info.get('is_rv', False)}")
             self.logger.info(f"🚐 VEHICLE DEBUG: Vehicle type: {vehicle_info.get('type')}")
-            
+
             self.logger.info(f"Successfully loaded profile for user {user_id}")
             return self._create_success_response(enhanced_profile)
 
@@ -171,62 +156,52 @@ class LoadUserProfileTool(BaseTool):
             )
     
     def _extract_travel_preferences(self, profile: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract and structure travel preferences from unified profile"""
-        # Now reads directly from onboarding fields
+        """Extract and structure travel preferences from unified profile."""
         return {
-            "style": profile.get("travel_style", "balanced"),  # Direct from onboarding
-            "camp_types": profile.get("preferred_camp_types", ["caravan_parks", "free_camps"]),  # Direct from onboarding
-            "drive_limit_per_day": profile.get("daily_drive_limit", "500km"),  # Direct from onboarding
-            "region": profile.get("region", "Australia"),  # Direct from onboarding
-            "pet_info": profile.get("pet_info", ""),  # Direct from onboarding
-            "accessibility_needs": profile.get("accessibility_needs", []),  # Direct from onboarding
-            "age_range": profile.get("age_range", ""),  # Direct from onboarding
-            
-            # Derived preferences
+            "style": profile.get("travel_style", "balanced"),
+            "camp_types": profile.get("preferred_camp_types", ["caravan_parks", "free_camps"]),
+            "drive_limit_per_day": profile.get("daily_drive_limit", "500km"),
+            "region": profile.get("region", "Australia"),
+            "pet_info": profile.get("pet_info", ""),
+            "accessibility_needs": profile.get("accessibility_needs", []),
+            "age_range": profile.get("age_range", ""),
             "pet_friendly_required": bool(profile.get("pet_info", "")),
             "has_accessibility_needs": bool(profile.get("accessibility_needs", [])),
         }
-    
+
     def _extract_vehicle_info(self, profile: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract and structure vehicle information from unified profile"""
-        # Now reads directly from onboarding fields in the unified profile
+        """Extract and structure vehicle information from unified profile."""
         vehicle_type = profile.get("vehicle_type", "caravan")
-        # Fix field name mismatch: database uses vehicle_make_model_year, not make_model_year
         make_model = profile.get("vehicle_make_model_year", "") or profile.get("make_model_year", "")
-        
-        # Enhanced vehicle type detection for better context
+
         enhanced_type = vehicle_type
         if 'unimog' in make_model.lower():
-            enhanced_type = "Unimog RV"  # Special handling for Unimogs
+            enhanced_type = "Unimog RV"
         elif vehicle_type.lower() == "4 x 4" and make_model:
             enhanced_type = f"4WD RV ({make_model})"
-        
+
         return {
-            "type": enhanced_type,  # Enhanced vehicle type for better AI context
-            "original_type": vehicle_type,  # Keep original for compatibility
-            "make_model_year": make_model,  # Direct from onboarding
-            "fuel_type": profile.get("fuel_type", "diesel"),  # Direct from onboarding
-            "towing_info": profile.get("towing_info", ""),  # Direct from onboarding
-            "second_vehicle": profile.get("second_vehicle", ""),  # Direct from onboarding
-            
-            # Enhanced specs from unified profile (if available)
-            "fuel_efficiency": profile.get("fuel_efficiency_l_100km", 8.5),  # L/100km
-            "length_feet": profile.get("vehicle_length_feet", 25.0),  # feet
-            "height_feet": profile.get("vehicle_height_feet", 10.0),  # feet  
+            "type": enhanced_type,
+            "original_type": vehicle_type,
+            "make_model_year": make_model,
+            "fuel_type": profile.get("fuel_type", "diesel"),
+            "towing_info": profile.get("towing_info", ""),
+            "second_vehicle": profile.get("second_vehicle", ""),
+            "fuel_efficiency": profile.get("fuel_efficiency_l_100km", 8.5),
+            "length_feet": profile.get("vehicle_length_feet", 25.0),
+            "height_feet": profile.get("vehicle_height_feet", 10.0),
             "weight_kg": profile.get("vehicle_weight_kg", 2500),
             "water_capacity": profile.get("water_capacity_liters", 120),
             "grey_water_capacity": profile.get("grey_water_capacity_liters", 95),
             "solar_panels": profile.get("solar_panels", False),
             "generator": profile.get("generator", False),
-            
-            # Add explicit RV detection - check both vehicle_type and make_model_year
             "is_rv": (
                 profile.get("vehicle_type", "").lower() in [
-                    'motorhome', 'caravan', 'travel_trailer', 'fifth_wheel', 
+                    'motorhome', 'caravan', 'travel_trailer', 'fifth_wheel',
                     'truck_camper', 'van', 'unimog', 'camper_trailer', 'rv', '4 x 4'
-                ] or 
+                ] or
                 'unimog' in profile.get("make_model_year", "").lower() or
-                any(rv_keyword in profile.get("make_model_year", "").lower() 
+                any(rv_keyword in profile.get("make_model_year", "").lower()
                     for rv_keyword in ['motorhome', 'caravan', 'camper'])
             )
         }

@@ -24,6 +24,9 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_DAYS_FOR_MEAL_PLAN = 7
+QUANTITY_DECIMAL_PLACES = 2
+
 
 async def generate_shopping_list(
     user_id: str,
@@ -80,13 +83,11 @@ async def generate_shopping_list(
 
         # Get meal plans
         if meal_plan_ids:
-            # Get specific meal plans by IDs
             meal_plans_result = supabase.table("meal_plans").select("*, recipes(*)").in_("id", meal_plan_ids).eq("user_id", user_id).execute()
             meal_plans = meal_plans_result.data or []
         else:
-            # Get meal plans by date range
             start = start_date or str(datetime.now().date())
-            end = end_date or str((datetime.now() + timedelta(days=7)).date())
+            end = end_date or str((datetime.now() + timedelta(days=DEFAULT_DAYS_FOR_MEAL_PLAN)).date())
 
             meal_plans_result = supabase.table("meal_plans").select("*, recipes(*)").eq("user_id", user_id).gte("plan_date", start).lte("plan_date", end).execute()
             meal_plans = meal_plans_result.data or []
@@ -97,7 +98,6 @@ async def generate_shopping_list(
                 context={"user_id": user_id, "start_date": start_date, "end_date": end_date}
             )
 
-        # Aggregate ingredients from all recipes
         needed_ingredients = defaultdict(lambda: {"quantity": 0.0, "unit": "", "recipes": []})
 
         for plan in meal_plans:
@@ -117,19 +117,15 @@ async def generate_shopping_list(
                 quantity = ing.get('quantity', 0.0) or 0.0
                 unit = ing.get('unit', '').lower().strip()
 
-                # Try to aggregate quantities if units match
                 if needed_ingredients[name]['unit'] == unit or not needed_ingredients[name]['unit']:
                     needed_ingredients[name]['quantity'] += quantity
                     needed_ingredients[name]['unit'] = unit
                     needed_ingredients[name]['recipes'].append(recipe.get('title', 'Unknown'))
                 else:
-                    # Different units - keep separate (e.g., "1 cup + 2 tbsp")
                     combined_name = f"{name} ({unit})"
                     needed_ingredients[combined_name]['quantity'] += quantity
                     needed_ingredients[combined_name]['unit'] = unit
                     needed_ingredients[combined_name]['recipes'].append(recipe.get('title', 'Unknown'))
-
-        # Get pantry items to subtract
         pantry_result = supabase.table("pantry_items").select("*").eq("user_id", user_id).execute()
         pantry_items = pantry_result.data or []
 
@@ -141,31 +137,26 @@ async def generate_shopping_list(
                 "unit": item.get('unit', '').lower().strip()
             }
 
-        # Subtract pantry items from needed ingredients
         for name, pantry_info in pantry_dict.items():
             if name in needed_ingredients:
                 pantry_qty = pantry_info['quantity']
                 pantry_unit = pantry_info['unit']
                 needed_unit = needed_ingredients[name]['unit']
 
-                # Only subtract if units match
                 if pantry_unit == needed_unit:
                     needed_ingredients[name]['quantity'] -= pantry_qty
 
-                    # If we have enough in pantry, set to 0
                     if needed_ingredients[name]['quantity'] <= 0:
                         needed_ingredients[name]['quantity'] = 0
-
-        # Filter out items we have enough of (quantity <= 0)
         shopping_items = []
         for name, info in needed_ingredients.items():
             if info['quantity'] > 0:
                 shopping_items.append({
                     "ingredient": name,
-                    "quantity": round(info['quantity'], 2),
+                    "quantity": round(info['quantity'], QUANTITY_DECIMAL_PLACES),
                     "unit": info['unit'],
                     "checked": False,
-                    "recipes": list(set(info['recipes']))  # Dedupe recipe names
+                    "recipes": list(set(info['recipes']))
                 })
 
         if not shopping_items:
@@ -176,11 +167,9 @@ async def generate_shopping_list(
                 "message": "You have all ingredients needed in your pantry!"
             }
 
-        # Generate list name
         if not list_name:
             list_name = f"Shopping List {datetime.now().strftime('%Y-%m-%d')}"
 
-        # Save shopping list
         list_data = {
             "user_id": user_id,
             "list_name": list_name,

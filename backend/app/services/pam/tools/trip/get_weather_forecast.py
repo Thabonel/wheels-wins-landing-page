@@ -1,13 +1,6 @@
 """Get Weather Forecast Tool for PAM
 
 Get weather conditions along a route or at a location using FREE OpenMeteo API
-
-Example usage:
-- "What's the weather in Denver next week?"
-- "Show weather along my route to Portland"
-
-AMENDMENT #3: Uses OpenMeteo (free, no API key required)
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
@@ -26,28 +19,16 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_FORECAST_DAYS = 7
+MAX_FREE_TIER_FORECAST_DAYS = 7
+
 
 async def get_weather_forecast(
     user_id: str,
     location: Optional[str] = None,
-    days: Optional[int] = 7,
+    days: Optional[int] = DEFAULT_FORECAST_DAYS,
     **kwargs
 ) -> Dict[str, Any]:
-    """
-    Get weather forecast for a location using FREE OpenMeteo API
-
-    Args:
-        user_id: UUID of the user
-        location: Location for weather forecast (optional - uses user_location from context if not provided)
-        days: Number of days to forecast (default: 7, max: 7 for free tier)
-
-    Returns:
-        Dict with weather forecast data from OpenMeteo
-
-    Raises:
-        ValidationError: Invalid input parameters
-        DatabaseError: Database operation failed
-    """
     try:
         validate_uuid(user_id, "user_id")
 

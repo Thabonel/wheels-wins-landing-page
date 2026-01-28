@@ -28,33 +28,29 @@ from app.services.pam.tools.utils import (
 
 logger = get_logger(__name__)
 
+DEFAULT_KNOWLEDGE_SEARCH_LIMIT = 10
+MIN_KNOWLEDGE_PRIORITY = 1
+
 
 def sanitize_knowledge_content(content: str) -> str:
     """
     Sanitize knowledge content to prevent injection attacks.
 
-    This is a defense-in-depth measure in case malicious content was stored.
-    Removes or escapes patterns that could manipulate PAM's behavior.
+    Defense-in-depth measure for stored content.
+    Removes patterns that could manipulate PAM's behavior.
     """
-    # Remove any attempts to inject system-level instructions
     sanitized = content
 
-    # Remove XML-style tags that could be interpreted as system messages
     sanitized = re.sub(r"<\s*system\s*>.*?<\s*/\s*system\s*>", "", sanitized, flags=re.IGNORECASE | re.DOTALL)
     sanitized = re.sub(r"<\s*assistant\s*>.*?<\s*/\s*assistant\s*>", "", sanitized, flags=re.IGNORECASE | re.DOTALL)
 
-    # Remove bracket-style injections
     sanitized = re.sub(r"\[SYSTEM\].*?\[/SYSTEM\]", "", sanitized, flags=re.IGNORECASE | re.DOTALL)
     sanitized = re.sub(r"\[ASSISTANT\].*?\[/ASSISTANT\]", "", sanitized, flags=re.IGNORECASE | re.DOTALL)
 
-    # Remove markdown code blocks that could contain instructions
     sanitized = re.sub(r"```[\s\S]*?```", "", sanitized)
 
-    # Escape any remaining potentially dangerous patterns
-    # Replace "system:" or "assistant:" prefixes that could be interpreted as role markers
     sanitized = re.sub(r"^\s*(system|assistant)\s*:\s*", "Note - ", sanitized, flags=re.IGNORECASE | re.MULTILINE)
 
-    # Remove excessive whitespace that could be hiding injection attempts
     sanitized = re.sub(r"\s+", " ", sanitized).strip()
 
     return sanitized
@@ -67,8 +63,8 @@ async def search_knowledge(
     knowledge_type: Optional[str] = None,
     location_context: Optional[str] = None,
     tags: Optional[List[str]] = None,
-    min_priority: int = 1,
-    limit: int = 10
+    min_priority: int = MIN_KNOWLEDGE_PRIORITY,
+    limit: int = DEFAULT_KNOWLEDGE_SEARCH_LIMIT
 ) -> Dict[str, Any]:
     """
     Search admin knowledge base for relevant information.
@@ -137,7 +133,7 @@ async def search_knowledge(
         if validated.location_context:
             query_builder = query_builder.ilike("location_context", f"%{validated.location_context}%")
 
-        if validated.min_priority > 1:
+        if validated.min_priority > MIN_KNOWLEDGE_PRIORITY:
             query_builder = query_builder.gte("priority", validated.min_priority)
 
         if validated.tags:

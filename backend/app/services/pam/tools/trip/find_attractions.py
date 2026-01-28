@@ -1,12 +1,6 @@
 """Find Attractions Tool for PAM
 
 Discover points of interest, landmarks, and attractions near a location
-
-Example usage:
-- "What attractions are near Yellowstone?"
-- "Find things to do in Denver"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
@@ -24,6 +18,9 @@ from app.services.pam.tools.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_SEARCH_RADIUS_MILES = 50
+MAX_RESULTS_RETURNED = 15
 
 
 async def find_attractions(
@@ -75,12 +72,6 @@ async def find_attractions(
                 context={"validation_errors": e.errors()}
             )
 
-        # In production, integrate with:
-        # - Google Places API
-        # - National Parks API
-        # - TripAdvisor API
-
-        # Mock attractions
         all_attractions = [
             {
                 "name": "Yellowstone National Park",
@@ -117,7 +108,6 @@ async def find_attractions(
         else:
             attractions = all_attractions
 
-        # Sort by rating
         attractions = sorted(attractions, key=lambda x: x["rating"], reverse=True)
 
         logger.info(f"Found {len(attractions)} attractions near {validated.location} for user {validated.user_id}")
@@ -128,7 +118,7 @@ async def find_attractions(
             "radius_miles": validated.radius_miles,
             "categories": validated.attraction_types or ["all"],
             "attractions_found": len(attractions),
-            "attractions": attractions[:15],  # Top 15
+            "attractions": attractions[:MAX_RESULTS_RETURNED],
             "message": f"Found {len(attractions)} attractions within {validated.radius_miles} miles of {validated.location}"
         }
 

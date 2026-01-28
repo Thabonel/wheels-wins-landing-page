@@ -1,6 +1,3 @@
-"""
-Get user's fuel log entries from database.
-"""
 from typing import Dict, Any, Optional
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.tools.exceptions import (
@@ -17,28 +14,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_FUEL_LOG_LIMIT = 10
+
 async def get_fuel_log(
     user_id: str,
-    limit: int = 10,
+    limit: int = DEFAULT_FUEL_LOG_LIMIT,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ) -> Dict[str, Any]:
-    """
-    Get user's fuel log entries with date, litres/gallons, and cost.
-
-    Args:
-        user_id: User's UUID
-        limit: Max number of entries to return (default 10)
-        start_date: Optional start date filter (YYYY-MM-DD)
-        end_date: Optional end date filter (YYYY-MM-DD)
-
-    Returns:
-        Dict with success status and fuel log entries
-
-    Raises:
-        ValidationError: Invalid input parameters
-        DatabaseError: Database operation failed
-    """
     try:
         validate_uuid(user_id, "user_id")
         validate_positive_number(limit, "limit")

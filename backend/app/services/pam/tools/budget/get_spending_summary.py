@@ -25,6 +25,12 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+PERIOD_DAYS_DAILY = 1
+PERIOD_DAYS_WEEKLY = 7
+PERIOD_DAYS_MONTHLY = 30
+PERIOD_DAYS_QUARTERLY = 90
+PERIOD_DAYS_YEARLY = 365
+
 
 async def get_spending_summary(
     user_id: str,
@@ -75,13 +81,13 @@ async def get_spending_summary(
             start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
         else:
             period_days = {
-                "daily": 1,
-                "weekly": 7,
-                "monthly": 30,
-                "quarterly": 90,
-                "yearly": 365
+                "daily": PERIOD_DAYS_DAILY,
+                "weekly": PERIOD_DAYS_WEEKLY,
+                "monthly": PERIOD_DAYS_MONTHLY,
+                "quarterly": PERIOD_DAYS_QUARTERLY,
+                "yearly": PERIOD_DAYS_YEARLY
             }
-            days_back = period_days.get(period, 30)
+            days_back = period_days.get(period, PERIOD_DAYS_MONTHLY)
             start_dt = end_dt - timedelta(days=days_back)
 
         expenses = await safe_db_select(

@@ -31,6 +31,8 @@ from app.services.pam.tools.utils import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_USER_TIPS_LIMIT = 20
+
 
 async def submit_community_tip(
     user_id: str,
@@ -137,7 +139,7 @@ async def submit_community_tip(
 
 async def get_user_tips(
     user_id: str,
-    limit: int = 20,
+    limit: int = DEFAULT_USER_TIPS_LIMIT,
     status: str = 'active'
 ) -> Dict[str, Any]:
     """

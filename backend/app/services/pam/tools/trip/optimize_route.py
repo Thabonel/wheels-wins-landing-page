@@ -2,13 +2,6 @@
 
 Find the most cost-effective and time-efficient route.
 Automatically tracks savings when route optimization saves fuel costs.
-
-Example usage:
-- "Optimize my route to save money"
-- "Find the fastest way to Seattle"
-
-Amendment #4: Input validation with Pydantic models
-Amendment #5: Auto-track savings when route optimization saves money
 """
 
 import logging
@@ -26,6 +19,9 @@ from app.services.pam.tools.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+MINIMUM_SAVINGS_THRESHOLD = 5.0
+SAVINGS_CONFIDENCE_SCORE = 0.85
 
 
 async def optimize_route(
@@ -83,10 +79,6 @@ async def optimize_route(
                 context={"validation_errors": e.errors()}
             )
 
-        # In production, this would use Mapbox Optimization API
-        # with real-time traffic and gas price data
-
-        # Mock optimization results
         original_route = {
             "distance_miles": 1000,
             "duration_hours": 15.5,
@@ -104,7 +96,6 @@ async def optimize_route(
             }
         }
 
-        # Adjust based on optimization type
         if validated.optimization_type == "cost":
             optimized_route["savings"]["gas_cost"] = 25.00
         elif validated.optimization_type == "time":
@@ -112,17 +103,16 @@ async def optimize_route(
 
         logger.info(f"Optimized route from {validated.origin} to {validated.destination} for user {validated.user_id}")
 
-        # Auto-track savings if meaningful (>$5 for route optimization)
         gas_savings = optimized_route["savings"]["gas_cost"]
         savings_tracked = False
-        if gas_savings >= 5.0:
+        if gas_savings >= MINIMUM_SAVINGS_THRESHOLD:
             savings_tracked = await auto_record_savings(
                 user_id=validated.user_id,
                 amount=gas_savings,
                 category="route",
                 savings_type="route_optimization",
                 description=f"Route optimization from {validated.origin} to {validated.destination} - saving ${gas_savings:.2f} in fuel costs",
-                confidence_score=0.85,
+                confidence_score=SAVINGS_CONFIDENCE_SCORE,
                 baseline_cost=original_route["estimated_gas_cost"],
                 optimized_cost=optimized_route["estimated_gas_cost"]
             )

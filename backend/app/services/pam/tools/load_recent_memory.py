@@ -1,6 +1,4 @@
-"""
-Load Recent Memory Tool - Retrieves conversation history and context
-"""
+"""Load Recent Memory Tool - Retrieves conversation history and context."""
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
 from pydantic import ValidationError as PydanticValidationError
@@ -15,31 +13,45 @@ from app.services.pam.tools.exceptions import (
 )
 from app.services.pam.tools.utils import validate_uuid
 
+CACHE_TTL_SECONDS = 300
+MAX_TOPICS = 10
+MAX_PENDING_ITEMS = 5
+
 class LoadRecentMemoryTool(BaseTool):
-    """Tool to load recent conversation memory and context"""
+    """Tool to load recent conversation memory and context."""
 
     def __init__(self, user_jwt: str = None):
         super().__init__("load_recent_memory", user_jwt=user_jwt)
         self.database_service = None
         self.user_jwt = user_jwt
-    
+
     def initialize_sync(self):
-        """Initialize with database service"""
+        """Initialize with database service."""
         if not self.database_service:
             self.database_service = get_database_service()
         self.logger.info(f"{self.tool_name} tool initialized")
     
     async def execute(self, user_id: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Load recent conversation memory"""
+        """Load recent conversation memory
+
+        Raises:
+            ValidationError: Invalid parameters
+            DatabaseError: Database operation failed
+        """
         try:
+            validate_uuid(user_id, "user_id")
+
             if not self.database_service:
                 self.initialize_sync()
 
             try:
                 validated = RecentMemoryParams(**(parameters or {}))
-            except ValidationError as ve:
+            except PydanticValidationError as ve:
                 self.logger.error(f"Input validation failed: {ve.errors()}")
-                return self._create_error_response("Invalid parameters")
+                raise ValidationError(
+                    "Invalid parameters",
+                    context={"validation_errors": ve.errors()}
+                )
 
             limit = validated.limit
             days_back = validated.days_back
@@ -73,36 +85,43 @@ class LoadRecentMemoryTool(BaseTool):
             
             self.logger.info(f"Successfully loaded memory for user {user_id}: {len(recent_conversations)} conversations")
             return self._create_success_response(memory_data)
-            
+
+        except ValidationError:
+            raise
+        except DatabaseError:
+            raise
         except Exception as e:
-            self.logger.error(f"Error loading recent memory: {e}")
-            return self._create_error_response(f"Could not load recent memory: {str(e)}")
+            self.logger.error(
+                f"Unexpected error loading recent memory",
+                extra={"user_id": user_id},
+                exc_info=True
+            )
+            raise DatabaseError(
+                "Could not load recent memory",
+                context={"user_id": user_id, "error": str(e)}
+            )
     
     async def _get_recent_conversations(self, user_id: str, limit: int, days_back: int) -> List[Dict[str, Any]]:
-        """Get recent conversations from database"""
+        """Get recent conversations from database."""
         try:
-            # Try cache first
             cache_key = f"recent_conversations:{user_id}:{days_back}:{limit}"
             cached_conversations = await cache_service.get(cache_key)
-            
+
             if cached_conversations:
                 return cached_conversations
-            
-            # Get from database
+
             conversations = await self.database_service.get_conversation_context(user_id, limit)
-            
-            # Filter by date
+
             cutoff_date = datetime.now() - timedelta(days=days_back)
             filtered_conversations = [
-                conv for conv in conversations 
+                conv for conv in conversations
                 if conv.get('timestamp') and datetime.fromisoformat(conv['timestamp'].replace('Z', '+00:00')) > cutoff_date
             ]
-            
-            # Cache the result
-            await cache_service.set(cache_key, filtered_conversations, ttl=300)
-            
+
+            await cache_service.set(cache_key, filtered_conversations, ttl=CACHE_TTL_SECONDS)
+
             return filtered_conversations
-            
+
         except Exception as e:
             self.logger.warning(f"Could not get recent conversations: {e}")
             return []
@@ -150,23 +169,22 @@ class LoadRecentMemoryTool(BaseTool):
         return patterns
     
     async def _extract_topics_discussed(self, conversations: List[Dict[str, Any]]) -> List[str]:
-        """Extract topics and interests from conversations"""
+        """Extract topics and interests from conversations."""
         topics = set()
-        
+
         for conv in conversations:
             user_message = conv.get('user_message', '').lower()
             pam_response = conv.get('pam_response', '').lower()
-            
-            # Simple keyword extraction (could be enhanced with NLP)
+
             travel_keywords = ['trip', 'travel', 'camping', 'caravan', 'route', 'destination', 'fuel', 'budget']
             location_keywords = ['sydney', 'melbourne', 'brisbane', 'perth', 'adelaide', 'hobart', 'darwin', 'queensland', 'nsw', 'victoria']
             activity_keywords = ['fishing', 'hiking', 'sightseeing', 'beach', 'museum', 'restaurant', 'shopping']
-            
+
             for keyword in travel_keywords + location_keywords + activity_keywords:
                 if keyword in user_message or keyword in pam_response:
                     topics.add(keyword)
-        
-        return list(topics)[:10]  # Limit to top 10 topics
+
+        return list(topics)[:MAX_TOPICS]
     
     async def _build_relationship_context(self, conversations: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Build context about the relationship with the user"""
@@ -182,29 +200,28 @@ class LoadRecentMemoryTool(BaseTool):
         }
     
     async def _identify_pending_items(self, conversations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Identify items that need follow-up"""
+        """Identify items that need follow-up."""
         pending = []
-        
+
         for conv in conversations:
             user_message = conv.get('user_message', '').lower()
             pam_response = conv.get('pam_response', '').lower()
-            
-            # Look for incomplete tasks or promises
+
             if 'plan' in user_message and 'when' not in user_message:
                 pending.append({
                     "type": "trip_planning",
                     "description": "Trip planning discussion needs dates/details",
                     "priority": "medium"
                 })
-            
+
             if 'budget' in user_message and 'track' in pam_response:
                 pending.append({
-                    "type": "budget_setup", 
+                    "type": "budget_setup",
                     "description": "Budget tracking setup mentioned",
                     "priority": "low"
                 })
-        
-        return pending[:5]  # Limit to 5 pending items
+
+        return pending[:MAX_PENDING_ITEMS]
     
     async def _create_memory_summary(self, conversations: List[Dict[str, Any]]) -> str:
         """Create a summary of recent memory"""

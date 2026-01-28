@@ -1,12 +1,6 @@
 """Calculate Gas Cost Tool for PAM
 
 Estimate fuel costs for a trip based on distance and vehicle MPG
-
-Example usage:
-- "How much will gas cost for 500 miles?"
-- "Calculate fuel cost from LA to Vegas"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
@@ -34,6 +28,9 @@ from app.services.pam.tools.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_RV_MPG = 10.0
+GALLONS_TO_LITERS = 3.78541
 
 
 async def _detect_user_region(user_id: str) -> str:
@@ -169,32 +166,25 @@ async def calculate_gas_cost(
                     vehicle_name = vehicle_response.get("name", "your vehicle")
                     logger.info(f"Using stored fuel consumption: {mpg} MPG from {vehicle_name}")
                 else:
-                    mpg = 10.0
+                    mpg = DEFAULT_RV_MPG
                     logger.info(f"No stored fuel consumption found, using default: {mpg} MPG")
             except DatabaseError as e:
                 logger.warning(
                     f"Could not fetch vehicle fuel consumption, using default",
                     extra={"user_id": validated.user_id, "error": str(e)}
                 )
-                mpg = 10.0
+                mpg = DEFAULT_RV_MPG
         else:
             mpg = validated.mpg
 
-        # Get real gas price from regional API if not provided
         if validated.gas_price is None:
-            # Detect user's region
             region = await _detect_user_region(validated.user_id)
             fuel_price_data = await get_fuel_price_for_region(region, "regular")
 
-            # Convert to USD per gallon if needed
             if region == "US":
-                gas_price = fuel_price_data["price"]  # Already USD/gallon
+                gas_price = fuel_price_data["price"]
             else:
-                # Convert liters to gallons (1 gallon = 3.78541 liters)
-                price_per_gallon = fuel_price_data["price"] * 3.78541
-                # Note: This is still in local currency (AUD or EUR)
-                # For simplicity, we'll use it as-is for now
-                # TODO: Add currency conversion
+                price_per_gallon = fuel_price_data["price"] * GALLONS_TO_LITERS
                 gas_price = price_per_gallon
 
             logger.info(
@@ -206,25 +196,18 @@ async def calculate_gas_cost(
         else:
             gas_price = validated.gas_price
 
-        # Calculate gallons needed (convert to Decimal for precision)
         distance_decimal = Decimal(str(distance_miles))
         mpg_decimal = Decimal(str(mpg))
         gas_price_decimal = Decimal(str(gas_price))
 
         gallons_needed = distance_decimal / mpg_decimal
-
-        # Calculate total cost
         total_cost = gallons_needed * gas_price_decimal
-
-        # Calculate cost per mile
         cost_per_mile = total_cost / distance_decimal
 
         logger.info(f"Calculated gas cost: ${total_cost:.2f} for {distance_miles} miles for user {validated.user_id}")
 
-        # Get user's unit preference to format response
         unit_system = await get_user_unit_preference(validated.user_id)
 
-        # Format response message in user's preferred units
         message = format_gas_cost_response(
             distance_miles=distance_miles,
             mpg=mpg,
@@ -234,7 +217,6 @@ async def calculate_gas_cost(
             gas_price=gas_price
         )
 
-        # Calculate final values with proper rounding
         total_cost_rounded = float(total_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
         gas_price_rounded = float(gas_price_decimal.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
         gallons_rounded = float(gallons_needed.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
@@ -244,12 +226,11 @@ async def calculate_gas_cost(
             "success": True,
             "distance_miles": distance_miles,
             "mpg": mpg,
-            # Include both old and new field names for backwards compatibility
             "gas_price_per_gallon": gas_price_rounded,
-            "price_per_gallon": gas_price_rounded,  # Test expects this name
+            "price_per_gallon": gas_price_rounded,
             "gallons_needed": gallons_rounded,
             "total_cost": total_cost_rounded,
-            "cost_estimate": total_cost_rounded,  # Test expects this name
+            "cost_estimate": total_cost_rounded,
             "cost_per_mile": cost_per_mile_rounded,
             "message": message
         }

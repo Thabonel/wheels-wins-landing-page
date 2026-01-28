@@ -20,6 +20,10 @@ from app.services.pam.tools.exceptions import (
 from app.services.pam.tools.utils import (
     validate_uuid,
 )
+from app.services.pam.tools.social.constants import (
+    DEFAULT_NEARBY_RADIUS_MILES,
+    DEFAULT_NEARBY_LIMIT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +32,8 @@ async def find_nearby_rvers(
     user_id: str,
     latitude: float,
     longitude: float,
-    radius_miles: Optional[int] = 50,
-    limit: Optional[int] = 20,
+    radius_miles: Optional[int] = DEFAULT_NEARBY_RADIUS_MILES,
+    limit: Optional[int] = DEFAULT_NEARBY_LIMIT,
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -39,8 +43,8 @@ async def find_nearby_rvers(
         user_id: UUID of the user
         latitude: Search center latitude
         longitude: Search center longitude
-        radius_miles: Search radius in miles (default: 50)
-        limit: Maximum number of results (default: 20)
+        radius_miles: Search radius in miles
+        limit: Maximum number of results
 
     Returns:
         Dict with nearby RVers
@@ -52,7 +56,6 @@ async def find_nearby_rvers(
     try:
         validate_uuid(user_id, "user_id")
 
-        # Validate inputs using Pydantic schema
         try:
             validated = FindNearbyRVersInput(
                 user_id=user_id,
@@ -84,8 +87,8 @@ async def find_nearby_rvers(
 
             nearby_rvers = response.data if response.data else []
 
-            # Mock data for development
             if not nearby_rvers:
+                logger.info(f"No nearby RVers found for user {validated.user_id}, returning mock data")
                 nearby_rvers = [
                     {
                         "user_id": "mock-user-1",

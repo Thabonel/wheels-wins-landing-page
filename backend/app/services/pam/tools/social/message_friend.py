@@ -53,7 +53,6 @@ async def message_friend(
         validate_uuid(recipient_id, "recipient_id")
         validate_required(message, "message")
 
-        # Validate inputs using Pydantic schema
         try:
             validated = MessageFriendInput(
                 user_id=user_id,
@@ -67,7 +66,6 @@ async def message_friend(
                 context={"field": e.errors()[0]['loc'][0], "error": error_msg}
             )
 
-        # Build message data
         message_data = {
             "sender_id": validated.user_id,
             "recipient_id": validated.recipient_id,

@@ -1,12 +1,6 @@
 """Get Road Conditions Tool for PAM
 
 Check road conditions, closures, and traffic along a route
-
-Example usage:
-- "What are the road conditions to Yellowstone?"
-- "Check for road closures on I-80"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging

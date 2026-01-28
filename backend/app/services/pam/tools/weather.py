@@ -1,11 +1,4 @@
-"""
-Weather function tools for PAM
-OpenMeteo API integration (100% FREE, no API key required!)
-
-Created: October 2025
-Restored from pam_2 backup for Amendment #3
-Cost savings: ~$40/month vs OpenWeather
-"""
+"""Weather function tools for PAM using OpenMeteo API (free, no API key required)"""
 
 import logging
 import aiohttp
@@ -18,19 +11,25 @@ from app.services.pam.tools.exceptions import (
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_FORECAST_DAYS = 1
+DEFAULT_VISIBILITY_KM = 10
+MAX_FREE_FORECAST_DAYS = 7
+GEOCODING_RESULT_LIMIT = 1
+GEOCODING_USER_AGENT = "PAM-RV-Assistant/2.0"
+
 async def get_weather(
     location: str,
-    units: str = "metric"  # metric, imperial, kelvin
+    units: str = "metric"
 ) -> Dict[str, Any]:
     """
-    Get current weather information using FREE OpenMeteo API (No API key required!)
+    Get current weather information using OpenMeteo API.
 
     Args:
         location: City name (e.g., "Paris, France") or "latitude,longitude" format
         units: Temperature units (metric, imperial, kelvin)
 
     Returns:
-        Real weather data including temperature, description, humidity, etc.
+        Weather data including temperature, description, humidity, etc.
 
     Raises:
         ValidationError: Invalid location or units
@@ -43,13 +42,11 @@ async def get_weather(
                 "Location is required",
                 context={"location": location}
             )
-        # Try to parse as coordinates first
         if "," in location and len(location.split(",")) == 2:
             parts = location.split(",")
             try:
                 lat, lon = map(float, parts)
             except ValueError:
-                # Not coordinates, treat as city name
                 lat, lon = await _get_coordinates_for_city(location)
                 if lat is None:
                     return {
@@ -58,7 +55,6 @@ async def get_weather(
                         "location": location
                     }
         else:
-            # Single word or city name without comma
             lat, lon = await _get_coordinates_for_city(location)
             if lat is None:
                 return {
@@ -67,17 +63,15 @@ async def get_weather(
                     "location": location
                 }
 
-        # Call OpenMeteo API (completely free, no API key needed!)
         url = "https://api.open-meteo.com/v1/forecast"
         params = {
             "latitude": lat,
             "longitude": lon,
             "current_weather": "true",
             "hourly": "relativehumidity_2m,visibility,windgusts_10m",
-            "forecast_days": 1
+            "forecast_days": DEFAULT_FORECAST_DAYS
         }
 
-        # Convert units for OpenMeteo
         if units == "imperial":
             params["temperature_unit"] = "fahrenheit"
             params["windspeed_unit"] = "mph"
@@ -96,7 +90,6 @@ async def get_weather(
 
                 data = await response.json()
 
-        # Extract current weather
         current = data.get("current_weather", {})
         if not current:
             raise ExternalAPIError(
@@ -104,17 +97,14 @@ async def get_weather(
                 context={"location": location, "api": "OpenMeteo"}
             )
 
-        # Convert weather code to description
         weather_code = current.get("weathercode", 0)
         description = _get_weather_description(weather_code)
 
-        # Get additional data from hourly (first hour = current)
         hourly = data.get("hourly", {})
         humidity = hourly.get("relativehumidity_2m", [0])[0] if hourly.get("relativehumidity_2m") else None
-        visibility = hourly.get("visibility", [10])[0] if hourly.get("visibility") else 10  # km
+        visibility = hourly.get("visibility", [DEFAULT_VISIBILITY_KM])[0] if hourly.get("visibility") else DEFAULT_VISIBILITY_KM
         wind_gusts = hourly.get("windgusts_10m", [0])[0] if hourly.get("windgusts_10m") else None
 
-        # Format response
         unit_symbol = "°F" if units == "imperial" else "°C"
         wind_unit = "mph" if units == "imperial" else "km/h"
 
@@ -149,8 +139,8 @@ async def get_weather(
 
 async def _get_coordinates_for_city(city_name: str) -> Tuple[Optional[float], Optional[float]]:
     """
-    Get coordinates for a city name using free geocoding service
-    Returns (latitude, longitude) or (None, None) if not found
+    Get coordinates for a city name using Nominatim geocoding service.
+    Returns (latitude, longitude) or (None, None) if not found.
 
     Raises:
         ExternalAPIError: Geocoding API request failed
@@ -158,15 +148,14 @@ async def _get_coordinates_for_city(city_name: str) -> Tuple[Optional[float], Op
     try:
         if not city_name or not city_name.strip():
             return None, None
-        # Use Nominatim (OpenStreetMap) geocoding - completely free!
         url = "https://nominatim.openstreetmap.org/search"
         headers = {
-            "User-Agent": "PAM-RV-Assistant/2.0"  # Required by Nominatim
+            "User-Agent": GEOCODING_USER_AGENT
         }
         params = {
             "q": city_name,
             "format": "json",
-            "limit": 1
+            "limit": GEOCODING_RESULT_LIMIT
         }
 
         async with aiohttp.ClientSession() as session:
@@ -186,7 +175,6 @@ async def _get_coordinates_for_city(city_name: str) -> Tuple[Optional[float], Op
                 else:
                     logger.warning(f"No coordinates found for {city_name}")
 
-                    # Try some common city coordinates as fallback
                     common_cities = {
                         "new york": (40.7128, -74.0060),
                         "nyc": (40.7128, -74.0060),
@@ -224,7 +212,6 @@ async def _get_coordinates_for_city(city_name: str) -> Tuple[Optional[float], Op
                         "singapore": (1.3521, 103.8198)
                     }
 
-                    # Check if it's a known common city
                     city_lower = city_name.lower().split(",")[0].strip()
                     if city_lower in common_cities:
                         lat, lon = common_cities[city_lower]
@@ -261,15 +248,15 @@ async def get_weather_forecast(
     units: str = "metric"
 ) -> Dict[str, Any]:
     """
-    Get real weather forecast using FREE OpenMeteo API (up to 16 days free!)
+    Get weather forecast using OpenMeteo API (up to 16 days).
 
     Args:
         location: City name (e.g., "Paris, France") or "latitude,longitude" format
-        days: Number of forecast days (1-7 recommended for free tier)
+        days: Number of forecast days (1-7 recommended)
         units: Temperature units
 
     Returns:
-        Real multi-day weather forecast data
+        Multi-day weather forecast data
 
     Raises:
         ValidationError: Invalid location or days parameter
@@ -288,13 +275,11 @@ async def get_weather_forecast(
                 "Forecast days must be between 1 and 16",
                 context={"days": days}
             )
-        # Try to parse as coordinates first
         if "," in location and len(location.split(",")) == 2:
             parts = location.split(",")
             try:
                 lat, lon = map(float, parts)
             except ValueError:
-                # Not coordinates, treat as city name
                 lat, lon = await _get_coordinates_for_city(location)
                 if lat is None:
                     return {
@@ -303,7 +288,6 @@ async def get_weather_forecast(
                         "location": location
                     }
         else:
-            # Single word or city name without comma
             lat, lon = await _get_coordinates_for_city(location)
             if lat is None:
                 return {
@@ -312,10 +296,7 @@ async def get_weather_forecast(
                     "location": location
                 }
 
-        # Limit to reasonable forecast days
-        forecast_days = min(days, 7)
-
-        # Call OpenMeteo forecast API
+        forecast_days = min(days, MAX_FREE_FORECAST_DAYS)
         url = "https://api.open-meteo.com/v1/forecast"
         params = {
             "latitude": lat,
@@ -343,15 +324,12 @@ async def get_weather_forecast(
 
                 data = await response.json()
 
-        # Extract daily forecast
         daily = data.get("daily", {})
         if not daily:
             raise ExternalAPIError(
                 "No forecast data available from OpenMeteo",
                 context={"location": location, "api": "OpenMeteo"}
             )
-
-        # Build forecast days
         forecast = []
         dates = daily.get("time", [])
         max_temps = daily.get("temperature_2m_max", [])
@@ -376,9 +354,8 @@ async def get_weather_forecast(
             }
             forecast.append(day_forecast)
 
-        # Build travel recommendations
         travel_notes = []
-        for day in forecast[:3]:  # First 3 days
+        for day in forecast[:3]:
             if "rain" in day["description"].lower() or "storm" in day["description"].lower():
                 travel_notes.append(f"Day {day['day']}: Expect {day['description'].lower()} - check road conditions")
             elif "snow" in day["description"].lower():

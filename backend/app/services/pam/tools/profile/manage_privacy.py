@@ -76,22 +76,16 @@ async def manage_privacy(
                 context={"validation_errors": e.errors()}
             )
 
-        update_data = {
-            "updated_at": datetime.now().isoformat()
-        }
+        update_data = {"updated_at": datetime.now().isoformat()}
 
         if validated.profile_visibility is not None:
             update_data["profile_visibility"] = validated.profile_visibility
-
         if validated.location_sharing is not None:
             update_data["location_sharing"] = validated.location_sharing
-
         if validated.show_activity is not None:
             update_data["show_activity"] = validated.show_activity
-
         if validated.allow_messages is not None:
             update_data["allow_messages"] = validated.allow_messages
-
         if validated.data_collection is not None:
             update_data["data_collection"] = validated.data_collection
 
