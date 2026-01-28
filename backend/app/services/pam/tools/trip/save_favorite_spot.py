@@ -16,6 +16,15 @@ from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.trip import SaveFavoriteSpotInput
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_insert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,62 +51,82 @@ async def save_favorite_spot(
 
     Returns:
         Dict with saved favorite details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
+        if not location_name or not location_name.strip():
+            raise CustomValidationError(
+                "Location name is required",
+                context={"field": "location_name"}
+            )
+
+        if not location_address or not location_address.strip():
+            raise CustomValidationError(
+                "Location address is required",
+                context={"field": "location_address"}
+            )
+
+        if rating is not None:
+            validate_positive_number(rating, "rating")
+            if rating < 1 or rating > 5:
+                raise CustomValidationError(
+                    "Rating must be between 1 and 5",
+                    context={"rating": rating}
+                )
+
         try:
             validated = SaveFavoriteSpotInput(
                 user_id=user_id,
-                name=location_name,  # Map location_name to name
-                location=location_address,  # Map location_address to location
+                name=location_name,
+                location=location_address,
                 category=category,
                 notes=notes,
                 rating=rating
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
-        supabase = get_supabase_client()
-
-        # Build favorite data
         favorite_data = {
             "user_id": validated.user_id,
             "location_name": validated.name,
             "location_address": validated.location,
-            "category": validated.category.value,  # ✅ Extract enum value
+            "category": validated.category.value,
             "notes": validated.notes,
             "rating": validated.rating,
             "created_at": datetime.now().isoformat()
         }
 
-        # Save to database
-        response = supabase.table("favorite_locations").insert(favorite_data).execute()
+        favorite = await safe_db_insert("favorite_locations", favorite_data, user_id)
 
-        if response.data:
-            favorite = response.data[0]
-            logger.info(f"Saved favorite location: {validated.name} for user {validated.user_id}")
+        logger.info(f"Saved favorite location: {validated.name} for user {validated.user_id}")
 
-            return {
-                "success": True,
-                "favorite": favorite,
-                "message": f"Saved '{validated.name}' to your favorites" +
-                          (f" ({validated.category})" if validated.category != "general" else "")
-            }
-        else:
-            logger.error(f"Failed to save favorite: {response}")
-            return {
-                "success": False,
-                "error": "Failed to save favorite location"
-            }
-
-    except Exception as e:
-        logger.error(f"Error saving favorite spot: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "favorite": favorite,
+            "message": f"Saved '{validated.name}' to your favorites" +
+                      (f" ({validated.category})" if validated.category != "general" else "")
         }
+
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error saving favorite spot",
+            extra={"user_id": user_id, "location_name": location_name},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to save favorite spot",
+            context={"user_id": user_id, "location_name": location_name, "error": str(e)}
+        )

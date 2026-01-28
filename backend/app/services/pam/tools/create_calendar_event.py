@@ -9,14 +9,27 @@ Example usage:
 
 Amendment #4: Input validation with Pydantic models
 Amendment #5: Timezone-aware event creation with coordinate-based fallback
+Amendment #6: Refactored to use exception hierarchy and utility functions
 """
 
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, TYPE_CHECKING, List
 from uuid import UUID
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 from zoneinfo import ZoneInfo
+
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_date_format,
+    safe_db_insert,
+    safe_db_select,
+)
 
 # Initialize logger first (before using it)
 logger = logging.getLogger(__name__)
@@ -116,6 +129,10 @@ async def create_calendar_event(
     Returns:
         Dict with created event details
 
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
+
     Amendment #4: Pydantic validation for input data
     Amendment #5: Timezone-aware datetime interpretation with fallback strategies
         - Primary: Uses browser-detected timezone (context['timezone'])
@@ -124,44 +141,39 @@ async def create_calendar_event(
         - If datetime has no timezone, interprets it in detected timezone
         - Stores in database with proper timezone offset
         - Automatically handles Daylight Saving Time transitions
+    Amendment #6: Refactored to use exception hierarchy and utility functions
     """
-    # Validate inputs using Pydantic schema
     try:
-        validated = CreateCalendarEventInput(
-            user_id=user_id,
-            title=title,
-            start_date=start_date,
-            end_date=end_date,
-            description=description,
-            event_type=event_type,
-            all_day=all_day,
-            location_name=location_name,
-            reminder_minutes=reminder_minutes,
-            color=color,
-            is_private=is_private
-        )
-    except ValidationError as e:
-        # Extract first error message for user-friendly response
-        error_msg = e.errors()[0]['msg']
-        return {
-            "success": False,
-            "error": f"Invalid input: {error_msg}"
-        }
+        # Validate user_id
+        validate_uuid(user_id, "user_id")
 
-    from app.database.supabase_client import get_supabase_service
-
-    try:
-        # Get Supabase service client (bypasses RLS for authorized PAM operations)
-        # PAM is already authenticated via WebSocket/JWT, so using service_role is safe
-        supabase = get_supabase_service()  # Type: Client (imported only for type checking)
+        # Validate inputs using Pydantic schema
+        try:
+            validated = CreateCalendarEventInput(
+                user_id=user_id,
+                title=title,
+                start_date=start_date,
+                end_date=end_date,
+                description=description,
+                event_type=event_type,
+                all_day=all_day,
+                location_name=location_name,
+                reminder_minutes=reminder_minutes,
+                color=color,
+                is_private=is_private
+            )
+        except PydanticValidationError as e:
+            error_msg = e.errors()[0]['msg']
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         # Detect user's timezone with fallback strategies
-        # Use explicit context parameter (passed by PAM when function signature includes 'context')
         ctx = context or kwargs.get('context', {})
         user_timezone, user_timezone_str, detection_method = detect_user_timezone(ctx)
 
         # Parse dates with timezone awareness
-        # If the datetime string has no timezone info, interpret it in user's timezone
         start_dt_raw = validated.start_date.replace('Z', '+00:00')
         start_dt = datetime.fromisoformat(start_dt_raw)
 
@@ -187,16 +199,19 @@ async def create_calendar_event(
 
             # Validate end_date is after start_date
             if end_dt <= start_dt:
-                return {
-                    "success": False,
-                    "error": "Invalid input: end date must be after start date"
-                }
+                raise ValidationError(
+                    "End date must be after start date",
+                    context={
+                        "start_date": start_dt.isoformat(),
+                        "end_date": end_dt.isoformat()
+                    }
+                )
 
         # Default reminders: [15] minutes before (array of integers)
         reminder_list = validated.reminder_minutes if validated.reminder_minutes else [15]
 
         # Log timezone-aware event creation
-        logger.info(f"📅 Creating calendar event")
+        logger.info(f"Creating calendar event")
         logger.info(f"   Title: {validated.title}")
         logger.info(f"   Timezone: {user_timezone_str} (detected via {detection_method})")
         logger.info(f"   Start (user timezone): {start_dt.strftime('%Y-%m-%d %I:%M %p %Z')}")
@@ -209,41 +224,41 @@ async def create_calendar_event(
             "user_id": validated.user_id,
             "title": validated.title,
             "description": validated.description,
-            "start_date": start_dt.isoformat(),  # TIMESTAMP WITH TIME ZONE
-            "end_date": end_dt.isoformat(),  # TIMESTAMP WITH TIME ZONE
+            "start_date": start_dt.isoformat(),
+            "end_date": end_dt.isoformat(),
             "all_day": validated.all_day,
-            "event_type": str(validated.event_type),  # ✅ Convert enum/str to string
-            "location_name": validated.location_name,  # TEXT column for location name
-            "reminder_minutes": reminder_list,  # Array of integers
+            "event_type": str(validated.event_type),
+            "location_name": validated.location_name,
+            "reminder_minutes": reminder_list,
             "color": validated.color,
-            "is_private": validated.is_private,  # BOOLEAN column
+            "is_private": validated.is_private,
         }
 
-        # Insert into database
-        response = supabase.table("calendar_events").insert(event_data).execute()
+        # Use safe database insert
+        event = await safe_db_insert("calendar_events", event_data, user_id)
 
-        if response.data:
-            event = response.data[0]
-            logger.info(f"Created calendar event: {event['id']} for user {validated.user_id}")
+        logger.info(f"Created calendar event: {event['id']} for user {validated.user_id}")
 
-            return {
-                "success": True,
-                "event": event,
-                "message": f"Successfully added '{validated.title}' to your calendar"
-            }
-        else:
-            logger.error(f"Failed to create calendar event: {response}")
-            return {
-                "success": False,
-                "error": "Failed to create calendar event"
-            }
-
-    except Exception as e:
-        logger.error(f"Error creating calendar event: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "event": event,
+            "message": f"Successfully added '{validated.title}' to your calendar"
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error creating calendar event",
+            extra={"user_id": user_id, "title": title},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to create calendar event",
+            context={"user_id": user_id, "error": str(e)}
+        )
 
 
 class CreateCalendarEventTool(BaseTool):

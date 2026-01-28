@@ -5,17 +5,21 @@ Compares actual spending vs budgeted amounts
 Example usage:
 - "How am I doing vs my budget?"
 - "Am I on track with my budget?"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
-from pydantic import ValidationError
 
-from app.integrations.supabase import get_supabase_client
-from app.services.pam.schemas.budget import CompareVsBudgetInput
+from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,57 +40,47 @@ async def compare_vs_budget(
 
     Returns:
         Dict with comparison data
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
-        try:
-            validated = CompareVsBudgetInput(
-                user_id=user_id,
-                category=category,
-                period=period
-            )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
-            error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+        validate_uuid(user_id, "user_id")
 
         supabase = get_supabase_client()
 
-        # Get current month
         month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        # Get expenses for current month using validated user_id
-        expense_query = supabase.table("expenses").select("category, amount").eq("user_id", validated.user_id).gte("date", month_start.isoformat())
+        expenses = await safe_db_select(
+            "expenses",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
 
-        # Filter by category if specified
-        if validated.category:
-            expense_query = expense_query.eq("category", validated.category.value)  # ✅ Extract enum value
+        expenses = [e for e in expenses if datetime.fromisoformat(e.get("date", "1970-01-01")) >= month_start]
 
-        expenses = expense_query.execute()
+        if category:
+            expenses = [e for e in expenses if e.get("category") == category.lower()]
 
-        # Get budgets using validated user_id
-        budget_query = supabase.table("budgets").select("*").eq("user_id", validated.user_id)
+        budgets = await safe_db_select(
+            "budgets",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
 
-        # Filter by category if specified
-        if validated.category:
-            budget_query = budget_query.eq("category", validated.category.value)  # ✅ Extract enum value
+        if category:
+            budgets = [b for b in budgets if b.get("category") == category.lower()]
 
-        budgets = budget_query.execute()
-
-        # Calculate spending by category
         spending = {}
-        for exp in expenses.data if expenses.data else []:
+        for exp in expenses:
             cat = exp.get("category", "other")
             spending[cat] = spending.get(cat, 0) + float(exp.get("amount", 0))
 
-        # Compare (schema uses monthly_limit, not amount)
         comparisons = []
-        for budget in budgets.data if budgets.data else []:
+        for budget in budgets:
             cat = budget.get("category")
-            budgeted = float(budget.get("monthly_limit", 0))  # Correct field name
+            budgeted = float(budget.get("monthly_limit", 0))
             spent = spending.get(cat, 0)
             difference = budgeted - spent
             percent = (spent / budgeted * 100) if budgeted > 0 else 0
@@ -102,11 +96,22 @@ async def compare_vs_budget(
 
         return {
             "success": True,
-            "period": validated.period,
-            "category_filter": validated.category,
+            "period": period,
+            "category_filter": category,
             "comparisons": comparisons
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error comparing budget: {e}", exc_info=True)
-        return {"success": False, "error": str(e)}
+        logger.error(
+            "Unexpected error comparing budget",
+            extra={"user_id": user_id, "category": category},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to compare budget",
+            context={"user_id": user_id, "category": category, "error": str(e)}
+        )

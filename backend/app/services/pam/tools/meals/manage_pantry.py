@@ -9,6 +9,19 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 
 from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    validate_date_format,
+    safe_db_insert,
+    safe_db_update,
+    safe_db_delete,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +52,11 @@ async def manage_pantry(
     Returns:
         Dict with success status and data
 
+    Raises:
+        ValidationError: Invalid input parameters or action
+        ResourceNotFoundError: Pantry item not found
+        DatabaseError: Database operation failed
+
     Examples:
         User: "Add 2 lbs of chicken to my pantry, expires next week"
         PAM: *Calls manage_pantry(action='add', ingredient_name='chicken', quantity=2, unit='lbs', expiry_date='2026-01-13')*
@@ -47,14 +65,32 @@ async def manage_pantry(
         PAM: *Calls manage_pantry(action='check_expiry')*
     """
     try:
+        validate_uuid(user_id, "user_id")
+
+        valid_actions = ["add", "update", "remove", "list", "check_expiry"]
+        if action not in valid_actions:
+            raise ValidationError(
+                f"Invalid action. Must be one of: {', '.join(valid_actions)}",
+                context={"action": action, "valid_actions": valid_actions}
+            )
+
+        if item_id:
+            validate_uuid(item_id, "item_id")
+
+        if expiry_date:
+            validate_date_format(expiry_date, "expiry_date")
+
+        if quantity is not None:
+            validate_positive_number(quantity, "quantity")
+
         supabase = get_supabase_client()
 
         if action == 'add':
             if not ingredient_name or quantity is None or not unit:
-                return {
-                    "success": False,
-                    "error": "ingredient_name, quantity, and unit are required for adding items"
-                }
+                raise ValidationError(
+                    "ingredient_name, quantity, and unit are required for adding items",
+                    context={"ingredient_name": ingredient_name, "quantity": quantity, "unit": unit}
+                )
 
             data = {
                 "user_id": user_id,
@@ -65,13 +101,13 @@ async def manage_pantry(
                 "expiry_date": expiry_date
             }
 
-            result = supabase.table("pantry_items").insert(data).execute()
+            item = await safe_db_insert("pantry_items", data, user_id)
 
             logger.info(f"Added {quantity} {unit} of {ingredient_name} to pantry for user {user_id}")
 
             return {
                 "success": True,
-                "item": result.data[0],
+                "item": item,
                 "message": f"Added {quantity} {unit} of {ingredient_name} to your pantry"
             }
 
@@ -101,10 +137,10 @@ async def manage_pantry(
 
         elif action == 'update':
             if not item_id:
-                return {
-                    "success": False,
-                    "error": "item_id required for updating"
-                }
+                raise ValidationError(
+                    "item_id required for updating",
+                    context={"user_id": user_id}
+                )
 
             data = {}
             if ingredient_name is not None:
@@ -118,53 +154,51 @@ async def manage_pantry(
             if expiry_date is not None:
                 data["expiry_date"] = expiry_date
 
-            result = supabase.table("pantry_items").update(data).eq("id", item_id).eq("user_id", user_id).execute()
+            if not data:
+                raise ValidationError(
+                    "No updates provided",
+                    context={"user_id": user_id, "item_id": item_id}
+                )
 
-            if result.data:
-                logger.info(f"Updated pantry item {item_id} for user {user_id}")
+            item = await safe_db_update("pantry_items", item_id, data, user_id)
 
-                return {
-                    "success": True,
-                    "item": result.data[0],
-                    "message": "Pantry item updated successfully"
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": "Pantry item not found or you don't have permission"
-                }
+            logger.info(f"Updated pantry item {item_id} for user {user_id}")
+
+            return {
+                "success": True,
+                "item": item,
+                "message": "Pantry item updated successfully"
+            }
 
         elif action == 'remove':
             if not item_id:
-                return {
-                    "success": False,
-                    "error": "item_id required for removing"
-                }
+                raise ValidationError(
+                    "item_id required for removing",
+                    context={"user_id": user_id}
+                )
 
-            result = supabase.table("pantry_items").delete().eq("id", item_id).eq("user_id", user_id).execute()
+            await safe_db_delete("pantry_items", item_id, user_id)
 
-            if result.data:
-                logger.info(f"Removed pantry item {item_id} for user {user_id}")
+            logger.info(f"Removed pantry item {item_id} for user {user_id}")
 
-                return {
-                    "success": True,
-                    "message": "Pantry item removed successfully"
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": "Pantry item not found or you don't have permission"
-                }
-
-        else:
             return {
-                "success": False,
-                "error": f"Invalid action '{action}'. Use 'add', 'update', 'remove', 'list', or 'check_expiry'"
+                "success": True,
+                "message": "Pantry item removed successfully"
             }
 
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error managing pantry: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error managing pantry",
+            extra={"user_id": user_id, "action": action, "item_id": item_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to manage pantry",
+            context={"user_id": user_id, "action": action, "error": str(e)}
+        )

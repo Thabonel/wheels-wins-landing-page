@@ -14,6 +14,14 @@ from typing import Any, Dict, Optional, List
 from pydantic import ValidationError
 
 from app.services.pam.schemas.trip import FindAttractionsInput
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,23 +44,36 @@ async def find_attractions(
 
     Returns:
         Dict with attraction listings
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
+        if not location or not location.strip():
+            raise CustomValidationError(
+                "Location is required",
+                context={"field": "location"}
+            )
+
+        if radius_miles is not None:
+            validate_positive_number(radius_miles, "radius_miles")
+
         try:
             validated = FindAttractionsInput(
                 user_id=user_id,
                 location=location,
                 radius_miles=radius_miles,
-                attraction_types=categories  # Map categories to attraction_types
+                attraction_types=categories
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         # In production, integrate with:
         # - Google Places API
@@ -111,9 +132,17 @@ async def find_attractions(
             "message": f"Found {len(attractions)} attractions within {validated.radius_miles} miles of {validated.location}"
         }
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error finding attractions: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error finding attractions",
+            extra={"user_id": user_id, "location": location},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to find attractions",
+            context={"user_id": user_id, "location": location, "error": str(e)}
+        )

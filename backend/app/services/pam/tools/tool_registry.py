@@ -3285,6 +3285,1661 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Generate Shopping List tool registration failed: {e}")
         failed_count += 1
 
+    # =========================================================================
+    # TRANSITION SYSTEM TOOLS (PRD-PAM-001)
+    # Tools for Life Transition Navigator module
+    # =========================================================================
+
+    # Get Transition Progress
+    try:
+        logger.debug("🔄 Attempting to register get_transition_progress tool...")
+        from app.services.pam.tools.transition.progress_tools import get_transition_progress
+
+        registry.register_tool(
+            tool=get_transition_progress,
+            function_definition={
+                "name": "get_transition_progress",
+                "description": "Get overall transition readiness score and summary. Use when user asks about their transition progress, readiness, or departure preparation status.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ get_transition_progress tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register get_transition_progress tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ get_transition_progress tool registration failed: {e}")
+        failed_count += 1
+
+    # Get Transition Tasks
+    try:
+        logger.debug("🔄 Attempting to register get_transition_tasks tool...")
+        from app.services.pam.tools.transition.task_tools import get_transition_tasks
+
+        registry.register_tool(
+            tool=get_transition_tasks,
+            function_definition={
+                "name": "get_transition_tasks",
+                "description": "List transition checklist tasks with optional filtering. Use when user asks about their transition tasks, checklist items, or what they need to do.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "enum": ["financial", "vehicle", "life", "downsizing", "equipment", "legal", "social", "custom"],
+                            "description": "Filter by category"
+                        },
+                        "status": {
+                            "type": "string",
+                            "enum": ["pending", "in_progress", "completed", "overdue"],
+                            "description": "Filter by status"
+                        },
+                        "priority": {
+                            "type": "string",
+                            "enum": ["critical", "high", "medium", "low"],
+                            "description": "Filter by priority"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ get_transition_tasks tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register get_transition_tasks tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ get_transition_tasks tool registration failed: {e}")
+        failed_count += 1
+
+    # Create Transition Task
+    try:
+        logger.debug("🔄 Attempting to register create_transition_task tool...")
+        from app.services.pam.tools.transition.task_tools import create_transition_task
+
+        registry.register_tool(
+            tool=create_transition_task,
+            function_definition={
+                "name": "create_transition_task",
+                "description": "Create a new transition checklist task. Use when user wants to add a task to their transition plan.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Task title"
+                        },
+                        "category": {
+                            "type": "string",
+                            "enum": ["financial", "vehicle", "life", "downsizing", "equipment", "legal", "social", "custom"],
+                            "description": "Task category"
+                        },
+                        "priority": {
+                            "type": "string",
+                            "enum": ["critical", "high", "medium", "low"],
+                            "description": "Task priority (default: medium)"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Detailed description"
+                        },
+                        "days_before_departure": {
+                            "type": "integer",
+                            "description": "Days before departure this should be completed"
+                        },
+                        "subtasks": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of subtask descriptions"
+                        }
+                    },
+                    "required": ["title", "category"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ create_transition_task tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register create_transition_task tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ create_transition_task tool registration failed: {e}")
+        failed_count += 1
+
+    # Complete Transition Task
+    try:
+        logger.debug("🔄 Attempting to register complete_transition_task tool...")
+        from app.services.pam.tools.transition.task_tools import complete_transition_task
+
+        registry.register_tool(
+            tool=complete_transition_task,
+            function_definition={
+                "name": "complete_transition_task",
+                "description": "Mark a transition task as complete. Use when user says they finished or completed a task.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "task_id": {
+                            "type": "string",
+                            "description": "ID of the task to complete"
+                        },
+                        "task_title": {
+                            "type": "string",
+                            "description": "Title of the task (fuzzy match if ID not provided)"
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "Completion notes"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ complete_transition_task tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register complete_transition_task tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ complete_transition_task tool registration failed: {e}")
+        failed_count += 1
+
+    # Log Shakedown Trip
+    try:
+        logger.debug("🔄 Attempting to register log_shakedown_trip tool...")
+        from app.services.pam.tools.transition.shakedown_tools import log_shakedown_trip
+
+        registry.register_tool(
+            tool=log_shakedown_trip,
+            function_definition={
+                "name": "log_shakedown_trip",
+                "description": "Log a practice/shakedown trip. Use when user wants to record a practice trip they took.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "trip_type": {
+                            "type": "string",
+                            "enum": ["weekend", "week", "extended"],
+                            "description": "Type of trip"
+                        },
+                        "start_date": {
+                            "type": "string",
+                            "description": "Trip start date (YYYY-MM-DD)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "Trip end date (YYYY-MM-DD)"
+                        },
+                        "destination": {
+                            "type": "string",
+                            "description": "Where the trip went"
+                        },
+                        "confidence_rating": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10,
+                            "description": "How confident you feel after this trip (1-10)"
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "Additional notes"
+                        }
+                    },
+                    "required": ["trip_type", "start_date", "end_date"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ log_shakedown_trip tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register log_shakedown_trip tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ log_shakedown_trip tool registration failed: {e}")
+        failed_count += 1
+
+    # Add Shakedown Issue
+    try:
+        logger.debug("🔄 Attempting to register add_shakedown_issue tool...")
+        from app.services.pam.tools.transition.shakedown_tools import add_shakedown_issue
+
+        registry.register_tool(
+            tool=add_shakedown_issue,
+            function_definition={
+                "name": "add_shakedown_issue",
+                "description": "Track a problem found during a shakedown trip. Use when user reports an issue from a practice trip.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "enum": ["power", "water", "comfort", "storage", "driving", "other"],
+                            "description": "Issue category"
+                        },
+                        "severity": {
+                            "type": "string",
+                            "enum": ["minor", "major", "critical"],
+                            "description": "Issue severity"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Description of the issue"
+                        },
+                        "trip_id": {
+                            "type": "string",
+                            "description": "Associated trip ID (uses most recent if not provided)"
+                        },
+                        "solution": {
+                            "type": "string",
+                            "description": "How you fixed it (marks as resolved)"
+                        },
+                        "cost": {
+                            "type": "number",
+                            "description": "Cost to fix"
+                        }
+                    },
+                    "required": ["category", "severity", "description"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ add_shakedown_issue tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register add_shakedown_issue tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ add_shakedown_issue tool registration failed: {e}")
+        failed_count += 1
+
+    # Get Shakedown Summary
+    try:
+        logger.debug("🔄 Attempting to register get_shakedown_summary tool...")
+        from app.services.pam.tools.transition.shakedown_tools import get_shakedown_summary
+
+        registry.register_tool(
+            tool=get_shakedown_summary,
+            function_definition={
+                "name": "get_shakedown_summary",
+                "description": "Get summary of shakedown trips and issues. Use when user asks about their practice trips or shakedown progress.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ get_shakedown_summary tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register get_shakedown_summary tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ get_shakedown_summary tool registration failed: {e}")
+        failed_count += 1
+
+    # Add Equipment Item
+    try:
+        logger.debug("🔄 Attempting to register add_equipment_item tool...")
+        from app.services.pam.tools.transition.equipment_tools import add_equipment_item
+
+        registry.register_tool(
+            tool=add_equipment_item,
+            function_definition={
+                "name": "add_equipment_item",
+                "description": "Add an equipment item to track for purchase. Use when user wants to add RV gear to their list.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the equipment"
+                        },
+                        "category": {
+                            "type": "string",
+                            "enum": ["recovery", "kitchen", "power", "climate", "safety", "comfort", "other"],
+                            "description": "Equipment category"
+                        },
+                        "is_essential": {
+                            "type": "boolean",
+                            "description": "Whether this is essential (default: true)"
+                        },
+                        "estimated_cost": {
+                            "type": "number",
+                            "description": "Estimated cost"
+                        },
+                        "vendor_url": {
+                            "type": "string",
+                            "description": "URL where to purchase"
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "Additional notes"
+                        },
+                        "priority": {
+                            "type": "string",
+                            "enum": ["critical", "high", "medium", "low"],
+                            "description": "Priority level"
+                        }
+                    },
+                    "required": ["name", "category"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ add_equipment_item tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register add_equipment_item tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ add_equipment_item tool registration failed: {e}")
+        failed_count += 1
+
+    # Mark Equipment Purchased
+    try:
+        logger.debug("🔄 Attempting to register mark_equipment_purchased tool...")
+        from app.services.pam.tools.transition.equipment_tools import mark_equipment_purchased
+
+        registry.register_tool(
+            tool=mark_equipment_purchased,
+            function_definition={
+                "name": "mark_equipment_purchased",
+                "description": "Mark an equipment item as purchased. Use when user says they bought something.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "item_id": {
+                            "type": "string",
+                            "description": "ID of the item"
+                        },
+                        "item_name": {
+                            "type": "string",
+                            "description": "Name of the item (fuzzy match)"
+                        },
+                        "actual_cost": {
+                            "type": "number",
+                            "description": "Actual purchase cost"
+                        },
+                        "purchase_date": {
+                            "type": "string",
+                            "description": "Date of purchase (YYYY-MM-DD)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ mark_equipment_purchased tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register mark_equipment_purchased tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ mark_equipment_purchased tool registration failed: {e}")
+        failed_count += 1
+
+    # Get Equipment List
+    try:
+        logger.debug("🔄 Attempting to register get_equipment_list tool...")
+        from app.services.pam.tools.transition.equipment_tools import get_equipment_list
+
+        registry.register_tool(
+            tool=get_equipment_list,
+            function_definition={
+                "name": "get_equipment_list",
+                "description": "Get equipment inventory and budget status. Use when user asks about their equipment list or budget.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "enum": ["recovery", "kitchen", "power", "climate", "safety", "comfort", "other"],
+                            "description": "Filter by category"
+                        },
+                        "show_purchased": {
+                            "type": "boolean",
+                            "description": "Include purchased items (default: true)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ get_equipment_list tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register get_equipment_list tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ get_equipment_list tool registration failed: {e}")
+        failed_count += 1
+
+    # Get Launch Week Status
+    try:
+        logger.debug("🔄 Attempting to register get_launch_week_status tool...")
+        from app.services.pam.tools.transition.launch_week_tools import get_launch_week_status
+
+        registry.register_tool(
+            tool=get_launch_week_status,
+            function_definition={
+                "name": "get_launch_week_status",
+                "description": "Get the 7-day launch week countdown status. Use when user asks about their departure countdown or launch week.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ get_launch_week_status tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register get_launch_week_status tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ get_launch_week_status tool registration failed: {e}")
+        failed_count += 1
+
+    # Complete Launch Task
+    try:
+        logger.debug("🔄 Attempting to register complete_launch_task tool...")
+        from app.services.pam.tools.transition.launch_week_tools import complete_launch_task
+
+        registry.register_tool(
+            tool=complete_launch_task,
+            function_definition={
+                "name": "complete_launch_task",
+                "description": "Mark a launch week task as complete. Use when user completes a launch week countdown task.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "task_id": {
+                            "type": "string",
+                            "description": "ID of the launch week task"
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "Completion notes"
+                        }
+                    },
+                    "required": ["task_id"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ complete_launch_task tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register complete_launch_task tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ complete_launch_task tool registration failed: {e}")
+        failed_count += 1
+
+    # =========================================================================
+    # MAINTENANCE TOOLS (PRD-PAM-002)
+    # Tools for vehicle maintenance tracking
+    # =========================================================================
+
+    # Create Maintenance Record
+    try:
+        logger.debug("🔄 Attempting to register create_maintenance_record tool...")
+        from app.services.pam.tools.maintenance.maintenance_crud import create_maintenance_record
+
+        registry.register_tool(
+            tool=create_maintenance_record,
+            function_definition={
+                "name": "create_maintenance_record",
+                "description": "Create a new maintenance record. Use to schedule future maintenance or log completed service.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "task": {
+                            "type": "string",
+                            "description": "Description of maintenance task (e.g., 'Oil change', 'Tire rotation')"
+                        },
+                        "service_date": {
+                            "type": "string",
+                            "description": "Service date (YYYY-MM-DD) - future for scheduled, past for completed"
+                        },
+                        "mileage": {
+                            "type": "integer",
+                            "description": "Vehicle mileage at service"
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "Additional notes"
+                        },
+                        "cost": {
+                            "type": "number",
+                            "description": "Cost of service"
+                        }
+                    },
+                    "required": ["task", "service_date"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ create_maintenance_record tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register create_maintenance_record tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ create_maintenance_record tool registration failed: {e}")
+        failed_count += 1
+
+    # Get Maintenance Schedule
+    try:
+        logger.debug("🔄 Attempting to register get_maintenance_schedule tool...")
+        from app.services.pam.tools.maintenance.maintenance_queries import get_maintenance_schedule
+
+        registry.register_tool(
+            tool=get_maintenance_schedule,
+            function_definition={
+                "name": "get_maintenance_schedule",
+                "description": "View upcoming and overdue maintenance. Use when user asks about due services or maintenance schedule.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "status": {
+                            "type": "string",
+                            "enum": ["all", "upcoming", "overdue"],
+                            "description": "Filter by status (default: all)"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum records to return (default: 10)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ get_maintenance_schedule tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register get_maintenance_schedule tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ get_maintenance_schedule tool registration failed: {e}")
+        failed_count += 1
+
+    # Update Maintenance Record
+    try:
+        logger.debug("🔄 Attempting to register update_maintenance_record tool...")
+        from app.services.pam.tools.maintenance.maintenance_crud import update_maintenance_record
+
+        registry.register_tool(
+            tool=update_maintenance_record,
+            function_definition={
+                "name": "update_maintenance_record",
+                "description": "Update an existing maintenance record. Use to change date, mileage, or details.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "record_id": {
+                            "type": "integer",
+                            "description": "ID of the record to update"
+                        },
+                        "task_name": {
+                            "type": "string",
+                            "description": "Task name to find (fuzzy match)"
+                        },
+                        "new_task": {
+                            "type": "string",
+                            "description": "New task description"
+                        },
+                        "new_date": {
+                            "type": "string",
+                            "description": "New service date (YYYY-MM-DD)"
+                        },
+                        "new_mileage": {
+                            "type": "integer",
+                            "description": "New mileage"
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "Additional notes"
+                        },
+                        "cost": {
+                            "type": "number",
+                            "description": "Cost of service"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ update_maintenance_record tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register update_maintenance_record tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ update_maintenance_record tool registration failed: {e}")
+        failed_count += 1
+
+    # Delete Maintenance Record
+    try:
+        logger.debug("🔄 Attempting to register delete_maintenance_record tool...")
+        from app.services.pam.tools.maintenance.maintenance_crud import delete_maintenance_record
+
+        registry.register_tool(
+            tool=delete_maintenance_record,
+            function_definition={
+                "name": "delete_maintenance_record",
+                "description": "Delete a maintenance record. Requires confirmation.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "record_id": {
+                            "type": "integer",
+                            "description": "ID of the record to delete"
+                        },
+                        "task_name": {
+                            "type": "string",
+                            "description": "Task name to find (fuzzy match)"
+                        },
+                        "confirm": {
+                            "type": "boolean",
+                            "description": "Must be true to actually delete"
+                        }
+                    },
+                    "required": ["confirm"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ delete_maintenance_record tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register delete_maintenance_record tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ delete_maintenance_record tool registration failed: {e}")
+        failed_count += 1
+
+    # Get Maintenance History
+    try:
+        logger.debug("🔄 Attempting to register get_maintenance_history tool...")
+        from app.services.pam.tools.maintenance.maintenance_queries import get_maintenance_history
+
+        registry.register_tool(
+            tool=get_maintenance_history,
+            function_definition={
+                "name": "get_maintenance_history",
+                "description": "View past maintenance records. Use when user asks about service history or when they last did something.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "task_type": {
+                            "type": "string",
+                            "description": "Filter by task type (e.g., 'oil change', 'tire')"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum records to return (default: 10)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ get_maintenance_history tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register get_maintenance_history tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ get_maintenance_history tool registration failed: {e}")
+        failed_count += 1
+
+    # =========================================================================
+    # FUEL LOG TOOLS (PRD-PAM-003)
+    # Tools for fuel tracking with smart calculations
+    # =========================================================================
+
+    # Add Fuel Entry
+    try:
+        logger.debug("🔄 Attempting to register add_fuel_entry tool...")
+        from app.services.pam.tools.fuel.fuel_crud import add_fuel_entry
+
+        registry.register_tool(
+            tool=add_fuel_entry,
+            function_definition={
+                "name": "add_fuel_entry",
+                "description": "Add a fuel log entry with smart calculation. Provide any 2 of 3 (volume, price, total) and the third will be calculated.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "odometer": {
+                            "type": "number",
+                            "description": "Current odometer reading"
+                        },
+                        "volume": {
+                            "type": "number",
+                            "description": "Liters/gallons filled"
+                        },
+                        "price": {
+                            "type": "number",
+                            "description": "Price per liter/gallon"
+                        },
+                        "total": {
+                            "type": "number",
+                            "description": "Total cost"
+                        },
+                        "entry_date": {
+                            "type": "string",
+                            "description": "Fill-up date (YYYY-MM-DD, defaults to today)"
+                        },
+                        "filled_to_top": {
+                            "type": "boolean",
+                            "description": "Was tank filled completely? (default: true)"
+                        },
+                        "station": {
+                            "type": "string",
+                            "description": "Gas station name/location"
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "Additional notes"
+                        }
+                    },
+                    "required": ["odometer"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ add_fuel_entry tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register add_fuel_entry tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ add_fuel_entry tool registration failed: {e}")
+        failed_count += 1
+
+    # Update Fuel Entry
+    try:
+        logger.debug("🔄 Attempting to register update_fuel_entry tool...")
+        from app.services.pam.tools.fuel.fuel_crud import update_fuel_entry
+
+        registry.register_tool(
+            tool=update_fuel_entry,
+            function_definition={
+                "name": "update_fuel_entry",
+                "description": "Update an existing fuel entry. If entry_id not provided, updates the most recent entry.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "entry_id": {
+                            "type": "string",
+                            "description": "ID of entry to update (uses latest if not provided)"
+                        },
+                        "odometer": {
+                            "type": "number",
+                            "description": "New odometer reading"
+                        },
+                        "volume": {
+                            "type": "number",
+                            "description": "New volume"
+                        },
+                        "price": {
+                            "type": "number",
+                            "description": "New price per unit"
+                        },
+                        "total": {
+                            "type": "number",
+                            "description": "New total cost"
+                        },
+                        "entry_date": {
+                            "type": "string",
+                            "description": "New date"
+                        },
+                        "filled_to_top": {
+                            "type": "boolean",
+                            "description": "New filled_to_top value"
+                        },
+                        "station": {
+                            "type": "string",
+                            "description": "New station"
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "New notes"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ update_fuel_entry tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register update_fuel_entry tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ update_fuel_entry tool registration failed: {e}")
+        failed_count += 1
+
+    # Delete Fuel Entry
+    try:
+        logger.debug("🔄 Attempting to register delete_fuel_entry tool...")
+        from app.services.pam.tools.fuel.fuel_crud import delete_fuel_entry
+
+        registry.register_tool(
+            tool=delete_fuel_entry,
+            function_definition={
+                "name": "delete_fuel_entry",
+                "description": "Delete a fuel entry. Requires confirmation. Uses most recent if entry_id not provided.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "entry_id": {
+                            "type": "string",
+                            "description": "ID of entry to delete (uses latest if not provided)"
+                        },
+                        "confirm": {
+                            "type": "boolean",
+                            "description": "Must be true to actually delete"
+                        }
+                    },
+                    "required": ["confirm"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ delete_fuel_entry tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register delete_fuel_entry tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ delete_fuel_entry tool registration failed: {e}")
+        failed_count += 1
+
+    # Get Fuel Stats
+    try:
+        logger.debug("🔄 Attempting to register get_fuel_stats tool...")
+        from app.services.pam.tools.fuel.fuel_crud import get_fuel_stats
+
+        registry.register_tool(
+            tool=get_fuel_stats,
+            function_definition={
+                "name": "get_fuel_stats",
+                "description": "Get fuel statistics and trends. Use when user asks about fuel spending, consumption, or stats.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "period": {
+                            "type": "string",
+                            "enum": ["week", "month", "year", "all"],
+                            "description": "Time period (default: month)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ get_fuel_stats tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register get_fuel_stats tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ get_fuel_stats tool registration failed: {e}")
+        failed_count += 1
+
+    # =============================================================================
+    # PRD-04: UNREGISTERED TOOLS - Previously created but not registered
+    # =============================================================================
+
+    # --- message_friend ---
+    try:
+        logger.debug("🔄 Attempting to register message_friend tool...")
+        from app.services.pam.tools.social.message_friend import message_friend
+
+        registry.register_tool(
+            tool=message_friend,
+            function_definition={
+                "name": "message_friend",
+                "description": "Send a direct message to another user. Use for DMs, private messages.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "recipient_id": {
+                            "type": "string",
+                            "description": "UUID of the recipient user"
+                        },
+                        "message": {
+                            "type": "string",
+                            "description": "Message content to send"
+                        }
+                    },
+                    "required": ["recipient_id", "message"]
+                }
+            },
+            capability=ToolCapability.SOCIAL,
+            priority=2
+        )
+        logger.info("✅ message_friend tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register message_friend tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ message_friend tool registration failed: {e}")
+        failed_count += 1
+
+    # --- save_favorite_spot ---
+    try:
+        logger.debug("🔄 Attempting to register save_favorite_spot tool...")
+        from app.services.pam.tools.trip.save_favorite_spot import save_favorite_spot
+
+        registry.register_tool(
+            tool=save_favorite_spot,
+            function_definition={
+                "name": "save_favorite_spot",
+                "description": "Save a location as a favorite/bookmark. Use for campgrounds, restaurants, attractions.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location_name": {
+                            "type": "string",
+                            "description": "Name of the location"
+                        },
+                        "location_address": {
+                            "type": "string",
+                            "description": "Address or coordinates"
+                        },
+                        "category": {
+                            "type": "string",
+                            "enum": ["campground", "restaurant", "attraction", "gas_station", "general"],
+                            "description": "Category of location (default: general)"
+                        },
+                        "notes": {
+                            "type": "string",
+                            "description": "Optional personal notes"
+                        },
+                        "rating": {
+                            "type": "integer",
+                            "description": "Optional rating (1-5)"
+                        }
+                    },
+                    "required": ["location_name", "location_address"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ save_favorite_spot tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register save_favorite_spot tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ save_favorite_spot tool registration failed: {e}")
+        failed_count += 1
+
+    # --- export_data ---
+    try:
+        logger.debug("🔄 Attempting to register export_data tool...")
+        from app.services.pam.tools.profile.export_data import export_data
+
+        registry.register_tool(
+            tool=export_data,
+            function_definition={
+                "name": "export_data",
+                "description": "Export all user data (GDPR compliance). Use when user wants to download their data.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "format": {
+                            "type": "string",
+                            "enum": ["json", "csv"],
+                            "description": "Export format (default: json)"
+                        },
+                        "include_expenses": {
+                            "type": "boolean",
+                            "description": "Include expense data (default: true)"
+                        },
+                        "include_budgets": {
+                            "type": "boolean",
+                            "description": "Include budget data (default: true)"
+                        },
+                        "include_trips": {
+                            "type": "boolean",
+                            "description": "Include trip data (default: true)"
+                        },
+                        "include_posts": {
+                            "type": "boolean",
+                            "description": "Include social posts (default: true)"
+                        },
+                        "include_favorites": {
+                            "type": "boolean",
+                            "description": "Include favorite locations (default: true)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ export_data tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register export_data tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ export_data tool registration failed: {e}")
+        failed_count += 1
+
+    # --- manage_privacy ---
+    try:
+        logger.debug("🔄 Attempting to register manage_privacy tool...")
+        from app.services.pam.tools.profile.manage_privacy import manage_privacy
+
+        registry.register_tool(
+            tool=manage_privacy,
+            function_definition={
+                "name": "manage_privacy",
+                "description": "Manage privacy settings. Use when user wants to change visibility, location sharing, etc.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "profile_visibility": {
+                            "type": "string",
+                            "enum": ["public", "friends", "private"],
+                            "description": "Who can see the profile"
+                        },
+                        "location_sharing": {
+                            "type": "boolean",
+                            "description": "Whether to share location"
+                        },
+                        "show_activity": {
+                            "type": "boolean",
+                            "description": "Whether to show activity status"
+                        },
+                        "allow_messages": {
+                            "type": "string",
+                            "enum": ["everyone", "friends", "none"],
+                            "description": "Who can send messages"
+                        },
+                        "data_collection": {
+                            "type": "boolean",
+                            "description": "Allow data collection for analytics"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ manage_privacy tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register manage_privacy tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ manage_privacy tool registration failed: {e}")
+        failed_count += 1
+
+    # --- create_vehicle ---
+    try:
+        logger.debug("🔄 Attempting to register create_vehicle tool...")
+        from app.services.pam.tools.profile.create_vehicle import create_vehicle
+
+        registry.register_tool(
+            tool=create_vehicle,
+            function_definition={
+                "name": "create_vehicle",
+                "description": "Create a new vehicle record. Use when user wants to add their RV, truck, or car.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Vehicle nickname (e.g., 'My RV', 'Blue Truck')"
+                        },
+                        "make": {
+                            "type": "string",
+                            "description": "Manufacturer (e.g., 'Ford', 'RAM', 'Winnebago')"
+                        },
+                        "model": {
+                            "type": "string",
+                            "description": "Model name (e.g., 'F-350', '1500', 'Vista')"
+                        },
+                        "year": {
+                            "type": "integer",
+                            "description": "Year of manufacture"
+                        },
+                        "vehicle_type": {
+                            "type": "string",
+                            "enum": ["rv", "motorhome", "truck", "car", "van", "trailer"],
+                            "description": "Type of vehicle (default: rv)"
+                        },
+                        "fuel_type": {
+                            "type": "string",
+                            "enum": ["gasoline", "diesel", "electric", "hybrid", "propane"],
+                            "description": "Type of fuel (default: gasoline)"
+                        },
+                        "set_as_primary": {
+                            "type": "boolean",
+                            "description": "Make this the primary vehicle (default: true)"
+                        }
+                    },
+                    "required": ["name"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ create_vehicle tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register create_vehicle tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ create_vehicle tool registration failed: {e}")
+        failed_count += 1
+
+    # --- follow_user ---
+    try:
+        logger.debug("🔄 Attempting to register follow_user tool...")
+        from app.services.pam.tools.social.follow_user import follow_user
+
+        registry.register_tool(
+            tool=follow_user,
+            function_definition={
+                "name": "follow_user",
+                "description": "Follow or unfollow another user. Use for social connections.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target_user_id": {
+                            "type": "string",
+                            "description": "UUID of the user to follow/unfollow"
+                        },
+                        "unfollow": {
+                            "type": "boolean",
+                            "description": "Set to true to unfollow (default: false)"
+                        }
+                    },
+                    "required": ["target_user_id"]
+                }
+            },
+            capability=ToolCapability.SOCIAL,
+            priority=2
+        )
+        logger.info("✅ follow_user tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register follow_user tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ follow_user tool registration failed: {e}")
+        failed_count += 1
+
+    # --- search_posts ---
+    try:
+        logger.debug("🔄 Attempting to register search_posts tool...")
+        from app.services.pam.tools.social.search_posts import search_posts
+
+        registry.register_tool(
+            tool=search_posts,
+            function_definition={
+                "name": "search_posts",
+                "description": "Search for posts by content, tags, or location. Use when user wants to find posts.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query string"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional tags to filter by"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Optional location to filter by"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results (default: 20)"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            capability=ToolCapability.SOCIAL,
+            priority=2
+        )
+        logger.info("✅ search_posts tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register search_posts tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ search_posts tool registration failed: {e}")
+        failed_count += 1
+
+    # --- create_event ---
+    try:
+        logger.debug("🔄 Attempting to register create_event tool...")
+        from app.services.pam.tools.social.create_event import create_event
+
+        registry.register_tool(
+            tool=create_event,
+            function_definition={
+                "name": "create_event",
+                "description": "Create a community event or meetup. Use for planning gatherings.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Event title"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Event description"
+                        },
+                        "event_date": {
+                            "type": "string",
+                            "description": "Event date/time in ISO format"
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Event location name"
+                        },
+                        "latitude": {
+                            "type": "number",
+                            "description": "Optional location latitude"
+                        },
+                        "longitude": {
+                            "type": "number",
+                            "description": "Optional location longitude"
+                        },
+                        "max_attendees": {
+                            "type": "integer",
+                            "description": "Optional maximum number of attendees"
+                        },
+                        "is_public": {
+                            "type": "boolean",
+                            "description": "Whether event is public (default: true)"
+                        }
+                    },
+                    "required": ["title", "description", "event_date", "location"]
+                }
+            },
+            capability=ToolCapability.SOCIAL,
+            priority=2
+        )
+        logger.info("✅ create_event tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register create_event tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ create_event tool registration failed: {e}")
+        failed_count += 1
+
+    # --- compare_prices ---
+    try:
+        logger.debug("🔄 Attempting to register compare_prices tool...")
+        from app.services.pam.tools.shop.compare_prices import compare_prices
+
+        registry.register_tool(
+            tool=compare_prices,
+            function_definition={
+                "name": "compare_prices",
+                "description": "Compare prices for a product across retailers. Use for finding best deals.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "product_name": {
+                            "type": "string",
+                            "description": "The product name to compare prices for"
+                        },
+                        "country": {
+                            "type": "string",
+                            "enum": ["au", "us", "uk", "ca", "nz"],
+                            "description": "Country code for local pricing (default: au)"
+                        }
+                    },
+                    "required": ["product_name"]
+                }
+            },
+            capability=ToolCapability.SHOP,
+            priority=2
+        )
+        logger.info("✅ compare_prices tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register compare_prices tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ compare_prices tool registration failed: {e}")
+        failed_count += 1
+
+    # --- update_settings ---
+    try:
+        logger.debug("🔄 Attempting to register update_settings tool...")
+        from app.services.pam.tools.profile.update_settings import update_settings
+
+        registry.register_tool(
+            tool=update_settings,
+            function_definition={
+                "name": "update_settings",
+                "description": "Update user preferences and settings. Use for notifications, theme, language.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "email_notifications": {
+                            "type": "boolean",
+                            "description": "Enable/disable email notifications"
+                        },
+                        "push_notifications": {
+                            "type": "boolean",
+                            "description": "Enable/disable push notifications"
+                        },
+                        "theme": {
+                            "type": "string",
+                            "enum": ["light", "dark", "auto"],
+                            "description": "App theme"
+                        },
+                        "language": {
+                            "type": "string",
+                            "description": "Language code (e.g., 'en', 'es')"
+                        },
+                        "budget_alerts": {
+                            "type": "boolean",
+                            "description": "Enable/disable budget alerts"
+                        },
+                        "trip_reminders": {
+                            "type": "boolean",
+                            "description": "Enable/disable trip reminders"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=1
+        )
+        logger.info("✅ update_settings tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register update_settings tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ update_settings tool registration failed: {e}")
+        failed_count += 1
+
+    # --- update_vehicle_fuel_consumption ---
+    try:
+        logger.debug("🔄 Attempting to register update_vehicle_fuel_consumption tool...")
+        from app.services.pam.tools.trip.update_vehicle_fuel_consumption import update_vehicle_fuel_consumption
+
+        registry.register_tool(
+            tool=update_vehicle_fuel_consumption,
+            function_definition={
+                "name": "update_vehicle_fuel_consumption",
+                "description": "Update vehicle fuel consumption data. Use when user reports MPG or L/100km.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "mpg": {
+                            "type": "number",
+                            "description": "Fuel consumption in miles per gallon"
+                        },
+                        "l_per_100km": {
+                            "type": "number",
+                            "description": "Fuel consumption in liters per 100km"
+                        },
+                        "vehicle_id": {
+                            "type": "string",
+                            "description": "Specific vehicle ID (uses primary if not provided)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ update_vehicle_fuel_consumption tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register update_vehicle_fuel_consumption tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ update_vehicle_fuel_consumption tool registration failed: {e}")
+        failed_count += 1
+
+    # --- categorize_transaction ---
+    try:
+        logger.debug("🔄 Attempting to register categorize_transaction tool...")
+        from app.services.pam.tools.budget.categorize_transaction import categorize_transaction
+
+        registry.register_tool(
+            tool=categorize_transaction,
+            function_definition={
+                "name": "categorize_transaction",
+                "description": "Auto-categorize an expense based on description. Use when user asks to categorize a purchase.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "description": {
+                            "type": "string",
+                            "description": "Transaction description to categorize"
+                        },
+                        "amount": {
+                            "type": "number",
+                            "description": "Transaction amount (for context)"
+                        },
+                        "merchant": {
+                            "type": "string",
+                            "description": "Merchant name (optional)"
+                        }
+                    },
+                    "required": ["description"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ categorize_transaction tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register categorize_transaction tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ categorize_transaction tool registration failed: {e}")
+        failed_count += 1
+
+    # --- export_budget_report ---
+    try:
+        logger.debug("🔄 Attempting to register export_budget_report tool...")
+        from app.services.pam.tools.budget.export_budget_report import export_budget_report
+
+        registry.register_tool(
+            tool=export_budget_report,
+            function_definition={
+                "name": "export_budget_report",
+                "description": "Generate and export budget report. Use when user asks for spending report.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "format": {
+                            "type": "string",
+                            "enum": ["pdf", "csv", "json"],
+                            "description": "Export format (default: pdf)"
+                        },
+                        "period": {
+                            "type": "string",
+                            "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"],
+                            "description": "Report period (default: monthly)"
+                        },
+                        "start_date": {
+                            "type": "string",
+                            "description": "Start date in ISO format (optional)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "End date in ISO format (optional)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("✅ export_budget_report tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register export_budget_report tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ export_budget_report tool registration failed: {e}")
+        failed_count += 1
+
+    # --- get_weather_forecast ---
+    try:
+        logger.debug("🔄 Attempting to register get_weather_forecast tool...")
+        from app.services.pam.tools.trip.get_weather_forecast import get_weather_forecast
+
+        registry.register_tool(
+            tool=get_weather_forecast,
+            function_definition={
+                "name": "get_weather_forecast",
+                "description": "Get weather forecast for a location. Uses FREE OpenMeteo API.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "Location name or coordinates (uses user location if not provided)"
+                        },
+                        "days": {
+                            "type": "integer",
+                            "description": "Number of days to forecast (default: 7, max: 7)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.EXTERNAL_API,
+            priority=2
+        )
+        logger.info("✅ get_weather_forecast tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register get_weather_forecast tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ get_weather_forecast tool registration failed: {e}")
+        failed_count += 1
+
+    # --- share_location ---
+    try:
+        logger.debug("🔄 Attempting to register share_location tool...")
+        from app.services.pam.tools.social.share_location import share_location
+
+        registry.register_tool(
+            tool=share_location,
+            function_definition={
+                "name": "share_location",
+                "description": "Share current location or a spot with the community. Use when user wants to share where they are.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location_name": {
+                            "type": "string",
+                            "description": "Name of the location"
+                        },
+                        "latitude": {
+                            "type": "number",
+                            "description": "Location latitude"
+                        },
+                        "longitude": {
+                            "type": "number",
+                            "description": "Location longitude"
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Optional description"
+                        },
+                        "is_public": {
+                            "type": "boolean",
+                            "description": "Whether location is publicly visible (default: true)"
+                        }
+                    },
+                    "required": ["location_name", "latitude", "longitude"]
+                }
+            },
+            capability=ToolCapability.SOCIAL,
+            priority=2
+        )
+        logger.info("✅ share_location tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register share_location tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ share_location tool registration failed: {e}")
+        failed_count += 1
+
     # Registration summary
     total_attempted = registered_count + failed_count
     success_rate = (registered_count / total_attempted * 100) if total_attempted > 0 else 0

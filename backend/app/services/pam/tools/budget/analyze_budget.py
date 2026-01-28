@@ -6,17 +6,21 @@ Example usage:
 - "How's my budget looking?"
 - "Analyze my spending this month"
 - "Am I over budget anywhere?"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict
-from pydantic import ValidationError
 
-from app.integrations.supabase import get_supabase_client
-from app.services.pam.schemas.budget import AnalyzeBudgetInput
+from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,36 +37,32 @@ async def analyze_budget(
 
     Returns:
         Dict with budget analysis
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
-        try:
-            validated = AnalyzeBudgetInput(
-                user_id=user_id
-            )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
-            error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+        validate_uuid(user_id, "user_id")
 
         supabase = get_supabase_client()
 
-        # Get current month start
         month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        # Get all expenses for current month using validated user_id
-        expenses_response = supabase.table("expenses").select("*").eq("user_id", validated.user_id).gte("date", month_start.isoformat()).execute()
+        expenses = await safe_db_select(
+            "expenses",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
 
-        # Get user's budgets using validated user_id
-        budgets_response = supabase.table("budgets").select("*").eq("user_id", validated.user_id).execute()
+        expenses = [e for e in expenses if datetime.fromisoformat(e.get("date", "1970-01-01")) >= month_start]
 
-        expenses = expenses_response.data if expenses_response.data else []
-        budgets = budgets_response.data if budgets_response.data else []
+        budgets = await safe_db_select(
+            "budgets",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
 
-        # Calculate spending by category
         spending_by_category = {}
         total_spending = 0
 
@@ -72,11 +72,10 @@ async def analyze_budget(
             spending_by_category[category] = spending_by_category.get(category, 0) + amount
             total_spending += amount
 
-        # Compare with budgets (schema uses monthly_limit, not amount)
         budget_status = []
         for budget in budgets:
             category = budget.get("category", "other")
-            budget_amount = float(budget.get("monthly_limit", 0))  # Correct field name
+            budget_amount = float(budget.get("monthly_limit", 0))
             spent = spending_by_category.get(category, 0)
             remaining = budget_amount - spent
             percent_used = (spent / budget_amount * 100) if budget_amount > 0 else 0
@@ -98,9 +97,17 @@ async def analyze_budget(
             "expense_count": len(expenses)
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error analyzing budget: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            "Unexpected error analyzing budget",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to analyze budget",
+            context={"user_id": user_id, "error": str(e)}
+        )

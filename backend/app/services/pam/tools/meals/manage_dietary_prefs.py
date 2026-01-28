@@ -8,6 +8,14 @@ import logging
 from typing import Dict, Any, Optional, List
 
 from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +50,10 @@ async def manage_dietary_prefs(
     Returns:
         Dict with preferences or success status
 
+    Raises:
+        ValidationError: Invalid input parameters or action
+        DatabaseError: Database operation failed
+
     Examples:
         User: "I'm vegan and allergic to peanuts"
         PAM: *Calls manage_dietary_prefs(action='set', dietary_restrictions=['vegan'], allergies=['peanuts'])*
@@ -50,6 +62,24 @@ async def manage_dietary_prefs(
         PAM: *Calls manage_dietary_prefs(action='set', daily_calorie_goal=2000)*
     """
     try:
+        validate_uuid(user_id, "user_id")
+
+        valid_actions = ["set", "add", "remove", "get"]
+        if action not in valid_actions:
+            raise ValidationError(
+                f"Invalid action. Must be one of: {', '.join(valid_actions)}",
+                context={"action": action, "valid_actions": valid_actions}
+            )
+
+        if daily_calorie_goal is not None:
+            validate_positive_number(daily_calorie_goal, "daily_calorie_goal")
+        if daily_protein_goal is not None:
+            validate_positive_number(daily_protein_goal, "daily_protein_goal")
+        if daily_carb_goal is not None:
+            validate_positive_number(daily_carb_goal, "daily_carb_goal")
+        if daily_fat_goal is not None:
+            validate_positive_number(daily_fat_goal, "daily_fat_goal")
+
         supabase = get_supabase_client()
 
         if action == 'get':
@@ -178,20 +208,22 @@ async def manage_dietary_prefs(
                     "message": "Preferences removed successfully"
                 }
             else:
-                return {
-                    "success": False,
-                    "error": "No preferences to remove"
-                }
+                raise ValidationError(
+                    "No preferences to remove",
+                    context={"user_id": user_id}
+                )
 
-        else:
-            return {
-                "success": False,
-                "error": f"Invalid action '{action}'. Use 'set', 'add', 'remove', or 'get'"
-            }
-
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error managing dietary preferences: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error managing dietary preferences",
+            extra={"user_id": user_id, "action": action},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to manage dietary preferences",
+            context={"user_id": user_id, "action": action, "error": str(e)}
+        )

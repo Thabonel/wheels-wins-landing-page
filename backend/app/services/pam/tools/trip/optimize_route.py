@@ -17,6 +17,13 @@ from pydantic import ValidationError
 
 from app.services.pam.schemas.trip import OptimizeRouteInput
 from app.services.pam.tools.budget.auto_track_savings import auto_record_savings
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +48,26 @@ async def optimize_route(
 
     Returns:
         Dict with optimized route details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
+        if not origin or not origin.strip():
+            raise CustomValidationError(
+                "Origin location is required",
+                context={"field": "origin"}
+            )
+
+        if not destination or not destination.strip():
+            raise CustomValidationError(
+                "Destination location is required",
+                context={"field": "destination"}
+            )
+
         try:
             validated = OptimizeRouteInput(
                 user_id=user_id,
@@ -53,12 +77,11 @@ async def optimize_route(
                 optimization_type=optimization_type
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         # In production, this would use Mapbox Optimization API
         # with real-time traffic and gas price data
@@ -118,9 +141,17 @@ async def optimize_route(
                       f"and {optimized_route['savings']['time_hours']:.1f} hours.{savings_msg}"
         }
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error optimizing route: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error optimizing route",
+            extra={"user_id": user_id, "origin": origin, "destination": destination},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to optimize route",
+            context={"user_id": user_id, "origin": origin, "destination": destination, "error": str(e)}
+        )

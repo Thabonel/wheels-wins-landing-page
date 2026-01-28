@@ -15,6 +15,15 @@ from pydantic import ValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.trip import FindRVParksInput
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +48,26 @@ async def find_rv_parks(
 
     Returns:
         Dict with RV park listings
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
+        if not location or not location.strip():
+            raise CustomValidationError(
+                "Location is required",
+                context={"field": "location"}
+            )
+
+        if radius_miles is not None:
+            validate_positive_number(radius_miles, "radius_miles")
+
+        if max_price is not None:
+            validate_positive_number(max_price, "max_price")
+
         try:
             validated = FindRVParksInput(
                 user_id=user_id,
@@ -51,20 +77,16 @@ async def find_rv_parks(
                 max_price=max_price
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         supabase = get_supabase_client()
 
-        # Query existing campgrounds from database
-        # In a real implementation, this would use Mapbox + campground API
         query = supabase.table("campgrounds").select("*")
 
-        # Apply filters if provided
         if validated.max_price:
             query = query.lte("price_per_night", validated.max_price)
 
@@ -72,7 +94,6 @@ async def find_rv_parks(
 
         campgrounds = response.data if response.data else []
 
-        # Filter by amenities if specified
         if validated.amenities and campgrounds:
             campgrounds = [
                 park for park in campgrounds
@@ -86,13 +107,21 @@ async def find_rv_parks(
             "location": validated.location,
             "radius_miles": validated.radius_miles,
             "parks_found": len(campgrounds),
-            "parks": campgrounds[:10],  # Return top 10
+            "parks": campgrounds[:10],
             "message": f"Found {len(campgrounds)} RV parks within {validated.radius_miles} miles of {validated.location}"
         }
 
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error finding RV parks: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error finding RV parks",
+            extra={"user_id": user_id, "location": location},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to find RV parks",
+            context={"user_id": user_id, "location": location, "error": str(e)}
+        )

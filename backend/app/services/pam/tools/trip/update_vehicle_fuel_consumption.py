@@ -19,6 +19,17 @@ from .unit_conversion import (
     get_user_unit_preference,
     format_fuel_consumption
 )
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_select,
+    safe_db_update,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,37 +52,51 @@ async def update_vehicle_fuel_consumption(
 
     Returns:
         Dict with updated fuel consumption data
+
+    Raises:
+        ValidationError: Invalid input parameters
+        ResourceNotFoundError: Vehicle not found
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate input - must provide either MPG or L/100km
+        validate_uuid(user_id, "user_id")
+
         if mpg is None and l_per_100km is None:
-            return {
-                "success": False,
-                "error": "Must provide either MPG or liters per 100km"
-            }
+            raise ValidationError(
+                "Must provide either MPG or liters per 100km",
+                context={"mpg": mpg, "l_per_100km": l_per_100km}
+            )
 
-        # Initialize Supabase client
-        supabase: Client = create_client(
-            os.getenv("SUPABASE_URL"),
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        )
+        if mpg is not None:
+            validate_positive_number(mpg, "mpg")
 
-        # Get vehicle (primary if not specified)
+        if l_per_100km is not None:
+            validate_positive_number(l_per_100km, "l_per_100km")
+
         if vehicle_id:
-            vehicle_response = supabase.table("vehicles").select("*").eq("id", vehicle_id).eq("user_id", user_id).single().execute()
+            validate_uuid(vehicle_id, "vehicle_id")
+
+        if vehicle_id:
+            vehicle = await safe_db_select(
+                "vehicles",
+                filters={"id": vehicle_id, "user_id": user_id},
+                columns="*",
+                single=True
+            )
         else:
-            # Get primary vehicle
-            vehicle_response = supabase.table("vehicles").select("*").eq("user_id", user_id).eq("is_primary", True).single().execute()
+            vehicle = await safe_db_select(
+                "vehicles",
+                filters={"user_id": user_id, "is_primary": True},
+                columns="*",
+                single=True
+            )
 
-        if not vehicle_response.data:
-            return {
-                "success": False,
-                "error": "No vehicle found. Please add a vehicle first."
-            }
+        if not vehicle:
+            raise ResourceNotFoundError(
+                "No vehicle found. Please add a vehicle first.",
+                context={"user_id": user_id, "vehicle_id": vehicle_id}
+            )
 
-        vehicle = vehicle_response.data
-
-        # Calculate both metrics
         if mpg is not None:
             fuel_mpg = float(mpg)
             fuel_l_per_100km = convert_mpg_to_l_per_100km(fuel_mpg)
@@ -79,20 +104,18 @@ async def update_vehicle_fuel_consumption(
             fuel_l_per_100km = float(l_per_100km)
             fuel_mpg = convert_l_per_100km_to_mpg(fuel_l_per_100km)
 
-        # Update vehicle fuel consumption
         update_data = {
             "fuel_consumption_mpg": fuel_mpg,
             "fuel_consumption_l_per_100km": fuel_l_per_100km,
             "fuel_consumption_source": "user_provided",
             "fuel_consumption_last_updated": datetime.utcnow().isoformat(),
-            "fuel_consumption_sample_size": 1  # User provided = 1 sample
+            "fuel_consumption_sample_size": 1
         }
 
-        supabase.table("vehicles").update(update_data).eq("id", vehicle["id"]).execute()
+        updated = await safe_db_update("vehicles", vehicle["id"], update_data, user_id)
 
         logger.info(f"Updated fuel consumption for vehicle {vehicle['id']}: {fuel_mpg} MPG / {fuel_l_per_100km} L/100km")
 
-        # Get user's unit preference to format response
         unit_system = await get_user_unit_preference(user_id)
         fuel_consumption_str = format_fuel_consumption(fuel_mpg, unit_system)
 
@@ -105,15 +128,29 @@ async def update_vehicle_fuel_consumption(
             "message": f"Got it! I've recorded that your {vehicle.get('name', 'vehicle')} uses {fuel_consumption_str}. I'll use this for trip cost calculations."
         }
 
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
+    except DatabaseError:
+        raise
     except ValueError as e:
-        logger.error(f"Invalid fuel consumption value: {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Invalid fuel consumption value",
+            extra={"user_id": user_id, "mpg": mpg, "l_per_100km": l_per_100km},
+            exc_info=True
+        )
+        raise ValidationError(
+            f"Invalid fuel consumption value: {str(e)}",
+            context={"mpg": mpg, "l_per_100km": l_per_100km}
+        )
     except Exception as e:
-        logger.error(f"Error updating vehicle fuel consumption: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error updating vehicle fuel consumption",
+            extra={"user_id": user_id, "vehicle_id": vehicle_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to update vehicle fuel consumption",
+            context={"user_id": user_id, "vehicle_id": vehicle_id, "error": str(e)}
+        )

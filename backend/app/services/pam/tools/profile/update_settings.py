@@ -12,10 +12,20 @@ Amendment #4: Input validation with Pydantic models
 import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.profile import UpdateSettingsInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_insert,
+    safe_db_update,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +54,14 @@ async def update_settings(
 
     Returns:
         Dict with updated settings
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
         try:
             validated = UpdateSettingsInput(
                 user_id=user_id,
@@ -57,17 +72,13 @@ async def update_settings(
                 budget_alerts=budget_alerts,
                 trip_reminders=trip_reminders
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
-        supabase = get_supabase_client()
-
-        # Build update data (only include provided fields)
         update_data = {
             "updated_at": datetime.now().isoformat()
         }
@@ -77,7 +88,7 @@ async def update_settings(
         if validated.push_notifications is not None:
             update_data["push_notifications"] = validated.push_notifications
         if validated.theme is not None:
-            update_data["theme"] = validated.theme.value  # ✅ Extract enum value
+            update_data["theme"] = validated.theme.value
         if validated.language is not None:
             update_data["language"] = validated.language
         if validated.budget_alerts is not None:
@@ -85,31 +96,38 @@ async def update_settings(
         if validated.trip_reminders is not None:
             update_data["trip_reminders"] = validated.trip_reminders
 
-        # Update or insert settings
+        supabase = get_supabase_client()
         response = supabase.table("user_settings").upsert({
             "user_id": validated.user_id,
             **update_data
         }).execute()
 
-        if response.data:
-            settings = response.data[0]
-            logger.info(f"Updated settings for user {validated.user_id}")
+        if not response.data:
+            raise DatabaseError(
+                "Failed to update settings",
+                context={"user_id": validated.user_id}
+            )
 
-            return {
-                "success": True,
-                "settings": settings,
-                "message": "Settings updated successfully"
-            }
-        else:
-            logger.error(f"Failed to update settings: {response}")
-            return {
-                "success": False,
-                "error": "Failed to update settings"
-            }
+        settings = response.data[0]
+        logger.info(f"Updated settings for user {validated.user_id}")
 
-    except Exception as e:
-        logger.error(f"Error updating settings: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "settings": settings,
+            "message": "Settings updated successfully"
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error updating settings",
+            extra={"user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to update settings",
+            context={"user_id": user_id, "error": str(e)}
+        )

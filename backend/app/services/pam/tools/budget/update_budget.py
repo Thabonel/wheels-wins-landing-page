@@ -6,17 +6,23 @@ Example usage:
 - "Set my gas budget to $400/month"
 - "Update food budget to $500"
 - "Change campground budget to $300"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict
-from pydantic import ValidationError
 
-from app.integrations.supabase import get_supabase_client
-from app.services.pam.schemas.budget import UpdateBudgetInput
+from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_insert,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,66 +43,77 @@ async def update_budget(
 
     Returns:
         Dict with updated budget details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
-        try:
-            validated = UpdateBudgetInput(
-                user_id=user_id,
-                category=category,
-                amount=amount
+        validate_uuid(user_id, "user_id")
+        validate_positive_number(amount, "amount")
+
+        if not category or not category.strip():
+            raise ValidationError(
+                "category is required and cannot be empty",
+                context={"field": "category"}
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
-            error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
 
         supabase = get_supabase_client()
 
-        # Check if budget exists for this category
-        existing = supabase.table("budgets").select("*").eq("user_id", validated.user_id).eq("category", validated.category.lower()).execute()
+        existing = await safe_db_select(
+            "budgets",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
 
-        # Schema uses monthly_limit, not amount
+        existing_budget = next(
+            (b for b in existing if b.get("category") == category.lower()),
+            None
+        )
+
         budget_data = {
-            "user_id": validated.user_id,
-            "category": validated.category.lower(),
-            "monthly_limit": float(validated.amount),  # Already validated as positive
+            "user_id": user_id,
+            "category": category.lower(),
+            "monthly_limit": float(amount),
             "updated_at": datetime.now().isoformat()
         }
 
-        if existing.data:
-            # Update existing budget
-            budget_id = existing.data[0]["id"]
-            response = supabase.table("budgets").update(budget_data).eq("id", budget_id).execute()
+        if existing_budget:
+            budget_id = existing_budget["id"]
+            result = supabase.table("budgets").update(budget_data).eq("id", budget_id).execute()
             action = "updated"
+
+            if not result.data or len(result.data) == 0:
+                raise DatabaseError(
+                    "Failed to update budget: no data returned",
+                    context={"user_id": user_id, "budget_id": budget_id}
+                )
+            budget = result.data[0]
         else:
-            # Create new budget
             budget_data["created_at"] = datetime.now().isoformat()
-            response = supabase.table("budgets").insert(budget_data).execute()
+            budget = await safe_db_insert("budgets", budget_data, user_id)
             action = "created"
 
-        if response.data:
-            budget = response.data[0]
-            logger.info(f"{action.capitalize()} budget: {budget['id']} for user {validated.user_id}")
+        logger.info(f"{action.capitalize()} budget: {budget['id']} for user {user_id}")
 
-            return {
-                "success": True,
-                "budget": budget,
-                "action": action,
-                "message": f"Set ${validated.amount:.2f}/month budget for {validated.category}"
-            }
-        else:
-            return {
-                "success": False,
-                "error": f"Failed to {action} budget"
-            }
-
-    except Exception as e:
-        logger.error(f"Error updating budget: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "budget": budget,
+            "action": action,
+            "message": f"Set ${amount:.2f}/month budget for {category}"
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            "Unexpected error updating budget",
+            extra={"user_id": user_id, "category": category, "amount": amount},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to update budget",
+            context={"user_id": user_id, "error": str(e)}
+        )

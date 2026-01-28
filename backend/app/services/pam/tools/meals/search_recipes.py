@@ -9,6 +9,14 @@ import logging
 from typing import Dict, Any, Optional, List
 
 from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +54,10 @@ async def search_recipes(
             "count": 5
         }
 
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
+
     Examples:
         User: "Find me vegan recipes under 30 minutes"
         PAM: *Calls search_recipes(dietary_tags=['vegan'], max_prep_time=30)*
@@ -54,6 +66,18 @@ async def search_recipes(
         PAM: *Calls search_recipes(ingredients=['chicken', 'rice'])*
     """
     try:
+        validate_uuid(user_id, "user_id")
+        validate_positive_number(limit, "limit")
+
+        if max_prep_time is not None:
+            validate_positive_number(max_prep_time, "max_prep_time")
+
+        if limit > 100:
+            raise ValidationError(
+                "Limit cannot exceed 100",
+                context={"limit": limit}
+            )
+
         supabase = get_supabase_client()
 
         # Get user's dietary restrictions (ENFORCED)
@@ -139,11 +163,17 @@ async def search_recipes(
             "allergies_filtered": user_allergies
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error searching recipes: {str(e)}")
-        return {
-            "success": False,
-            "recipes": [],
-            "count": 0,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error searching recipes",
+            extra={"user_id": user_id, "query": query, "limit": limit},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to search recipes",
+            context={"user_id": user_id, "error": str(e)}
+        )

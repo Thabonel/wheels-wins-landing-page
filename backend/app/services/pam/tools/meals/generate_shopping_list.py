@@ -10,6 +10,17 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 
 from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_date_format,
+    safe_db_insert,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +52,11 @@ async def generate_shopping_list(
     Returns:
         Dict with success status and shopping list
 
+    Raises:
+        ValidationError: Invalid input parameters
+        ResourceNotFoundError: No meal plans found
+        DatabaseError: Database operation failed
+
     Examples:
         User: "Create a shopping list for next week's meals"
         PAM: *Calls generate_shopping_list()*
@@ -49,6 +65,17 @@ async def generate_shopping_list(
         PAM: *Calls generate_shopping_list(start_date='2026-01-07', end_date='2026-01-10')*
     """
     try:
+        validate_uuid(user_id, "user_id")
+
+        if start_date:
+            validate_date_format(start_date, "start_date")
+        if end_date:
+            validate_date_format(end_date, "end_date")
+
+        if meal_plan_ids:
+            for plan_id in meal_plan_ids:
+                validate_uuid(plan_id, "meal_plan_id")
+
         supabase = get_supabase_client()
 
         # Get meal plans
@@ -65,10 +92,10 @@ async def generate_shopping_list(
             meal_plans = meal_plans_result.data or []
 
         if not meal_plans:
-            return {
-                "success": False,
-                "error": "No meal plans found for the specified date range"
-            }
+            raise ResourceNotFoundError(
+                "No meal plans found for the specified date range",
+                context={"user_id": user_id, "start_date": start_date, "end_date": end_date}
+            )
 
         # Aggregate ingredients from all recipes
         needed_ingredients = defaultdict(lambda: {"quantity": 0.0, "unit": "", "recipes": []})
@@ -162,21 +189,31 @@ async def generate_shopping_list(
             "notes": f"Generated from {len(meal_plans)} meal plans"
         }
 
-        result = supabase.table("shopping_lists").insert(list_data).execute()
+        shopping_list = await safe_db_insert("shopping_lists", list_data, user_id)
 
         logger.info(f"Generated shopping list with {len(shopping_items)} items for user {user_id}")
 
         return {
             "success": True,
-            "shopping_list": result.data[0],
+            "shopping_list": shopping_list,
             "items": shopping_items,
             "count": len(shopping_items),
             "message": f"Created shopping list with {len(shopping_items)} items"
         }
 
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error generating shopping list: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error generating shopping list",
+            extra={"user_id": user_id, "start_date": start_date, "end_date": end_date},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to generate shopping list",
+            context={"user_id": user_id, "error": str(e)}
+        )

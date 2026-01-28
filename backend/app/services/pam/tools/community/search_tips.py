@@ -12,13 +12,22 @@ Created: January 12, 2025
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.services.database import DatabaseService
 from app.services.pam.schemas.community import (
     SearchCommunityTipsInput,
     LogTipUsageInput,
     GetTipByIdInput
+)
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_insert,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,9 +53,12 @@ async def search_community_tips(
         - success: bool
         - tips: List of relevant tips with contributor info
         - count: Number of tips found
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
         try:
             validated = SearchCommunityTipsInput(
                 user_id=user_id,
@@ -54,27 +66,29 @@ async def search_community_tips(
                 category=category,
                 limit=limit
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "tips": [],
-                "count": 0,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         db = DatabaseService()
 
-        # Search tips using Supabase function
-        result = db.client.rpc(
-            'search_community_tips',
-            {
-                'p_query': validated.query,
-                'p_category': validated.category.value if validated.category else None,
-                'p_limit': validated.limit
-            }
-        ).execute()
+        try:
+            result = db.client.rpc(
+                'search_community_tips',
+                {
+                    'p_query': validated.query,
+                    'p_category': validated.category.value if validated.category else None,
+                    'p_limit': validated.limit
+                }
+            ).execute()
+        except Exception as db_error:
+            raise DatabaseError(
+                "Failed to search community tips",
+                context={"user_id": user_id, "query": query, "error": str(db_error)}
+            )
 
         if not result.data:
             return {
@@ -108,14 +122,20 @@ async def search_community_tips(
             "message": f"Found {len(tips)} community tips"
         }
 
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error searching community tips: {str(e)}")
-        return {
-            "success": False,
-            "tips": [],
-            "count": 0,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error searching community tips",
+            extra={"user_id": user_id, "query": query},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to search community tips",
+            context={"user_id": user_id, "query": query, "error": str(e)}
+        )
 
 
 async def log_tip_usage(
@@ -138,9 +158,12 @@ async def log_tip_usage(
 
     Returns:
         Dict with success status
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
         try:
             validated = LogTipUsageInput(
                 tip_id=tip_id,
@@ -149,48 +172,48 @@ async def log_tip_usage(
                 conversation_id=conversation_id,
                 pam_response=pam_response
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
-        db = DatabaseService()
-
-        # Insert usage log (triggers update stats)
-        result = db.client.table('tip_usage_log').insert({
+        usage_data = {
             'tip_id': validated.tip_id,
             'contributor_id': validated.contributor_id,
             'beneficiary_id': validated.beneficiary_id,
             'conversation_id': validated.conversation_id,
-            'pam_response': validated.pam_response[:500] if validated.pam_response else None  # Limit length
-        }).execute()
-
-        if result.data:
-            logger.info(
-                f"Logged tip usage: tip={validated.tip_id}, "
-                f"contributor={validated.contributor_id}, "
-                f"beneficiary={validated.beneficiary_id}"
-            )
-
-            return {
-                "success": True,
-                "message": "Tip usage logged successfully"
-            }
-        else:
-            return {
-                "success": False,
-                "error": "Failed to log tip usage"
-            }
-
-    except Exception as e:
-        logger.error(f"Error logging tip usage: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
+            'pam_response': validated.pam_response[:500] if validated.pam_response else None
         }
+
+        await safe_db_insert("tip_usage_log", usage_data, validated.beneficiary_id)
+
+        logger.info(
+            f"Logged tip usage: tip={validated.tip_id}, "
+            f"contributor={validated.contributor_id}, "
+            f"beneficiary={validated.beneficiary_id}"
+        )
+
+        return {
+            "success": True,
+            "message": "Tip usage logged successfully"
+        }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error logging tip usage",
+            extra={"tip_id": tip_id, "beneficiary_id": beneficiary_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to log tip usage",
+            context={"tip_id": tip_id, "beneficiary_id": beneficiary_id, "error": str(e)}
+        )
 
 
 async def get_tip_by_id(tip_id: str) -> Dict[str, Any]:
@@ -202,50 +225,71 @@ async def get_tip_by_id(tip_id: str) -> Dict[str, Any]:
 
     Returns:
         Dict with tip details including contributor info
+
+    Raises:
+        ValidationError: Invalid tip ID
+        ResourceNotFoundError: Tip not found
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
         try:
             validated = GetTipByIdInput(tip_id=tip_id)
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         db = DatabaseService()
 
-        result = db.client.table('community_tips').select(
-            '*',
-            'profiles(username)'
-        ).eq('id', validated.tip_id).eq('status', 'active').single().execute()
+        try:
+            result = db.client.table('community_tips').select(
+                '*',
+                'profiles(username)'
+            ).eq('id', validated.tip_id).eq('status', 'active').single().execute()
+        except Exception as db_error:
+            raise DatabaseError(
+                "Failed to retrieve tip",
+                context={"tip_id": tip_id, "error": str(db_error)}
+            )
 
-        if result.data:
-            tip = result.data
-            return {
-                "success": True,
-                "tip": {
-                    "id": tip['id'],
-                    "title": tip['title'],
-                    "content": tip['content'],
-                    "category": tip['category'],
-                    "contributor_id": tip['user_id'],
-                    "contributor_username": tip.get('profiles', {}).get('username', 'Anonymous'),
-                    "location": tip.get('location_name'),
-                    "use_count": tip['use_count']
-                }
-            }
-        else:
-            return {
-                "success": False,
-                "error": "Tip not found"
-            }
+        if not result.data:
+            raise ResourceNotFoundError(
+                "Tip not found",
+                context={"tip_id": tip_id}
+            )
 
-    except Exception as e:
-        logger.error(f"Error getting tip {validated.tip_id if 'validated' in locals() else tip_id}: {str(e)}")
+        tip = result.data
+        logger.info(f"Retrieved tip {tip_id}")
+
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "tip": {
+                "id": tip['id'],
+                "title": tip['title'],
+                "content": tip['content'],
+                "category": tip['category'],
+                "contributor_id": tip['user_id'],
+                "contributor_username": tip.get('profiles', {}).get('username', 'Anonymous'),
+                "location": tip.get('location_name'),
+                "use_count": tip['use_count']
+            }
         }
+
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error getting tip",
+            extra={"tip_id": tip_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to retrieve tip",
+            context={"tip_id": tip_id, "error": str(e)}
+        )

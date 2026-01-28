@@ -6,17 +6,23 @@ Example usage:
 - "Saved $8 on gas at this station"
 - "Found a campground $15 cheaper than average"
 - "Route optimization saved $20 in fuel"
-
-Amendment #4: Input validation with Pydantic models
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
-from pydantic import ValidationError
 
-from app.integrations.supabase import get_supabase_client
-from app.services.pam.schemas.budget import TrackSavingsInput
+from app.core.database import get_supabase_client
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    safe_db_insert,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,82 +47,86 @@ async def track_savings(
 
     Returns:
         Dict with savings event details and monthly total
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
-        try:
-            validated = TrackSavingsInput(
-                user_id=user_id,
-                amount=amount,
-                category=category,
-                description=description,
-                event_type=event_type
+        validate_uuid(user_id, "user_id")
+        validate_positive_number(amount, "amount")
+
+        if not category or not category.strip():
+            raise ValidationError(
+                "category is required and cannot be empty",
+                context={"field": "category"}
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
-            error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
 
-        # Get Supabase client
-        supabase = get_supabase_client()
+        valid_event_types = ["gas", "campground", "route", "other"]
+        if event_type not in valid_event_types:
+            raise ValidationError(
+                f"Invalid event_type. Must be one of: {', '.join(valid_event_types)}",
+                context={"event_type": event_type, "valid_event_types": valid_event_types}
+            )
 
-        # Map event_type to valid savings_type for schema
         savings_type_map = {
             'gas': 'fuel_optimization',
             'campground': 'camping_alternative',
             'route': 'route_optimization',
             'other': 'price_comparison'
         }
-        savings_type = savings_type_map.get(validated.event_type, 'price_comparison')
+        savings_type = savings_type_map.get(event_type, 'price_comparison')
 
-        # Build savings event data matching actual schema using validated inputs
-        # Schema requires: savings_type, predicted_savings, actual_savings, baseline_cost,
-        # optimized_cost, savings_description, verification_method, category, saved_date
         savings_data = {
-            "user_id": validated.user_id,
+            "user_id": user_id,
             "savings_type": savings_type,
-            "predicted_savings": float(validated.amount),  # Predicted == actual for user-confirmed savings
-            "actual_savings": float(validated.amount),
-            "baseline_cost": float(validated.amount),  # Simplified: savings = baseline - optimized
-            "optimized_cost": 0.0,  # Simplified: user saved full amount
-            "savings_description": validated.description or f"Saved on {validated.category}",
-            "verification_method": "user_confirmation",  # User confirmed via PAM
-            "category": validated.category,  # Already lowercased by validator
+            "predicted_savings": float(amount),
+            "actual_savings": float(amount),
+            "baseline_cost": float(amount),
+            "optimized_cost": 0.0,
+            "savings_description": description or f"Saved on {category}",
+            "verification_method": "user_confirmation",
+            "category": category.lower(),
             "saved_date": datetime.now().date().isoformat()
         }
 
-        # Insert savings event
-        response = supabase.table("pam_savings_events").insert(savings_data).execute()
+        savings_event = await safe_db_insert("pam_savings_events", savings_data, user_id)
 
-        if response.data:
-            savings_event = response.data[0]
-            logger.info(f"Created savings event: {savings_event['id']} for user {validated.user_id}")
+        logger.info(f"Created savings event: {savings_event['id']} for user {user_id}")
 
-            # Calculate monthly total savings (using actual_savings field from schema)
-            month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).date()
-            monthly_response = supabase.table("pam_savings_events").select("actual_savings").eq("user_id", validated.user_id).gte("saved_date", month_start.isoformat()).execute()
+        month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).date()
 
-            monthly_total = sum(event.get("actual_savings", 0) for event in monthly_response.data) if monthly_response.data else 0
+        monthly_savings = await safe_db_select(
+            "pam_savings_events",
+            filters={"user_id": user_id},
+            user_id=user_id
+        )
 
-            return {
-                "success": True,
-                "savings_event": savings_event,
-                "monthly_total": monthly_total,
-                "message": f"Saved ${validated.amount:.2f} on {validated.category}! Monthly total: ${monthly_total:.2f}"
-            }
-        else:
-            logger.error(f"Failed to create savings event: {response}")
-            return {
-                "success": False,
-                "error": "Failed to create savings event"
-            }
+        monthly_savings = [
+            s for s in monthly_savings
+            if datetime.fromisoformat(s.get("saved_date", "1970-01-01")).date() >= month_start
+        ]
 
-    except Exception as e:
-        logger.error(f"Error tracking savings: {e}", exc_info=True)
+        monthly_total = sum(event.get("actual_savings", 0) for event in monthly_savings)
+
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "savings_event": savings_event,
+            "monthly_total": monthly_total,
+            "message": f"Saved ${amount:.2f} on {category}! Monthly total: ${monthly_total:.2f}"
         }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            "Unexpected error tracking savings",
+            extra={"user_id": user_id, "amount": amount, "category": category},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to track savings",
+            context={"user_id": user_id, "error": str(e)}
+        )

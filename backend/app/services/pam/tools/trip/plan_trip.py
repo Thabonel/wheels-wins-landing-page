@@ -20,6 +20,16 @@ from pydantic import ValidationError
 from app.integrations.supabase import get_supabase_client
 from app.services.pam.schemas.trip import PlanTripInput
 from app.core.config import get_settings
+from app.services.pam.tools.exceptions import (
+    ValidationError as CustomValidationError,
+    DatabaseError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_positive_number,
+    validate_date_format,
+    safe_db_insert,
+)
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -91,9 +101,35 @@ async def plan_trip(
 
     Returns:
         Dict with trip plan details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
     """
     try:
-        # Validate inputs using Pydantic schema
+        validate_uuid(user_id, "user_id")
+
+        if not origin or not origin.strip():
+            raise CustomValidationError(
+                "Origin location is required",
+                context={"field": "origin"}
+            )
+
+        if not destination or not destination.strip():
+            raise CustomValidationError(
+                "Destination location is required",
+                context={"field": "destination"}
+            )
+
+        if budget is not None:
+            validate_positive_number(budget, "budget")
+
+        if start_date:
+            validate_date_format(start_date, "start_date")
+
+        if end_date:
+            validate_date_format(end_date, "end_date")
+
         try:
             validated = PlanTripInput(
                 user_id=user_id,
@@ -105,12 +141,11 @@ async def plan_trip(
                 end_date=end_date
             )
         except ValidationError as e:
-            # Extract first error message for user-friendly response
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise CustomValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         supabase = get_supabase_client()
 
@@ -173,11 +208,9 @@ async def plan_trip(
             }
         }
 
-        # Save trip to database (correct table name: user_trips)
-        response = supabase.table("user_trips").insert(trip_data).execute()
+        trip = await safe_db_insert("user_trips", trip_data, user_id)
 
-        if response.data:
-            trip = response.data[0]
+        if trip:
 
             budget_status = "within_budget" if not validated.budget or estimated_total <= validated.budget else "over_budget"
 
@@ -250,16 +283,17 @@ async def plan_trip(
                           (f" with {len(validated.stops)} stops" if validated.stops else "") +
                           (f" (${estimated_total:.2f} estimated, {estimated_distance:.0f} miles)" if estimated_distance else "")
             }
-        else:
-            logger.error(f"Failed to create trip: {response}")
-            return {
-                "success": False,
-                "error": "Failed to create trip plan"
-            }
-
+    except CustomValidationError:
+        raise
+    except DatabaseError:
+        raise
     except Exception as e:
-        logger.error(f"Error planning trip: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(
+            f"Unexpected error planning trip",
+            extra={"user_id": user_id, "origin": origin, "destination": destination},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to plan trip",
+            context={"user_id": user_id, "origin": origin, "destination": destination, "error": str(e)}
+        )

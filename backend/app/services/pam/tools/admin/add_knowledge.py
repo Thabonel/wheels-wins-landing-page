@@ -11,12 +11,21 @@ import logging
 import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from app.core.database import get_supabase_client
 from app.core.logging import get_logger
 from app.services.pam.security import check_message_safety
 from app.services.pam.schemas.admin import AddKnowledgeInput
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    AuthorizationError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    safe_db_insert,
+)
 
 logger = get_logger(__name__)
 
@@ -49,6 +58,11 @@ async def add_knowledge(
     Returns:
         Dict with success status, knowledge_id, and confirmation message
 
+    Raises:
+        ValidationError: Invalid input parameters or security validation failed
+        AuthorizationError: User does not have admin privileges
+        DatabaseError: Database operation failed
+
     Example Usage:
         Admin: "PAM, remember that May to August is the best time to travel in the Port Headland vicinity"
 
@@ -65,7 +79,6 @@ async def add_knowledge(
         )
     """
     try:
-        # Validate inputs using Pydantic schema
         try:
             validated = AddKnowledgeInput(
                 user_id=user_id,
@@ -78,17 +91,15 @@ async def add_knowledge(
                 priority=priority,
                 tags=tags
             )
-        except ValidationError as e:
-            # Extract first error message for user-friendly response
+        except PydanticValidationError as e:
             error_msg = e.errors()[0]['msg']
-            return {
-                "success": False,
-                "error": f"Invalid input: {error_msg}"
-            }
+            raise ValidationError(
+                f"Invalid input: {error_msg}",
+                context={"validation_errors": e.errors()}
+            )
 
         logger.info(f"Admin adding knowledge: '{validated.title}' (type: {validated.knowledge_type}, category: {validated.category})")
 
-        # SECURITY: Validate knowledge content for prompt injection
         safety_result = await check_message_safety(
             f"{validated.title}\n{validated.content}",
             context={"user_id": validated.user_id, "action": "add_knowledge"}
@@ -99,66 +110,62 @@ async def add_knowledge(
                 f"BLOCKED malicious knowledge submission from {validated.user_id}: "
                 f"{safety_result.reason} (confidence: {safety_result.confidence})"
             )
-            return {
-                "success": False,
-                "error": "Knowledge content failed security validation. Please rephrase without system instructions or code.",
-                "security_reason": safety_result.reason
-            }
+            raise ValidationError(
+                "Knowledge content failed security validation. Please rephrase without system instructions or code.",
+                context={"security_reason": safety_result.reason, "confidence": safety_result.confidence}
+            )
 
-        # SECURITY: Additional validation - check for suspicious patterns in content
         suspicious_patterns = [
             r"ignore\s+(previous|above|prior)\s+instructions",
             r"you\s+are\s+(now|actually|really)\s+a",
-            r"system\s*:\s*",  # Trying to inject system messages
-            r"assistant\s*:\s*",  # Trying to inject assistant messages
-            r"<\s*system\s*>",  # XML-style injection
-            r"\[SYSTEM\]",  # Bracket-style injection
+            r"system\s*:\s*",
+            r"assistant\s*:\s*",
+            r"<\s*system\s*>",
+            r"\[SYSTEM\]",
         ]
 
         content_lower = validated.content.lower()
         for pattern in suspicious_patterns:
             if re.search(pattern, content_lower, re.IGNORECASE):
                 logger.warning(f"BLOCKED knowledge with suspicious pattern: {pattern}")
-                return {
-                    "success": False,
-                    "error": "Knowledge content contains suspicious patterns. Please use plain language only.",
-                }
+                raise ValidationError(
+                    "Knowledge content contains suspicious patterns. Please use plain language only.",
+                    context={"pattern": pattern}
+                )
 
-        # SECURITY: Sanitize HTML/script tags if present
         if "<script" in validated.content.lower() or "<iframe" in validated.content.lower():
             logger.warning(f"BLOCKED knowledge with script/iframe tags")
-            return {
-                "success": False,
-                "error": "Knowledge content cannot contain script or iframe tags."
-            }
+            raise ValidationError(
+                "Knowledge content cannot contain script or iframe tags.",
+                context={"content_preview": validated.content[:100]}
+            )
 
-        # SECURITY: Check if user has admin privileges
         supabase = get_supabase_client()
         try:
             profile_response = supabase.table("profiles").select("role").eq("id", validated.user_id).execute()
 
             if not profile_response.data or len(profile_response.data) == 0:
                 logger.warning(f"User {validated.user_id} profile not found while attempting to add knowledge")
-                return {
-                    "success": False,
-                    "error": "User profile not found"
-                }
+                raise AuthorizationError(
+                    "User profile not found",
+                    context={"user_id": validated.user_id}
+                )
 
             user_role = profile_response.data[0].get("role")
             if user_role != "admin":
                 logger.warning(f"Non-admin user {validated.user_id} (role: {user_role}) attempted to add knowledge")
-                return {
-                    "success": False,
-                    "error": "Admin privileges required to add knowledge"
-                }
+                raise AuthorizationError(
+                    "Admin privileges required to add knowledge",
+                    context={"user_id": validated.user_id, "role": user_role}
+                )
+        except AuthorizationError:
+            raise
         except Exception as auth_error:
             logger.error(f"Error checking admin privileges for {validated.user_id}: {auth_error}")
-            return {
-                "success": False,
-                "error": "Failed to verify admin privileges"
-            }
-
-        # Insert into database (supabase client already initialized above)
+            raise DatabaseError(
+                "Failed to verify admin privileges",
+                context={"user_id": validated.user_id, "error": str(auth_error)}
+            )
 
         knowledge_data = {
             "admin_user_id": validated.user_id,
@@ -172,7 +179,6 @@ async def add_knowledge(
             "updated_at": datetime.utcnow().isoformat()
         }
 
-        # Add optional fields
         if validated.location_context:
             knowledge_data["location_context"] = validated.location_context
 
@@ -182,36 +188,38 @@ async def add_knowledge(
         if validated.tags:
             knowledge_data["tags"] = validated.tags
 
-        result = supabase.table("pam_admin_knowledge").insert(knowledge_data).execute()
+        knowledge = await safe_db_insert("pam_admin_knowledge", knowledge_data, validated.user_id)
 
-        if result.data and len(result.data) > 0:
-            knowledge_id = result.data[0]["id"]
-            logger.info(f"Knowledge added successfully: {knowledge_id}")
+        logger.info(f"Knowledge added successfully: {knowledge['id']}")
 
-            return {
-                "success": True,
-                "knowledge_id": knowledge_id,
-                "message": f"I've learned: '{validated.title}'. I'll remember this and use it when helping users.",
-                "data": {
-                    "title": validated.title,
-                    "type": validated.knowledge_type.value,
-                    "category": validated.category.value,
-                    "priority": validated.priority,
-                    "location": validated.location_context,
-                    "date_context": validated.date_context,
-                    "tags": validated.tags
-                }
-            }
-        else:
-            logger.error("Failed to insert knowledge into database")
-            return {
-                "success": False,
-                "error": "Failed to save knowledge to database"
-            }
-
-    except Exception as e:
-        logger.error(f"Error adding admin knowledge: {e}")
         return {
-            "success": False,
-            "error": f"Failed to add knowledge: {str(e)}"
+            "success": True,
+            "knowledge_id": knowledge["id"],
+            "message": f"I've learned: '{validated.title}'. I'll remember this and use it when helping users.",
+            "data": {
+                "title": validated.title,
+                "type": validated.knowledge_type.value,
+                "category": validated.category.value,
+                "priority": validated.priority,
+                "location": validated.location_context,
+                "date_context": validated.date_context,
+                "tags": validated.tags
+            }
         }
+
+    except ValidationError:
+        raise
+    except AuthorizationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error adding admin knowledge",
+            extra={"user_id": user_id, "title": title},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to add knowledge",
+            context={"user_id": user_id, "title": title, "error": str(e)}
+        )

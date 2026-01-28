@@ -6,12 +6,26 @@ Example usage:
 - "Move my dentist appointment to 3pm"
 - "Change the location of my meeting to downtown office"
 - "Update the oil change reminder for next week"
+
+Amendment #1: Refactored to use exception hierarchy and utility functions
 """
 
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 from supabase import Client
+
+from app.services.pam.tools.exceptions import (
+    ValidationError,
+    DatabaseError,
+    ResourceNotFoundError,
+)
+from app.services.pam.tools.utils import (
+    validate_uuid,
+    validate_date_format,
+    safe_db_update,
+    safe_db_select,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,22 +62,38 @@ async def update_calendar_event(
 
     Returns:
         Dict with updated event details
-    """
-    from app.database.supabase_client import get_supabase_service
 
+    Raises:
+        ValidationError: Invalid input parameters
+        ResourceNotFoundError: Event not found
+        DatabaseError: Database operation failed
+    """
     try:
-        # Use service_role client to bypass RLS (PAM is already authenticated)
+        # Validate inputs
+        validate_uuid(user_id, "user_id")
+        validate_uuid(event_id, "event_id")
+
+        if start_date:
+            validate_date_format(start_date, "start_date")
+        if end_date:
+            validate_date_format(end_date, "end_date")
+
+        from app.database.supabase_client import get_supabase_service
         supabase: Client = get_supabase_service()
 
-        # First verify the event exists and belongs to the user
-        existing_response = supabase.table("calendar_events").select("*").eq("id", event_id).eq("user_id", user_id).execute()
+        # Verify the event exists and belongs to the user
+        existing_response = supabase.table("calendar_events")\
+            .select("*")\
+            .eq("id", event_id)\
+            .eq("user_id", user_id)\
+            .maybeSingle()\
+            .execute()
 
         if not existing_response.data:
-            logger.warning(f"Calendar event {event_id} not found for user {user_id}")
-            return {
-                "success": False,
-                "error": f"Calendar event not found or you don't have permission to modify it"
-            }
+            raise ResourceNotFoundError(
+                "Calendar event not found or you don't have permission to modify it",
+                context={"user_id": user_id, "event_id": event_id}
+            )
 
         # Build update data (only include fields that were provided)
         update_data = {}
@@ -83,12 +113,13 @@ async def update_calendar_event(
             update_data["description"] = description
 
         if event_type is not None:
-            # Validate event_type
             valid_types = ['reminder', 'trip', 'booking', 'maintenance', 'inspection']
             if event_type not in valid_types:
-                logger.warning(f"Invalid event_type '{event_type}', skipping")
-            else:
-                update_data["event_type"] = event_type
+                raise ValidationError(
+                    f"Invalid event_type. Must be one of: {', '.join(valid_types)}",
+                    context={"event_type": event_type, "valid_types": valid_types}
+                )
+            update_data["event_type"] = event_type
 
         if all_day is not None:
             update_data["all_day"] = all_day
@@ -102,31 +133,39 @@ async def update_calendar_event(
         if color is not None:
             update_data["color"] = color
 
+        if not update_data:
+            raise ValidationError(
+                "No updates provided",
+                context={"user_id": user_id, "event_id": event_id}
+            )
+
         # Add updated_at timestamp
         update_data["updated_at"] = datetime.utcnow().isoformat()
 
-        # Update in database
-        response = supabase.table("calendar_events").update(update_data).eq("id", event_id).eq("user_id", user_id).execute()
+        # Use safe database update
+        event = await safe_db_update("calendar_events", event_id, update_data, user_id)
 
-        if response.data:
-            event = response.data[0]
-            logger.info(f"Updated calendar event: {event['id']} for user {user_id}")
+        logger.info(f"Updated calendar event: {event['id']} for user {user_id}")
 
-            return {
-                "success": True,
-                "event": event,
-                "message": f"Successfully updated '{event['title']}'"
-            }
-        else:
-            logger.error(f"Failed to update calendar event: {response}")
-            return {
-                "success": False,
-                "error": "Failed to update calendar event"
-            }
-
-    except Exception as e:
-        logger.error(f"Error updating calendar event: {e}", exc_info=True)
         return {
-            "success": False,
-            "error": str(e)
+            "success": True,
+            "event": event,
+            "message": f"Successfully updated '{event['title']}'"
         }
+
+    except ValidationError:
+        raise
+    except ResourceNotFoundError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error updating calendar event",
+            extra={"user_id": user_id, "event_id": event_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to update calendar event",
+            context={"user_id": user_id, "event_id": event_id, "error": str(e)}
+        )

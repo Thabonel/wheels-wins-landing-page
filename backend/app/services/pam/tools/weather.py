@@ -11,6 +11,11 @@ import logging
 import aiohttp
 from typing import Dict, Any, Optional, Tuple
 
+from app.services.pam.tools.exceptions import (
+    ExternalAPIError,
+    ValidationError,
+)
+
 logger = logging.getLogger(__name__)
 
 async def get_weather(
@@ -26,9 +31,18 @@ async def get_weather(
 
     Returns:
         Real weather data including temperature, description, humidity, etc.
+
+    Raises:
+        ValidationError: Invalid location or units
+        ExternalAPIError: Weather API request failed
     """
 
     try:
+        if not location or not location.strip():
+            raise ValidationError(
+                "Location is required",
+                context={"location": location}
+            )
         # Try to parse as coordinates first
         if "," in location and len(location.split(",")) == 2:
             parts = location.split(",")
@@ -71,20 +85,24 @@ async def get_weather(
         async with aiohttp.ClientSession() as session:
             async with session.get(url, params=params) as response:
                 if response.status != 200:
-                    return {
-                        "error": f"Weather service unavailable (HTTP {response.status})",
-                        "location": location
-                    }
+                    raise ExternalAPIError(
+                        f"OpenMeteo API returned status {response.status}",
+                        context={
+                            "location": location,
+                            "api": "OpenMeteo",
+                            "status_code": response.status
+                        }
+                    )
 
                 data = await response.json()
 
         # Extract current weather
         current = data.get("current_weather", {})
         if not current:
-            return {
-                "error": "No current weather data available",
-                "location": location
-            }
+            raise ExternalAPIError(
+                "No current weather data available from OpenMeteo",
+                context={"location": location, "api": "OpenMeteo"}
+            )
 
         # Convert weather code to description
         weather_code = current.get("weathercode", 0)
@@ -114,19 +132,32 @@ async def get_weather(
             "data_source": "OpenMeteo (European Weather Service)"
         }
 
+    except ValidationError:
+        raise
+    except ExternalAPIError:
+        raise
     except Exception as e:
-        logger.error(f"Error getting weather for {location}: {e}")
-        return {
-            "error": f"Unable to retrieve weather data: {str(e)}",
-            "location": location
-        }
+        logger.error(
+            f"Unexpected error getting weather",
+            extra={"location": location, "units": units},
+            exc_info=True
+        )
+        raise ExternalAPIError(
+            "Failed to retrieve weather data",
+            context={"location": location, "error": str(e)}
+        )
 
 async def _get_coordinates_for_city(city_name: str) -> Tuple[Optional[float], Optional[float]]:
     """
     Get coordinates for a city name using free geocoding service
     Returns (latitude, longitude) or (None, None) if not found
+
+    Raises:
+        ExternalAPIError: Geocoding API request failed
     """
     try:
+        if not city_name or not city_name.strip():
+            return None, None
         # Use Nominatim (OpenStreetMap) geocoding - completely free!
         url = "https://nominatim.openstreetmap.org/search"
         headers = {
@@ -239,9 +270,24 @@ async def get_weather_forecast(
 
     Returns:
         Real multi-day weather forecast data
+
+    Raises:
+        ValidationError: Invalid location or days parameter
+        ExternalAPIError: Weather forecast API request failed
     """
 
     try:
+        if not location or not location.strip():
+            raise ValidationError(
+                "Location is required",
+                context={"location": location}
+            )
+
+        if days < 1 or days > 16:
+            raise ValidationError(
+                "Forecast days must be between 1 and 16",
+                context={"days": days}
+            )
         # Try to parse as coordinates first
         if "," in location and len(location.split(",")) == 2:
             parts = location.split(",")
@@ -286,20 +332,24 @@ async def get_weather_forecast(
         async with aiohttp.ClientSession() as session:
             async with session.get(url, params=params) as response:
                 if response.status != 200:
-                    return {
-                        "error": f"Weather forecast service unavailable (HTTP {response.status})",
-                        "location": location
-                    }
+                    raise ExternalAPIError(
+                        f"OpenMeteo forecast API returned status {response.status}",
+                        context={
+                            "location": location,
+                            "api": "OpenMeteo",
+                            "status_code": response.status
+                        }
+                    )
 
                 data = await response.json()
 
         # Extract daily forecast
         daily = data.get("daily", {})
         if not daily:
-            return {
-                "error": "No forecast data available",
-                "location": location
-            }
+            raise ExternalAPIError(
+                "No forecast data available from OpenMeteo",
+                context={"location": location, "api": "OpenMeteo"}
+            )
 
         # Build forecast days
         forecast = []
@@ -343,9 +393,17 @@ async def get_weather_forecast(
             "advice": "This is real weather forecast data. Always check current conditions before traveling as weather can change rapidly."
         }
 
+    except ValidationError:
+        raise
+    except ExternalAPIError:
+        raise
     except Exception as e:
-        logger.error(f"Error getting forecast for {location}: {e}")
-        return {
-            "error": f"Unable to retrieve weather forecast: {str(e)}",
-            "location": location
-        }
+        logger.error(
+            f"Unexpected error getting weather forecast",
+            extra={"location": location, "days": days, "units": units},
+            exc_info=True
+        )
+        raise ExternalAPIError(
+            "Failed to retrieve weather forecast",
+            context={"location": location, "days": days, "error": str(e)}
+        )
