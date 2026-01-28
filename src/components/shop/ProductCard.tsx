@@ -184,23 +184,30 @@ export default function ProductCard({ product, onExternalLinkClick, onBuyProduct
       </CardContent>
       
       <CardFooter className="pt-2 flex-col gap-2">
-        <Button
-          onClick={handleClick}
-          className="w-full"
-          variant={isAffiliateProduct(product) ? "outline" : "default"}
-        >
-          {isAffiliateProduct(product) ? (
-            <>
-              <ExternalLink className="w-4 h-4 mr-2" />
-              View Deal
-            </>
-          ) : (
-            <>
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              Buy Now
-            </>
-          )}
-        </Button>
+        {isAffiliateProduct(product) ? (
+          <a
+            href={product.externalLink}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            onClick={(e) => {
+              e.preventDefault();
+              onExternalLinkClick(product.externalLink, product.id);
+            }}
+            className="inline-flex items-center justify-center w-full h-10 px-4 py-2 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md"
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            View Deal
+          </a>
+        ) : (
+          <Button
+            onClick={handleClick}
+            className="w-full"
+            variant="default"
+          >
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            Buy Now
+          </Button>
+        )}
 
         {/* Report Issue Dialog */}
         <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
