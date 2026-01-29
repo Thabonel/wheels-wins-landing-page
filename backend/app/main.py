@@ -406,6 +406,31 @@ async def lifespan(app: FastAPI):
         except Exception as sec_log_error:
             logger.warning(f"Could not retrieve security status: {sec_log_error}")
 
+        # Final startup validation - ensure all critical components are working
+        logger.info("🔍 Running final startup validation...")
+        try:
+            # Test Supabase connectivity
+            from app.api.v1.transition import get_supabase_client
+            supabase_client = get_supabase_client()
+            result = supabase_client.table("profiles").select("id").limit(1).execute()
+            logger.info("✅ Supabase connectivity verified")
+        except Exception as supabase_error:
+            logger.error(f"❌ Supabase connectivity failed: {supabase_error}")
+            raise ValueError(f"Critical startup failure - Supabase not accessible: {supabase_error}")
+
+        # Log final startup summary
+        port = 8001
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("🎉 PAM Backend startup completed successfully!")
+        logger.info(f"🌐 Server running on: http://localhost:{port}")
+        logger.info(f"📖 API Documentation: http://localhost:{port}/docs")
+        logger.info(f"❤️  Health Check: http://localhost:{port}/health")
+        logger.info(f"🔍 Startup Health: http://localhost:{port}/health/startup")
+        logger.info(f"🔌 WebSocket: ws://localhost:{port}/api/v1/pam/ws/{{user_id}}?token={{jwt}}")
+        logger.info("=" * 70)
+        logger.info("")
+
     except Exception as e:
         logger.error(f"❌ Failed to initialize components: {e}")
         sentry_service.capture_exception(e)
@@ -1396,7 +1421,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8001,
         reload=settings.NODE_ENV == "development",
         workers=1 if settings.NODE_ENV == "development" else 4,
         loop="uvloop",
