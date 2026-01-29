@@ -976,10 +976,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if track_savings is None:
             raise ImportError("track_savings function not available")
 
-        class TrackSavingsTool:
-            tool_name = "track_savings"
-            async def execute(self, user_id: str, **kwargs):
-                return await track_savings(user_id=user_id, **kwargs)
+        class TrackSavingsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "track_savings",
+                    "Log money saved by PAM for the user (cheaper gas, better campground deals, route optimization, etc.). Critical for ROI tracking - PAM aims to pay for herself at $10/month.",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.track_savings_func = track_savings
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.track_savings_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=TrackSavingsTool(),
@@ -1030,10 +1041,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if analyze_budget is None:
             raise ImportError("analyze_budget function not available")
 
-        class AnalyzeBudgetTool:
-            tool_name = "analyze_budget"
-            async def execute(self, user_id: str, **kwargs):
-                return await analyze_budget(user_id=user_id, **kwargs)
+        class AnalyzeBudgetTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "analyze_budget",
+                    "Analyze user's budget and provide insights (spending trends, budget adherence, category breakdowns, recommendations). Use when user asks about budget status or financial health.",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.analyze_budget_func = analyze_budget
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.analyze_budget_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=AnalyzeBudgetTool(),
@@ -1076,10 +1098,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if compare_vs_budget is None:
             raise ImportError("compare_vs_budget function not available")
 
-        class CompareVsBudgetTool:
-            tool_name = "compare_vs_budget"
-            async def execute(self, user_id: str, **kwargs):
-                return await compare_vs_budget(user_id=user_id, **kwargs)
+        class CompareVsBudgetTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "compare_vs_budget",
+                    "Compare actual spending vs planned budget. Shows if user is over/under budget by category. Use when user asks 'am I on track?' or 'am I over budget?'",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.compare_vs_budget_func = compare_vs_budget
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.compare_vs_budget_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=CompareVsBudgetTool(),
@@ -1101,7 +1134,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     }
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.FINANCIAL,
             priority=1
         )
         logger.info("✅ Compare vs Budget tool registered")
@@ -1121,10 +1154,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if predict_end_of_month is None:
             raise ImportError("predict_end_of_month function not available")
 
-        class PredictEndOfMonthTool:
-            tool_name = "predict_end_of_month"
-            async def execute(self, user_id: str, **kwargs):
-                return await predict_end_of_month(user_id=user_id, **kwargs)
+        class PredictEndOfMonthTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "predict_end_of_month",
+                    "Forecast spending through end of month based on current trends. Predicts if user will stay under budget. Use when user asks 'will I stay under budget?' or 'what will I spend this month?'",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.predict_end_of_month_func = predict_end_of_month
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.predict_end_of_month_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=PredictEndOfMonthTool(),
@@ -1141,7 +1185,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     }
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.FINANCIAL,
             priority=1
         )
         logger.info("✅ Predict End of Month tool registered")
@@ -1161,10 +1205,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if find_savings_opportunities is None:
             raise ImportError("find_savings_opportunities function not available")
 
-        class FindSavingsOpportunitiesTool:
-            tool_name = "find_savings_opportunities"
-            async def execute(self, user_id: str, **kwargs):
-                return await find_savings_opportunities(user_id=user_id, **kwargs)
+        class FindSavingsOpportunitiesTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "find_savings_opportunities",
+                    "AI-powered analysis to find money-saving opportunities based on spending patterns. Suggests where user can cut costs. Use when user asks 'where can I save money?' or 'how can I reduce spending?'",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.find_savings_opportunities_func = find_savings_opportunities
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.find_savings_opportunities_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=FindSavingsOpportunitiesTool(),
@@ -1181,7 +1236,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     }
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.FINANCIAL,
             priority=1
         )
         logger.info("✅ Find Savings Opportunities tool registered")
@@ -1201,10 +1256,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if find_cheap_gas is None:
             raise ImportError("find_cheap_gas function not available")
 
-        class FindCheapGasTool:
-            tool_name = "find_cheap_gas"
-            async def execute(self, user_id: str, **kwargs):
-                return await find_cheap_gas(user_id=user_id, **kwargs)
+        class FindCheapGasTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "find_cheap_gas",
+                    "Find cheapest gas stations near a location. Returns prices, distances, and station details. Critical for user savings - gas is major RV expense. Use when user asks about gas prices or fuel.",
+                    capabilities=[ToolCapability.TRIP_PLANNING]
+                )
+                self.find_cheap_gas_func = find_cheap_gas
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.find_cheap_gas_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=FindCheapGasTool(),
@@ -1235,7 +1301,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["latitude", "longitude"]
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.TRIP_PLANNING,
             priority=1
         )
         logger.info("✅ Find Cheap Gas tool registered")
@@ -1255,10 +1321,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if optimize_route is None:
             raise ImportError("optimize_route function not available")
 
-        class OptimizeRouteTool:
-            tool_name = "optimize_route"
-            async def execute(self, user_id: str, **kwargs):
-                return await optimize_route(user_id=user_id, **kwargs)
+        class OptimizeRouteTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "optimize_route",
+                    "Find most cost-effective route between multiple stops. Minimizes fuel costs and considers RV constraints (height, weight, tolls). Use for multi-stop trip planning.",
+                    capabilities=[ToolCapability.TRIP_PLANNING]
+                )
+                self.optimize_route_func = optimize_route
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.optimize_route_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=OptimizeRouteTool(),
@@ -1287,7 +1364,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["waypoints"]
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.TRIP_PLANNING,
             priority=1
         )
         logger.info("✅ Optimize Route tool registered")
@@ -1307,10 +1384,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if get_road_conditions is None:
             raise ImportError("get_road_conditions function not available")
 
-        class GetRoadConditionsTool:
-            tool_name = "get_road_conditions"
-            async def execute(self, user_id: str, **kwargs):
-                return await get_road_conditions(user_id=user_id, **kwargs)
+        class GetRoadConditionsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_road_conditions",
+                    "Check road conditions, closures, traffic, and hazards for a route. Critical for RV safety. Use when user asks about road status or travel safety.",
+                    capabilities=[ToolCapability.TRIP_PLANNING]
+                )
+                self.get_road_conditions_func = get_road_conditions
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_road_conditions_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=GetRoadConditionsTool(),
@@ -1335,7 +1423,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     }
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.TRIP_PLANNING,
             priority=1
         )
         logger.info("✅ Get Road Conditions tool registered")
@@ -1355,10 +1443,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if estimate_travel_time is None:
             raise ImportError("estimate_travel_time function not available")
 
-        class EstimateTravelTimeTool:
-            tool_name = "estimate_travel_time"
-            async def execute(self, user_id: str, **kwargs):
-                return await estimate_travel_time(user_id=user_id, **kwargs)
+        class EstimateTravelTimeTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "estimate_travel_time",
+                    "Calculate travel duration between locations, accounting for RV speed limits, breaks, and traffic. Use when user asks 'how long will it take?' or 'when will I arrive?'",
+                    capabilities=[ToolCapability.TRIP_PLANNING]
+                )
+                self.estimate_travel_time_func = estimate_travel_time
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.estimate_travel_time_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=EstimateTravelTimeTool(),
@@ -1388,7 +1487,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["origin", "destination"]
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.TRIP_PLANNING,
             priority=1
         )
         logger.info("✅ Estimate Travel Time tool registered")
@@ -1413,10 +1512,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if update_calendar_event is None:
             raise ImportError("update_calendar_event function not available")
 
-        class UpdateCalendarEventTool:
-            tool_name = "update_calendar_event"
-            async def execute(self, user_id: str, **kwargs):
-                return await update_calendar_event(user_id=user_id, **kwargs)
+        class UpdateCalendarEventTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "update_calendar_event",
+                    "Modify an existing calendar event (change time, location, description, etc.). User must provide event ID or enough details to identify the event.",
+                    capabilities=[ToolCapability.ACTION]
+                )
+                self.update_calendar_event_func = update_calendar_event
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.update_calendar_event_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=UpdateCalendarEventTool(),
@@ -1491,10 +1601,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if delete_calendar_event is None:
             raise ImportError("delete_calendar_event function not available")
 
-        class DeleteCalendarEventTool:
-            tool_name = "delete_calendar_event"
-            async def execute(self, user_id: str, **kwargs):
-                return await delete_calendar_event(user_id=user_id, **kwargs)
+        class DeleteCalendarEventTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "delete_calendar_event",
+                    "Delete a calendar event permanently. User must provide event ID or enough details to identify the event to delete.",
+                    capabilities=[ToolCapability.ACTION]
+                )
+                self.delete_calendar_event_func = delete_calendar_event
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.delete_calendar_event_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=DeleteCalendarEventTool(),
@@ -1551,12 +1672,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if create_post is None:
             raise ImportError("create_post function not available")
 
-        class CreatePostTool:
-            tool_name = "create_post"
+        class CreatePostTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "create_post",
+                    "Create a social post to share with the RV community. Use when user wants to share travel updates, photos, or tips.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.create_post_func = create_post
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await create_post(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.create_post_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=CreatePostTool(),
@@ -1591,7 +1721,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["content"]
                 }
             },
-            capability=ToolCapability.ACTION,
+            capability=ToolCapability.SOCIAL,
             priority=2
         )
         logger.info("✅ Create Post tool registered")
@@ -1611,12 +1741,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if get_feed is None:
             raise ImportError("get_feed function not available")
 
-        class GetFeedTool:
-            tool_name = "get_feed"
+        class GetFeedTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_feed",
+                    "Get the social feed showing posts from followed users and the community. Use when user wants to see what others are posting.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.get_feed_func = get_feed
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await get_feed(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_feed_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=GetFeedTool(),
@@ -1637,7 +1776,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     }
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.SOCIAL,
             priority=2
         )
         logger.info("✅ Get Feed tool registered")
@@ -1657,12 +1796,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if like_post is None:
             raise ImportError("like_post function not available")
 
-        class LikePostTool:
-            tool_name = "like_post"
+        class LikePostTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "like_post",
+                    "Like or unlike a social post. Use when user wants to show appreciation for content.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.like_post_func = like_post
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await like_post(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.like_post_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=LikePostTool(),
@@ -1680,7 +1828,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["post_id"]
                 }
             },
-            capability=ToolCapability.ACTION,
+            capability=ToolCapability.SOCIAL,
             priority=2
         )
         logger.info("✅ Like Post tool registered")
@@ -1700,12 +1848,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if comment_on_post is None:
             raise ImportError("comment_on_post function not available")
 
-        class CommentOnPostTool:
-            tool_name = "comment_on_post"
+        class CommentOnPostTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "comment_on_post",
+                    "Add a comment to a social post. Use when user wants to respond to someone's content.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.comment_on_post_func = comment_on_post
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await comment_on_post(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.comment_on_post_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=CommentOnPostTool(),
@@ -1727,7 +1884,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["post_id", "content"]
                 }
             },
-            capability=ToolCapability.ACTION,
+            capability=ToolCapability.SOCIAL,
             priority=2
         )
         logger.info("✅ Comment on Post tool registered")
@@ -1747,12 +1904,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if find_nearby_rvers is None:
             raise ImportError("find_nearby_rvers function not available")
 
-        class FindNearbyRversTool:
-            tool_name = "find_nearby_rvers"
+        class FindNearbyRversTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "find_nearby_rvers",
+                    "Find other RV travelers near the user's location. Great for meetups and community connections.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.find_nearby_rvers_func = find_nearby_rvers
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await find_nearby_rvers(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.find_nearby_rvers_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=FindNearbyRversTool(),
@@ -1778,7 +1944,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["latitude", "longitude"]
                 }
             },
-            capability=ToolCapability.LOCATION_SEARCH,
+            capability=ToolCapability.SOCIAL,
             priority=2
         )
         logger.info("✅ Find Nearby RVers tool registered")
@@ -1803,12 +1969,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if search_products is None:
             raise ImportError("search_products function not available")
 
-        class SearchProductsTool:
-            tool_name = "search_products"
+        class SearchProductsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "search_products",
+                    "Search for RV products and gear. Returns Amazon affiliate products with prices and links.",
+                    capabilities=[ToolCapability.SHOP]
+                )
+                self.search_products_func = search_products
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await search_products(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.search_products_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=SearchProductsTool(),
@@ -1863,12 +2038,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if get_product_details is None:
             raise ImportError("get_product_details function not available")
 
-        class GetProductDetailsTool:
-            tool_name = "get_product_details"
+        class GetProductDetailsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_product_details",
+                    "Get detailed information about a specific product including description, price, and purchase link.",
+                    capabilities=[ToolCapability.SHOP]
+                )
+                self.get_product_details_func = get_product_details
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await get_product_details(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_product_details_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=GetProductDetailsTool(),
@@ -1886,7 +2070,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["product_id"]
                 }
             },
-            capability=ToolCapability.EXTERNAL_API,
+            capability=ToolCapability.SHOP,
             priority=2
         )
         logger.info("✅ Get Product Details tool registered")
@@ -1906,12 +2090,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if recommend_products is None:
             raise ImportError("recommend_products function not available")
 
-        class RecommendProductsTool:
-            tool_name = "recommend_products"
+        class RecommendProductsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "recommend_products",
+                    "Get personalized product recommendations based on user's vehicle, travel style, and past purchases.",
+                    capabilities=[ToolCapability.SHOP]
+                )
+                self.recommend_products_func = recommend_products
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await recommend_products(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.recommend_products_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=RecommendProductsTool(),
@@ -1932,7 +2125,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     }
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.SHOP,
             priority=2
         )
         logger.info("✅ Recommend Products tool registered")
@@ -1957,12 +2150,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if update_profile is None:
             raise ImportError("update_profile function not available")
 
-        class UpdateProfileTool:
-            tool_name = "update_profile"
+        class UpdateProfileTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "update_profile",
+                    "Update user's profile information (username, bio, avatar, RV details). Use when user wants to change their profile.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.update_profile_func = update_profile
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await update_profile(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.update_profile_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=UpdateProfileTool(),
@@ -2019,12 +2221,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if get_user_stats is None:
             raise ImportError("get_user_stats function not available")
 
-        class GetUserStatsTool:
-            tool_name = "get_user_stats"
+        class GetUserStatsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_user_stats",
+                    "Get user's activity statistics including trips taken, miles traveled, money saved, posts made, etc.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.get_user_stats_func = get_user_stats
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await get_user_stats(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_user_stats_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=GetUserStatsTool(),
@@ -2067,12 +2278,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if add_knowledge is None:
             raise ImportError("add_knowledge function not available")
 
-        class AddKnowledgeTool:
-            tool_name = "add_knowledge"
+        class AddKnowledgeTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "add_knowledge",
+                    "ADMIN ONLY: Add knowledge to PAM's memory. Use when admin wants to teach PAM new information.",
+                    capabilities=[ToolCapability.MEMORY]
+                )
+                self.add_knowledge_func = add_knowledge
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await add_knowledge(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.add_knowledge_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=AddKnowledgeTool(),
@@ -2117,7 +2337,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["title", "content", "knowledge_type", "category"]
                 }
             },
-            capability=ToolCapability.ACTION,
+            capability=ToolCapability.MEMORY,
             priority=1
         )
         logger.info("✅ Add Knowledge tool registered")
@@ -2137,12 +2357,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if search_knowledge is None:
             raise ImportError("search_knowledge function not available")
 
-        class SearchKnowledgeTool:
-            tool_name = "search_knowledge"
+        class SearchKnowledgeTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "search_knowledge",
+                    "Search PAM's knowledge base for relevant information. Use to find tips, rules, and advice.",
+                    capabilities=[ToolCapability.MEMORY]
+                )
+                self.search_knowledge_func = search_knowledge
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await search_knowledge(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.search_knowledge_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=SearchKnowledgeTool(),
@@ -2172,7 +2401,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["query"]
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.MEMORY,
             priority=1
         )
         logger.info("✅ Search Knowledge tool registered")
@@ -2197,12 +2426,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if submit_community_tip is None:
             raise ImportError("submit_community_tip function not available")
 
-        class SubmitTipTool:
-            tool_name = "submit_community_tip"
+        class SubmitTipTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "submit_community_tip",
+                    "Submit a tip to help other RV travelers. Tips become part of PAM's knowledge base.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.submit_community_tip_func = submit_community_tip
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await submit_community_tip(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.submit_community_tip_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=SubmitTipTool(),
@@ -2257,12 +2495,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if search_tips is None:
             raise ImportError("search_tips function not available")
 
-        class SearchTipsTool:
-            tool_name = "search_tips"
+        class SearchTipsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "search_tips",
+                    "Search community tips for helpful advice. Use to find recommendations from other RVers.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.search_tips_func = search_tips
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await search_tips(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.search_tips_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=SearchTipsTool(),
@@ -2312,12 +2559,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if search_knowledge_func is None:
             raise ImportError("search_knowledge function not available")
 
-        class SearchKnowledgeTool:
-            tool_name = "search_knowledge"
+        class SearchKnowledgeTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "search_knowledge",
+                    "Search approved community knowledge articles and guides. Use to find in-depth guides on shipping, maintenance, travel tips, camping, and routes.",
+                    capabilities=[ToolCapability.MEMORY]
+                )
+                self.search_knowledge_func = search_knowledge_func
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await search_knowledge_func(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.search_knowledge_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=SearchKnowledgeTool(),
@@ -2369,12 +2625,20 @@ async def _register_all_tools(registry: ToolRegistry):
         if get_knowledge_article_func is None:
             raise ImportError("get_knowledge_article function not available")
 
-        class GetKnowledgeArticleTool:
-            tool_name = "get_knowledge_article"
+        class GetKnowledgeArticleTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_knowledge_article",
+                    "Get a specific knowledge article by ID with full content, tips, and related information.",
+                    capabilities=[ToolCapability.MEMORY]
+                )
+                self.get_knowledge_article_func = get_knowledge_article
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await get_knowledge_article_func(**params)
+                self.is_initialized = True
+                return True
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_knowledge_article_func(**parameters)
 
         registry.register_tool(
             tool=GetKnowledgeArticleTool(),
@@ -2412,12 +2676,20 @@ async def _register_all_tools(registry: ToolRegistry):
         if get_knowledge_by_category_func is None:
             raise ImportError("get_knowledge_by_category function not available")
 
-        class GetKnowledgeByCategoryTool:
-            tool_name = "get_knowledge_by_category"
+        class GetKnowledgeByCategoryTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_knowledge_by_category",
+                    "Get all knowledge articles in a specific category. Browse topics like shipping, maintenance, travel tips, camping, and routes.",
+                    capabilities=[ToolCapability.MEMORY]
+                )
+                self.get_knowledge_by_category_func = get_knowledge_by_category
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await get_knowledge_by_category_func(**params)
+                self.is_initialized = True
+                return True
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_knowledge_by_category_func(**parameters)
 
         registry.register_tool(
             tool=GetKnowledgeByCategoryTool(),
@@ -2465,12 +2737,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if find_rv_parks is None:
             raise ImportError("find_rv_parks function not available")
 
-        class FindRVParksTool:
-            tool_name = "find_rv_parks"
+        class FindRVParksTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "find_rv_parks",
+                    "Search for RV parks and campgrounds near a location. Filter by amenities, price, and ratings.",
+                    capabilities=[ToolCapability.TRIP_PLANNING]
+                )
+                self.find_rv_parks_func = find_rv_parks
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await find_rv_parks(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.find_rv_parks_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=FindRVParksTool(),
@@ -2528,12 +2809,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if plan_trip is None:
             raise ImportError("plan_trip function not available")
 
-        class PlanTripTool:
-            tool_name = "plan_trip"
+        class PlanTripTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "plan_trip",
+                    "Create a comprehensive trip plan with route, stops, accommodations, and estimated costs.",
+                    capabilities=[ToolCapability.TRIP_PLANNING]
+                )
+                self.plan_trip_func = plan_trip
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await plan_trip(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.plan_trip_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=PlanTripTool(),
@@ -2592,12 +2882,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if find_attractions is None:
             raise ImportError("find_attractions function not available")
 
-        class FindAttractionsTool:
-            tool_name = "find_attractions"
+        class FindAttractionsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "find_attractions",
+                    "Find tourist attractions, points of interest, and activities near a location. Great for discovering things to do along your route.",
+                    capabilities=[ToolCapability.TRIP_PLANNING]
+                )
+                self.find_attractions_func = find_attractions
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await find_attractions(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.find_attractions_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=FindAttractionsTool(),
@@ -2651,12 +2950,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if calculate_gas_cost is None:
             raise ImportError("calculate_gas_cost function not available")
 
-        class CalculateGasCostTool:
-            tool_name = "calculate_gas_cost"
+        class CalculateGasCostTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "calculate_gas_cost",
+                    "Calculate estimated fuel costs for a trip based on distance, vehicle mpg, and current gas prices.",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.calculate_gas_cost_func = calculate_gas_cost
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await calculate_gas_cost(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.calculate_gas_cost_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=CalculateGasCostTool(),
@@ -2707,12 +3015,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if create_expense is None:
             raise ImportError("create_expense function not available")
 
-        class CreateExpenseTool:
-            tool_name = "create_expense"
+        class CreateExpenseTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "create_expense",
+                    "Log a new expense for budget tracking. Automatically categorizes and updates spending totals.",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.create_expense_func = create_expense
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await create_expense(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.create_expense_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=CreateExpenseTool(),
@@ -2766,12 +3083,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if get_spending_summary is None:
             raise ImportError("get_spending_summary function not available")
 
-        class GetSpendingSummaryTool:
-            tool_name = "get_spending_summary"
+        class GetSpendingSummaryTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_spending_summary",
+                    "Get a summary of spending by category for a specified time period. Shows totals and trends.",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.get_spending_summary_func = get_spending_summary
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await get_spending_summary(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_spending_summary_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=GetSpendingSummaryTool(),
@@ -2813,12 +3139,21 @@ async def _register_all_tools(registry: ToolRegistry):
         if update_budget is None:
             raise ImportError("update_budget function not available")
 
-        class UpdateBudgetTool:
-            tool_name = "update_budget"
+        class UpdateBudgetTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "update_budget",
+                    "Update or create budget limits for different spending categories. Set monthly or yearly limits.",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.update_budget_func = update_budget
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await update_budget(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.update_budget_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=UpdateBudgetTool(),
@@ -2865,12 +3200,20 @@ async def _register_all_tools(registry: ToolRegistry):
         if save_recipe is None:
             raise ImportError("save_recipe function not available")
 
-        class SaveRecipeTool:
-            tool_name = "save_recipe"
+        class SaveRecipeTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "save_recipe",
+                    "Save a recipe to the user's personal recipe collection. Include ingredients, instructions, and cooking notes.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.save_recipe_func = save_recipe
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await save_recipe(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.save_recipe_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=SaveRecipeTool(),
@@ -2912,12 +3255,20 @@ async def _register_all_tools(registry: ToolRegistry):
         if search_recipes is None:
             raise ImportError("search_recipes function not available")
 
-        class SearchRecipesTool:
-            tool_name = "search_recipes"
+        class SearchRecipesTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "search_recipes",
+                    "Search recipes by ingredients, meal type, dietary restrictions, or cooking method. Find RV-friendly recipes.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.search_recipes_func = search_recipes
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await search_recipes(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.search_recipes_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=SearchRecipesTool(),
@@ -2981,12 +3332,20 @@ async def _register_all_tools(registry: ToolRegistry):
         if share_recipe is None:
             raise ImportError("share_recipe function not available")
 
-        class ShareRecipeTool:
-            tool_name = "share_recipe"
+        class ShareRecipeTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "share_recipe",
+                    "Share a recipe with the RV community. Other travelers can discover and save your recipe recommendations.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.share_recipe_func = share_recipe
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await share_recipe(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.share_recipe_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=ShareRecipeTool(),
@@ -3034,12 +3393,20 @@ async def _register_all_tools(registry: ToolRegistry):
         if manage_dietary_prefs is None:
             raise ImportError("manage_dietary_prefs function not available")
 
-        class ManageDietaryPrefsTool:
-            tool_name = "manage_dietary_prefs"
+        class ManageDietaryPrefsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "manage_dietary_prefs",
+                    "Manage user's dietary preferences and restrictions. Set allergies, dietary choices (vegan, keto, etc), and food preferences for better recipe recommendations.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.manage_dietary_prefs_func = manage_dietary_prefs
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await manage_dietary_prefs(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.manage_dietary_prefs_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=ManageDietaryPrefsTool(),
@@ -3114,12 +3481,20 @@ async def _register_all_tools(registry: ToolRegistry):
         if manage_pantry is None:
             raise ImportError("manage_pantry function not available")
 
-        class ManagePantryTool:
-            tool_name = "manage_pantry"
+        class ManagePantryTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "manage_pantry",
+                    "Manage RV pantry inventory. Add/remove items, track quantities, check expiration dates, and get suggestions for recipes based on available ingredients.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.manage_pantry_func = manage_pantry
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await manage_pantry(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.manage_pantry_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=ManagePantryTool(),
@@ -3182,12 +3557,20 @@ async def _register_all_tools(registry: ToolRegistry):
         if plan_meals is None:
             raise ImportError("plan_meals function not available")
 
-        class PlanMealsTool:
-            tool_name = "plan_meals"
+        class PlanMealsTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "plan_meals",
+                    "Plan meals for upcoming days/weeks based on pantry inventory, dietary preferences, and travel schedule. Create a meal calendar with recipes.",
+                    capabilities=[ToolCapability.ACTION]
+                )
+                self.plan_meals_func = plan_meals
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await plan_meals(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.plan_meals_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=PlanMealsTool(),
@@ -3238,12 +3621,20 @@ async def _register_all_tools(registry: ToolRegistry):
         if generate_shopping_list is None:
             raise ImportError("generate_shopping_list function not available")
 
-        class GenerateShoppingListTool:
-            tool_name = "generate_shopping_list"
+        class GenerateShoppingListTool(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "generate_shopping_list",
+                    "Generate a shopping list based on planned meals and current pantry inventory. Includes quantities and suggests stores along the route.",
+                    capabilities=[ToolCapability.ACTION]
+                )
+                self.generate_shopping_list_func = generate_shopping_list
+
             async def initialize(self):
-                pass
-            async def execute(self, user_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-                return await generate_shopping_list(user_id=user_id, **params)
+                self.is_initialized = True
+                return True
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.generate_shopping_list_func(user_id=user_id, **parameters)
 
         registry.register_tool(
             tool=GenerateShoppingListTool(),
@@ -4243,8 +4634,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register message_friend tool...")
         from app.services.pam.tools.social.message_friend import message_friend
 
+        class MessageFriendWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "message_friend",
+                    "Send a direct message to another user. Use for DMs, private messages.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.message_friend_func = message_friend
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.message_friend_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=message_friend,
+            tool=MessageFriendWrapper(),
             function_definition={
                 "name": "message_friend",
                 "description": "Send a direct message to another user. Use for DMs, private messages.",
@@ -4494,8 +4901,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register follow_user tool...")
         from app.services.pam.tools.social.follow_user import follow_user
 
+        class FollowUserWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "follow_user",
+                    "Follow or unfollow another user. Use for social connections.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.follow_user_func = follow_user
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.follow_user_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=follow_user,
+            tool=FollowUserWrapper(),
             function_definition={
                 "name": "follow_user",
                 "description": "Follow or unfollow another user. Use for social connections.",
@@ -4638,8 +5061,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register compare_prices tool...")
         from app.services.pam.tools.shop.compare_prices import compare_prices
 
+        class ComparePricesWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "compare_prices",
+                    "Compare prices for a product across retailers. Use for finding best deals.",
+                    capabilities=[ToolCapability.SHOP]
+                )
+                self.compare_prices_func = compare_prices
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.compare_prices_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=compare_prices,
+            tool=ComparePricesWrapper(),
             function_definition={
                 "name": "compare_prices",
                 "description": "Compare prices for a product across retailers. Use for finding best deals.",
@@ -4818,8 +5257,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register categorize_transaction tool...")
         from app.services.pam.tools.budget.categorize_transaction import categorize_transaction
 
+        class CategorizeTransactionWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "categorize_transaction",
+                    "Auto-categorize an expense based on description. Use when user asks to categorize a purchase.",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.categorize_transaction_func = categorize_transaction
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.categorize_transaction_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=categorize_transaction,
+            tool=CategorizeTransactionWrapper(),
             function_definition={
                 "name": "categorize_transaction",
                 "description": "Auto-categorize an expense based on description. Use when user asks to categorize a purchase.",
@@ -4842,7 +5297,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": ["description"]
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.FINANCIAL,
             priority=2
         )
         logger.info("✅ categorize_transaction tool registered")
@@ -4859,8 +5314,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register export_budget_report tool...")
         from app.services.pam.tools.budget.export_budget_report import export_budget_report
 
+        class ExportBudgetReportWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "export_budget_report",
+                    "Generate and export budget report. Use when user asks for spending report.",
+                    capabilities=[ToolCapability.FINANCIAL]
+                )
+                self.export_budget_report_func = export_budget_report
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.export_budget_report_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=export_budget_report,
+            tool=ExportBudgetReportWrapper(),
             function_definition={
                 "name": "export_budget_report",
                 "description": "Generate and export budget report. Use when user asks for spending report.",
@@ -4889,7 +5360,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": []
                 }
             },
-            capability=ToolCapability.USER_DATA,
+            capability=ToolCapability.FINANCIAL,
             priority=2
         )
         logger.info("✅ export_budget_report tool registered")
@@ -4906,8 +5377,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register get_weather_forecast tool...")
         from app.services.pam.tools.trip.get_weather_forecast import get_weather_forecast
 
+        class GetWeatherForecastWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_weather_forecast",
+                    "Get weather forecast for a location. Uses FREE OpenMeteo API.",
+                    capabilities=[ToolCapability.WEATHER]
+                )
+                self.get_weather_forecast_func = get_weather_forecast
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_weather_forecast_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=get_weather_forecast,
+            tool=GetWeatherForecastWrapper(),
             function_definition={
                 "name": "get_weather_forecast",
                 "description": "Get weather forecast for a location. Uses FREE OpenMeteo API.",
@@ -4926,7 +5413,7 @@ async def _register_all_tools(registry: ToolRegistry):
                     "required": []
                 }
             },
-            capability=ToolCapability.EXTERNAL_API,
+            capability=ToolCapability.WEATHER,
             priority=2
         )
         logger.info("✅ get_weather_forecast tool registered")
@@ -4943,8 +5430,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register share_location tool...")
         from app.services.pam.tools.social.share_location import share_location
 
+        class ShareLocationWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "share_location",
+                    "Share current location or a spot with the community. Use when user wants to share where they are.",
+                    capabilities=[ToolCapability.SOCIAL]
+                )
+                self.share_location_func = share_location
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.share_location_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=share_location,
+            tool=ShareLocationWrapper(),
             function_definition={
                 "name": "share_location",
                 "description": "Share current location or a spot with the community. Use when user wants to share where they are.",
