@@ -1999,8 +1999,8 @@ async def _register_all_tools(registry: ToolRegistry):
                         },
                         "category": {
                             "type": "string",
-                            "description": "Product category (tools_maintenance, camping_expedition, recovery_gear, etc)",
-                            "enum": ["tools_maintenance", "camping_expedition", "recovery_gear", "parts_upgrades", "safety_equipment", "power_electronics", "comfort_living", "navigation_tech"]
+                            "description": "Product category: recovery_gear (winches, straps), camping_expedition (tents, outdoor), tools_maintenance (tools, equipment), parts_upgrades (vehicle parts), books_manuals (guides, manuals), apparel_merchandise (clothing, merch), electronics (cameras, GPS, tech), outdoor_gear (general outdoor)",
+                            "enum": ["recovery_gear", "camping_expedition", "tools_maintenance", "parts_upgrades", "books_manuals", "apparel_merchandise", "electronics", "outdoor_gear"]
                         },
                         "max_price": {
                             "type": "number",
