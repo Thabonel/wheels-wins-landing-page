@@ -31,11 +31,29 @@ class WebSearchEngine:
         self.last_request_time = None
     
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get aiohttp session"""
+        """Get aiohttp session with proper compression handling"""
         if not self.session:
+            # Create connector with timeout and compression settings
+            connector = aiohttp.TCPConnector(
+                limit=10,
+                limit_per_host=5,
+                ttl_dns_cache=300
+            )
+
+            # Create timeout configuration
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+
             self.session = aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout,
                 headers={
-                    'User-Agent': 'Mozilla/5.0 (compatible; PAM/1.0; +https://wheels-wins.com)'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Accept-Encoding': 'gzip, deflate',  # Avoid brotli compression
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1'
                 }
             )
         return self.session

@@ -161,10 +161,12 @@ class ToolPrefilter:
         "find_nearby_rvers": "social",
         "create_event": "social",
 
-        # Shop tools (3 tools from pam.py)
+        # Shop tools (5 tools)
         "search_products": "shop",
         "get_product_details": "shop",
         "recommend_products": "shop",
+        "compare_prices": "shop",
+        "web_search": "shop",  # Worldwide product search
 
         # Profile tools (6 tools from pam.py)
         "update_profile": "profile",

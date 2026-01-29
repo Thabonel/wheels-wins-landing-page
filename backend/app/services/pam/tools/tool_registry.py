@@ -3686,8 +3686,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register get_transition_progress tool...")
         from app.services.pam.tools.transition.progress_tools import get_transition_progress
 
+        class GetTransitionProgressWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_transition_progress",
+                    "Get overall transition readiness score and summary. Use when user asks about their transition progress, readiness, or departure preparation status.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.get_transition_progress_func = get_transition_progress
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_transition_progress_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=get_transition_progress,
+            tool=GetTransitionProgressWrapper(),
             function_definition={
                 "name": "get_transition_progress",
                 "description": "Get overall transition readiness score and summary. Use when user asks about their transition progress, readiness, or departure preparation status.",
@@ -3714,8 +3730,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register get_transition_tasks tool...")
         from app.services.pam.tools.transition.task_tools import get_transition_tasks
 
+        class GetTransitionTasksWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_transition_tasks",
+                    "List transition checklist tasks with optional filtering. Use when user asks about their transition tasks, checklist items, or what they need to do.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.get_transition_tasks_func = get_transition_tasks
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_transition_tasks_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=get_transition_tasks,
+            tool=GetTransitionTasksWrapper(),
             function_definition={
                 "name": "get_transition_tasks",
                 "description": "List transition checklist tasks with optional filtering. Use when user asks about their transition tasks, checklist items, or what they need to do.",
@@ -3758,8 +3790,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register create_transition_task tool...")
         from app.services.pam.tools.transition.task_tools import create_transition_task
 
+        class CreateTransitionTaskWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "create_transition_task",
+                    "Create a new transition checklist task. Use when user wants to add a task to their transition plan.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.create_transition_task_func = create_transition_task
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.create_transition_task_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=create_transition_task,
+            tool=CreateTransitionTaskWrapper(),
             function_definition={
                 "name": "create_transition_task",
                 "description": "Create a new transition checklist task. Use when user wants to add a task to their transition plan.",
@@ -3814,8 +3862,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register complete_transition_task tool...")
         from app.services.pam.tools.transition.task_tools import complete_transition_task
 
+        class CompleteTransitionTaskWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "complete_transition_task",
+                    "Mark a transition task as complete. Use when user says they finished or completed a task.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.complete_transition_task_func = complete_transition_task
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.complete_transition_task_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=complete_transition_task,
+            tool=CompleteTransitionTaskWrapper(),
             function_definition={
                 "name": "complete_transition_task",
                 "description": "Mark a transition task as complete. Use when user says they finished or completed a task.",
@@ -3855,8 +3919,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register log_shakedown_trip tool...")
         from app.services.pam.tools.transition.shakedown_tools import log_shakedown_trip
 
+        class LogShakedownTripWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "log_shakedown_trip",
+                    "Log a practice/shakedown trip. Use when user wants to record a practice trip they took.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.log_shakedown_trip_func = log_shakedown_trip
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.log_shakedown_trip_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=log_shakedown_trip,
+            tool=LogShakedownTripWrapper(),
             function_definition={
                 "name": "log_shakedown_trip",
                 "description": "Log a practice/shakedown trip. Use when user wants to record a practice trip they took.",
@@ -3911,8 +3991,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register add_shakedown_issue tool...")
         from app.services.pam.tools.transition.shakedown_tools import add_shakedown_issue
 
+        class AddShakedownIssueWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "add_shakedown_issue",
+                    "Track a problem found during a shakedown trip. Use when user reports an issue from a practice trip.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.add_shakedown_issue_func = add_shakedown_issue
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.add_shakedown_issue_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=add_shakedown_issue,
+            tool=AddShakedownIssueWrapper(),
             function_definition={
                 "name": "add_shakedown_issue",
                 "description": "Track a problem found during a shakedown trip. Use when user reports an issue from a practice trip.",
@@ -3966,8 +4062,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register get_shakedown_summary tool...")
         from app.services.pam.tools.transition.shakedown_tools import get_shakedown_summary
 
+        class GetShakedownSummaryWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_shakedown_summary",
+                    "Get summary of shakedown trips and issues. Use when user asks about their practice trips or shakedown progress.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.get_shakedown_summary_func = get_shakedown_summary
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_shakedown_summary_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=get_shakedown_summary,
+            tool=GetShakedownSummaryWrapper(),
             function_definition={
                 "name": "get_shakedown_summary",
                 "description": "Get summary of shakedown trips and issues. Use when user asks about their practice trips or shakedown progress.",
@@ -3994,8 +4106,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register add_equipment_item tool...")
         from app.services.pam.tools.transition.equipment_tools import add_equipment_item
 
+        class AddEquipmentItemWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "add_equipment_item",
+                    "Add an equipment item to track for purchase. Use when user wants to add RV gear to their list.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.add_equipment_item_func = add_equipment_item
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.add_equipment_item_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=add_equipment_item,
+            tool=AddEquipmentItemWrapper(),
             function_definition={
                 "name": "add_equipment_item",
                 "description": "Add an equipment item to track for purchase. Use when user wants to add RV gear to their list.",
@@ -4053,8 +4181,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register mark_equipment_purchased tool...")
         from app.services.pam.tools.transition.equipment_tools import mark_equipment_purchased
 
+        class MarkEquipmentPurchasedWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "mark_equipment_purchased",
+                    "Mark an equipment item as purchased. Use when user says they bought something.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.mark_equipment_purchased_func = mark_equipment_purchased
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.mark_equipment_purchased_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=mark_equipment_purchased,
+            tool=MarkEquipmentPurchasedWrapper(),
             function_definition={
                 "name": "mark_equipment_purchased",
                 "description": "Mark an equipment item as purchased. Use when user says they bought something.",
@@ -4098,8 +4242,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register get_equipment_list tool...")
         from app.services.pam.tools.transition.equipment_tools import get_equipment_list
 
+        class GetEquipmentListWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_equipment_list",
+                    "Get equipment inventory and budget status. Use when user asks about their equipment list or budget.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.get_equipment_list_func = get_equipment_list
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_equipment_list_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=get_equipment_list,
+            tool=GetEquipmentListWrapper(),
             function_definition={
                 "name": "get_equipment_list",
                 "description": "Get equipment inventory and budget status. Use when user asks about their equipment list or budget.",
@@ -4136,8 +4296,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register get_launch_week_status tool...")
         from app.services.pam.tools.transition.launch_week_tools import get_launch_week_status
 
+        class GetLaunchWeekStatusWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_launch_week_status",
+                    "Get the 7-day launch week countdown status. Use when user asks about their departure countdown or launch week.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.get_launch_week_status_func = get_launch_week_status
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_launch_week_status_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=get_launch_week_status,
+            tool=GetLaunchWeekStatusWrapper(),
             function_definition={
                 "name": "get_launch_week_status",
                 "description": "Get the 7-day launch week countdown status. Use when user asks about their departure countdown or launch week.",
@@ -4164,8 +4340,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register complete_launch_task tool...")
         from app.services.pam.tools.transition.launch_week_tools import complete_launch_task
 
+        class CompleteLaunchTaskWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "complete_launch_task",
+                    "Mark a launch week task as complete. Use when user completes a launch week countdown task.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.complete_launch_task_func = complete_launch_task
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.complete_launch_task_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=complete_launch_task,
+            tool=CompleteLaunchTaskWrapper(),
             function_definition={
                 "name": "complete_launch_task",
                 "description": "Mark a launch week task as complete. Use when user completes a launch week countdown task.",
@@ -4206,8 +4398,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register create_maintenance_record tool...")
         from app.services.pam.tools.maintenance.maintenance_crud import create_maintenance_record
 
+        class CreateMaintenanceRecordWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "create_maintenance_record",
+                    "Create a new maintenance record. Use to schedule future maintenance or log completed service.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.create_maintenance_record_func = create_maintenance_record
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.create_maintenance_record_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=create_maintenance_record,
+            tool=CreateMaintenanceRecordWrapper(),
             function_definition={
                 "name": "create_maintenance_record",
                 "description": "Create a new maintenance record. Use to schedule future maintenance or log completed service.",
@@ -4255,8 +4463,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register get_maintenance_schedule tool...")
         from app.services.pam.tools.maintenance.maintenance_queries import get_maintenance_schedule
 
+        class GetMaintenanceScheduleWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_maintenance_schedule",
+                    "View upcoming and overdue maintenance. Use when user asks about due services or maintenance schedule.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.get_maintenance_schedule_func = get_maintenance_schedule
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_maintenance_schedule_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=get_maintenance_schedule,
+            tool=GetMaintenanceScheduleWrapper(),
             function_definition={
                 "name": "get_maintenance_schedule",
                 "description": "View upcoming and overdue maintenance. Use when user asks about due services or maintenance schedule.",
@@ -4293,8 +4517,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register update_maintenance_record tool...")
         from app.services.pam.tools.maintenance.maintenance_crud import update_maintenance_record
 
+        class UpdateMaintenanceRecordWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "update_maintenance_record",
+                    "Update an existing maintenance record. Use to change date, mileage, or details.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.update_maintenance_record_func = update_maintenance_record
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.update_maintenance_record_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=update_maintenance_record,
+            tool=UpdateMaintenanceRecordWrapper(),
             function_definition={
                 "name": "update_maintenance_record",
                 "description": "Update an existing maintenance record. Use to change date, mileage, or details.",
@@ -4350,8 +4590,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register delete_maintenance_record tool...")
         from app.services.pam.tools.maintenance.maintenance_crud import delete_maintenance_record
 
+        class DeleteMaintenanceRecordWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "delete_maintenance_record",
+                    "Delete a maintenance record. Requires confirmation.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.delete_maintenance_record_func = delete_maintenance_record
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.delete_maintenance_record_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=delete_maintenance_record,
+            tool=DeleteMaintenanceRecordWrapper(),
             function_definition={
                 "name": "delete_maintenance_record",
                 "description": "Delete a maintenance record. Requires confirmation.",
@@ -4391,8 +4647,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register get_maintenance_history tool...")
         from app.services.pam.tools.maintenance.maintenance_queries import get_maintenance_history
 
+        class GetMaintenanceHistoryWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_maintenance_history",
+                    "View past maintenance records. Use when user asks about service history or when they last did something.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.get_maintenance_history_func = get_maintenance_history
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_maintenance_history_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=get_maintenance_history,
+            tool=GetMaintenanceHistoryWrapper(),
             function_definition={
                 "name": "get_maintenance_history",
                 "description": "View past maintenance records. Use when user asks about service history or when they last did something.",
@@ -4433,8 +4705,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register add_fuel_entry tool...")
         from app.services.pam.tools.fuel.fuel_crud import add_fuel_entry
 
+        class AddFuelEntryWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "add_fuel_entry",
+                    "Add a fuel log entry with smart calculation. Provide any 2 of 3 (volume, price, total) and the third will be calculated.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.add_fuel_entry_func = add_fuel_entry
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.add_fuel_entry_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=add_fuel_entry,
+            tool=AddFuelEntryWrapper(),
             function_definition={
                 "name": "add_fuel_entry",
                 "description": "Add a fuel log entry with smart calculation. Provide any 2 of 3 (volume, price, total) and the third will be calculated.",
@@ -4494,8 +4782,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register update_fuel_entry tool...")
         from app.services.pam.tools.fuel.fuel_crud import update_fuel_entry
 
+        class UpdateFuelEntryWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "update_fuel_entry",
+                    "Update an existing fuel entry. If entry_id not provided, updates the most recent entry.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.update_fuel_entry_func = update_fuel_entry
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.update_fuel_entry_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=update_fuel_entry,
+            tool=UpdateFuelEntryWrapper(),
             function_definition={
                 "name": "update_fuel_entry",
                 "description": "Update an existing fuel entry. If entry_id not provided, updates the most recent entry.",
@@ -4559,8 +4863,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register delete_fuel_entry tool...")
         from app.services.pam.tools.fuel.fuel_crud import delete_fuel_entry
 
+        class DeleteFuelEntryWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "delete_fuel_entry",
+                    "Delete a fuel entry. Requires confirmation. Uses most recent if entry_id not provided.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.delete_fuel_entry_func = delete_fuel_entry
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.delete_fuel_entry_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=delete_fuel_entry,
+            tool=DeleteFuelEntryWrapper(),
             function_definition={
                 "name": "delete_fuel_entry",
                 "description": "Delete a fuel entry. Requires confirmation. Uses most recent if entry_id not provided.",
@@ -4596,8 +4916,24 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.debug("🔄 Attempting to register get_fuel_stats tool...")
         from app.services.pam.tools.fuel.fuel_crud import get_fuel_stats
 
+        class GetFuelStatsWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "get_fuel_stats",
+                    "Get fuel statistics and trends. Use when user asks about fuel spending, consumption, or stats.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.get_fuel_stats_func = get_fuel_stats
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.get_fuel_stats_func(user_id=user_id, **parameters)
+
         registry.register_tool(
-            tool=get_fuel_stats,
+            tool=GetFuelStatsWrapper(),
             function_definition={
                 "name": "get_fuel_stats",
                 "description": "Get fuel statistics and trends. Use when user asks about fuel spending, consumption, or stats.",
@@ -4683,215 +5019,129 @@ async def _register_all_tools(registry: ToolRegistry):
         failed_count += 1
 
     # --- save_favorite_spot ---
+    class SaveFavoriteSpotWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "save_favorite_spot",
+                "Save a location as a favorite/bookmark. Use for campgrounds, restaurants, attractions.",
+                capabilities=[ToolCapability.USER_DATA]
+            )
+            try:
+                from app.services.pam.tools.trip.save_favorite_spot import save_favorite_spot
+                self.save_favorite_spot_func = save_favorite_spot
+            except ImportError:
+                self.save_favorite_spot_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.save_favorite_spot_func is None:
+                return self._create_error_result("save_favorite_spot function not available").to_dict()
+            return await self.save_favorite_spot_func(user_id=user_id, **parameters)
+
     try:
         logger.debug("🔄 Attempting to register save_favorite_spot tool...")
-        from app.services.pam.tools.trip.save_favorite_spot import save_favorite_spot
-
-        registry.register_tool(
-            tool=save_favorite_spot,
-            function_definition={
-                "name": "save_favorite_spot",
-                "description": "Save a location as a favorite/bookmark. Use for campgrounds, restaurants, attractions.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "location_name": {
-                            "type": "string",
-                            "description": "Name of the location"
-                        },
-                        "location_address": {
-                            "type": "string",
-                            "description": "Address or coordinates"
-                        },
-                        "category": {
-                            "type": "string",
-                            "enum": ["campground", "restaurant", "attraction", "gas_station", "general"],
-                            "description": "Category of location (default: general)"
-                        },
-                        "notes": {
-                            "type": "string",
-                            "description": "Optional personal notes"
-                        },
-                        "rating": {
-                            "type": "integer",
-                            "description": "Optional rating (1-5)"
-                        }
-                    },
-                    "required": ["location_name", "location_address"]
-                }
-            },
-            capability=ToolCapability.USER_DATA,
-            priority=2
-        )
+        registry.register_tool(tool=SaveFavoriteSpotWrapper(), priority=2)
         logger.info("✅ save_favorite_spot tool registered")
         registered_count += 1
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register save_favorite_spot tool: {e}")
-        failed_count += 1
     except Exception as e:
         logger.error(f"❌ save_favorite_spot tool registration failed: {e}")
         failed_count += 1
 
     # --- export_data ---
+    class ExportDataWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "export_data",
+                "Export all user data (GDPR compliance). Use when user wants to download their data.",
+                capabilities=[ToolCapability.USER_DATA]
+            )
+            try:
+                from app.services.pam.tools.profile.export_data import export_data
+                self.export_data_func = export_data
+            except ImportError:
+                self.export_data_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.export_data_func is None:
+                return self._create_error_result("export_data function not available").to_dict()
+            return await self.export_data_func(user_id=user_id, **parameters)
+
     try:
         logger.debug("🔄 Attempting to register export_data tool...")
-        from app.services.pam.tools.profile.export_data import export_data
-
-        registry.register_tool(
-            tool=export_data,
-            function_definition={
-                "name": "export_data",
-                "description": "Export all user data (GDPR compliance). Use when user wants to download their data.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "format": {
-                            "type": "string",
-                            "enum": ["json", "csv"],
-                            "description": "Export format (default: json)"
-                        },
-                        "include_expenses": {
-                            "type": "boolean",
-                            "description": "Include expense data (default: true)"
-                        },
-                        "include_budgets": {
-                            "type": "boolean",
-                            "description": "Include budget data (default: true)"
-                        },
-                        "include_trips": {
-                            "type": "boolean",
-                            "description": "Include trip data (default: true)"
-                        },
-                        "include_posts": {
-                            "type": "boolean",
-                            "description": "Include social posts (default: true)"
-                        },
-                        "include_favorites": {
-                            "type": "boolean",
-                            "description": "Include favorite locations (default: true)"
-                        }
-                    },
-                    "required": []
-                }
-            },
-            capability=ToolCapability.USER_DATA,
-            priority=1
-        )
+        registry.register_tool(tool=ExportDataWrapper(), priority=1)
         logger.info("✅ export_data tool registered")
         registered_count += 1
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register export_data tool: {e}")
-        failed_count += 1
     except Exception as e:
         logger.error(f"❌ export_data tool registration failed: {e}")
         failed_count += 1
 
     # --- manage_privacy ---
+    class ManagePrivacyWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "manage_privacy",
+                "Manage privacy settings. Use when user wants to change visibility, location sharing, etc.",
+                capabilities=[ToolCapability.USER_DATA]
+            )
+            try:
+                from app.services.pam.tools.profile.manage_privacy import manage_privacy
+                self.manage_privacy_func = manage_privacy
+            except ImportError:
+                self.manage_privacy_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.manage_privacy_func is None:
+                return self._create_error_result("manage_privacy function not available").to_dict()
+            return await self.manage_privacy_func(user_id=user_id, **parameters)
+
     try:
         logger.debug("🔄 Attempting to register manage_privacy tool...")
-        from app.services.pam.tools.profile.manage_privacy import manage_privacy
-
-        registry.register_tool(
-            tool=manage_privacy,
-            function_definition={
-                "name": "manage_privacy",
-                "description": "Manage privacy settings. Use when user wants to change visibility, location sharing, etc.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "profile_visibility": {
-                            "type": "string",
-                            "enum": ["public", "friends", "private"],
-                            "description": "Who can see the profile"
-                        },
-                        "location_sharing": {
-                            "type": "boolean",
-                            "description": "Whether to share location"
-                        },
-                        "show_activity": {
-                            "type": "boolean",
-                            "description": "Whether to show activity status"
-                        },
-                        "allow_messages": {
-                            "type": "string",
-                            "enum": ["everyone", "friends", "none"],
-                            "description": "Who can send messages"
-                        },
-                        "data_collection": {
-                            "type": "boolean",
-                            "description": "Allow data collection for analytics"
-                        }
-                    },
-                    "required": []
-                }
-            },
-            capability=ToolCapability.USER_DATA,
-            priority=1
-        )
+        registry.register_tool(tool=ManagePrivacyWrapper(), priority=1)
         logger.info("✅ manage_privacy tool registered")
         registered_count += 1
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register manage_privacy tool: {e}")
-        failed_count += 1
     except Exception as e:
         logger.error(f"❌ manage_privacy tool registration failed: {e}")
         failed_count += 1
 
     # --- create_vehicle ---
+    class CreateVehicleWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "create_vehicle",
+                "Create a new vehicle record. Use when user wants to add their RV, truck, or car.",
+                capabilities=[ToolCapability.USER_DATA]
+            )
+            try:
+                from app.services.pam.tools.profile.create_vehicle import create_vehicle
+                self.create_vehicle_func = create_vehicle
+            except ImportError:
+                self.create_vehicle_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.create_vehicle_func is None:
+                return self._create_error_result("create_vehicle function not available").to_dict()
+            return await self.create_vehicle_func(user_id=user_id, **parameters)
+
     try:
         logger.debug("🔄 Attempting to register create_vehicle tool...")
-        from app.services.pam.tools.profile.create_vehicle import create_vehicle
-
-        registry.register_tool(
-            tool=create_vehicle,
-            function_definition={
-                "name": "create_vehicle",
-                "description": "Create a new vehicle record. Use when user wants to add their RV, truck, or car.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Vehicle nickname (e.g., 'My RV', 'Blue Truck')"
-                        },
-                        "make": {
-                            "type": "string",
-                            "description": "Manufacturer (e.g., 'Ford', 'RAM', 'Winnebago')"
-                        },
-                        "model": {
-                            "type": "string",
-                            "description": "Model name (e.g., 'F-350', '1500', 'Vista')"
-                        },
-                        "year": {
-                            "type": "integer",
-                            "description": "Year of manufacture"
-                        },
-                        "vehicle_type": {
-                            "type": "string",
-                            "enum": ["rv", "motorhome", "truck", "car", "van", "trailer"],
-                            "description": "Type of vehicle (default: rv)"
-                        },
-                        "fuel_type": {
-                            "type": "string",
-                            "enum": ["gasoline", "diesel", "electric", "hybrid", "propane"],
-                            "description": "Type of fuel (default: gasoline)"
-                        },
-                        "set_as_primary": {
-                            "type": "boolean",
-                            "description": "Make this the primary vehicle (default: true)"
-                        }
-                    },
-                    "required": ["name"]
-                }
-            },
-            capability=ToolCapability.USER_DATA,
-            priority=2
-        )
+        registry.register_tool(tool=CreateVehicleWrapper(), priority=2)
         logger.info("✅ create_vehicle tool registered")
         registered_count += 1
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register create_vehicle tool: {e}")
-        failed_count += 1
     except Exception as e:
         logger.error(f"❌ create_vehicle tool registration failed: {e}")
         failed_count += 1
@@ -4950,108 +5200,65 @@ async def _register_all_tools(registry: ToolRegistry):
         failed_count += 1
 
     # --- search_posts ---
+    class SearchPostsWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "search_posts",
+                "Search for posts by content, tags, or location. Use when user wants to find posts.",
+                capabilities=[ToolCapability.SOCIAL]
+            )
+            try:
+                from app.services.pam.tools.social.search_posts import search_posts
+                self.search_posts_func = search_posts
+            except ImportError:
+                self.search_posts_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.search_posts_func is None:
+                return self._create_error_result("search_posts function not available").to_dict()
+            return await self.search_posts_func(user_id=user_id, **parameters)
+
     try:
         logger.debug("🔄 Attempting to register search_posts tool...")
-        from app.services.pam.tools.social.search_posts import search_posts
-
-        registry.register_tool(
-            tool=search_posts,
-            function_definition={
-                "name": "search_posts",
-                "description": "Search for posts by content, tags, or location. Use when user wants to find posts.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "Search query string"
-                        },
-                        "tags": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Optional tags to filter by"
-                        },
-                        "location": {
-                            "type": "string",
-                            "description": "Optional location to filter by"
-                        },
-                        "limit": {
-                            "type": "integer",
-                            "description": "Maximum number of results (default: 20)"
-                        }
-                    },
-                    "required": ["query"]
-                }
-            },
-            capability=ToolCapability.SOCIAL,
-            priority=2
-        )
+        registry.register_tool(tool=SearchPostsWrapper(), priority=2)
         logger.info("✅ search_posts tool registered")
         registered_count += 1
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register search_posts tool: {e}")
-        failed_count += 1
     except Exception as e:
         logger.error(f"❌ search_posts tool registration failed: {e}")
         failed_count += 1
 
     # --- create_event ---
+    class CreateEventWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "create_event",
+                "Create a community event or meetup. Use for planning gatherings.",
+                capabilities=[ToolCapability.SOCIAL]
+            )
+            try:
+                from app.services.pam.tools.social.create_event import create_event
+                self.create_event_func = create_event
+            except ImportError:
+                self.create_event_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.create_event_func is None:
+                return self._create_error_result("create_event function not available").to_dict()
+            return await self.create_event_func(user_id=user_id, **parameters)
+
     try:
         logger.debug("🔄 Attempting to register create_event tool...")
-        from app.services.pam.tools.social.create_event import create_event
-
-        registry.register_tool(
-            tool=create_event,
-            function_definition={
-                "name": "create_event",
-                "description": "Create a community event or meetup. Use for planning gatherings.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "title": {
-                            "type": "string",
-                            "description": "Event title"
-                        },
-                        "description": {
-                            "type": "string",
-                            "description": "Event description"
-                        },
-                        "event_date": {
-                            "type": "string",
-                            "description": "Event date/time in ISO format"
-                        },
-                        "location": {
-                            "type": "string",
-                            "description": "Event location name"
-                        },
-                        "latitude": {
-                            "type": "number",
-                            "description": "Optional location latitude"
-                        },
-                        "longitude": {
-                            "type": "number",
-                            "description": "Optional location longitude"
-                        },
-                        "max_attendees": {
-                            "type": "integer",
-                            "description": "Optional maximum number of attendees"
-                        },
-                        "is_public": {
-                            "type": "boolean",
-                            "description": "Whether event is public (default: true)"
-                        }
-                    },
-                    "required": ["title", "description", "event_date", "location"]
-                }
-            },
-            capability=ToolCapability.SOCIAL,
-            priority=2
-        )
+        registry.register_tool(tool=CreateEventWrapper(), priority=2)
         logger.info("✅ create_event tool registered")
         registered_count += 1
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register create_event tool: {e}")
-        failed_count += 1
     except Exception as e:
         logger.error(f"❌ create_event tool registration failed: {e}")
         failed_count += 1
@@ -5111,143 +5318,129 @@ async def _register_all_tools(registry: ToolRegistry):
         failed_count += 1
 
     # --- web_search ---
+    class WebSearchWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "web_search",
+                "Search the web for products, deals, or information worldwide using Google, Bing, or DuckDuckGo. Use for finding anything anywhere in the world.",
+                capabilities=[ToolCapability.SHOP]
+            )
+            try:
+                from app.services.pam.tools.search.web_search import web_search
+                self.web_search_func = web_search
+            except ImportError:
+                self.web_search_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.web_search_func is None:
+                return self._create_error_result("web_search function not available").to_dict()
+            return await self.web_search_func(user_id=user_id, **parameters)
+
     try:
         logger.debug("🔄 Attempting to register web_search tool...")
-        from app.services.pam.tools.search.web_search import web_search
-
-        registry.register_tool(
-            tool=web_search,
-            function_definition={
-                "name": "web_search",
-                "description": "Search the web for products, deals, or information worldwide using Google, Bing, or DuckDuckGo. Use for finding anything anywhere in the world.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The search query (e.g., 'cheapest iPad 9th gen 256GB Johannesburg')"
-                        },
-                        "search_type": {
-                            "type": "string",
-                            "enum": ["product", "local", "news", "how-to"],
-                            "description": "Type of search: product, local, news, how-to (optional)"
-                        },
-                        "num_results": {
-                            "type": "integer",
-                            "description": "Number of results (1-20, default: 10)",
-                            "default": 10
-                        },
-                        "location": {
-                            "type": "string",
-                            "description": "Location for local searches (e.g., 'Johannesburg')"
-                        }
-                    },
-                    "required": ["query"]
-                }
-            },
-            capability=ToolCapability.SHOP,
-            priority=1  # Higher priority than compare_prices since it works worldwide
-        )
+        registry.register_tool(tool=WebSearchWrapper(), priority=1)
         logger.info("✅ web_search tool registered")
         registered_count += 1
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register web_search tool: {e}")
-        failed_count += 1
     except Exception as e:
         logger.error(f"❌ web_search tool registration failed: {e}")
         failed_count += 1
 
+    # --- enhanced_search (PAM Financial Co-Pilot) ---
+    class EnhancedSearchWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "enhanced_search",
+                "PAM's Financial Co-Pilot for Mobile Living - search with RV context intelligence. Transforms any purchase query into smart recommendations with mobile living expertise.",
+                capabilities=[ToolCapability.SHOP]
+            )
+            try:
+                from app.services.pam.tools.financial_copilot.enhanced_search import enhanced_search
+                self.enhanced_search_func = enhanced_search
+            except ImportError:
+                self.enhanced_search_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.enhanced_search_func is None:
+                return self._create_error_result("Enhanced search function not available").to_dict()
+            return await self.enhanced_search_func(user_id=user_id, **parameters)
+
+    try:
+        logger.debug("🔄 Attempting to register enhanced_search tool (PAM Financial Co-Pilot)...")
+        registry.register_tool(tool=EnhancedSearchWrapper(), priority=1)  # High priority - this is PAM's core Co-Pilot feature
+        logger.info("✅ enhanced_search tool registered (PAM Financial Co-Pilot)")
+        registered_count += 1
+    except Exception as e:
+        logger.error(f"❌ enhanced_search tool registration failed: {e}")
+        failed_count += 1
+
     # --- update_settings ---
+    class UpdateSettingsWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "update_settings",
+                "Update user preferences and settings. Use for notifications, theme, language.",
+                capabilities=[ToolCapability.USER_DATA]
+            )
+            try:
+                from app.services.pam.tools.profile.update_settings import update_settings
+                self.update_settings_func = update_settings
+            except ImportError:
+                self.update_settings_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.update_settings_func is None:
+                return self._create_error_result("update_settings function not available").to_dict()
+            return await self.update_settings_func(user_id=user_id, **parameters)
+
     try:
         logger.debug("🔄 Attempting to register update_settings tool...")
-        from app.services.pam.tools.profile.update_settings import update_settings
-
-        registry.register_tool(
-            tool=update_settings,
-            function_definition={
-                "name": "update_settings",
-                "description": "Update user preferences and settings. Use for notifications, theme, language.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "email_notifications": {
-                            "type": "boolean",
-                            "description": "Enable/disable email notifications"
-                        },
-                        "push_notifications": {
-                            "type": "boolean",
-                            "description": "Enable/disable push notifications"
-                        },
-                        "theme": {
-                            "type": "string",
-                            "enum": ["light", "dark", "auto"],
-                            "description": "App theme"
-                        },
-                        "language": {
-                            "type": "string",
-                            "description": "Language code (e.g., 'en', 'es')"
-                        },
-                        "budget_alerts": {
-                            "type": "boolean",
-                            "description": "Enable/disable budget alerts"
-                        },
-                        "trip_reminders": {
-                            "type": "boolean",
-                            "description": "Enable/disable trip reminders"
-                        }
-                    },
-                    "required": []
-                }
-            },
-            capability=ToolCapability.USER_DATA,
-            priority=1
-        )
+        registry.register_tool(tool=UpdateSettingsWrapper(), priority=1)
         logger.info("✅ update_settings tool registered")
         registered_count += 1
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register update_settings tool: {e}")
-        failed_count += 1
     except Exception as e:
         logger.error(f"❌ update_settings tool registration failed: {e}")
         failed_count += 1
 
     # --- update_vehicle_fuel_consumption ---
+    class UpdateVehicleFuelConsumptionWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "update_vehicle_fuel_consumption",
+                "Update vehicle fuel consumption data. Use when user reports MPG or L/100km.",
+                capabilities=[ToolCapability.USER_DATA]
+            )
+            try:
+                from app.services.pam.tools.trip.update_vehicle_fuel_consumption import update_vehicle_fuel_consumption
+                self.update_vehicle_fuel_consumption_func = update_vehicle_fuel_consumption
+            except ImportError:
+                self.update_vehicle_fuel_consumption_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.update_vehicle_fuel_consumption_func is None:
+                return self._create_error_result("update_vehicle_fuel_consumption function not available").to_dict()
+            return await self.update_vehicle_fuel_consumption_func(user_id=user_id, **parameters)
+
     try:
         logger.debug("🔄 Attempting to register update_vehicle_fuel_consumption tool...")
-        from app.services.pam.tools.trip.update_vehicle_fuel_consumption import update_vehicle_fuel_consumption
-
-        registry.register_tool(
-            tool=update_vehicle_fuel_consumption,
-            function_definition={
-                "name": "update_vehicle_fuel_consumption",
-                "description": "Update vehicle fuel consumption data. Use when user reports MPG or L/100km.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "mpg": {
-                            "type": "number",
-                            "description": "Fuel consumption in miles per gallon"
-                        },
-                        "l_per_100km": {
-                            "type": "number",
-                            "description": "Fuel consumption in liters per 100km"
-                        },
-                        "vehicle_id": {
-                            "type": "string",
-                            "description": "Specific vehicle ID (uses primary if not provided)"
-                        }
-                    },
-                    "required": []
-                }
-            },
-            capability=ToolCapability.USER_DATA,
-            priority=2
-        )
+        registry.register_tool(tool=UpdateVehicleFuelConsumptionWrapper(), priority=2)
         logger.info("✅ update_vehicle_fuel_consumption tool registered")
         registered_count += 1
-    except ImportError as e:
-        logger.warning(f"⚠️ Could not register update_vehicle_fuel_consumption tool: {e}")
-        failed_count += 1
     except Exception as e:
         logger.error(f"❌ update_vehicle_fuel_consumption tool registration failed: {e}")
         failed_count += 1
