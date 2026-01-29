@@ -12,6 +12,7 @@ export async function getDigitalProductsFromDB(region: Region): Promise<DigitalP
     // Query affiliate_products table for digital-like categories
     // Using 'in' filter since category is an enum type (not text - ILIKE won't work)
     // Only show products that are available (filters out unavailable products)
+    // EXCLUDE products that have affiliate_provider or affiliate_url - those should be affiliate products only
     // Note: Explicit 'any' type to bypass type inference issues with new availability_status field
     const { data, error } = await supabase
       .from('affiliate_products')
@@ -19,6 +20,8 @@ export async function getDigitalProductsFromDB(region: Region): Promise<DigitalP
       .eq('is_active', true)
       .eq('availability_status', 'available')
       .in('category', ['books_manuals', 'electronics'])
+      .is('affiliate_provider', null)
+      .is('affiliate_url', null)
       .order('sort_order', { ascending: true }) as { data: any[] | null; error: any };
 
     if (error) {
@@ -28,26 +31,34 @@ export async function getDigitalProductsFromDB(region: Region): Promise<DigitalP
 
     console.log(`Shop: Loaded ${data?.length || 0} digital products from database`);
 
-    return (data || []).map(product => {
-      const audPrice = product.price || 0;
-      const convertedPrice = convertPrice(audPrice, region);
-      const availableRegions = getAvailableRegions(product.regional_asins);
+    return (data || [])
+      .filter(product => {
+        // Additional filter: exclude any products that have affiliate-related fields set
+        // This prevents products from being classified as both affiliate and digital
+        return !product.affiliate_provider &&
+               !product.affiliate_url &&
+               !product.regional_urls;
+      })
+      .map(product => {
+        const audPrice = product.price || 0;
+        const convertedPrice = convertPrice(audPrice, region);
+        const availableRegions = getAvailableRegions(product.regional_asins);
 
-      return {
-        id: product.id,
-        title: product.title || 'Unknown Product',
-        description: product.description || '',
-        image: product.image_url || "/placeholder-product.jpg",
-        price: convertedPrice.amount,
-        currency: convertedPrice.currency,
-        type: product.category || "software",
-        availableRegions: availableRegions,
-        isNew: false,
-        hasBonus: false
-      };
-    }).filter(product =>
-      product.availableRegions.includes(region) || product.availableRegions.length === 0
-    );
+        return {
+          id: product.id,
+          title: product.title || 'Unknown Product',
+          description: product.description || '',
+          image: product.image_url || "/placeholder-product.jpg",
+          price: convertedPrice.amount,
+          currency: convertedPrice.currency,
+          type: product.category || "software",
+          availableRegions: availableRegions,
+          isNew: false,
+          hasBonus: false
+        };
+      }).filter(product =>
+        product.availableRegions.includes(region) || product.availableRegions.length === 0
+      );
   } catch (error) {
     console.error('Unexpected error fetching digital products:', error);
     return [];

@@ -148,7 +148,7 @@ export default function Shop() {
     } else {
       // Handle other digital products (Stripe, etc.)
       console.log(`Initiating checkout for product: ${productId}`);
-      alert("Stripe checkout would be integrated here for non-Digistore24 products.");
+      alert("This product is not currently available for purchase. Please check back later or contact support.");
     }
   };
 
