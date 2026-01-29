@@ -22,11 +22,28 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/transition", tags=["transition"])
 
-# Supabase client
-supabase: Client = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-)
+# Supabase client factory (dependency injection pattern to prevent import-time failures)
+def get_supabase_client() -> Client:
+    """Create Supabase client with proper error handling."""
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    if not supabase_url:
+        raise ValueError("SUPABASE_URL environment variable is required")
+    if not service_role_key:
+        raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
+
+    return create_client(supabase_url, service_role_key)
+
+# Global client instance (initialized lazily)
+_supabase_client: Optional[Client] = None
+
+def supabase() -> Client:
+    """Get cached Supabase client instance."""
+    global _supabase_client
+    if _supabase_client is None:
+        _supabase_client = get_supabase_client()
+    return _supabase_client
 
 # ============================================================================
 # PYDANTIC MODELS (Request/Response)
@@ -188,7 +205,7 @@ class IncomeStreamUpdate(BaseModel):
 async def get_profile(current_user = Depends(get_current_user)):
     """Get user's transition profile"""
     try:
-        result = supabase.table("transition_profiles").select("*").eq("user_id", current_user["id"]).maybe_single().execute()
+        result = supabase().table("transition_profiles").select("*").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
@@ -203,7 +220,7 @@ async def create_profile(profile: TransitionProfileCreate, current_user = Depend
     """Create a new transition profile"""
     try:
         # Check if profile already exists
-        existing = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        existing = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if existing.data:
             raise HTTPException(status_code=400, detail="Transition profile already exists")
@@ -217,7 +234,7 @@ async def create_profile(profile: TransitionProfileCreate, current_user = Depend
             "concerns": profile.concerns or [],
         }
 
-        result = supabase.table("transition_profiles").insert(new_profile).execute()
+        result = supabase().table("transition_profiles").insert(new_profile).execute()
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create profile")
@@ -226,7 +243,7 @@ async def create_profile(profile: TransitionProfileCreate, current_user = Depend
 
         # Create default tasks for the user
         try:
-            supabase.rpc("create_default_transition_tasks", {
+            supabase().rpc("create_default_transition_tasks", {
                 "p_profile_id": created_profile["id"],
                 "p_user_id": current_user["id"],
                 "p_departure_date": profile.departure_date.isoformat()
@@ -254,7 +271,7 @@ async def update_profile(profile: TransitionProfileUpdate, current_user = Depend
         if "departure_date" in updates:
             updates["departure_date"] = updates["departure_date"].isoformat()
 
-        result = supabase.table("transition_profiles").update(updates).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_profiles").update(updates).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
@@ -270,7 +287,7 @@ async def update_profile(profile: TransitionProfileUpdate, current_user = Depend
 async def delete_profile(current_user = Depends(get_current_user)):
     """Delete transition profile (archives it)"""
     try:
-        result = supabase.table("transition_profiles").update({
+        result = supabase().table("transition_profiles").update({
             "archived_at": datetime.utcnow().isoformat()
         }).eq("user_id", current_user["id"]).execute()
 
@@ -297,12 +314,12 @@ async def get_tasks(
     """Get all transition tasks for user"""
     try:
         # Get profile first
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             return []
 
-        query = supabase.table("transition_tasks").select("*").eq("profile_id", profile_result.data["id"])
+        query = supabase().table("transition_tasks").select("*").eq("profile_id", profile_result.data["id"])
 
         if category:
             query = query.eq("category", category)
@@ -321,7 +338,7 @@ async def create_task(task: TaskCreate, current_user = Depends(get_current_user)
     """Create a new transition task"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
@@ -332,7 +349,7 @@ async def create_task(task: TaskCreate, current_user = Depends(get_current_user)
             **task.dict(),
         }
 
-        result = supabase.table("transition_tasks").insert(new_task).execute()
+        result = supabase().table("transition_tasks").insert(new_task).execute()
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create task")
@@ -359,7 +376,7 @@ async def update_task(task_id: str, task: TaskUpdate, current_user = Depends(get
         elif updates.get("is_completed") is False:
             updates["completed_at"] = None
 
-        result = supabase.table("transition_tasks").update(updates).eq("id", task_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_tasks").update(updates).eq("id", task_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Task not found")
@@ -375,7 +392,7 @@ async def update_task(task_id: str, task: TaskUpdate, current_user = Depends(get
 async def delete_task(task_id: str, current_user = Depends(get_current_user)):
     """Delete a transition task"""
     try:
-        result = supabase.table("transition_tasks").delete().eq("id", task_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_tasks").delete().eq("id", task_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Task not found")
@@ -396,12 +413,12 @@ async def get_timeline(current_user = Depends(get_current_user)):
     """Get transition timeline milestones"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             return []
 
-        result = supabase.table("transition_timeline").select("*").eq("profile_id", profile_result.data["id"]).order("milestone_date").execute()
+        result = supabase().table("transition_timeline").select("*").eq("profile_id", profile_result.data["id"]).order("milestone_date").execute()
 
         return result.data or []
     except Exception as e:
@@ -413,7 +430,7 @@ async def create_milestone(milestone: MilestoneCreate, current_user = Depends(ge
     """Create a new timeline milestone"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
@@ -428,7 +445,7 @@ async def create_milestone(milestone: MilestoneCreate, current_user = Depends(ge
             "is_system_milestone": False,  # Custom milestones are not system milestones
         }
 
-        result = supabase.table("transition_timeline").insert(new_milestone).execute()
+        result = supabase().table("transition_timeline").insert(new_milestone).execute()
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create milestone")
@@ -459,7 +476,7 @@ async def update_milestone(milestone_id: str, milestone: MilestoneUpdate, curren
         elif updates.get("is_completed") is False:
             updates["completed_at"] = None
 
-        result = supabase.table("transition_timeline").update(updates).eq("id", milestone_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_timeline").update(updates).eq("id", milestone_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Milestone not found")
@@ -475,7 +492,7 @@ async def update_milestone(milestone_id: str, milestone: MilestoneUpdate, curren
 async def delete_milestone(milestone_id: str, current_user = Depends(get_current_user)):
     """Delete a timeline milestone"""
     try:
-        result = supabase.table("transition_timeline").delete().eq("id", milestone_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_timeline").delete().eq("id", milestone_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Milestone not found")
@@ -499,12 +516,12 @@ async def get_financial_items(
     """Get transition financial items"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             return []
 
-        query = supabase.table("transition_financial").select("*").eq("profile_id", profile_result.data["id"])
+        query = supabase().table("transition_financial").select("*").eq("profile_id", profile_result.data["id"])
 
         if bucket_type:
             query = query.eq("bucket_type", bucket_type)
@@ -521,7 +538,7 @@ async def create_financial_item(item: FinancialItemCreate, current_user = Depend
     """Create a new financial item"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
@@ -536,7 +553,7 @@ async def create_financial_item(item: FinancialItemCreate, current_user = Depend
         if new_item.get("due_date"):
             new_item["due_date"] = new_item["due_date"].isoformat()
 
-        result = supabase.table("transition_financial").insert(new_item).execute()
+        result = supabase().table("transition_financial").insert(new_item).execute()
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create financial item")
@@ -561,7 +578,7 @@ async def update_financial_item(item_id: str, item: FinancialItemUpdate, current
         if "due_date" in updates and updates["due_date"]:
             updates["due_date"] = updates["due_date"].isoformat()
 
-        result = supabase.table("transition_financial").update(updates).eq("id", item_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_financial").update(updates).eq("id", item_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Financial item not found")
@@ -577,7 +594,7 @@ async def update_financial_item(item_id: str, item: FinancialItemUpdate, current
 async def delete_financial_item(item_id: str, current_user = Depends(get_current_user)):
     """Delete a financial item"""
     try:
-        result = supabase.table("transition_financial").delete().eq("id", item_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_financial").delete().eq("id", item_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Financial item not found")
@@ -598,7 +615,7 @@ async def get_stats(current_user = Depends(get_current_user)):
     """Get transition dashboard statistics"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("*").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("*").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
@@ -610,19 +627,19 @@ async def get_stats(current_user = Depends(get_current_user)):
         days_until_departure = (departure_date.date() - datetime.utcnow().date()).days
 
         # Get task stats
-        tasks_result = supabase.table("transition_tasks").select("is_completed").eq("profile_id", profile["id"]).execute()
+        tasks_result = supabase().table("transition_tasks").select("is_completed").eq("profile_id", profile["id"]).execute()
         tasks = tasks_result.data or []
         total_tasks = len(tasks)
         completed_tasks = sum(1 for t in tasks if t["is_completed"])
 
         # Get milestone stats
-        milestones_result = supabase.table("transition_timeline").select("is_completed").eq("profile_id", profile["id"]).execute()
+        milestones_result = supabase().table("transition_timeline").select("is_completed").eq("profile_id", profile["id"]).execute()
         milestones = milestones_result.data or []
         total_milestones = len(milestones)
         completed_milestones = sum(1 for m in milestones if m["is_completed"])
 
         # Get financial stats
-        financial_result = supabase.table("transition_financial").select("estimated_amount,current_amount").eq("profile_id", profile["id"]).execute()
+        financial_result = supabase().table("transition_financial").select("estimated_amount,current_amount").eq("profile_id", profile["id"]).execute()
         financial_items = financial_result.data or []
         total_estimated = sum(item["estimated_amount"] for item in financial_items)
         total_funded = sum(item["current_amount"] for item in financial_items)
@@ -656,12 +673,12 @@ async def get_rooms(current_user = Depends(get_current_user)):
     """Get all rooms for user's transition profile"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             return []
 
-        result = supabase.table("transition_rooms").select("*").eq("profile_id", profile_result.data["id"]).order("created_at").execute()
+        result = supabase().table("transition_rooms").select("*").eq("profile_id", profile_result.data["id"]).order("created_at").execute()
 
         return result.data or []
     except Exception as e:
@@ -673,7 +690,7 @@ async def create_room(room: RoomCreate, current_user = Depends(get_current_user)
     """Create a new room"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
@@ -684,7 +701,7 @@ async def create_room(room: RoomCreate, current_user = Depends(get_current_user)
             **room.dict(),
         }
 
-        result = supabase.table("transition_rooms").insert(new_room).execute()
+        result = supabase().table("transition_rooms").insert(new_room).execute()
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create room")
@@ -705,7 +722,7 @@ async def update_room(room_id: str, room: RoomUpdate, current_user = Depends(get
         if not updates:
             raise HTTPException(status_code=400, detail="No fields to update")
 
-        result = supabase.table("transition_rooms").update(updates).eq("id", room_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_rooms").update(updates).eq("id", room_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Room not found")
@@ -721,7 +738,7 @@ async def update_room(room_id: str, room: RoomUpdate, current_user = Depends(get
 async def delete_room(room_id: str, current_user = Depends(get_current_user)):
     """Delete a room"""
     try:
-        result = supabase.table("transition_rooms").delete().eq("id", room_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_rooms").delete().eq("id", room_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Room not found")
@@ -742,12 +759,12 @@ async def get_room_items(room_id: str, current_user = Depends(get_current_user))
     """Get all items in a room"""
     try:
         # Verify room belongs to user
-        room_result = supabase.table("transition_rooms").select("id").eq("id", room_id).eq("user_id", current_user["id"]).maybe_single().execute()
+        room_result = supabase().table("transition_rooms").select("id").eq("id", room_id).eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not room_result.data:
             raise HTTPException(status_code=404, detail="Room not found")
 
-        result = supabase.table("transition_items").select("*").eq("room_id", room_id).order("created_at").execute()
+        result = supabase().table("transition_items").select("*").eq("room_id", room_id).order("created_at").execute()
 
         return result.data or []
     except HTTPException:
@@ -761,13 +778,13 @@ async def create_item(item: ItemCreate, current_user = Depends(get_current_user)
     """Create a new item in a room"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
 
         # Verify room belongs to user
-        room_result = supabase.table("transition_rooms").select("id").eq("id", item.room_id).eq("user_id", current_user["id"]).maybe_single().execute()
+        room_result = supabase().table("transition_rooms").select("id").eq("id", item.room_id).eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not room_result.data:
             raise HTTPException(status_code=404, detail="Room not found")
@@ -778,7 +795,7 @@ async def create_item(item: ItemCreate, current_user = Depends(get_current_user)
             **item.dict(),
         }
 
-        result = supabase.table("transition_items").insert(new_item).execute()
+        result = supabase().table("transition_items").insert(new_item).execute()
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create item")
@@ -805,7 +822,7 @@ async def update_item(item_id: str, item: ItemUpdate, current_user = Depends(get
         elif "decision" in updates and not updates["decision"]:
             updates["decision_date"] = None
 
-        result = supabase.table("transition_items").update(updates).eq("id", item_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_items").update(updates).eq("id", item_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Item not found")
@@ -821,7 +838,7 @@ async def update_item(item_id: str, item: ItemUpdate, current_user = Depends(get
 async def delete_item(item_id: str, current_user = Depends(get_current_user)):
     """Delete an item"""
     try:
-        result = supabase.table("transition_items").delete().eq("id", item_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_items").delete().eq("id", item_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Item not found")
@@ -842,13 +859,13 @@ async def get_downsizing_stats(current_user = Depends(get_current_user)):
     """Get comprehensive downsizing statistics"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
 
         # Call database function for stats
-        result = supabase.rpc("get_downsizing_stats", {
+        result = supabase().rpc("get_downsizing_stats", {
             "p_profile_id": profile_result.data["id"]
         }).execute()
 
@@ -888,12 +905,12 @@ async def get_services(
     """Get all digital life services for user"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             return []
 
-        query = supabase.table("transition_services").select("*").eq("profile_id", profile_result.data["id"])
+        query = supabase().table("transition_services").select("*").eq("profile_id", profile_result.data["id"])
 
         if service_type:
             query = query.eq("service_type", service_type)
@@ -910,7 +927,7 @@ async def create_service(service: ServiceCreate, current_user = Depends(get_curr
     """Create a new digital life service"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
@@ -925,7 +942,7 @@ async def create_service(service: ServiceCreate, current_user = Depends(get_curr
         if new_service.get("cancellation_target_date"):
             new_service["cancellation_target_date"] = new_service["cancellation_target_date"].isoformat()
 
-        result = supabase.table("transition_services").insert(new_service).execute()
+        result = supabase().table("transition_services").insert(new_service).execute()
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create service")
@@ -956,7 +973,7 @@ async def update_service(service_id: str, service: ServiceUpdate, current_user =
         elif updates.get("cancellation_completed") is False:
             updates["cancellation_completed_date"] = None
 
-        result = supabase.table("transition_services").update(updates).eq("id", service_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_services").update(updates).eq("id", service_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Service not found")
@@ -972,7 +989,7 @@ async def update_service(service_id: str, service: ServiceUpdate, current_user =
 async def delete_service(service_id: str, current_user = Depends(get_current_user)):
     """Delete a digital life service"""
     try:
-        result = supabase.table("transition_services").delete().eq("id", service_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("transition_services").delete().eq("id", service_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Service not found")
@@ -989,13 +1006,13 @@ async def get_service_stats(current_user = Depends(get_current_user)):
     """Get digital life service statistics"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
 
         # Call database function for stats
-        result = supabase.rpc("get_service_stats", {
+        result = supabase().rpc("get_service_stats", {
             "p_profile_id": profile_result.data["id"]
         }).execute()
 
@@ -1030,12 +1047,12 @@ async def get_income_streams(current_user = Depends(get_current_user)):
     """Get all income streams for user"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             return []
 
-        result = supabase.table("income_streams").select("*").eq("profile_id", profile_result.data["id"]).order("created_at").execute()
+        result = supabase().table("income_streams").select("*").eq("profile_id", profile_result.data["id"]).order("created_at").execute()
 
         return result.data or []
     except Exception as e:
@@ -1047,7 +1064,7 @@ async def create_income_stream(stream: IncomeStreamCreate, current_user = Depend
     """Create a new income stream"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
@@ -1058,7 +1075,7 @@ async def create_income_stream(stream: IncomeStreamCreate, current_user = Depend
             **stream.dict(),
         }
 
-        result = supabase.table("income_streams").insert(new_stream).execute()
+        result = supabase().table("income_streams").insert(new_stream).execute()
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create income stream")
@@ -1095,7 +1112,7 @@ async def update_income_stream(stream_id: str, stream: IncomeStreamUpdate, curre
         elif updates.get("status") and updates["status"] != "discontinued":
             updates["discontinued_at"] = None
 
-        result = supabase.table("income_streams").update(updates).eq("id", stream_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("income_streams").update(updates).eq("id", stream_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Income stream not found")
@@ -1111,7 +1128,7 @@ async def update_income_stream(stream_id: str, stream: IncomeStreamUpdate, curre
 async def delete_income_stream(stream_id: str, current_user = Depends(get_current_user)):
     """Delete an income stream"""
     try:
-        result = supabase.table("income_streams").delete().eq("id", stream_id).eq("user_id", current_user["id"]).execute()
+        result = supabase().table("income_streams").delete().eq("id", stream_id).eq("user_id", current_user["id"]).execute()
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Income stream not found")
@@ -1128,13 +1145,13 @@ async def get_income_stats(current_user = Depends(get_current_user)):
     """Get comprehensive income stream statistics"""
     try:
         # Get profile
-        profile_result = supabase.table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
+        profile_result = supabase().table("transition_profiles").select("id").eq("user_id", current_user["id"]).maybe_single().execute()
 
         if not profile_result.data:
             raise HTTPException(status_code=404, detail="Transition profile not found")
 
         # Call database function for stats
-        result = supabase.rpc("get_income_stats", {
+        result = supabase().rpc("get_income_stats", {
             "p_profile_id": profile_result.data["id"]
         }).execute()
 

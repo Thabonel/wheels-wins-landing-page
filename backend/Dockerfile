@@ -42,8 +42,8 @@ COPY requirements-dev.txt .
 RUN python -m pip install --upgrade pip && pip install -r requirements-dev.txt
 COPY . .
 USER pamuser
-EXPOSE 10000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000", "--reload"]
+EXPOSE 8001
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
 
 ############# production (runtime) #############
 FROM python:3.11-slim AS production
@@ -68,11 +68,11 @@ RUN groupadd -r pamuser && useradd -r -g pamuser pamuser \
  && chown -R pamuser:pamuser /app
 USER pamuser
 
-# Render uses port 10000
-EXPOSE 10000
+# Development uses port 8001, Production will use $PORT from environment
+EXPOSE 8001
 
-# Health-check Render can query
+# Health-check for development (production uses $PORT)
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:10000/health || exit 1
+  CMD curl -f http://localhost:8001/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
