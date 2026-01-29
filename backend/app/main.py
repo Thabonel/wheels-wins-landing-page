@@ -107,6 +107,7 @@ from app.api.v1 import system_settings as system_settings_api
 from app.api.v1 import ai_structured as ai_structured_api
 from app.api.v1 import ai_ingest as ai_ingest_api
 from app.services.ai.automation import ensure_defaults, periodic_ingest_loop
+from app.api import news  # News RSS feed proxy
 from app.api.v1 import observability as observability_api
 from app.api import actions
 from app.api.v1 import voice_streaming
@@ -857,6 +858,7 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"❌ Failed to register voice health endpoints: {e}")
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
+app.include_router(news.router, tags=["News"])  # News RSS feed aggregator
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])
 app.include_router(openroute.router, prefix="/api/v1/openroute", tags=["OpenRoute Service Proxy"])
