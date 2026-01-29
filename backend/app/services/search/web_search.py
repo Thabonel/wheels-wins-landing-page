@@ -64,8 +64,15 @@ class GoogleSearchAPI(WebSearchEngine):
     
     def __init__(self):
         super().__init__()
-        self.api_key = getattr(settings, 'GOOGLE_SEARCH_API_KEY', None)
-        self.search_engine_id = getattr(settings, 'GOOGLE_SEARCH_ENGINE_ID', None)
+        # Support both naming conventions (GOOGLE_CUSTOM_SEARCH_* and GOOGLE_SEARCH_*)
+        self.api_key = (
+            getattr(settings, 'GOOGLE_CUSTOM_SEARCH_API_KEY', None) or
+            getattr(settings, 'GOOGLE_SEARCH_API_KEY', None)
+        )
+        self.search_engine_id = (
+            getattr(settings, 'GOOGLE_CUSTOM_SEARCH_ENGINE_ID', None) or
+            getattr(settings, 'GOOGLE_SEARCH_ENGINE_ID', None)
+        )
         self.base_url = "https://www.googleapis.com/customsearch/v1"
         self.is_available = bool(self.api_key and self.search_engine_id)
         
@@ -239,7 +246,11 @@ class BingSearchAPI(WebSearchEngine):
     
     def __init__(self):
         super().__init__()
-        self.api_key = getattr(settings, 'BING_SEARCH_API_KEY', None)
+        # Support multiple naming conventions for Bing API key
+        self.api_key = (
+            getattr(settings, 'BING_SEARCH_API_KEY', None) or
+            getattr(settings, 'AZURE_BING_SEARCH_KEY', None)
+        )
         self.base_url = "https://api.bing.microsoft.com/v7.0/search"
         self.is_available = bool(self.api_key)
         

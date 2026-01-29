@@ -4671,6 +4671,53 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ compare_prices tool registration failed: {e}")
         failed_count += 1
 
+    # --- web_search ---
+    try:
+        logger.debug("🔄 Attempting to register web_search tool...")
+        from app.services.pam.tools.search.web_search import web_search
+
+        registry.register_tool(
+            tool=web_search,
+            function_definition={
+                "name": "web_search",
+                "description": "Search the web for products, deals, or information worldwide using Google, Bing, or DuckDuckGo. Use for finding anything anywhere in the world.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The search query (e.g., 'cheapest iPad 9th gen 256GB Johannesburg')"
+                        },
+                        "search_type": {
+                            "type": "string",
+                            "enum": ["product", "local", "news", "how-to"],
+                            "description": "Type of search: product, local, news, how-to (optional)"
+                        },
+                        "num_results": {
+                            "type": "integer",
+                            "description": "Number of results (1-20, default: 10)",
+                            "default": 10
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Location for local searches (e.g., 'Johannesburg')"
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            capability=ToolCapability.SHOP,
+            priority=1  # Higher priority than compare_prices since it works worldwide
+        )
+        logger.info("✅ web_search tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register web_search tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ web_search tool registration failed: {e}")
+        failed_count += 1
+
     # --- update_settings ---
     try:
         logger.debug("🔄 Attempting to register update_settings tool...")
