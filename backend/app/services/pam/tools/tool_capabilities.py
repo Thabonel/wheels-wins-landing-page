@@ -38,6 +38,12 @@ class ToolCapability(Enum):
     CALCULATION = "calculation"
     EXTERNAL_API = "external_api"
 
+    # Social and Community
+    SOCIAL = "social"
+
+    # Shopping and Commerce
+    SHOP = "shop"
+
     # Tool Actions
     ACTION = "action"  # Tools that perform actions (create, update, delete)
     WRITE = "write"    # Tools that write/modify data
