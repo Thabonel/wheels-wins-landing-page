@@ -1,10 +1,12 @@
 import asyncio
+import json
 import logging
 from typing import Dict, Optional
 from datetime import datetime
 
 from app.services.pam.monitoring.event_monitor import EventMonitor
 from app.services.pam.monitoring.event_types import EventType, BaseEvent
+from app.core.websocket_manager import manager
 
 # Import PersonalizedPamAgent for type hints
 from typing import TYPE_CHECKING
@@ -80,9 +82,26 @@ class EventManager:
 
 async def send_proactive_message(user_id: str, data: dict):
     """Send proactive message via WebSocket to user"""
-    # Implementation will connect to existing WebSocket infrastructure
-    logger.info(f"Proactive message for {user_id}: {data}")
-    pass  # TODO: Connect to WebSocket in next task
+    try:
+        # Format message for WebSocket delivery
+        websocket_message = {
+            "type": "proactive_alert",
+            "timestamp": datetime.now().isoformat(),
+            "content": data,
+            "id": f"proactive_{int(datetime.now().timestamp() * 1000)}"
+        }
+
+        # Send via WebSocket manager
+        await manager.send_message_to_user(
+            message=json.dumps(websocket_message),
+            user_id=user_id
+        )
+
+        logger.info(f"Sent proactive message to user {user_id}: {data.get('type', 'unknown')}")
+
+    except Exception as e:
+        logger.error(f"Failed to send proactive message to user {user_id}: {e}")
+        # Don't re-raise - proactive messages shouldn't crash the system
 
 # Global event manager instance
 event_manager = EventManager()

@@ -10,11 +10,17 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
@@ -27,31 +33,49 @@ services:
       - key: LANGCHAIN_TRACING_V2
         value: disabled
       - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
         fromService:
           type: redis
           name: pam-redis
           property: connectionString
     autoDeploy: true
     healthCheckPath: /api/health
+
   - type: redis
     name: pam-redis
     plan: free
     ipAllowList: []
+
   - type: worker
     name: pam-celery-worker
     env: python
     runtime: python-3.11
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: celery -A app.workers.celery worker --loglevel=info
+    startCommand: celery -A app.workers.celery worker --loglevel=info --concurrency=4
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
@@ -68,7 +92,18 @@ services:
           type: redis
           name: pam-redis
           property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
     autoDeploy: true
+
   - type: worker
     name: pam-celery-beat
     env: python
@@ -79,11 +114,17 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
@@ -96,6 +137,16 @@ services:
       - key: LANGCHAIN_TRACING_V2
         value: disabled
       - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
         fromService:
           type: redis
           name: pam-redis

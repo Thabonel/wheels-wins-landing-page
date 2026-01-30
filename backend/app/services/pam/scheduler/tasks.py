@@ -6,6 +6,7 @@ from typing import List, Dict, Any
 from celery import Celery
 from app.services.pam.monitoring.event_types import EventType, TravelEvent, FinancialEvent, CalendarEvent
 from app.services.pam.monitoring.manager import event_manager
+from app.services.pam.proactive.data_integration import proactive_data
 
 logger = logging.getLogger(__name__)
 
@@ -210,48 +211,90 @@ async def _check_maintenance_async():
     except Exception as e:
         logger.error(f"Error checking maintenance: {e}")
 
-# Helper functions (integrate with existing data sources)
+# Helper functions using real data integration
 async def get_all_active_users() -> List[Dict[str, Any]]:
     """Get list of all active users for monitoring"""
-    # TODO: Query profiles table for active users
-    return [{"id": "test-user"}]  # Mock data
+    return await proactive_data.get_all_active_users()
 
 async def get_fuel_level(user_id: str) -> float:
     """Get current fuel level for user"""
-    # TODO: Integrate with fuel tracking system
-    return 75.0  # Mock data
+    return await proactive_data.get_fuel_level(user_id)
 
 async def get_user_spending_data() -> Dict[str, Dict[str, float]]:
     """Get spending data for all users"""
-    # TODO: Integrate with manage_finances tool
-    return {"test-user": {"spent": 850.0, "budget": 1000.0}}
+    return await proactive_data.get_user_spending_data()
 
 async def get_users_with_planned_trips() -> List[Dict[str, Any]]:
     """Get users who have planned trips"""
-    # TODO: Integrate with trip planning system
-    return []
+    return await proactive_data.get_users_with_planned_trips()
 
 async def get_weather_forecast_for_route(user_id: str, route: Dict) -> Dict:
     """Get weather forecast for planned route"""
-    # TODO: Integrate with weather_advisor tool
-    return {"forecast": []}
+    try:
+        # Extract location from route data
+        destination = route.get("destination")
+        if destination:
+            weather_result = await proactive_data.get_weather_forecast(location=destination, user_id=user_id)
+            return weather_result
+        else:
+            return {"forecast": [], "error": "No destination in route"}
+    except Exception as e:
+        logger.error(f"Error getting weather forecast for route: {e}")
+        return {"forecast": [], "error": str(e)}
 
 async def get_all_users_with_vehicles() -> List[Dict[str, Any]]:
     """Get users with registered vehicles"""
-    # TODO: Query vehicle data
-    return []
+    return await proactive_data.get_all_users_with_vehicles()
 
 def count_consecutive_clear_days(forecast: Dict) -> int:
     """Count consecutive clear weather days"""
-    return 3  # Mock implementation
+    try:
+        forecast_list = forecast.get("forecast", [])
+        if not forecast_list:
+            return 0
+
+        consecutive_clear = 0
+        max_consecutive = 0
+
+        for day in forecast_list:
+            conditions = day.get("conditions", "").lower()
+            if any(word in conditions for word in ["clear", "sunny", "fair"]):
+                consecutive_clear += 1
+                max_consecutive = max(max_consecutive, consecutive_clear)
+            else:
+                consecutive_clear = 0
+
+        return max_consecutive
+    except Exception as e:
+        logger.error(f"Error counting clear days: {e}")
+        return 0
 
 def calculate_optimal_departure(forecast: Dict) -> str:
     """Calculate optimal departure time based on weather"""
-    return "tomorrow_morning"
+    try:
+        forecast_list = forecast.get("forecast", [])
+        if not forecast_list:
+            return "conditions_unknown"
+
+        # Find first day with good conditions
+        for i, day in enumerate(forecast_list):
+            conditions = day.get("conditions", "").lower()
+            if any(word in conditions for word in ["clear", "sunny", "fair"]):
+                if i == 0:
+                    return "today"
+                elif i == 1:
+                    return "tomorrow_morning"
+                else:
+                    return f"in_{i}_days"
+
+        return "wait_for_better_weather"
+    except Exception as e:
+        logger.error(f"Error calculating optimal departure: {e}")
+        return "conditions_unknown"
 
 async def analyze_maintenance_needs(vehicle_data: Dict) -> List[Dict]:
     """Analyze vehicle maintenance requirements"""
-    return []  # Mock implementation
+    return await proactive_data.analyze_maintenance_needs(vehicle_data)
 
 async def trigger_proactive_event(event):
     """Trigger proactive event through event manager"""

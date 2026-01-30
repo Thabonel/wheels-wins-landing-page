@@ -5735,6 +5735,68 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ share_location tool registration failed: {e}")
         failed_count += 1
 
+    # ===============================
+    # PROACTIVE COMMUNICATION TOOL
+    # Critical for: Real-time user communication
+    # ===============================
+    try:
+        logger.debug("🔄 Attempting to register Send Proactive Message tool...")
+        SendProactiveMessageTool = lazy_import("app.services.pam.tools.send_proactive_message", "SendProactiveMessageTool")
+
+        if SendProactiveMessageTool is None:
+            raise ImportError("SendProactiveMessageTool not available")
+
+        registry.register_tool(
+            tool=SendProactiveMessageTool(),
+            function_definition={
+                "name": "send_proactive_message",
+                "description": "Send proactive alerts and suggestions to users via WebSocket. Use this to deliver real-time notifications, alerts, or recommendations.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "description": "Type of alert (e.g., 'low_fuel', 'budget_alert', 'weather_window', 'recommendation')",
+                            "enum": ["low_fuel", "budget_alert", "weather_window", "recommendation", "reminder", "warning", "tip", "general"]
+                        },
+                        "message": {
+                            "type": "string",
+                            "description": "The proactive message content to send to the user"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Message category for organization and filtering",
+                            "enum": ["travel_assistance", "financial_guidance", "trip_optimization", "safety_alert", "assistance", "recommendation"]
+                        },
+                        "priority": {
+                            "type": "string",
+                            "description": "Message priority level",
+                            "enum": ["low", "normal", "high", "urgent"],
+                            "default": "normal"
+                        },
+                        "actions": {
+                            "type": "array",
+                            "description": "Suggested follow-up actions the user can take",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "required": ["message", "type"]
+                }
+            },
+            capability=ToolCapability.ACTION,
+            priority=1
+        )
+        logger.info("✅ Send Proactive Message tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Send Proactive Message tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Send Proactive Message tool registration failed: {e}")
+        failed_count += 1
+
     # Registration summary
     total_attempted = registered_count + failed_count
     success_rate = (registered_count / total_attempted * 100) if total_attempted > 0 else 0

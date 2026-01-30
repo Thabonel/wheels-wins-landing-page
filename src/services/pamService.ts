@@ -61,6 +61,7 @@ export interface PamServiceMetrics {
   requestCount: number;
   successCount: number;
   failureCount: number;
+  errorCount: number;
   averageLatency: number;
   uptime: number;
   lastHealthCheck: number;
@@ -162,6 +163,7 @@ class PamService {
       requestCount: 0,
       successCount: 0,
       failureCount: 0,
+      errorCount: 0,
       averageLatency: 0,
       uptime: 0,
       lastHealthCheck: 0
@@ -637,6 +639,224 @@ class PamService {
   }
 
   /**
+   * Handle proactive alert messages from autonomous PAM system
+   */
+  private handleProactiveAlert(data: {
+    type: string;
+    timestamp: string;
+    content: {
+      type: string;
+      category: string;
+      message: string;
+      priority: string;
+      actions?: string[];
+      alert_type?: string;
+    };
+    id: string;
+  }): void {
+    logger.info(`🔔 Proactive alert received: ${data.content.category} - ${data.content.alert_type || data.content.type}`);
+
+    // Show toast notification based on priority
+    const priority = data.content.priority || 'normal';
+    const category = data.content.category || 'assistance';
+    const alertType = data.content.alert_type || data.content.type || 'general';
+
+    // Determine toast type and duration based on priority
+    let toastType: 'info' | 'success' | 'warning' | 'error' = 'info';
+    let duration = 5000; // 5 seconds default
+
+    switch (priority) {
+      case 'urgent':
+        toastType = 'error';
+        duration = 10000; // 10 seconds
+        break;
+      case 'high':
+        toastType = 'warning';
+        duration = 8000; // 8 seconds
+        break;
+      case 'normal':
+        toastType = 'info';
+        duration = 5000; // 5 seconds
+        break;
+      case 'low':
+        toastType = 'info';
+        duration = 3000; // 3 seconds
+        break;
+    }
+
+    // Create title based on category and alert type
+    const getAlertTitle = (category: string, alertType: string): string => {
+      switch (category) {
+        case 'travel_assistance':
+          return alertType === 'low_fuel' ? 'Fuel Alert' :
+                 alertType === 'weather_window' ? 'Perfect Travel Weather' :
+                 'Travel Assistance';
+        case 'financial_guidance':
+          return alertType === 'budget_alert' ? 'Budget Alert' : 'Financial Guidance';
+        case 'trip_optimization':
+          return 'Trip Optimization';
+        case 'safety_alert':
+          return 'Safety Alert';
+        default:
+          return 'PAM Suggestion';
+      }
+    };
+
+    const title = getAlertTitle(category, alertType);
+
+    // Show toast with appropriate action buttons
+    const toastOptions: any = {
+      description: data.content.message,
+      duration,
+    };
+
+    // Add action buttons if actions are provided
+    if (data.content.actions && data.content.actions.length > 0) {
+      const primaryAction = data.content.actions[0];
+      toastOptions.action = {
+        label: this.formatActionLabel(primaryAction),
+        onClick: () => this.handleProactiveAction(primaryAction, data.content)
+      };
+    }
+
+    // Show the toast
+    toast[toastType](title, toastOptions);
+
+    // Dispatch custom event for UI components to react
+    window.dispatchEvent(new CustomEvent('proactive-alert', {
+      detail: {
+        id: data.id,
+        category: data.content.category,
+        alertType: data.content.alert_type || data.content.type,
+        message: data.content.message,
+        priority: data.content.priority,
+        actions: data.content.actions,
+        timestamp: data.timestamp
+      }
+    }));
+
+    // Play audio alert for high priority messages
+    if (priority === 'urgent' || priority === 'high') {
+      this.playProactiveAlertSound(priority);
+    }
+  }
+
+  /**
+   * Format action label for better UX
+   */
+  private formatActionLabel(action: string): string {
+    switch (action) {
+      case 'find_fuel_stops':
+        return 'Find Gas Stations';
+      case 'calculate_routes':
+        return 'Show Routes';
+      case 'compare_prices':
+        return 'Compare Prices';
+      case 'analyze_expenses':
+        return 'View Expenses';
+      case 'find_savings':
+        return 'Find Savings';
+      case 'adjust_route':
+        return 'Adjust Route';
+      case 'optimize_departure':
+        return 'Optimize Time';
+      case 'check_campgrounds':
+        return 'Find Campgrounds';
+      case 'plan_stops':
+        return 'Plan Stops';
+      default:
+        return 'Take Action';
+    }
+  }
+
+  /**
+   * Handle proactive action buttons
+   */
+  private handleProactiveAction(action: string, content: any): void {
+    logger.info(`🎯 Proactive action triggered: ${action}`);
+
+    // Route actions to appropriate handlers
+    switch (action) {
+      case 'find_fuel_stops':
+      case 'calculate_routes':
+      case 'compare_prices':
+      case 'optimize_departure':
+      case 'check_campgrounds':
+      case 'plan_stops':
+        // Navigate to trip planning
+        window.location.href = '/wheels#trip-planner';
+        break;
+      case 'analyze_expenses':
+      case 'find_savings':
+        // Navigate to budget management
+        window.location.href = '/wins#budget';
+        break;
+      case 'adjust_route':
+        // Navigate to map
+        window.location.href = '/wheels#map';
+        break;
+      default:
+        // Open PAM chat
+        window.dispatchEvent(new CustomEvent('open-pam-chat', {
+          detail: {
+            message: `Help me with: ${content.message}`,
+            context: { proactive_action: action }
+          }
+        }));
+    }
+  }
+
+  /**
+   * Play audio alert for proactive messages
+   */
+  private playProactiveAlertSound(priority: string): void {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) {
+        logger.warn('AudioContext not supported');
+        return;
+      }
+
+      const audioContext = new AudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Different sounds for different priorities
+      if (priority === 'urgent') {
+        // Urgent: Rapid beeping
+        oscillator.frequency.value = 800;
+        oscillator.type = 'square';
+
+        const now = audioContext.currentTime;
+        for (let i = 0; i < 3; i++) {
+          gainNode.gain.setValueAtTime(0.2, now + i * 0.3);
+          gainNode.gain.setValueAtTime(0, now + i * 0.3 + 0.1);
+        }
+
+        oscillator.start(now);
+        oscillator.stop(now + 0.9);
+      } else if (priority === 'high') {
+        // High: Double chime
+        oscillator.frequency.value = 523.25; // C5
+        oscillator.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime + 0.2);
+        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime + 0.5);
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.5);
+      }
+    } catch (error) {
+      logger.warn('Could not play proactive alert sound:', error);
+    }
+  }
+
+  /**
    * Dismiss a timer (mark as acknowledged)
    */
   private async dismissTimer(timerId: string): Promise<void> {
@@ -770,6 +990,12 @@ class PamService {
             // Handle timer/alarm expiration notifications
             if (data.type === 'timer_expired') {
               this.handleTimerExpired(data);
+              return;
+            }
+
+            // Handle proactive alert messages from autonomous PAM system
+            if (data.type === 'proactive_alert') {
+              this.handleProactiveAlert(data);
               return;
             }
 
@@ -925,7 +1151,7 @@ class PamService {
               response: errorMessage,
               message: errorMessage,
               content: errorMessage,
-              error: true,
+              error: "true",
               metadata: response.metadata
             };
 

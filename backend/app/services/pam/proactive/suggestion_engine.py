@@ -8,6 +8,7 @@ from app.services.pam.proactive.triggers import (
     FinancialTrigger,
     CalendarTrigger
 )
+from app.services.pam.proactive.data_integration import get_proactive_data, get_comprehensive_user_context
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +27,17 @@ class ProactiveSuggestionEngine:
 
     def __init__(self, user_id: str):
         self.user_id = user_id
+        self.data_integrator = None
         self.triggers = [
             TravelPatternTrigger(),
             FinancialTrigger(),
             CalendarTrigger()
         ]
+
+    async def initialize(self):
+        """Initialize the suggestion engine with data integrator"""
+        if not self.data_integrator:
+            self.data_integrator = await get_proactive_data()
 
     async def analyze_and_suggest(self, user_data: Dict[str, Any]) -> List[ProactiveSuggestion]:
         """Analyze user data and generate relevant suggestions"""
@@ -64,50 +71,164 @@ class ProactiveSuggestionEngine:
         return suggestions
 
     async def get_user_context(self) -> Dict[str, Any]:
-        """Gather current user context for analysis"""
-        # TODO: Integrate with existing PAM data sources
-        context = {
-            "fuel_level": await self._get_fuel_level(),
-            "current_location": await self._get_current_location(),
-            "monthly_spending": await self._get_monthly_spending(),
-            "monthly_budget": await self._get_monthly_budget(),
-            "upcoming_events": await self._get_upcoming_events(),
-            "weather_forecast": await self._get_weather_forecast(),
-            "recent_expenses": await self._get_recent_expenses(),
-            "travel_patterns": await self._get_travel_patterns()
-        }
+        """
+        Gather comprehensive user context using enhanced data integration
 
-        return context
+        Uses the new comprehensive context function for complete user analysis.
+        """
+        logger.info(f"Gathering comprehensive user context for {self.user_id}")
 
-    # Helper methods to fetch data (integrate with existing tools)
-    async def _get_fuel_level(self) -> int:
-        # TODO: Integrate with existing fuel tracking
-        return 75  # Mock data
+        try:
+            # Use the enhanced comprehensive context function
+            context = await get_comprehensive_user_context(self.user_id)
 
-    async def _get_current_location(self) -> Dict[str, float]:
-        # TODO: Integrate with location service
-        return {"lat": 45.123, "lng": -110.456}
+            # Add additional context needed for suggestion triggers
+            await self.initialize()
 
-    async def _get_monthly_spending(self) -> float:
-        # TODO: Integrate with manage_finances tool
-        return 1250.50
+            # Enhance with weather forecast
+            user_location = await self.data_integrator.get_user_location(self.user_id)
+            weather_forecast = await self.data_integrator.get_weather_forecast(user_id=self.user_id)
 
-    async def _get_monthly_budget(self) -> float:
-        # TODO: Integrate with budget system
-        return 1500.00
+            # Add travel events analysis
+            travel_events_analysis = await self.data_integrator.get_travel_events_analysis(self.user_id)
 
-    async def _get_upcoming_events(self) -> List[Dict]:
-        # TODO: Integrate with calendar system
-        return []
+            # Restructure context for backward compatibility with triggers
+            enhanced_context = {
+                # Core data (backward compatible)
+                "fuel_level": context.get("travel", {}).get("fuel_level", 75.0),
+                "current_location": user_location,
+                "monthly_spending": context.get("financial", {}).get("monthly_spending", 0.0),
+                "monthly_budget": context.get("financial", {}).get("monthly_budget", 0.0),
+                "upcoming_events": context.get("calendar", {}).get("upcoming_events", []),
+                "weather_forecast": weather_forecast,
+                "recent_expenses": [],  # Will be populated below
+                "travel_patterns": context.get("travel", {}).get("patterns", {}),
 
-    async def _get_weather_forecast(self) -> Dict[str, Any]:
-        # TODO: Integrate with weather_advisor tool
-        return {"clear_days": 4}
+                # Enhanced data
+                "user_profile": context.get("user_profile", {}),
+                "financial_analysis": context.get("financial", {}),
+                "travel_analysis": context.get("travel", {}),
+                "maintenance_status": context.get("maintenance", {}),
+                "travel_events_analysis": travel_events_analysis,
+                "data_quality": context.get("data_quality", {}),
+                "context_timestamp": context.get("context_timestamp"),
 
-    async def _get_recent_expenses(self) -> List[float]:
-        # TODO: Integrate with expense tracking
-        return [45.67, 32.45, 156.78]
+                # Derived insights
+                "budget_utilization": context.get("financial", {}).get("budget_utilization", 0),
+                "needs_immediate_attention": self._assess_immediate_needs(context, travel_events_analysis),
+                "planning_opportunities": self._identify_planning_opportunities(context, travel_events_analysis)
+            }
 
-    async def _get_travel_patterns(self) -> Dict[str, Any]:
-        # TODO: Analyze user travel history
-        return {"avg_trip_length": 250, "preferred_fuel_stops": 2}
+            # Get recent expenses with details for better analysis
+            recent_expenses = await self.data_integrator.get_recent_expenses(self.user_id, limit=10)
+            enhanced_context["recent_expenses"] = [exp.get("amount", 0) for exp in recent_expenses]
+            enhanced_context["recent_expenses_detailed"] = recent_expenses
+
+            logger.info(f"Enhanced user context gathered for {self.user_id}: "
+                       f"fuel={enhanced_context['fuel_level']}%, "
+                       f"spending=${enhanced_context['monthly_spending']:.2f}, "
+                       f"budget=${enhanced_context['monthly_budget']:.2f}, "
+                       f"events={len(enhanced_context['upcoming_events'])}, "
+                       f"budget_util={enhanced_context['budget_utilization']:.1f}%")
+
+            return enhanced_context
+
+        except Exception as e:
+            logger.error(f"Error gathering enhanced user context for {self.user_id}: {e}")
+            # Fallback to basic context
+            return await self._get_basic_context_fallback()
+
+    def _assess_immediate_needs(self, context: Dict[str, Any], travel_analysis: Dict[str, Any]) -> List[str]:
+        """Assess what needs immediate attention"""
+        immediate_needs = []
+
+        # Check fuel level
+        fuel_level = context.get("travel", {}).get("fuel_level", 75)
+        if fuel_level < 25:
+            immediate_needs.append("critical_fuel_low")
+        elif fuel_level < 50:
+            immediate_needs.append("fuel_low")
+
+        # Check budget utilization
+        budget_util = context.get("financial", {}).get("budget_utilization", 0)
+        if budget_util > 90:
+            immediate_needs.append("budget_exceeded")
+        elif budget_util > 75:
+            immediate_needs.append("budget_warning")
+
+        # Check maintenance
+        maintenance = context.get("maintenance", {})
+        if maintenance.get("overdue_maintenance"):
+            immediate_needs.append("maintenance_overdue")
+        elif maintenance.get("health_score", 100) < 70:
+            immediate_needs.append("maintenance_needed")
+
+        # Check travel planning urgency
+        planning_urgency = travel_analysis.get("planning_urgency", "low")
+        if planning_urgency == "high":
+            immediate_needs.append("urgent_travel_planning")
+
+        return immediate_needs
+
+    def _identify_planning_opportunities(self, context: Dict[str, Any], travel_analysis: Dict[str, Any]) -> List[str]:
+        """Identify planning opportunities"""
+        opportunities = []
+
+        # Travel planning opportunities
+        travel_events = travel_analysis.get("travel_events", [])
+        if travel_events:
+            opportunities.append("trip_planning_available")
+
+        # Budget optimization opportunities
+        budget_util = context.get("financial", {}).get("budget_utilization", 0)
+        if budget_util < 50:
+            opportunities.append("budget_optimization")
+
+        # Fuel efficiency opportunities
+        travel_patterns = context.get("travel", {}).get("patterns", {})
+        fuel_efficiency = travel_patterns.get("fuel_efficiency", 0)
+        if fuel_efficiency > 0 and fuel_efficiency < 15:
+            opportunities.append("fuel_efficiency_improvement")
+
+        # Maintenance scheduling opportunities
+        maintenance = context.get("maintenance", {})
+        upcoming_maintenance = maintenance.get("upcoming_maintenance", [])
+        if upcoming_maintenance:
+            opportunities.append("maintenance_scheduling")
+
+        return opportunities
+
+    async def _get_basic_context_fallback(self) -> Dict[str, Any]:
+        """Fallback to basic context if enhanced context fails"""
+        try:
+            await self.initialize()
+
+            return {
+                "fuel_level": await self.data_integrator.get_fuel_level(self.user_id),
+                "current_location": await self.data_integrator.get_user_location(self.user_id),
+                "monthly_spending": await self.data_integrator.get_monthly_spending(self.user_id),
+                "monthly_budget": await self.data_integrator.get_monthly_budget(self.user_id),
+                "upcoming_events": await self.data_integrator.get_upcoming_events(self.user_id),
+                "weather_forecast": await self.data_integrator.get_weather_forecast(user_id=self.user_id),
+                "recent_expenses": [exp.get("amount", 0) for exp in await self.data_integrator.get_recent_expenses(self.user_id)],
+                "travel_patterns": await self.data_integrator.get_travel_patterns(self.user_id),
+                "budget_utilization": 0,
+                "needs_immediate_attention": [],
+                "planning_opportunities": []
+            }
+
+        except Exception as e:
+            logger.error(f"Error in fallback context for {self.user_id}: {e}")
+            return {
+                "fuel_level": 75.0,
+                "current_location": {},
+                "monthly_spending": 0.0,
+                "monthly_budget": 0.0,
+                "upcoming_events": [],
+                "weather_forecast": {"clear_days": 3},
+                "recent_expenses": [],
+                "travel_patterns": {"avg_trip_length": 250, "preferred_fuel_stops": 2},
+                "budget_utilization": 0,
+                "needs_immediate_attention": [],
+                "planning_opportunities": []
+            }

@@ -75,6 +75,8 @@ export interface Pam2HealthResponse {
   service: string;
   version: string;
   modules: Record<string, string>;
+  features?: Record<string, any>;
+  timestamp?: string;
 }
 
 /**
