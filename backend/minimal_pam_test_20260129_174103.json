@@ -1,0 +1,108 @@
+{
+  "timestamp": "2026-01-29T17:40:59.602595",
+  "tests": {
+    "Tool Registry Import": {
+      "success": true,
+      "details": {
+        "registry_created": true,
+        "initial_tool_count": 0,
+        "initial_definitions": 0,
+        "is_initialized": false
+      },
+      "timestamp": "2026-01-29T17:41:00.245130"
+    },
+    "BaseTool Wrapper Import": {
+      "success": false,
+      "details": {
+        "error": "type object 'ToolCapability' has no attribute 'GENERAL'",
+        "error_type": "AttributeError"
+      },
+      "timestamp": "2026-01-29T17:41:00.346360"
+    },
+    "Tool Registry Initialization": {
+      "success": true,
+      "details": {
+        "registry_initialized": true,
+        "total_tools": 74,
+        "enabled_tools": 74,
+        "tool_names": [
+          "manage_finances",
+          "mapbox_navigator",
+          "weather_advisor",
+          "get_fuel_log",
+          "create_calendar_event",
+          "set_timer_or_alarm",
+          "track_savings",
+          "analyze_budget",
+          "compare_vs_budget",
+          "predict_end_of_month",
+          "find_savings_opportunities",
+          "find_cheap_gas",
+          "optimize_route",
+          "get_road_conditions",
+          "estimate_travel_time",
+          "update_calendar_event",
+          "delete_calendar_event",
+          "create_post",
+          "get_feed",
+          "like_post"
+        ],
+        "sample_capabilities": [
+          "user_data",
+          "location_search",
+          "weather",
+          "user_data",
+          "action"
+        ]
+      },
+      "timestamp": "2026-01-29T17:41:03.322438"
+    },
+    "Sample Tool Execution": {
+      "success": false,
+      "details": {
+        "error": "No tools could be executed successfully",
+        "attempted_tools": [
+          "get_current_time",
+          "get_current_date",
+          "pam_help"
+        ],
+        "available_tools": [
+          "manage_finances",
+          "mapbox_navigator",
+          "weather_advisor",
+          "get_fuel_log",
+          "create_calendar_event",
+          "set_timer_or_alarm",
+          "track_savings",
+          "analyze_budget",
+          "compare_vs_budget",
+          "predict_end_of_month"
+        ]
+      },
+      "timestamp": "2026-01-29T17:41:03.423567"
+    }
+  },
+  "summary": {
+    "total_tests": 4,
+    "passed": 2,
+    "failed": 2,
+    "tool_registry_status": "operational",
+    "actual_tool_count": 74,
+    "claimed_vs_actual": {
+      "claimed_tool_count": 30,
+      "actual_tool_count": 74,
+      "discrepancy": 44,
+      "percentage_difference": 146.66666666666666,
+      "status": "CLAIMS_VERIFIED",
+      "finding": "Tool count matches or exceeds claims (74 vs 30)"
+    }
+  },
+  "analysis": {
+    "claimed_tool_count": 30,
+    "actual_tool_count": 74,
+    "discrepancy": 44,
+    "percentage_difference": 146.66666666666666,
+    "status": "CLAIMS_VERIFIED",
+    "finding": "Tool count matches or exceeds claims (74 vs 30)"
+  }
+}

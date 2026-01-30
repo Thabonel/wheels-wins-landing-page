@@ -1,0 +1,313 @@
+{
+  "benchmark_metadata": {
+    "timestamp": "2026-01-29T17:40:03.548059",
+    "python_version": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 11:09:21) [Clang 14.0.6 ]",
+    "platform": "posix",
+    "total_metrics": 29
+  },
+  "system_performance": {
+    "total_startup_time_ms": 6556.264162063599,
+    "registry_initialization_time_ms": 0.17189979553222656,
+    "total_memory_usage_mb": 91.76953125,
+    "peak_memory_usage_mb": 235.0,
+    "tools_loaded_successfully": 0,
+    "tools_failed_to_load": 0,
+    "success_rate_percentage": 0
+  },
+  "metrics_summary": {
+    "total_metrics": 29,
+    "successful_metrics": 27,
+    "failed_metrics": 2
+  },
+  "tool_performances": {},
+  "detailed_metrics": [
+    {
+      "metric_name": "dependency_anthropic_import_time",
+      "value": 965.5423164367676,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:57.924810",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_fastapi_import_time",
+      "value": 730.9048175811768,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:58.655843",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_uvicorn_import_time",
+      "value": 33.42103958129883,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:58.689369",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_supabase_import_time",
+      "value": 188.68780136108398,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:58.878165",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_redis_import_time",
+      "value": 51.1019229888916,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:58.929382",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_sqlalchemy_import_time",
+      "value": 214.87808227539062,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:59.144382",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_pydantic_import_time",
+      "value": 0.00095367431640625,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:59.144494",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_openai_import_time",
+      "value": 628.277063369751,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:59.772820",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_google-generativeai_import_time",
+      "value": 0.21791458129882812,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:59.773165",
+      "success": false,
+      "error_message": "ImportError: No module named 'google-generativeai'",
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_assemblyai_import_time",
+      "value": 139.08672332763672,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:59.912310",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_edge-tts_import_time",
+      "value": 0.2200603485107422,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:59.912648",
+      "success": false,
+      "error_message": "ImportError: No module named 'edge-tts'",
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_websockets_import_time",
+      "value": 0.0,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:39:59.912704",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "missing_dependencies_count",
+      "value": 2,
+      "unit": "count",
+      "timestamp": "2026-01-29 17:39:59.912747",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "total_dependencies_tested",
+      "value": 12,
+      "unit": "count",
+      "timestamp": "2026-01-29 17:39:59.912792",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "dependency_health_score",
+      "value": 83.33333333333334,
+      "unit": "%",
+      "timestamp": "2026-01-29 17:39:59.912830",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "baseline_memory_usage",
+      "value": 143.23046875,
+      "unit": "MB",
+      "timestamp": "2026-01-29 17:39:59.913039",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "tool_cache_build_time",
+      "value": 1.4698505401611328,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:40:03.494735",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "total_tools_in_cache",
+      "value": 45,
+      "unit": "count",
+      "timestamp": "2026-01-29 17:40:03.494785",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "pam_core_initialization_time",
+      "value": 15.139102935791016,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:40:03.510098",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "pam_total_startup_time",
+      "value": 3596.8830585479736,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:40:03.510146",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "pam_memory_usage",
+      "value": 90.984375,
+      "unit": "MB",
+      "timestamp": "2026-01-29 17:40:03.510188",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "registry_initialization_time",
+      "value": 0.17189979553222656,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:40:03.514921",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "registry_total_tools",
+      "value": 0,
+      "unit": "count",
+      "timestamp": "2026-01-29 17:40:03.514975",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "registry_enabled_tools",
+      "value": 0,
+      "unit": "count",
+      "timestamp": "2026-01-29 17:40:03.515015",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "registry_success_rate",
+      "value": 0,
+      "unit": "%",
+      "timestamp": "2026-01-29 17:40:03.515050",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "registry_memory_usage",
+      "value": 0.0,
+      "unit": "MB",
+      "timestamp": "2026-01-29 17:40:03.515088",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "websocket_setup_time",
+      "value": 0.0,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:40:03.515411",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "total_benchmark_time",
+      "value": 6556.264162063599,
+      "unit": "ms",
+      "timestamp": "2026-01-29 17:40:03.515501",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    },
+    {
+      "metric_name": "overall_success_rate",
+      "value": 0,
+      "unit": "%",
+      "timestamp": "2026-01-29 17:40:03.515539",
+      "success": true,
+      "error_message": null,
+      "metadata": null
+    }
+  ],
+  "performance_assessment": {
+    "overall_status": "NEEDS_IMPROVEMENT",
+    "critical_issues": [
+      "Low success rate: 0.0% (target: >95%)"
+    ],
+    "performance_warnings": [],
+    "recommendations": [
+      "Address failing tool dependencies and initialization issues"
+    ],
+    "sla_compliance": {
+      "registry_initialization": {
+        "target": "< 5000ms",
+        "actual": "0.2ms",
+        "compliant": true
+      },
+      "memory_usage": {
+        "target": "< 500MB",
+        "actual": "91.8MB",
+        "compliant": true
+      },
+      "success_rate": {
+        "target": "> 95%",
+        "actual": "0.0%",
+        "compliant": false
+      }
+    }
+  }
+}
