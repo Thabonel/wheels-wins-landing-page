@@ -22,30 +22,8 @@ class EventMonitor:
         self.handlers[event_type].append(handler)
         logger.info(f"Registered handler for {event_type} for user {self.user_id}")
 
-    def trigger_event(self, event: BaseEvent):
-        """Trigger event and execute all registered handlers (synchronous version for tests)"""
-        if event.type in self.handlers:
-            for handler in self.handlers[event.type]:
-                try:
-                    if asyncio.iscoroutinefunction(handler):
-                        # For async handlers, we need to run them in an event loop
-                        try:
-                            loop = asyncio.get_event_loop()
-                            if loop.is_running():
-                                asyncio.create_task(handler(event))
-                            else:
-                                loop.run_until_complete(handler(event))
-                        except RuntimeError:
-                            # No event loop running, create a new one
-                            asyncio.run(handler(event))
-                    else:
-                        handler(event)
-                    logger.info(f"Handled event {event.type} for user {self.user_id}")
-                except Exception as e:
-                    logger.error(f"Error handling event {event.type}: {e}")
-
-    async def trigger_event_async(self, event: BaseEvent):
-        """Trigger event and execute all registered handlers (async version)"""
+    async def trigger_event(self, event: BaseEvent):
+        """Trigger event and execute all registered handlers"""
         if event.type in self.handlers:
             for handler in self.handlers[event.type]:
                 try:
@@ -63,7 +41,7 @@ class EventMonitor:
             try:
                 # Wait for events from queue with timeout
                 event = await asyncio.wait_for(self.event_queue.get(), timeout=1.0)
-                await self.trigger_event_async(event)
+                await self.trigger_event(event)
             except asyncio.TimeoutError:
                 continue  # Keep monitoring
             except Exception as e:
