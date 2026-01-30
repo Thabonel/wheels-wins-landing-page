@@ -59,7 +59,11 @@
       "Bash(while read f)",
       "Bash(do)",
       "Bash(if grep -q \"get_ai_client\\\\|get_supabase_client\" \"$f\")",
-      "Bash(then)"
+      "Bash(then)",
+      "Bash(pytest:*)",
+      "Bash(python3:*)",
+      "Skill(ralph-loop:ralph-loop)",
+      "Bash(PYTHONPATH=/Users/thabonel/Code/wheels-wins-landing-page/backend python:*)"
     ],
     "deny": [],
     "ask": []

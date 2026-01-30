@@ -14,7 +14,7 @@ async def test_suggestion_engine_analyzes_travel_patterns():
             {"destination": "Glacier", "fuel_stops": 2, "cost": 380}
         ],
         "current_location": {"lat": 45.123, "lng": -110.456},
-        "fuel_level": 25
+        "fuel_level": 15
     }
 
     suggestions = await engine.analyze_and_suggest(user_data)

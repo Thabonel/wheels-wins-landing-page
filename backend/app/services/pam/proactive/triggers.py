@@ -25,7 +25,7 @@ class TravelPatternTrigger(BaseTrigger):
         distance_to_destination = context.get("distance_to_destination", 0)
 
         # Low fuel trigger
-        if fuel_level < 30:
+        if fuel_level < 20:
             return True
 
         # Long distance without stops trigger
@@ -38,7 +38,7 @@ class TravelPatternTrigger(BaseTrigger):
         """Generate travel-related suggestion"""
         fuel_level = context.get("fuel_level", 100)
 
-        if fuel_level < 30:
+        if fuel_level < 20:
             return {
                 "type": "fuel_alert",
                 "priority": "high",

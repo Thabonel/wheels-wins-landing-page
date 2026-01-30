@@ -1,0 +1,154 @@
+{
+  "metadata": {
+    "timestamp": "2026-01-29T17:42:21.340764",
+    "benchmark_type": "real_world_pam_performance",
+    "python_version": "3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 11:09:21) [Clang 14.0.6 ]",
+    "platform": "posix"
+  },
+  "metrics": [
+    {
+      "component_name": "PAM_Core",
+      "initialization_time_ms": 15.992879867553711,
+      "memory_usage_mb": 0.89453125,
+      "tools_available": 45,
+      "prefilter_reduction_percent": 77.77777777777779,
+      "success": true,
+      "error_details": null
+    },
+    {
+      "component_name": "Scenario_Budget Analysis",
+      "initialization_time_ms": 0.24819374084472656,
+      "memory_usage_mb": 0.0,
+      "tools_available": 8,
+      "prefilter_reduction_percent": 82.22222222222221,
+      "success": true,
+      "error_details": null
+    },
+    {
+      "component_name": "Scenario_Trip Planning",
+      "initialization_time_ms": 0.5240440368652344,
+      "memory_usage_mb": 0.0078125,
+      "tools_available": 8,
+      "prefilter_reduction_percent": 82.22222222222221,
+      "success": true,
+      "error_details": null
+    },
+    {
+      "component_name": "Scenario_Social Features",
+      "initialization_time_ms": 0.2620220184326172,
+      "memory_usage_mb": 0.0,
+      "tools_available": 8,
+      "prefilter_reduction_percent": 82.22222222222221,
+      "success": true,
+      "error_details": null
+    },
+    {
+      "component_name": "Memory_Load_Test",
+      "initialization_time_ms": 0.013828277587890625,
+      "memory_usage_mb": 0.0,
+      "tools_available": 0,
+      "prefilter_reduction_percent": 0.0,
+      "success": false,
+      "error_details": "Memory load test failed: name 'PAM' is not defined"
+    }
+  ],
+  "detailed_results": {
+    "dependency_performance": {
+      "anthropic": {
+        "import_time_ms": 212.0349407196045,
+        "memory_impact_mb": 29.5703125,
+        "description": "Anthropic Claude client",
+        "success": true
+      },
+      "app.services.pam.tools.tool_prefilter": {
+        "import_time_ms": 396.3160514831543,
+        "memory_impact_mb": 43.87890625,
+        "description": "Tool prefiltering",
+        "success": true
+      },
+      "app.services.pam.core.pam": {
+        "import_time_ms": 365.4489517211914,
+        "memory_impact_mb": 34.5078125,
+        "description": "PAM Core",
+        "success": true
+      },
+      "app.services.search.web_search": {
+        "import_time_ms": 0.30112266540527344,
+        "memory_impact_mb": 0.0625,
+        "description": "Web search service",
+        "success": true
+      },
+      "app.config.ai_providers": {
+        "import_time_ms": 0.1552104949951172,
+        "memory_impact_mb": 0.0078125,
+        "description": "AI provider configuration",
+        "success": true
+      }
+    },
+    "pam_core": {
+      "cache_build_time_ms": 0.24890899658203125,
+      "instance_init_time_ms": 13.716936111450195,
+      "prefilter_time_ms": 1.9309520721435547,
+      "total_tools": 45,
+      "filtered_tools": 10,
+      "prefilter_reduction": 77.77777777777779,
+      "memory_usage_mb": 0.89453125,
+      "total_time_ms": 15.992879867553711
+    },
+    "scenario_budget_analysis": {
+      "processing_time_ms": 0.24819374084472656,
+      "memory_usage_mb": 0.0,
+      "total_available_tools": 45,
+      "filtered_tools": 8,
+      "token_reduction": 82.22222222222221
+    },
+    "scenario_trip_planning": {
+      "processing_time_ms": 0.5240440368652344,
+      "memory_usage_mb": 0.0078125,
+      "total_available_tools": 45,
+      "filtered_tools": 8,
+      "token_reduction": 82.22222222222221
+    },
+    "scenario_social_features": {
+      "processing_time_ms": 0.2620220184326172,
+      "memory_usage_mb": 0.0,
+      "total_available_tools": 45,
+      "filtered_tools": 8,
+      "token_reduction": 82.22222222222221
+    },
+    "benchmark_summary": {
+      "total_time_ms": 1021.4667320251465,
+      "baseline_memory_mb": 27.421875,
+      "final_memory_mb": 136.41015625,
+      "total_memory_growth_mb": 108.98828125,
+      "successful_components": 4,
+      "failed_components": 1,
+      "overall_success_rate": 80.0
+    }
+  },
+  "performance_assessment": {
+    "overall_status": "NEEDS_IMPROVEMENT",
+    "critical_issues": [],
+    "performance_warnings": [],
+    "sla_compliance": {
+      "pam_initialization": {
+        "target": "< 10000ms",
+        "actual": "16.0ms",
+        "compliant": true
+      },
+      "prefilter_efficiency": {
+        "target": ">= 80%",
+        "actual": "77.8%",
+        "compliant": false
+      },
+      "success_rate": {
+        "target": ">= 90%",
+        "actual": "80.0%",
+        "compliant": false
+      }
+    }
+  },
+  "recommendations": [
+    "Tool prefilter reduction is below optimal (77.8%). Review keyword patterns and category mappings for better filtering."
+  ]
+}

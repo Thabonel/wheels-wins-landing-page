@@ -3,10 +3,31 @@
     "name": "Wheels & Wins",
     "description": "Travel planning and RV community platform with AI assistant",
     "tech_stack": {
-      "frontend": ["React 18", "TypeScript", "Vite", "Tailwind CSS", "Radix UI"],
-      "backend": ["FastAPI", "Python", "Supabase", "Redis", "WebSocket"],
-      "deployment": ["Render.com", "Netlify", "Docker"],
-      "ai_services": ["OpenAI", "Edge TTS", "Coqui TTS", "PAM Assistant"]
+      "frontend": [
+        "React 18",
+        "TypeScript",
+        "Vite",
+        "Tailwind CSS",
+        "Radix UI"
+      ],
+      "backend": [
+        "FastAPI",
+        "Python",
+        "Supabase",
+        "Redis",
+        "WebSocket"
+      ],
+      "deployment": [
+        "Render.com",
+        "Netlify",
+        "Docker"
+      ],
+      "ai_services": [
+        "OpenAI",
+        "Edge TTS",
+        "Coqui TTS",
+        "PAM Assistant"
+      ]
     }
   },
   "enableSubagents": true,
@@ -84,5 +105,8 @@
     "code_style": "prettier",
     "naming": "camelCase_frontend_snake_case_backend",
     "file_structure": "feature_based"
+  },
+  "enabledPlugins": {
+    "ralph-loop@claude-plugins-official": true
   }
 }
