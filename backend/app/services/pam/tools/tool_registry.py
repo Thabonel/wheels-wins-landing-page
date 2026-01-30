@@ -1645,6 +1645,58 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Delete Calendar Event tool registration failed: {e}")
         failed_count += 1
 
+    # Calendar Tool: Get Calendar Events
+    try:
+        logger.debug("🔄 Attempting to register Get Calendar Events tool...")
+        GetCalendarEventsTool = lazy_import("app.services.pam.tools.get_calendar_events", "GetCalendarEventsTool")
+
+        if GetCalendarEventsTool is None:
+            raise ImportError("GetCalendarEventsTool not available")
+
+        registry.register_tool(
+            tool=GetCalendarEventsTool(),
+            function_definition={
+                "name": "get_calendar_events",
+                "description": "Get calendar events for the user. Use when user asks about their schedule, appointments, or upcoming events.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "start_date": {
+                            "type": "string",
+                            "description": "Start date filter in ISO format (optional)"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "End date filter in ISO format (optional)"
+                        },
+                        "event_type": {
+                            "type": "string",
+                            "description": "Filter by event type: personal, reminder, trip, booking, maintenance, inspection (optional)"
+                        },
+                        "include_past": {
+                            "type": "boolean",
+                            "description": "Include past events (default: false, only upcoming events)"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of events to return (default: 100)"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            capability=ToolCapability.READ,
+            priority=1
+        )
+        logger.info("✅ Get Calendar Events tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Get Calendar Events tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Get Calendar Events tool registration failed: {e}")
+        failed_count += 1
+
     # Web Scraper Tool removed - ChatGPT handles general information with its knowledge base
     
     # Memory Tools
