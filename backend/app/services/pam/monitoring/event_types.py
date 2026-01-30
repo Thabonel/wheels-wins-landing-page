@@ -23,7 +23,6 @@ class EventType(Enum):
     # Location Events
     DESTINATION_REACHED = "destination_reached"
     REST_BREAK_SUGGESTED = "rest_break_suggested"
-    FRIEND_NEARBY = "friend_nearby"
 
 @dataclass
 class BaseEvent:

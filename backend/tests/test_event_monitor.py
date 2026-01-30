@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 from datetime import datetime
 from app.services.pam.monitoring.event_monitor import EventMonitor
 from app.services.pam.monitoring.event_types import EventType, TravelEvent
@@ -17,7 +18,8 @@ def test_monitor_can_register_event_handlers():
     monitor.register_handler(EventType.LOW_FUEL, mock_handler)
     assert EventType.LOW_FUEL in monitor.handlers
 
-def test_monitor_can_trigger_events():
+@pytest.mark.asyncio
+async def test_monitor_can_trigger_events():
     monitor = EventMonitor(user_id="test-user")
     triggered_events = []
 
@@ -33,6 +35,6 @@ def test_monitor_can_trigger_events():
         data={"fuel_level": 15, "estimated_range": 45}
     )
 
-    monitor.trigger_event(event)
+    await monitor.trigger_event(event)
     assert len(triggered_events) == 1
     assert triggered_events[0].type == EventType.LOW_FUEL
