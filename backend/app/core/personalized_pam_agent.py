@@ -33,6 +33,9 @@ from app.core.travel_domain.travel_response_personalizer import TravelResponsePe
 from app.services.pam.domain_memory.router import DomainMemoryRouter
 from app.services.pam.domain_memory.models import TaskType, TaskScope
 
+# Event Manager integration for proactive monitoring
+from app.services.pam.monitoring.manager import event_manager
+
 # Context Engineering imports (optional - graceful fallback if not available)
 try:
     from app.services.pam.context_engineering.integration import (
