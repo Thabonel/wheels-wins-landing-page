@@ -19,7 +19,8 @@ celery_app = Celery(
         "app.workers.tasks.cleanup_tasks",
         "app.workers.tasks.notification_tasks",
         "app.workers.tasks.reset_quotas",
-        "app.workers.tasks.timer_tasks"
+        "app.workers.tasks.timer_tasks",
+        "app.workers.tasks.pam_proactive_tasks"
     ]
 )
 
@@ -34,6 +35,7 @@ celery_app.conf.update(
         "app.workers.tasks.notification_tasks.*": {"queue": "notifications"},
         "app.workers.tasks.reset_quotas.*": {"queue": "maintenance"},
         "app.workers.tasks.timer_tasks.*": {"queue": "notifications"},
+        "app.workers.tasks.pam_proactive_tasks.*": {"queue": "notifications"},
         "check_timer_expiration": {"queue": "notifications"},
         "cleanup_old_timers": {"queue": "cleanup"},
         "dismiss_timer": {"queue": "notifications"},
@@ -106,6 +108,27 @@ celery_app.conf.update(
         "cleanup-old-timers-daily": {
             "task": "cleanup_old_timers",
             "schedule": 86400.0,  # Daily
+        },
+        # PAM Proactive Autonomous Agent Tasks
+        "pam-fuel-monitoring": {
+            "task": "app.workers.tasks.pam_proactive_tasks.check_fuel_levels_for_all_users",
+            "schedule": 300.0,  # Every 5 minutes
+        },
+        "pam-budget-analysis": {
+            "task": "app.workers.tasks.pam_proactive_tasks.analyze_budget_thresholds",
+            "schedule": 3600.0,  # Every hour
+        },
+        "pam-weather-monitoring": {
+            "task": "app.workers.tasks.pam_proactive_tasks.monitor_weather_windows",
+            "schedule": 1800.0,  # Every 30 minutes
+        },
+        "pam-maintenance-monitoring": {
+            "task": "app.workers.tasks.pam_proactive_tasks.check_proactive_maintenance_reminders",
+            "schedule": 86400.0,  # Daily
+        },
+        "pam-context-monitoring": {
+            "task": "app.workers.tasks.pam_proactive_tasks.monitor_user_context_changes",
+            "schedule": 900.0,  # Every 15 minutes
         },
     },
     beat_schedule_filename="celerybeat-schedule",

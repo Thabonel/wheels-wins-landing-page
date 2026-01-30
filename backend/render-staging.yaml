@@ -67,3 +67,97 @@ services:
   # Redis cache service for PAM (staging) - using existing pam-redis service
   # Service already exists: red-d1venaur433s73fk12j0
   # No need to create new service, just reference existing one above
+
+  # Celery Worker for PAM Proactive Tasks (staging)
+  - type: worker
+    name: pam-celery-worker-staging
+    env: python
+    runtime: python-3.11
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.workers.celery worker --loglevel=info --concurrency=2
+    plan: free
+    branch: staging
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: DEBUG
+        value: true
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      # Required Supabase configuration
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Required AI API Keys
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      # Redis for Celery (auto-wired from pam-redis service)
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+    autoDeploy: true
+
+  # Celery Beat Scheduler for PAM Proactive Tasks (staging)
+  - type: worker
+    name: pam-celery-beat-staging
+    env: python
+    runtime: python-3.11
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.workers.celery beat --loglevel=info
+    plan: free
+    branch: staging
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: DEBUG
+        value: true
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      # Required Supabase configuration
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # Required AI API Keys
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      # Redis for Celery (auto-wired from pam-redis service)
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: pam-redis
+          property: connectionString
+    autoDeploy: true
