@@ -6,6 +6,11 @@ from datetime import datetime
 from app.services.pam.monitoring.event_monitor import EventMonitor
 from app.services.pam.monitoring.event_types import EventType, BaseEvent
 
+# Import PersonalizedPamAgent for type hints
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.core.personalized_pam_agent import PersonalizedPamAgent
+
 logger = logging.getLogger(__name__)
 
 class EventManager:
@@ -13,6 +18,7 @@ class EventManager:
 
     def __init__(self):
         self.monitors: Dict[str, EventMonitor] = {}
+        self.pam_agents: Dict[str, "PersonalizedPamAgent"] = {}
 
     async def get_or_create_monitor(self, user_id: str) -> EventMonitor:
         """Get existing monitor or create new one for user"""
