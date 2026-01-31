@@ -38,6 +38,7 @@ class ToolPrefilter:
         "get_spending_summary",     # Quick spending overview
         "get_weather_forecast",     # Location-aware weather
         "create_calendar_event",    # Calendar management
+        "get_calendar_events",      # Calendar reading (CRITICAL for "what's planned")
         "search_knowledge",         # Knowledge base access
         "create_expense"            # Common expense logging
     }
