@@ -58,10 +58,19 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     
-    # Worker settings
-    worker_prefetch_multiplier=1,
+    # Worker settings - Memory optimization configuration
+    worker_prefetch_multiplier=1,  # Process one task at a time
     task_acks_late=True,
-    worker_max_tasks_per_child=1000,
+    worker_max_tasks_per_child=100,  # NEW: Aggressive cleanup, recycle workers every 100 tasks (was 1000)
+
+    # NEW: Additional memory optimizations
+    worker_max_memory_per_child=500000,  # 500MB limit per worker (new in Celery 5.0+)
+    task_reject_on_worker_lost=True,  # Don't retry on worker memory issues
+    worker_disable_rate_limits=False,  # Keep rate limiting for stability
+
+    # NEW: Reduce monitoring overhead
+    worker_send_task_events=False,  # Reduce monitoring overhead
+    task_send_sent_event=False,  # Reduce event data
     
     # Retry settings
     task_default_retry_delay=60,
@@ -138,6 +147,28 @@ celery_app.conf.update(
 @celery_app.task(bind=True)
 def debug_task(self):
     logger.info(f"Request: {self.request!r}")
+
+
+# NEW: Memory monitoring task
+@celery_app.task(bind=True)
+def monitor_worker_memory(self):
+    """Monitor and log worker memory usage"""
+    import psutil
+    import logging
+
+    process = psutil.Process()
+    memory_mb = process.memory_info().rss / 1024 / 1024
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Worker {self.request.id} memory usage: {memory_mb:.1f} MB")
+
+    # Force garbage collection if memory high
+    if memory_mb > 400:  # 400MB threshold
+        import gc
+        collected = gc.collect()
+        logger.warning(f"Worker memory high ({memory_mb:.1f} MB), forced GC collected {collected} objects")
+
+    return {"memory_mb": memory_mb, "pid": process.pid}
 
 if __name__ == "__main__":
     celery_app.start()
