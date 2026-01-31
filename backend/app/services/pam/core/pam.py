@@ -1244,7 +1244,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                 )
 
                 # Force-include calendar tools (workaround for filtering issues)
-                calendar_tool_names = {"create_calendar_event", "update_calendar_event", "delete_calendar_event"}
+                calendar_tool_names = {"create_calendar_event", "update_calendar_event", "delete_calendar_event", "get_calendar_events"}
                 calendar_tools = [t for t in self.tools if (t.get("name") or t.get("function", {}).get("name", "")) in calendar_tool_names]
 
                 # Merge with filtered tools (deduplicate)
