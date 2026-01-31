@@ -49,7 +49,7 @@ class CacheService:
                     redis_url,
                     encoding="utf-8",
                     decode_responses=True,
-                    max_connections=20,
+                    max_connections=10,  # Optimized from 20 to reduce memory usage
                     retry_on_timeout=True,
                     health_check_interval=30,
                     socket_connect_timeout=10,

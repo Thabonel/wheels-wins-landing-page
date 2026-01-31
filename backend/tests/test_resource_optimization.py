@@ -62,3 +62,29 @@ def test_automated_cleanup_removes_old_files():
         assert not os.path.exists(old_log), "Old log file should be removed"
         assert os.path.exists(recent_log), "Recent log file should be kept"
         assert len(removed_files) == 1, "Should remove exactly one old file"
+
+
+def test_redis_connection_optimization():
+    """Test that Redis connection pool is optimized for environment"""
+    from app.services.cache_service import get_cache
+    import asyncio
+
+    async def run_test():
+        cache = await get_cache()
+
+        # Check connection pool configuration
+        if hasattr(cache, 'redis') and cache.redis and hasattr(cache.redis, 'connection_pool'):
+            pool = cache.redis.connection_pool
+
+            # Connection pool should be reasonably sized
+            assert pool.max_connections <= 15, \
+                f"Redis pool too large: {pool.max_connections} (should be ≤15)"
+
+            # Should have proper timeout settings
+            assert hasattr(pool, 'connection_kwargs'), "Pool should have connection settings"
+        else:
+            # If Redis is not available in test environment, just verify the import works
+            assert cache is not None, "Cache service should be instantiated"
+
+    # Run the async test
+    asyncio.run(run_test())
