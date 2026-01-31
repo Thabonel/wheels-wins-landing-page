@@ -187,3 +187,124 @@ class TestTechnicalMonitor:
         frequency = monitor.get_adaptive_polling_frequency(health_data)
 
         assert frequency == 10  # Increased 10 second polling during issues
+
+
+class TestRemediationLibrary:
+    """Unit tests for RemediationLibrary"""
+
+    @pytest.fixture
+    def remediation_lib(self):
+        """Create RemediationLibrary instance for testing"""
+        from agents.autonomous.remediation_library import RemediationLibrary
+        return RemediationLibrary()
+
+    @pytest.mark.asyncio
+    async def test_cleanup_disk_space_action(self, remediation_lib):
+        """Test disk cleanup action with mocked execution"""
+        with patch('agents.autonomous.remediation_library.subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "Cleaned 539 files, saved 0.13 GB"
+
+            result = await remediation_lib.execute_action("cleanup_disk_space", {})
+
+            assert result["success"] is True
+            assert result["action"] == "cleanup_disk_space"
+            assert "Cleaned" in result["details"]
+            mock_run.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_restart_celery_workers_action(self, remediation_lib):
+        """Test Celery worker restart action"""
+        # This action currently simulates the restart, doesn't call subprocess
+        result = await remediation_lib.execute_action("restart_celery_workers", {})
+
+        assert result["success"] is True
+        assert result["action"] == "restart_celery_workers"
+        assert "restarted successfully" in result["details"]
+
+    @pytest.mark.asyncio
+    async def test_clear_redis_cache_action(self, remediation_lib):
+        """Test Redis cache clearing action"""
+        # Mock the cache service import inside the method
+        with patch('app.services.cache_service.cache_service') as mock_cache:
+            mock_cache.redis = Mock()
+            mock_cache.redis.dbsize = AsyncMock(return_value=100)
+            mock_cache.clear_expired = AsyncMock(return_value=25)
+
+            result = await remediation_lib.execute_action("clear_redis_cache", {})
+
+            assert result["success"] is True
+            assert result["action"] == "clear_redis_cache"
+            assert "expired keys removed" in result["details"]
+
+    @pytest.mark.asyncio
+    async def test_action_failure_handling(self, remediation_lib):
+        """Test handling of failed remediation actions"""
+        with patch('agents.autonomous.remediation_library.subprocess.run') as mock_run:
+            mock_run.return_value.returncode = 1
+            mock_run.return_value.stderr = "Permission denied"
+            mock_run.return_value.stdout = ""
+
+            result = await remediation_lib.execute_action("cleanup_disk_space", {})
+
+            assert result["success"] is False
+            assert "Permission denied" in result["error"]
+
+    def test_action_selection_for_memory_issue(self, remediation_lib):
+        """Test action selection for memory issues"""
+        issue_data = {
+            "component": "memory",
+            "level": "critical",
+            "value": 85.0
+        }
+
+        actions = remediation_lib.get_recommended_actions(issue_data)
+
+        assert "cleanup_disk_space" in actions
+        assert "restart_celery_workers" in actions
+        assert "clear_redis_cache" in actions
+
+    def test_action_selection_for_disk_issue(self, remediation_lib):
+        """Test action selection for disk issues"""
+        issue_data = {
+            "component": "disk",
+            "level": "critical",
+            "value": 90.0
+        }
+
+        actions = remediation_lib.get_recommended_actions(issue_data)
+
+        assert "cleanup_disk_space" in actions
+        # Disk issues should prioritize cleanup over restarts
+
+    def test_track_action_success(self, remediation_lib):
+        """Test tracking of successful actions"""
+        action_result = {
+            "action": "cleanup_disk_space",
+            "success": True,
+            "duration": 15.5,
+            "timestamp": "2024-01-01T12:00:00"
+        }
+
+        remediation_lib.track_action_result(action_result)
+
+        metrics = remediation_lib.get_action_metrics("cleanup_disk_space")
+        assert metrics["success_count"] == 1
+        assert metrics["total_count"] == 1
+        assert metrics["success_rate"] == 1.0
+
+    def test_track_action_failure(self, remediation_lib):
+        """Test tracking of failed actions"""
+        action_result = {
+            "action": "restart_celery_workers",
+            "success": False,
+            "error": "Connection failed",
+            "timestamp": "2024-01-01T12:00:00"
+        }
+
+        remediation_lib.track_action_result(action_result)
+
+        metrics = remediation_lib.get_action_metrics("restart_celery_workers")
+        assert metrics["success_count"] == 0
+        assert metrics["total_count"] == 1
+        assert metrics["success_rate"] == 0.0
