@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from app.core.logging import get_logger
+from .external_api_client import ExternalApiClient
 
 logger = get_logger(__name__)
 
@@ -30,6 +31,9 @@ class ProactiveTripAssistant:
 
         # Location tracking
         self.last_known_location = None
+
+        # External API client
+        self.external_api_client = ExternalApiClient()
 
         # Memory-keeper tools (will be set by dependency injection or mocking)
         self.mcp__memory_keeper__context_save = None
@@ -127,9 +131,31 @@ class ProactiveTripAssistant:
         Returns:
             Dictionary of external API data
         """
-        # This will be implemented in Task 2 with actual API integrations
-        # For now, return empty dict for minimal implementation
-        return {}
+        try:
+            # If we have a current location, fetch relevant data
+            if self.last_known_location:
+                location = self.last_known_location
+
+                # Gather fuel, weather, and RV park data
+                fuel_data = await self.external_api_client.get_fuel_prices(location)
+                weather_data = await self.external_api_client.get_weather_data(location)
+
+                # For RV parks, use sample dates (would be dynamic in full implementation)
+                check_in = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+                check_out = (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d')
+                rv_parks_data = await self.external_api_client.get_rv_parks(location, check_in, check_out)
+
+                return {
+                    'fuel_prices': fuel_data,
+                    'weather': weather_data,
+                    'rv_parks': rv_parks_data
+                }
+
+            return {}
+
+        except Exception as e:
+            self.logger.error(f"❌ Failed to check external APIs: {e}")
+            return {'error': str(e)}
 
     async def run_monitoring_cycle(self) -> Dict[str, Any]:
         """
