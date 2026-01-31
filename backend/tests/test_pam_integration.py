@@ -15,6 +15,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 import jwt
+import os
 
 from app.main import app
 from app.api.v1.pam import router as pam_router
@@ -934,6 +935,212 @@ async def simulate_websocket_conversation(websocket: WebSocket, messages: List[s
         assert response.get("type") == "response"
     
     await websocket.close()
+
+
+# =====================================================
+# PAM CONVERSATION BRIDGE TESTS
+# =====================================================
+
+class TestPamConversationBridge:
+    @pytest.fixture
+    def pam_bridge(self):
+        from agents.autonomous.pam_conversation_bridge import PamConversationBridge
+        return PamConversationBridge()
+
+    def test_pam_bridge_initialization(self, pam_bridge):
+        """Test PAM bridge initializes with correct configuration"""
+        assert pam_bridge.pam_service_url is not None
+        assert pam_bridge.max_retries == 3
+        assert pam_bridge.timeout == 30
+        assert pam_bridge.conversation_templates is not None
+
+    @pytest.mark.asyncio
+    async def test_initiate_proactive_conversation(self, pam_bridge):
+        """Test initiating proactive conversation with PAM"""
+        conversation_data = {
+            'user_id': 'test-user',
+            'topic': 'weather_alert',
+            'context': {
+                'location': 'Yellowstone',
+                'weather_warning': 'Severe thunderstorm warning',
+                'urgency': 'high'
+            },
+            'suggested_actions': [
+                'Delay departure until weather clears',
+                'Find covered parking for RV'
+            ]
+        }
+
+        # Mock PAM service call
+        pam_bridge.send_to_pam_service = AsyncMock(return_value={
+            'conversation_id': 'conv-123',
+            'status': 'initiated',
+            'message_sent': True
+        })
+
+        result = await pam_bridge.initiate_proactive_conversation(conversation_data)
+
+        assert result['conversation_initiated'] is True
+        assert result['conversation_id'] == 'conv-123'
+        pam_bridge.send_to_pam_service.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_format_trip_optimization_message(self, pam_bridge):
+        """Test formatting trip optimization messages"""
+        optimization_data = {
+            'type': 'fuel_savings',
+            'opportunity': 'Cheap fuel 5 miles ahead',
+            'savings': 15.50,
+            'action_required': 'Stop at Shell station on Exit 42'
+        }
+
+        message = await pam_bridge.format_trip_optimization_message(optimization_data)
+
+        assert 'fuel' in message.lower()
+        assert '15.50' in message or '$15.5' in message
+        assert 'shell' in message.lower()
+
+    @pytest.mark.asyncio
+    async def test_format_weather_alert_message(self, pam_bridge):
+        """Test formatting weather alert messages"""
+        weather_data = {
+            'type': 'severe_weather',
+            'warning': 'Severe thunderstorm warning',
+            'location': 'Your planned route through Kansas',
+            'recommendation': 'Consider delaying departure by 2 hours'
+        }
+
+        message = await pam_bridge.format_weather_alert_message(weather_data)
+
+        assert 'thunderstorm' in message.lower()
+        assert 'kansas' in message.lower()
+        assert '2 hours' in message.lower()
+
+    @pytest.mark.asyncio
+    async def test_send_proactive_suggestion(self, pam_bridge):
+        """Test sending proactive suggestions to PAM"""
+        suggestion_data = {
+            'user_id': 'test-user',
+            'suggestion_type': 'campground_booking',
+            'title': 'Great campground deal found',
+            'description': 'Found 30% off at Pine Ridge RV Park for your dates',
+            'action_url': 'https://booking.example.com/pine-ridge',
+            'expires_at': '2024-06-15T18:00:00Z'
+        }
+
+        # Mock successful PAM delivery
+        pam_bridge.send_to_pam_service = AsyncMock(return_value={
+            'status': 'delivered',
+            'message_id': 'msg-456'
+        })
+
+        result = await pam_bridge.send_proactive_suggestion(suggestion_data)
+
+        assert result['suggestion_sent'] is True
+        assert result['message_id'] == 'msg-456'
+        pam_bridge.send_to_pam_service.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_handle_pam_response(self, pam_bridge):
+        """Test handling responses from PAM conversations"""
+        pam_response = {
+            'conversation_id': 'conv-123',
+            'user_id': 'test-user',
+            'response_type': 'approval',
+            'user_message': 'Yes, book the campground',
+            'action_approved': True
+        }
+
+        result = await pam_bridge.handle_pam_response(pam_response)
+
+        assert result['response_processed'] is True
+        assert result['action_approved'] is True
+
+
+class TestPamNotificationBridge:
+    @pytest.fixture
+    def notification_bridge(self):
+        from agents.autonomous.pam_conversation_bridge import PamNotificationBridge
+        return PamNotificationBridge()
+
+    def test_notification_bridge_initialization(self, notification_bridge):
+        """Test notification bridge initializes correctly"""
+        assert notification_bridge.delivery_metrics is not None
+        assert notification_bridge.notification_queue is not None
+        assert notification_bridge.batch_size == 10
+
+    @pytest.mark.asyncio
+    async def test_send_system_alert(self, notification_bridge):
+        """Test sending system alerts through PAM"""
+        alert_data = {
+            'component': 'memory',
+            'severity': 'critical',
+            'message': 'Memory usage at 95%',
+            'action_taken': 'cleanup_disk_space'
+        }
+
+        # Mock notification delivery
+        notification_bridge.deliver_notification = AsyncMock(return_value={
+            'delivered': True,
+            'notification_id': 'notif-789'
+        })
+
+        result = await notification_bridge.send_system_alert(**alert_data)
+
+        assert result['delivered'] is True
+        notification_bridge.deliver_notification.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_request_user_approval(self, notification_bridge):
+        """Test requesting user approval through PAM"""
+        approval_data = {
+            'action': 'book_premium_campsite',
+            'cost': 85.0,
+            'impact': 'high',
+            'description': 'Book premium campsite with full hookups'
+        }
+
+        # Mock approval request
+        notification_bridge.send_approval_request = AsyncMock(return_value={
+            'approval_granted': True,
+            'user_response': 'approved'
+        })
+
+        result = await notification_bridge.request_user_approval(approval_data)
+
+        assert result['approval_granted'] is True
+        notification_bridge.send_approval_request.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_send_remediation_result(self, notification_bridge):
+        """Test sending remediation result notifications"""
+        result_data = {
+            'action': 'cleanup_disk_space',
+            'success': True,
+            'details': 'Freed 2.5GB disk space',
+            'component': 'disk'
+        }
+
+        # Mock result notification
+        notification_bridge.deliver_notification = AsyncMock(return_value={
+            'delivered': True,
+            'notification_id': 'notif-890'
+        })
+
+        result = await notification_bridge.send_remediation_result(**result_data)
+
+        assert result['delivered'] is True
+        notification_bridge.deliver_notification.assert_called_once()
+
+    def test_get_delivery_metrics(self, notification_bridge):
+        """Test getting delivery metrics"""
+        metrics = notification_bridge.get_delivery_metrics()
+
+        assert 'total_sent' in metrics
+        assert 'successful_deliveries' in metrics
+        assert 'failed_deliveries' in metrics
+        assert 'success_rate' in metrics
+        assert 'pam_available' in metrics
 
 
 # =====================================================
