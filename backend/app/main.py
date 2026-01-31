@@ -118,6 +118,9 @@ from app.api.deps import verify_supabase_jwt_token
 setup_logging()
 logger = get_logger(__name__)
 
+# Import resource monitoring
+from app.monitoring.resource_monitor import resource_monitor
+
 # Safe imports for modules that have caused issues
 camping_router = safe_import_router("app.api.v1.camping")
 youtube_scraper_router = safe_import_router("app.api.v1.youtube_scraper")
@@ -1115,6 +1118,41 @@ async def voice_health_check():
         health_status["error"] = str(e)
         health_status["user_message"] = f"❌ Voice services error: {str(e)}"
         return health_status
+
+
+@app.get("/health/resources", tags=["Health"])
+async def get_resource_health():
+    """Get system resource health status"""
+    try:
+        health = resource_monitor.get_health_summary()
+        return health
+    except Exception as e:
+        logger.error(f"Error getting resource health: {e}")
+        return {
+            "status": "ERROR",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@app.get("/health/system", tags=["Health"])
+async def get_system_health():
+    """Get detailed system statistics"""
+    try:
+        stats = resource_monitor.get_system_stats()
+        return {
+            "status": "SUCCESS",
+            "data": stats,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error getting system stats: {e}")
+        return {
+            "status": "ERROR",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
 
 @app.post("/api/v1/pam/voice/test")
 async def voice_test_endpoint(
