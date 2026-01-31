@@ -6,6 +6,7 @@ Updated: September 2025 - Gemini Flash Integration
 
 import os
 import asyncio
+import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime
 from fastapi import FastAPI, Request, UploadFile, File, Depends
@@ -203,6 +204,28 @@ logger.info(f"ALLOWED_ORIGINS env var: {os.getenv('ALLOWED_ORIGINS')}")
 logger.info(f"CORS_ORIGINS env var: {os.getenv('CORS_ORIGINS')}")
 
 
+async def run_system_cleanup():
+    """Async wrapper for system cleanup - runs controlled cleanup script"""
+    try:
+        # Run cleanup script in subprocess - no user input, controlled script path
+        process = await asyncio.create_subprocess_exec(
+            "python", "scripts/cleanup_system.py",
+            cwd="backend",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+
+        stdout, stderr = await process.communicate()
+
+        if process.returncode == 0:
+            logger.info(f"Automated cleanup completed: {stdout.decode()}")
+        else:
+            logger.error(f"Cleanup failed: {stderr.decode()}")
+
+    except Exception as e:
+        logger.error(f"Error running automated cleanup: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager with monitoring initialization"""
@@ -234,6 +257,31 @@ async def lifespan(app: FastAPI):
         # Initialize production monitoring
         await production_monitor.start_monitoring()
         logger.info("✅ Production monitoring system initialized")
+
+        # NEW: Schedule daily system cleanup
+        try:
+            try:
+                from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+                scheduler = AsyncIOScheduler()
+
+                # Daily cleanup at 2 AM
+                scheduler.add_job(
+                    func=run_system_cleanup,
+                    trigger="cron",
+                    hour=2,
+                    minute=0,
+                    id="daily_system_cleanup"
+                )
+
+                scheduler.start()
+                logger.info("✅ Automated system cleanup scheduled (daily at 2 AM)")
+
+            except ImportError:
+                logger.warning("⚠️ APScheduler not available - manual cleanup only")
+
+        except Exception as scheduler_error:
+            logger.warning(f"⚠️ Failed to setup scheduled cleanup: {scheduler_error}")
         
         # Initialize performance monitoring  
         from app.services.performance_monitor import performance_monitor
@@ -444,9 +492,17 @@ async def lifespan(app: FastAPI):
     try:
         # await db_pool.close()  # Database pool disabled
         await cache_service.close()
-        
+
         # Shutdown production monitoring
         await production_monitor.stop_monitoring()
+
+        # Shutdown scheduler if it exists
+        try:
+            if 'scheduler' in locals():
+                scheduler.shutdown()
+                logger.info("✅ Cleanup scheduler shutdown")
+        except Exception as scheduler_shutdown_error:
+            logger.warning(f"⚠️ Error shutting down scheduler: {scheduler_shutdown_error}")
         logger.info("✅ Production monitoring system shutdown")
 
         # Shutdown Knowledge Tool (if initialized)
