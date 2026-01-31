@@ -289,6 +289,27 @@ async def lifespan(app: FastAPI):
             logger.warning(f"⚠️ Failed to initialize autonomous monitoring: {monitor_error}")
             logger.info("💡 Backend continuing with manual monitoring")
 
+        # Initialize Proactive Trip Assistant Service
+        try:
+            from agents.autonomous.service_integration import ProactiveTripAssistantService
+
+            # Create and start proactive assistant service
+            proactive_assistant_service = ProactiveTripAssistantService()
+            startup_result = await proactive_assistant_service.startup()
+
+            if startup_result.get('status') == 'started':
+                logger.info("🚐 Proactive Trip Assistant Service initialized and started")
+                app.state.proactive_assistant_service = proactive_assistant_service
+            else:
+                logger.warning(f"⚠️ Proactive Trip Assistant Service startup failed: {startup_result.get('error', 'Unknown error')}")
+
+        except ImportError as import_error:
+            logger.warning(f"⚠️ Proactive Trip Assistant not available: {import_error}")
+            logger.info("💡 Backend will operate without proactive trip assistance")
+        except Exception as assistant_error:
+            logger.warning(f"⚠️ Failed to initialize Proactive Trip Assistant: {assistant_error}")
+            logger.info("💡 Backend continuing without proactive trip assistance")
+
         # NEW: Schedule daily system cleanup
         try:
             try:
@@ -536,6 +557,18 @@ async def lifespan(app: FastAPI):
                 logger.info("✅ Technical Monitoring Agent shutdown")
         except Exception as monitor_shutdown_error:
             logger.warning(f"⚠️ Error shutting down autonomous monitor: {monitor_shutdown_error}")
+
+        # Shutdown Proactive Trip Assistant Service
+        try:
+            if hasattr(app.state, 'proactive_assistant_service'):
+                logger.info("🚐 Shutting down Proactive Trip Assistant Service")
+                shutdown_result = await app.state.proactive_assistant_service.shutdown()
+                if shutdown_result.get('status') == 'stopped':
+                    logger.info("✅ Proactive Trip Assistant Service shutdown completed")
+                else:
+                    logger.warning(f"⚠️ Proactive Trip Assistant Service shutdown warning: {shutdown_result.get('error', 'Unknown error')}")
+        except Exception as assistant_shutdown_error:
+            logger.warning(f"⚠️ Error shutting down Proactive Trip Assistant Service: {assistant_shutdown_error}")
 
         # Shutdown scheduler if it exists
         try:

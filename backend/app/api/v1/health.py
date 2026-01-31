@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from enum import Enum
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from fastapi.responses import JSONResponse
 import redis.asyncio as redis
 from sqlalchemy import text
@@ -551,43 +551,197 @@ async def comprehensive_health():
     else:
         return response
 
+@router.get("/health/proactive-assistant")
+async def proactive_assistant_health(request: Request):
+    """Dedicated proactive assistant health endpoint"""
+    try:
+        service = getattr(request.app.state, 'proactive_assistant_service', None)
+
+        if service:
+            # Get actual service status
+            service_status = service.get_status()
+            monitoring_metrics = service.get_monitoring_metrics()
+
+            proactive_assistant_status = {
+                "enabled": True,
+                "monitoring_active": service_status.get('background_monitoring_active', False),
+                "last_cycle": monitoring_metrics.get('last_cycle_time')
+            }
+
+            monitoring_status = {
+                "cycles_completed": monitoring_metrics.get('total_monitoring_cycles', 0),
+                "successful_cycles": monitoring_metrics.get('successful_cycles', 0),
+                "failed_cycles": monitoring_metrics.get('failed_cycles', 0)
+            }
+        else:
+            # Service not available - return default status
+            proactive_assistant_status = {
+                "enabled": False,
+                "monitoring_active": False,
+                "last_cycle": None
+            }
+
+            monitoring_status = {
+                "cycles_completed": 0,
+                "successful_cycles": 0,
+                "failed_cycles": 0
+            }
+
+            service_status = {
+                "uptime_seconds": 0,
+                "background_monitoring_active": False,
+                "assistant_status": "unavailable"
+            }
+
+        return {
+            "proactive_assistant": proactive_assistant_status,
+            "monitoring_status": monitoring_status,
+            "service_status": service_status if service else {
+                "uptime_seconds": 0,
+                "background_monitoring_active": False,
+                "assistant_status": "unavailable"
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get proactive assistant health: {e}")
+        return JSONResponse(
+            content={"error": "Failed to get proactive assistant health", "details": str(e)},
+            status_code=500
+        )
+
+@router.get("/health/proactive-assistant/metrics")
+async def proactive_assistant_metrics(request: Request):
+    """Proactive assistant metrics endpoint"""
+    try:
+        service = getattr(request.app.state, 'proactive_assistant_service', None)
+
+        if service:
+            # Get actual service metrics
+            monitoring_metrics = service.get_monitoring_metrics()
+
+            metrics = {
+                "total_cycles": monitoring_metrics.get('total_monitoring_cycles', 0),
+                "avg_duration_seconds": monitoring_metrics.get('avg_cycle_duration', 0.0),
+                "success_rate": (
+                    monitoring_metrics.get('successful_cycles', 0) /
+                    max(monitoring_metrics.get('total_monitoring_cycles', 1), 1)
+                )
+            }
+
+            monitoring_cycles = {
+                "total_cycles": metrics["total_cycles"],
+                "avg_duration_seconds": metrics["avg_duration_seconds"],
+                "success_rate": metrics["success_rate"]
+            }
+
+            notifications = {
+                "total_sent": monitoring_metrics.get('notifications_sent', 0),
+                "delivery_rate": 1.0,  # Would be calculated from actual delivery stats
+                "types_breakdown": {
+                    "weather_alerts": 0,  # Would be tracked separately
+                    "fuel_savings": 0,
+                    "campground_deals": 0,
+                    "route_optimizations": 0
+                }
+            }
+        else:
+            # Default metrics when service is unavailable
+            metrics = {
+                "total_cycles": 0,
+                "avg_duration_seconds": 0.0,
+                "success_rate": 0.0
+            }
+
+            monitoring_cycles = metrics.copy()
+
+            notifications = {
+                "total_sent": 0,
+                "delivery_rate": 0.0,
+                "types_breakdown": {
+                    "weather_alerts": 0,
+                    "fuel_savings": 0,
+                    "campground_deals": 0,
+                    "route_optimizations": 0
+                }
+            }
+
+        # Static metrics for now (would be enhanced with actual tracking)
+        external_apis = {
+            "fuel_api_calls": 0,
+            "weather_api_calls": 0,
+            "rv_parks_api_calls": 0,
+            "success_rate": 1.0 if service else 0.0
+        }
+
+        pattern_learning = {
+            "patterns_learned": 0,
+            "user_profiles": 0,
+            "prediction_accuracy": 0.0
+        }
+
+        autonomy_actions = {
+            "auto_executed": 0,
+            "notify_sent": 0,
+            "approval_requested": 0,
+            "spending_saved": 0.0
+        }
+
+        return {
+            "metrics": metrics,
+            "monitoring_cycles": monitoring_cycles,
+            "notifications": notifications,
+            "external_apis": external_apis,
+            "pattern_learning": pattern_learning,
+            "autonomy_actions": autonomy_actions,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get proactive assistant metrics: {e}")
+        return JSONResponse(
+            content={"error": "Failed to get proactive assistant metrics", "details": str(e)},
+            status_code=500
+        )
+
 @router.get("/health/metrics")
 async def metrics():
     """Prometheus-compatible metrics endpoint"""
     metrics_data = []
-    
+
     try:
         # System metrics
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage("/")
         process = psutil.Process(os.getpid())
-        
+
         # Format as Prometheus metrics
         metrics_data.append(f"# HELP cpu_usage_percent CPU usage percentage")
         metrics_data.append(f"# TYPE cpu_usage_percent gauge")
         metrics_data.append(f"cpu_usage_percent {cpu_percent}")
-        
+
         metrics_data.append(f"# HELP memory_usage_percent Memory usage percentage")
         metrics_data.append(f"# TYPE memory_usage_percent gauge")
         metrics_data.append(f"memory_usage_percent {memory.percent}")
-        
+
         metrics_data.append(f"# HELP disk_usage_percent Disk usage percentage")
         metrics_data.append(f"# TYPE disk_usage_percent gauge")
         metrics_data.append(f"disk_usage_percent {disk.percent}")
-        
+
         metrics_data.append(f"# HELP process_memory_bytes Process memory usage in bytes")
         metrics_data.append(f"# TYPE process_memory_bytes gauge")
         metrics_data.append(f"process_memory_bytes {process.memory_info().rss}")
-        
+
         metrics_data.append(f"# HELP process_threads Number of process threads")
         metrics_data.append(f"# TYPE process_threads gauge")
         metrics_data.append(f"process_threads {process.num_threads()}")
-        
+
         metrics_data.append(f"# HELP uptime_seconds Application uptime in seconds")
         metrics_data.append(f"# TYPE uptime_seconds counter")
         metrics_data.append(f"uptime_seconds {round(time.time() - process.create_time())}")
     except Exception as e:
         metrics_data.append(f"# Error collecting metrics: {e}")
-    
+
     return "\n".join(metrics_data)
