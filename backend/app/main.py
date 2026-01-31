@@ -102,6 +102,7 @@ from app.api.v1 import (
     transition,  # Life Transition Navigator module
     knowledge,  # Community Knowledge Center
     utils,  # Utility endpoints (geolocation proxy, etc.) - Phase 2
+    usa,  # Universal Site Access - browser automation for PAM
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import system_settings as system_settings_api
@@ -484,6 +485,22 @@ async def lifespan(app: FastAPI):
             logger.error(f"❌ Tool Registry initialization failed: {tool_error}")
             logger.warning("🚨 PAM will operate without tool calling capabilities")
 
+        # Initialize Universal Site Access (USA) session manager
+        logger.info("🌐 Initializing Universal Site Access...")
+        try:
+            from app.services.usa import session_manager as usa_session_manager
+
+            await usa_session_manager.initialize()
+            app.state.usa_session_manager = usa_session_manager
+            logger.info("✅ Universal Site Access session manager initialized")
+            logger.info(f"🌐 USA: Max sessions={usa_session_manager.max_sessions}, Timeout={usa_session_manager.timeout_seconds}s")
+        except ImportError as usa_import_error:
+            logger.warning(f"⚠️ Universal Site Access not available: {usa_import_error}")
+            logger.info("💡 PAM will operate without browser automation capabilities")
+        except Exception as usa_error:
+            logger.warning(f"⚠️ Universal Site Access initialization failed: {usa_error}")
+            logger.info("💡 PAM will operate without browser automation capabilities")
+
         logger.info("✅ WebSocket manager ready")
         logger.info("✅ Monitoring service ready")
 
@@ -578,6 +595,15 @@ async def lifespan(app: FastAPI):
         except Exception as scheduler_shutdown_error:
             logger.warning(f"⚠️ Error shutting down scheduler: {scheduler_shutdown_error}")
         logger.info("✅ Production monitoring system shutdown")
+
+        # Shutdown Universal Site Access session manager
+        try:
+            if hasattr(app.state, 'usa_session_manager'):
+                logger.info("🌐 Shutting down Universal Site Access session manager")
+                await app.state.usa_session_manager.shutdown()
+                logger.info("✅ Universal Site Access session manager shutdown completed")
+        except Exception as usa_shutdown_error:
+            logger.warning(f"⚠️ Error shutting down Universal Site Access: {usa_shutdown_error}")
 
         # Shutdown Knowledge Tool (if initialized)
         try:
@@ -1013,6 +1039,7 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"❌ Failed to register voice health endpoints: {e}")
 app.include_router(search.router, prefix="/api/v1/search", tags=["Web Search"])
+app.include_router(usa.router, prefix="/api/v1", tags=["Universal Site Access"])  # Browser automation for PAM
 app.include_router(news.router, tags=["News"])  # News RSS feed aggregator
 app.include_router(vision.router, prefix="/api/v1/vision", tags=["Vision Analysis"])
 app.include_router(mapbox.router, prefix="/api/v1/mapbox", tags=["Mapbox Proxy"])

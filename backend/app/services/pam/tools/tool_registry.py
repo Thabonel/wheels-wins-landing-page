@@ -5797,6 +5797,83 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ Send Proactive Message tool registration failed: {e}")
         failed_count += 1
 
+    # ===============================
+    # UNIVERSAL SITE ACCESS TOOL
+    # Critical for: Browser automation - interact with any website element
+    # ===============================
+    try:
+        logger.debug("🔄 Attempting to register Universal Action tool...")
+        UniversalActionTool = lazy_import("app.services.pam.tools.universal.universal_action", "UniversalActionTool")
+        UNIVERSAL_ACTION_SCHEMA = lazy_import("app.services.pam.tools.universal.universal_action", "UNIVERSAL_ACTION_SCHEMA")
+
+        if UniversalActionTool is None:
+            raise ImportError("UniversalActionTool not available")
+
+        registry.register_tool(
+            tool=UniversalActionTool(),
+            function_definition={
+                "name": "universal_action",
+                "description": """Interact with any element on any website using numeric references.
+
+Workflow:
+1. navigate to URL
+2. index_page to see available elements like [1] Search, [2] Add to Cart
+3. click/type/get_text using element numbers
+
+Always run index_page first to see what's available. Use 'pause' to let user take over manually, 'resume' when ready to continue.
+
+Example: To add an item to a list:
+1. navigate to the page
+2. index_page to find the input field and button
+3. type in the input field (by index)
+4. click the add button (by index)""",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "navigate",
+                                "index_page",
+                                "click",
+                                "type",
+                                "get_text",
+                                "scroll",
+                                "screenshot",
+                                "pause",
+                                "resume"
+                            ],
+                            "description": "Action to perform"
+                        },
+                        "element_index": {
+                            "type": "integer",
+                            "description": "Element number from index_page result (required for click, type, get_text)"
+                        },
+                        "text": {
+                            "type": "string",
+                            "description": "Text to type (required for type action)"
+                        },
+                        "url": {
+                            "type": "string",
+                            "description": "URL to navigate to (required for navigate action)"
+                        }
+                    },
+                    "required": ["action"]
+                }
+            },
+            capability=ToolCapability.BROWSER_AUTOMATION,
+            priority=1,
+            max_execution_time=60  # Browser actions may take longer
+        )
+        logger.info("✅ Universal Action (browser automation) tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Universal Action tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Universal Action tool registration failed: {e}")
+        failed_count += 1
+
     # Registration summary
     total_attempted = registered_count + failed_count
     success_rate = (registered_count / total_attempted * 100) if total_attempted > 0 else 0

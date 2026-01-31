@@ -49,6 +49,9 @@ class ToolCapability(Enum):
     WRITE = "write"    # Tools that write/modify data
     READ = "read"      # Tools that read data
 
+    # Browser Automation (Universal Site Access)
+    BROWSER_AUTOMATION = "browser_automation"
+
 
 # Compatibility mapping for migration
 CAPABILITY_ALIASES = {
