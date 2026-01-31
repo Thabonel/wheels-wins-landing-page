@@ -182,10 +182,10 @@ def mock_httpx_client():
 @pytest.fixture(autouse=True)
 def mock_environment(monkeypatch):
     """Set up mock environment variables for all tests."""
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-api-key")
-    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
-    monkeypatch.setenv("MAPBOX_TOKEN", "test-mapbox-token")
-    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-test-api-key-for-testing-purposes-only-abcdefghijklmnopqrstuvwxyz1234567890")
+    monkeypatch.setenv("GEMINI_API_KEY", "AIzaSyC-test-gemini-api-key-for-testing-purposes-only-1234567890")
+    monkeypatch.setenv("MAPBOX_TOKEN", "pk.test-mapbox-token-for-testing-purposes-only")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test-service-role-key")
     monkeypatch.setenv("DATABASE_URL", "postgresql://test:test@localhost:5432/test")
 
 
