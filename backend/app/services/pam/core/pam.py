@@ -113,6 +113,7 @@ from app.services.pam.tools.admin.search_knowledge import search_knowledge
 from app.services.pam.tools.create_calendar_event import create_calendar_event
 from app.services.pam.tools.update_calendar_event import update_calendar_event
 from app.services.pam.tools.delete_calendar_event import delete_calendar_event
+from app.services.pam.tools.get_calendar_events import get_calendar_events
 
 # Transition tools (AMENDMENT #5): Archived to backend/archive/transition_tools/ (not in official architecture)
 
