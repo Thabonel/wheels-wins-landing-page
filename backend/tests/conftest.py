@@ -193,3 +193,96 @@ def mock_environment(monkeypatch):
 def mock_logger():
     """Mock logger for testing."""
     return MagicMock()
+
+
+# USA-specific fixtures
+@pytest.fixture
+def mock_playwright_page():
+    """Mock Playwright Page for USA testing"""
+    page = MagicMock()
+    page.goto = AsyncMock()
+    page.screenshot = AsyncMock()
+    page.evaluate = AsyncMock()
+    page.query_selector_all = AsyncMock()
+    page.locator = MagicMock()
+    page.wait_for_load_state = AsyncMock()
+    page.frames = []
+    page.main_frame = page
+    return page
+
+
+@pytest.fixture
+def mock_playwright_element():
+    """Mock Playwright ElementHandle for USA testing"""
+    element = MagicMock()
+    element.is_visible = AsyncMock(return_value=True)
+    element.is_enabled = AsyncMock(return_value=True)
+    element.bounding_box = AsyncMock(return_value={'x': 100, 'y': 200, 'width': 80, 'height': 30})
+    element.evaluate = AsyncMock(return_value="button")
+    element.text_content = AsyncMock(return_value="Submit")
+    element.get_attribute = AsyncMock(return_value="submit-btn")
+    element.click = AsyncMock()
+    element.fill = AsyncMock()
+    return element
+
+
+@pytest.fixture
+def mock_playwright_context():
+    """Mock Playwright BrowserContext for USA testing"""
+    context = MagicMock()
+    context.new_page = AsyncMock()
+    context.close = AsyncMock()
+    return context
+
+
+@pytest.fixture
+def mock_playwright_browser():
+    """Mock Playwright Browser for USA testing"""
+    browser = MagicMock()
+    browser.new_context = AsyncMock()
+    browser.close = AsyncMock()
+    return browser
+
+
+@pytest.fixture
+def mock_usa_session_manager():
+    """Mock BrowserSessionManager for USA testing"""
+    from app.services.usa.session_manager import BrowserSessionManager
+
+    manager = BrowserSessionManager(max_sessions=3, timeout_seconds=10)
+    manager._initialized = True
+    manager.browser = MagicMock()
+    manager.playwright = MagicMock()
+    return manager
+
+
+@pytest.fixture
+def mock_usa_rate_limiter():
+    """Mock RateLimiter for USA testing"""
+    from app.services.usa.rate_limiter import RateLimiter
+
+    return RateLimiter(max_actions=5, window_seconds=60)
+
+
+@pytest.fixture
+def sample_element_ref():
+    """Sample ElementRef for USA testing"""
+    from app.services.usa.element_ref import ElementRef
+
+    return ElementRef(
+        index=1,
+        tag="button",
+        text_signature="Submit",
+        stable_selector="#submit-btn",
+        bounding_box={'x': 100, 'y': 200, 'width': 80, 'height': 30}
+    )
+
+
+@pytest.fixture
+def mock_current_user():
+    """Mock current user for USA API testing"""
+    return {
+        "user_id": "test_user",
+        "role": "user",
+        "permissions": []
+    }
