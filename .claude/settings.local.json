@@ -63,7 +63,14 @@
       "Bash(pytest:*)",
       "Bash(python3:*)",
       "Skill(ralph-loop:ralph-loop)",
-      "Bash(PYTHONPATH=/Users/thabonel/Code/wheels-wins-landing-page/backend python:*)"
+      "Bash(PYTHONPATH=/Users/thabonel/Code/wheels-wins-landing-page/backend python:*)",
+      "Bash(supabase projects:*)",
+      "Bash(./EXECUTE_SECURITY_FIX.sh)",
+      "Bash(git check-ignore:*)",
+      "Bash(pkill:*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(PYTHONPATH=. python:*)"
     ],
     "deny": [],
     "ask": []

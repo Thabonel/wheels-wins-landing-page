@@ -11,6 +11,20 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Memory-keeper functions for persistence (will be dynamically loaded)
+mcp__memory_keeper__context_save = None
+mcp__memory_keeper__context_search = None
+
+def _load_memory_keeper_tools():
+    """Dynamically load memory-keeper tools if available"""
+    global mcp__memory_keeper__context_save, mcp__memory_keeper__context_search
+    try:
+        # These would be loaded via ToolSearch in a real implementation
+        # For now, we'll simulate the interface
+        pass
+    except Exception:
+        pass
+
 
 class TechnicalMonitor:
     """
@@ -41,6 +55,13 @@ class TechnicalMonitor:
 
         # Health endpoint timeout
         self.timeout = 10
+
+        # Memory-keeper tools (will be set by dependency injection or mocking)
+        self.mcp__memory_keeper__context_save = None
+        self.mcp__memory_keeper__context_search = None
+
+        # PAM bridge for notifications (will be initialized lazily)
+        self.pam_bridge = None
 
     def parse_health_data(self, health_response: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -163,3 +184,262 @@ class TechnicalMonitor:
                 "error": error_msg,
                 "timestamp": datetime.now().isoformat()
             }
+
+    async def save_action_history(self, action_data: Dict[str, Any]) -> None:
+        """
+        Save action history to persistent memory using memory-keeper tools
+
+        Args:
+            action_data: Action result data to persist
+        """
+        try:
+            if not self.mcp__memory_keeper__context_save:
+                self.logger.warning("⚠️ Memory-keeper context_save not available")
+                return
+
+            # Use memory-keeper to save action history
+            import json
+            key = f"monitoring_action_{action_data['action']}_{int(datetime.now().timestamp())}"
+
+            await self.mcp__memory_keeper__context_save({
+                "key": key,
+                "value": json.dumps(action_data),  # Use JSON for safe serialization
+                "category": "progress",
+                "priority": "normal",
+                "private": False
+            })
+
+            self.logger.debug(f"💾 Saved action history: {key}")
+
+        except Exception as e:
+            # Graceful degradation - don't fail if memory persistence fails
+            self.logger.warning(f"⚠️ Failed to save action history: {e}")
+
+    async def save_health_metrics(self, health_data: Dict[str, Any]) -> None:
+        """
+        Save health metrics to persistent memory
+
+        Args:
+            health_data: Health metrics to persist
+        """
+        try:
+            if not self.mcp__memory_keeper__context_save:
+                self.logger.warning("⚠️ Memory-keeper context_save not available")
+                return
+
+            import json
+            key = f"health_metrics_{int(datetime.now().timestamp())}"
+
+            await self.mcp__memory_keeper__context_save({
+                "key": key,
+                "value": json.dumps(health_data),
+                "category": "note",
+                "priority": "normal",
+                "private": False
+            })
+
+            self.logger.debug(f"💾 Saved health metrics: {key}")
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to save health metrics: {e}")
+
+    async def get_action_history(self, action_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve action history for a specific action type
+
+        Args:
+            action_name: Name of the action to retrieve history for
+
+        Returns:
+            Most recent action data or None if not found
+        """
+        try:
+            if not self.mcp__memory_keeper__context_search:
+                self.logger.warning("⚠️ Memory-keeper context_search not available")
+                return None
+
+            # Search for recent action history
+            results = await self.mcp__memory_keeper__context_search({
+                "query": f"monitoring_action_{action_name}",
+                "category": "progress",
+                "limit": 1,
+                "sort": "created_desc"
+            })
+
+            if results and len(results) > 0:
+                # Parse the stored JSON data safely
+                import json
+                action_data = json.loads(results[0]["value"])
+                return action_data
+
+            return None
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to retrieve action history: {e}")
+            return None
+
+    async def analyze_historical_patterns(self, action_name: str) -> Dict[str, Any]:
+        """
+        Analyze historical patterns for an action type
+
+        Args:
+            action_name: Name of the action to analyze
+
+        Returns:
+            Analysis including success rate, average duration, etc.
+        """
+        try:
+            if not self.mcp__memory_keeper__context_search:
+                self.logger.warning("⚠️ Memory-keeper context_search not available")
+                return {
+                    "success_rate": 0.0,
+                    "avg_duration": 0.0,
+                    "total_attempts": 0
+                }
+
+            # Get recent history for this action
+            results = await self.mcp__memory_keeper__context_search({
+                "query": f"monitoring_action_{action_name}",
+                "category": "progress",
+                "limit": 50,  # Analyze last 50 attempts
+                "sort": "created_desc"
+            })
+
+            if not results:
+                return {
+                    "success_rate": 0.0,
+                    "avg_duration": 0.0,
+                    "total_attempts": 0
+                }
+
+            # Analyze the data
+            successful_attempts = []
+            total_attempts = len(results)
+            total_duration = 0.0
+
+            for result in results:
+                try:
+                    import json
+                    action_data = json.loads(result["value"])
+
+                    if action_data.get("success", False):
+                        successful_attempts.append(action_data)
+                        if "duration" in action_data:
+                            total_duration += action_data["duration"]
+
+                except Exception as e:
+                    self.logger.warning(f"⚠️ Failed to parse action data: {e}")
+                    continue
+
+            success_rate = len(successful_attempts) / total_attempts if total_attempts > 0 else 0.0
+            avg_duration = total_duration / len(successful_attempts) if successful_attempts else 0.0
+
+            return {
+                "success_rate": success_rate,
+                "avg_duration": avg_duration,
+                "total_attempts": total_attempts,
+                "successful_attempts": len(successful_attempts)
+            }
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to analyze historical patterns: {e}")
+            return {
+                "success_rate": 0.0,
+                "avg_duration": 0.0,
+                "total_attempts": 0
+            }
+
+    async def _init_pam_bridge(self) -> None:
+        """Initialize PAM bridge for notifications"""
+        try:
+            if not self.pam_bridge:
+                from agents.autonomous.pam_bridge import PamNotificationBridge
+                self.pam_bridge = PamNotificationBridge()
+                self.logger.info("📱 PAM bridge initialized for monitoring notifications")
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to initialize PAM bridge: {e}")
+
+    async def notify_issue_detected(
+        self,
+        component: str,
+        level: str,
+        value: float,
+        threshold: float,
+        action_taken: Optional[str] = None
+    ) -> None:
+        """
+        Send notification about detected system issue
+
+        Args:
+            component: System component (memory, disk, cpu)
+            level: Issue level (warning, critical)
+            value: Current value that triggered threshold
+            threshold: Threshold that was exceeded
+            action_taken: Action taken by monitoring agent (optional)
+        """
+        try:
+            await self._init_pam_bridge()
+
+            if self.pam_bridge:
+                severity = "critical" if level == "critical" else "warning"
+                message = f"{component.title()} at {value:.1f}% (threshold: {threshold}%)"
+
+                await self.pam_bridge.send_system_alert(
+                    component=component,
+                    severity=severity,
+                    message=message,
+                    action_taken=action_taken
+                )
+            else:
+                self.logger.info(f"📊 Issue detected: {component} {level} - {value:.1f}% (no PAM bridge)")
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to send issue notification: {e}")
+
+    async def notify_remediation_result(
+        self,
+        action: str,
+        success: bool,
+        details: str,
+        component: Optional[str] = None
+    ) -> None:
+        """
+        Send notification about remediation action result
+
+        Args:
+            action: Action that was performed
+            success: Whether the action succeeded
+            details: Result details
+            component: Affected component (optional)
+        """
+        try:
+            await self._init_pam_bridge()
+
+            if self.pam_bridge:
+                await self.pam_bridge.send_remediation_result(
+                    action=action,
+                    success=success,
+                    details=details,
+                    component=component
+                )
+            else:
+                status = "✅" if success else "❌"
+                self.logger.info(f"{status} Remediation result: {action} - {details} (no PAM bridge)")
+
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to send remediation notification: {e}")
+
+    async def get_pam_metrics(self) -> Dict[str, Any]:
+        """
+        Get PAM bridge delivery metrics
+
+        Returns:
+            PAM bridge metrics or empty dict if bridge unavailable
+        """
+        try:
+            if self.pam_bridge:
+                return self.pam_bridge.get_delivery_metrics()
+            return {"pam_available": False, "bridge_initialized": False}
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to get PAM metrics: {e}")
+            return {"error": str(e)}

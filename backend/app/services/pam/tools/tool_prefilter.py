@@ -177,10 +177,11 @@ class ToolPrefilter:
         "export_data": "profile",
         "create_vehicle": "profile",
 
-        # Calendar tools (3 tools from pam.py)
+        # Calendar tools (4 tools from pam.py)
         "create_calendar_event": "calendar",
         "update_calendar_event": "calendar",
         "delete_calendar_event": "calendar",
+        "get_calendar_events": "calendar",
 
         # Admin tools (2 tools from pam.py)
         "add_knowledge": "admin",
