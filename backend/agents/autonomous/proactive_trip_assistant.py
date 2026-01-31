@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from app.core.logging import get_logger
 from .external_api_client import ExternalApiClient
+from .pattern_learning import TripPatternAnalyzer
 
 logger = get_logger(__name__)
 
@@ -34,6 +35,9 @@ class ProactiveTripAssistant:
 
         # External API client
         self.external_api_client = ExternalApiClient()
+
+        # Pattern learning system
+        self.pattern_analyzer = TripPatternAnalyzer()
 
         # Memory-keeper tools (will be set by dependency injection or mocking)
         self.mcp__memory_keeper__context_save = None
@@ -156,6 +160,54 @@ class ProactiveTripAssistant:
         except Exception as e:
             self.logger.error(f"❌ Failed to check external APIs: {e}")
             return {'error': str(e)}
+
+    async def analyze_user_patterns(self, user_id: str, trip_data: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """
+        Analyze user travel patterns and update profile
+
+        Args:
+            user_id: User identifier
+            trip_data: Optional trip data (if None, will be loaded from memory)
+
+        Returns:
+            Analysis results
+        """
+        try:
+            # If no trip data provided, try to load from memory
+            if trip_data is None:
+                # In full implementation, this would fetch from database
+                # For minimal implementation, return empty analysis
+                trip_data = []
+
+            # Analyze patterns
+            patterns = await self.pattern_analyzer.analyze_trip_patterns(trip_data)
+
+            # Generate user profile
+            user_profile = await self.pattern_analyzer.generate_user_profile(user_id, trip_data)
+
+            # Save patterns to memory
+            if patterns and user_profile:
+                pattern_data = {
+                    'user_id': user_id,
+                    'patterns': patterns,
+                    'profile': user_profile,
+                    'last_analyzed': datetime.now().isoformat()
+                }
+                await self.pattern_analyzer.save_learned_patterns(pattern_data)
+
+            return {
+                'patterns': patterns,
+                'profile': user_profile,
+                'analysis_timestamp': datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            self.logger.error(f"❌ Failed to analyze user patterns: {e}")
+            return {
+                'patterns': {},
+                'profile': {},
+                'error': str(e)
+            }
 
     async def run_monitoring_cycle(self) -> Dict[str, Any]:
         """
