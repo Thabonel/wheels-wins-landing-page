@@ -270,3 +270,99 @@ class TestProactiveTripAssistantAutonomy:
         rv_upgrade = next(s for s in suggestions if s['action'] == 'upgrade_rv_rental')
         assert rv_upgrade['autonomy_level'] == 'approval'
         assert rv_upgrade['requires_approval'] is True
+
+
+class TestProactiveTripAssistantPAMIntegration:
+    @pytest.fixture
+    def assistant_with_pam(self):
+        assistant = ProactiveTripAssistant()
+        return assistant
+
+    @pytest.mark.asyncio
+    async def test_send_weather_alert_notification(self, assistant_with_pam):
+        """Test sending weather alert notifications via PAM"""
+        user_id = 'test-user'
+        notification_data = {
+            'type': 'weather_alert',
+            'context': {
+                'location': 'Yellowstone',
+                'weather_warning': 'Severe thunderstorm warning',
+                'recommendation': 'Delay departure by 2 hours'
+            },
+            'suggested_actions': [
+                'Delay departure until weather clears',
+                'Find covered parking for RV'
+            ]
+        }
+
+        result = await assistant_with_pam.send_proactive_notification(user_id, notification_data)
+
+        assert result['notification_sent'] is True
+        assert result['type'] == 'weather_alert'
+        assert result['user_id'] == user_id
+        assert 'result' in result
+
+    @pytest.mark.asyncio
+    async def test_send_fuel_savings_notification(self, assistant_with_pam):
+        """Test sending fuel savings notifications via PAM"""
+        user_id = 'test-user'
+        notification_data = {
+            'type': 'fuel_savings',
+            'context': {
+                'opportunity': 'Cheap fuel 5 miles ahead',
+                'savings': 15.50,
+                'action_required': 'Stop at Shell station on Exit 42'
+            }
+        }
+
+        result = await assistant_with_pam.send_proactive_notification(user_id, notification_data)
+
+        assert result['notification_sent'] is True
+        assert result['type'] == 'fuel_savings'
+        assert result['user_id'] == user_id
+
+    @pytest.mark.asyncio
+    async def test_send_campground_deal_notification(self, assistant_with_pam):
+        """Test sending campground deal notifications via PAM"""
+        user_id = 'test-user'
+        notification_data = {
+            'type': 'campground_deal',
+            'title': 'Great campground deal found',
+            'description': 'Found 30% off at Pine Ridge RV Park for your dates',
+            'action_url': 'https://booking.example.com/pine-ridge',
+            'expires_at': '2024-06-15T18:00:00Z'
+        }
+
+        result = await assistant_with_pam.send_proactive_notification(user_id, notification_data)
+
+        assert result['notification_sent'] is True
+        assert result['type'] == 'campground_deal'
+        assert result['user_id'] == user_id
+
+    @pytest.mark.asyncio
+    async def test_send_generic_notification(self, assistant_with_pam):
+        """Test sending generic notifications via PAM"""
+        user_id = 'test-user'
+        notification_data = {
+            'type': 'route_optimization',
+            'context': {
+                'optimization': 'Shorter route found',
+                'time_saved': '15 minutes'
+            },
+            'message': 'Found a better route for your trip'
+        }
+
+        result = await assistant_with_pam.send_proactive_notification(user_id, notification_data)
+
+        assert result['notification_sent'] is True
+        assert result['type'] == 'route_optimization'
+        assert result['user_id'] == user_id
+
+    @pytest.mark.asyncio
+    async def test_pam_bridge_integration(self, assistant_with_pam):
+        """Test that PAM bridge is properly integrated"""
+        # Verify PAM bridge is initialized
+        assert assistant_with_pam.pam_bridge is not None
+        assert hasattr(assistant_with_pam.pam_bridge, 'initiate_proactive_conversation')
+        assert hasattr(assistant_with_pam.pam_bridge, 'send_proactive_suggestion')
+        assert hasattr(assistant_with_pam.pam_bridge, 'conversation_templates')

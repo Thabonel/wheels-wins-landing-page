@@ -10,6 +10,7 @@ from app.core.logging import get_logger
 from .external_api_client import ExternalApiClient
 from .pattern_learning import TripPatternAnalyzer
 from .tiered_autonomy import AutonomyManager
+from .pam_conversation_bridge import PamConversationBridge
 
 logger = get_logger(__name__)
 
@@ -47,8 +48,8 @@ class ProactiveTripAssistant:
         self.mcp__memory_keeper__context_save = None
         self.mcp__memory_keeper__context_search = None
 
-        # PAM bridge for conversation initiation (will be initialized lazily)
-        self.pam_bridge = None
+        # PAM bridge for conversation initiation
+        self.pam_bridge = PamConversationBridge()
 
     async def detect_calendar_travel_events(self) -> List[Dict[str, Any]]:
         """
@@ -312,6 +313,82 @@ class ProactiveTripAssistant:
         except Exception as e:
             self.logger.error(f"❌ Failed to suggest trip optimizations: {e}")
             return []
+
+    async def send_proactive_notification(self, user_id: str, notification_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Send proactive notification to user via PAM
+
+        Args:
+            user_id: User identifier
+            notification_data: Notification data including type, message, context
+
+        Returns:
+            Notification result
+        """
+        try:
+            notification_type = notification_data.get('type', 'general')
+
+            if notification_type == 'weather_alert':
+                # Format weather alert and send via PAM
+                conversation_data = {
+                    'user_id': user_id,
+                    'topic': 'weather_alert',
+                    'context': notification_data.get('context', {}),
+                    'suggested_actions': notification_data.get('suggested_actions', [])
+                }
+
+                result = await self.pam_bridge.initiate_proactive_conversation(conversation_data)
+
+            elif notification_type == 'fuel_savings':
+                # Format fuel savings notification
+                conversation_data = {
+                    'user_id': user_id,
+                    'topic': 'fuel_savings',
+                    'context': notification_data.get('context', {}),
+                    'suggested_actions': ['Stop for fuel']
+                }
+
+                result = await self.pam_bridge.initiate_proactive_conversation(conversation_data)
+
+            elif notification_type == 'campground_deal':
+                # Send campground deal suggestion
+                suggestion_data = {
+                    'user_id': user_id,
+                    'suggestion_type': 'campground_booking',
+                    'title': notification_data.get('title', 'Great deal found'),
+                    'description': notification_data.get('description', ''),
+                    'action_url': notification_data.get('action_url', ''),
+                    'expires_at': notification_data.get('expires_at', '')
+                }
+
+                result = await self.pam_bridge.send_proactive_suggestion(suggestion_data)
+
+            else:
+                # Generic notification
+                conversation_data = {
+                    'user_id': user_id,
+                    'topic': notification_type,
+                    'context': notification_data.get('context', {}),
+                    'message': notification_data.get('message', '')
+                }
+
+                result = await self.pam_bridge.initiate_proactive_conversation(conversation_data)
+
+            self.logger.info(f"📱 Sent {notification_type} notification to {user_id}")
+
+            return {
+                'notification_sent': True,
+                'type': notification_type,
+                'user_id': user_id,
+                'result': result
+            }
+
+        except Exception as e:
+            self.logger.error(f"❌ Failed to send proactive notification: {e}")
+            return {
+                'notification_sent': False,
+                'error': str(e)
+            }
 
     async def run_monitoring_cycle(self) -> Dict[str, Any]:
         """
