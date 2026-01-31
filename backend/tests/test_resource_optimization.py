@@ -88,3 +88,32 @@ def test_redis_connection_optimization():
 
     # Run the async test
     asyncio.run(run_test())
+
+
+def test_resource_monitoring_detects_issues():
+    """Test that resource monitoring detects high usage"""
+    from app.monitoring.resource_monitor import ResourceMonitor
+
+    monitor = ResourceMonitor()
+
+    # Test with high resource usage
+    high_usage_stats = {
+        "memory_percent": 85.0,
+        "disk_percent": 90.0,
+        "cpu_percent": 95.0
+    }
+
+    health = monitor.assess_health(high_usage_stats)
+
+    assert health["status"] != "HEALTHY", "Should detect high resource usage as unhealthy"
+    assert health["alerts"] > 0, "Should generate alerts for high usage"
+
+    # Test with normal usage
+    normal_stats = {
+        "memory_percent": 50.0,
+        "disk_percent": 40.0,
+        "cpu_percent": 30.0
+    }
+
+    health = monitor.assess_health(normal_stats)
+    assert health["status"] == "HEALTHY", "Should assess normal usage as healthy"
