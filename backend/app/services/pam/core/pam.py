@@ -1072,6 +1072,36 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                     "required": ["event_id"]
                 }
             },
+            {
+                "name": "get_calendar_events",
+                "description": "Get calendar events for the user. Use when user asks about their schedule, appointments, or calendar events. Returns upcoming events by default, with options to filter by date range or event type.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "start_date": {
+                            "type": "string",
+                            "description": "Start date filter in ISO format (optional). Example: '2026-02-01T00:00:00Z'"
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "End date filter in ISO format (optional). Example: '2026-02-07T23:59:59Z'"
+                        },
+                        "event_type": {
+                            "type": "string",
+                            "description": "Filter by event type: personal, reminder, trip, booking, maintenance, inspection (optional)"
+                        },
+                        "include_past": {
+                            "type": "boolean",
+                            "description": "Include past events (default: false, only upcoming events)"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of events to return (default: 100)"
+                        }
+                    },
+                    "required": []
+                }
+            },
             # Shop tools (affiliate products)
             {
                 "name": "search_products",
