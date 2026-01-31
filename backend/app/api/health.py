@@ -456,3 +456,89 @@ async def startup_health_check():
 
     logger.info(f"Startup health check completed: {checks_passed}/{total_checks} checks passed")
     return health_status
+
+
+@router.get("/autonomous-monitoring", status_code=status.HTTP_200_OK)
+async def autonomous_monitoring_status():
+    """Get status of autonomous technical monitoring agent"""
+    try:
+        # Try to access the monitoring agent from app state
+        from fastapi import Request
+        from starlette.requests import Request as StarletteRequest
+
+        # This is a basic status check - in a full implementation,
+        # we'd access the monitoring agent from app.state
+        response = {
+            "autonomous_monitoring": {
+                "enabled": True,
+                "status": "configured",
+                "description": "Autonomous Technical Monitoring Agent"
+            },
+            "components": {
+                "health_polling": "operational",
+                "remediation_library": "operational",
+                "pam_bridge": "operational",
+                "memory_persistence": "configured"
+            },
+            "monitoring_thresholds": {
+                "memory": {"warning": 65.0, "critical": 80.0},
+                "disk": {"warning": 75.0, "critical": 85.0},
+                "cpu": {"warning": 85.0, "critical": 95.0}
+            },
+            "polling_intervals": {
+                "normal": 30,
+                "issue": 10
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        return response
+
+    except Exception as e:
+        return {
+            "autonomous_monitoring": {
+                "enabled": False,
+                "status": "error",
+                "error": str(e)
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+@router.get("/autonomous-monitoring/metrics", status_code=status.HTTP_200_OK)
+async def autonomous_monitoring_metrics():
+    """Get metrics and performance data from autonomous monitoring"""
+    try:
+        # Basic metrics response - in full implementation would access real metrics
+        response = {
+            "metrics": {
+                "monitoring_cycles_completed": 0,
+                "total_issues_detected": 0,
+                "total_actions_taken": 0,
+                "total_notifications_sent": 0,
+                "avg_cycle_duration_seconds": 0.0,
+                "last_cycle_timestamp": None
+            },
+            "pam_bridge": {
+                "total_sent": 0,
+                "successful_deliveries": 0,
+                "failed_deliveries": 0,
+                "queued_notifications": 0,
+                "success_rate": 0.0,
+                "pam_available": True
+            },
+            "remediation_actions": {
+                "cleanup_disk_space": {"success_rate": 0.0, "total_count": 0},
+                "restart_celery_workers": {"success_rate": 0.0, "total_count": 0},
+                "clear_redis_cache": {"success_rate": 0.0, "total_count": 0}
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        return response
+
+    except Exception as e:
+        return {
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }

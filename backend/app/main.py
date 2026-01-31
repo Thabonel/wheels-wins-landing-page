@@ -261,6 +261,34 @@ async def lifespan(app: FastAPI):
         await production_monitor.start_monitoring()
         logger.info("✅ Production monitoring system initialized")
 
+        # Initialize autonomous technical monitoring agent
+        autonomous_monitor_task = None
+        try:
+            from agents.autonomous.technical_monitor import TechnicalMonitor
+
+            # Create monitoring agent instance
+            technical_monitor = TechnicalMonitor()
+
+            # Initialize memory-keeper tools if available
+            try:
+                # Import here to handle if memory-keeper is available
+                # These would be set via ToolSearch in real implementation
+                pass  # For now, graceful degradation without memory-keeper
+            except ImportError:
+                logger.info("💡 Memory-keeper tools not available - monitoring without persistence")
+
+            logger.info("🤖 Technical Monitoring Agent initialized")
+
+            # Store reference for cleanup
+            app.state.technical_monitor = technical_monitor
+
+        except ImportError as import_error:
+            logger.warning(f"⚠️ Autonomous monitoring not available: {import_error}")
+            logger.info("💡 Backend will operate with basic health monitoring only")
+        except Exception as monitor_error:
+            logger.warning(f"⚠️ Failed to initialize autonomous monitoring: {monitor_error}")
+            logger.info("💡 Backend continuing with manual monitoring")
+
         # NEW: Schedule daily system cleanup
         try:
             try:
@@ -498,6 +526,16 @@ async def lifespan(app: FastAPI):
 
         # Shutdown production monitoring
         await production_monitor.stop_monitoring()
+
+        # Shutdown autonomous monitoring agent
+        try:
+            if hasattr(app.state, 'technical_monitor'):
+                logger.info("🤖 Shutting down Technical Monitoring Agent")
+                # The agent doesn't have persistent background tasks to stop in this implementation
+                # But we could add cleanup here if needed in the future
+                logger.info("✅ Technical Monitoring Agent shutdown")
+        except Exception as monitor_shutdown_error:
+            logger.warning(f"⚠️ Error shutting down autonomous monitor: {monitor_shutdown_error}")
 
         # Shutdown scheduler if it exists
         try:
