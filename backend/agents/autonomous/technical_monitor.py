@@ -443,3 +443,246 @@ class TechnicalMonitor:
         except Exception as e:
             self.logger.warning(f"⚠️ Failed to get PAM metrics: {e}")
             return {"error": str(e)}
+
+    async def run_monitoring_cycle(
+        self,
+        remediation_lib=None,
+        max_cycles: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Run a single monitoring cycle: poll → analyze → remediate → notify
+
+        Args:
+            remediation_lib: RemediationLibrary instance for taking actions
+            max_cycles: Maximum number of cycles to run (None for single cycle)
+
+        Returns:
+            Monitoring cycle results
+        """
+        cycle_start = datetime.now()
+        cycle_results = {
+            "cycle_start": cycle_start.isoformat(),
+            "health_data": None,
+            "issues_detected": {},
+            "actions_taken": [],
+            "notifications_sent": [],
+            "polling_interval": self.normal_polling_interval,
+            "duration": 0.0,
+            "success": True,
+            "errors": []
+        }
+
+        try:
+            # Step 1: Poll health endpoint
+            self.logger.debug("📊 Starting monitoring cycle - polling health endpoint")
+            health_data = await self.poll_health_endpoint()
+            cycle_results["health_data"] = health_data
+
+            if health_data.get("status") == "ERROR":
+                cycle_results["errors"].append(f"Health endpoint error: {health_data.get('error')}")
+                return cycle_results
+
+            # Step 2: Parse and analyze health data
+            parsed_data = self.parse_health_data(health_data)
+            thresholds_exceeded = self.detect_thresholds_exceeded(parsed_data)
+            cycle_results["issues_detected"] = thresholds_exceeded
+
+            # Step 3: Determine adaptive polling frequency
+            polling_interval = self.get_adaptive_polling_frequency(parsed_data)
+            cycle_results["polling_interval"] = polling_interval
+
+            # Step 4: Take remediation actions if needed
+            if thresholds_exceeded and remediation_lib:
+                for component, issue_info in thresholds_exceeded.items():
+                    try:
+                        # Get recommended actions for this issue
+                        issue_data = {
+                            "component": component,
+                            "level": issue_info["level"],
+                            "value": issue_info["value"]
+                        }
+                        recommended_actions = remediation_lib.get_recommended_actions(issue_data)
+
+                        # Execute the most recommended action
+                        if recommended_actions:
+                            action_name = recommended_actions[0]
+                            self.logger.info(f"🔧 Executing remediation action: {action_name} for {component} {issue_info['level']}")
+
+                            action_result = await remediation_lib.execute_action(action_name, {"component": component})
+                            cycle_results["actions_taken"].append({
+                                "action": action_name,
+                                "component": component,
+                                "result": action_result
+                            })
+
+                            # Save action history
+                            await self.save_action_history(action_result)
+
+                            # Notify about remediation result
+                            await self.notify_remediation_result(
+                                action=action_name,
+                                success=action_result.get("success", False),
+                                details=action_result.get("details", ""),
+                                component=component
+                            )
+                            cycle_results["notifications_sent"].append("remediation_result")
+
+                    except Exception as e:
+                        error_msg = f"Remediation failed for {component}: {str(e)}"
+                        cycle_results["errors"].append(error_msg)
+                        self.logger.error(f"❌ {error_msg}")
+
+            # Step 5: Send notifications about detected issues
+            for component, issue_info in thresholds_exceeded.items():
+                try:
+                    action_taken = None
+                    if cycle_results["actions_taken"]:
+                        action_taken = next((a["action"] for a in cycle_results["actions_taken"] if a["component"] == component), None)
+
+                    await self.notify_issue_detected(
+                        component=component,
+                        level=issue_info["level"],
+                        value=issue_info["value"],
+                        threshold=issue_info["threshold"],
+                        action_taken=action_taken
+                    )
+                    cycle_results["notifications_sent"].append("issue_detection")
+
+                except Exception as e:
+                    error_msg = f"Notification failed for {component}: {str(e)}"
+                    cycle_results["errors"].append(error_msg)
+                    self.logger.warning(f"⚠️ {error_msg}")
+
+        except Exception as e:
+            cycle_results["success"] = False
+            cycle_results["errors"].append(f"Monitoring cycle error: {str(e)}")
+            self.logger.error(f"❌ Monitoring cycle failed: {e}")
+
+        finally:
+            # Calculate cycle duration
+            cycle_results["duration"] = (datetime.now() - cycle_start).total_seconds()
+
+            # Log cycle summary
+            issues_count = len(cycle_results["issues_detected"])
+            actions_count = len(cycle_results["actions_taken"])
+            self.logger.info(f"📈 Monitoring cycle completed: {issues_count} issues detected, {actions_count} actions taken, {cycle_results['duration']:.2f}s")
+
+        return cycle_results
+
+    async def run_autonomous_monitoring(
+        self,
+        duration_hours: Optional[float] = None,
+        max_cycles: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Run autonomous monitoring with adaptive polling
+
+        Args:
+            duration_hours: How long to run monitoring (None for indefinite)
+            max_cycles: Maximum number of monitoring cycles (None for unlimited)
+
+        Returns:
+            Monitoring session results
+        """
+        self.logger.info("🤖 Starting autonomous technical monitoring")
+
+        # Initialize remediation library
+        from agents.autonomous.remediation_library import RemediationLibrary
+        remediation_lib = RemediationLibrary()
+
+        session_start = datetime.now()
+        session_results = {
+            "session_start": session_start.isoformat(),
+            "cycles_completed": 0,
+            "total_issues": 0,
+            "total_actions": 0,
+            "total_notifications": 0,
+            "avg_cycle_duration": 0.0,
+            "session_errors": [],
+            "running": True
+        }
+
+        end_time = None
+        if duration_hours:
+            end_time = session_start + timedelta(hours=duration_hours)
+
+        cycle_count = 0
+        total_duration = 0.0
+
+        try:
+            while session_results["running"]:
+                cycle_count += 1
+
+                # Check termination conditions
+                if max_cycles and cycle_count > max_cycles:
+                    self.logger.info(f"🏁 Monitoring stopped: reached max cycles ({max_cycles})")
+                    break
+
+                if end_time and datetime.now() >= end_time:
+                    self.logger.info(f"🏁 Monitoring stopped: reached time limit ({duration_hours}h)")
+                    break
+
+                # Run monitoring cycle
+                cycle_results = await self.run_monitoring_cycle(remediation_lib)
+
+                # Update session metrics
+                session_results["cycles_completed"] = cycle_count
+                session_results["total_issues"] += len(cycle_results["issues_detected"])
+                session_results["total_actions"] += len(cycle_results["actions_taken"])
+                session_results["total_notifications"] += len(cycle_results["notifications_sent"])
+                total_duration += cycle_results["duration"]
+
+                # Collect any errors
+                if cycle_results["errors"]:
+                    session_results["session_errors"].extend(cycle_results["errors"])
+
+                # Wait for next polling interval
+                polling_interval = cycle_results["polling_interval"]
+                if cycle_count < (max_cycles or float('inf')):  # Don't sleep after last cycle
+                    self.logger.debug(f"⏰ Waiting {polling_interval}s until next monitoring cycle")
+                    await asyncio.sleep(polling_interval)
+
+        except KeyboardInterrupt:
+            self.logger.info("🛑 Monitoring stopped by user")
+        except Exception as e:
+            session_results["session_errors"].append(f"Session error: {str(e)}")
+            self.logger.error(f"❌ Monitoring session error: {e}")
+        finally:
+            # Calculate final metrics
+            if session_results["cycles_completed"] > 0:
+                session_results["avg_cycle_duration"] = total_duration / session_results["cycles_completed"]
+
+            session_duration = (datetime.now() - session_start).total_seconds()
+            session_results["session_duration"] = session_duration
+            session_results["running"] = False
+
+            self.logger.info(f"🏁 Autonomous monitoring completed: {session_results['cycles_completed']} cycles, {session_duration:.1f}s total")
+
+        return session_results
+
+    def get_monitoring_status(self) -> Dict[str, Any]:
+        """
+        Get current monitoring system status
+
+        Returns:
+            Status information about monitoring components
+        """
+        status = {
+            "timestamp": datetime.now().isoformat(),
+            "base_url": self.base_url,
+            "thresholds": self.thresholds,
+            "polling_intervals": {
+                "normal": self.normal_polling_interval,
+                "issue": self.issue_polling_interval
+            },
+            "components": {
+                "memory_keeper": self.mcp__memory_keeper__context_save is not None,
+                "pam_bridge": self.pam_bridge is not None
+            }
+        }
+
+        # Get PAM bridge metrics if available
+        if self.pam_bridge:
+            status["pam_metrics"] = self.pam_bridge.get_delivery_metrics()
+
+        return status
