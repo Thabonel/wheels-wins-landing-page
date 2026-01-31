@@ -183,3 +183,90 @@ class TestTripPatternAnalyzer:
 
         assert patterns['trip_type'] == 'national_park'
         assert patterns['confidence'] == 0.85
+
+
+class TestProactiveTripAssistantAutonomy:
+    @pytest.fixture
+    def assistant_with_autonomy(self):
+        assistant = ProactiveTripAssistant()
+        return assistant
+
+    @pytest.mark.asyncio
+    async def test_execute_free_action(self, assistant_with_autonomy):
+        """Test execution of free actions that require no approval"""
+        action_data = {
+            'action': 'send_weather_alert',
+            'cost': 0.0,
+            'impact': 'low',
+            'description': 'Send weather warning for planned route'
+        }
+
+        result = await assistant_with_autonomy.execute_proactive_action(action_data)
+
+        assert result['executed'] is True
+        assert result['autonomy_level'] == 'auto'
+        assert result['success'] is True
+
+    @pytest.mark.asyncio
+    async def test_execute_notify_action(self, assistant_with_autonomy):
+        """Test execution of notify-level actions"""
+        action_data = {
+            'action': 'book_campsite',
+            'cost': 25.0,
+            'impact': 'medium',
+            'description': 'Book backup campsite'
+        }
+
+        result = await assistant_with_autonomy.execute_proactive_action(action_data)
+
+        assert result['executed'] is True
+        assert result['autonomy_level'] == 'notify'
+        assert result['success'] is True
+
+    @pytest.mark.asyncio
+    async def test_block_high_cost_action(self, assistant_with_autonomy):
+        """Test that high-cost actions require approval"""
+        action_data = {
+            'action': 'upgrade_rv_rental',
+            'cost': 150.0,
+            'impact': 'high',
+            'description': 'Upgrade to premium RV'
+        }
+
+        result = await assistant_with_autonomy.execute_proactive_action(action_data)
+
+        assert result['executed'] is False
+        assert result['autonomy_level'] == 'approval'
+        assert result['requires_approval'] is True
+
+    @pytest.mark.asyncio
+    async def test_suggest_trip_optimizations(self, assistant_with_autonomy):
+        """Test trip optimization suggestions with autonomy classifications"""
+        trip_context = {
+            'destination': 'Yellowstone',
+            'dates': ['2024-06-15', '2024-06-20'],
+            'travelers': 2
+        }
+
+        suggestions = await assistant_with_autonomy.suggest_trip_optimizations('test-user', trip_context)
+
+        assert len(suggestions) == 3
+
+        # Check that suggestions have autonomy classifications
+        for suggestion in suggestions:
+            assert 'autonomy_level' in suggestion
+            assert 'can_execute_automatically' in suggestion
+            assert 'requires_approval' in suggestion
+
+        # Check specific autonomy levels
+        weather_alert = next(s for s in suggestions if s['action'] == 'send_weather_alert')
+        assert weather_alert['autonomy_level'] == 'auto'
+        assert weather_alert['can_execute_automatically'] is True
+
+        backup_campsite = next(s for s in suggestions if s['action'] == 'book_backup_campsite')
+        assert backup_campsite['autonomy_level'] == 'notify'
+        assert backup_campsite['can_execute_automatically'] is True
+
+        rv_upgrade = next(s for s in suggestions if s['action'] == 'upgrade_rv_rental')
+        assert rv_upgrade['autonomy_level'] == 'approval'
+        assert rv_upgrade['requires_approval'] is True

@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, List
 from app.core.logging import get_logger
 from .external_api_client import ExternalApiClient
 from .pattern_learning import TripPatternAnalyzer
+from .tiered_autonomy import AutonomyManager
 
 logger = get_logger(__name__)
 
@@ -38,6 +39,9 @@ class ProactiveTripAssistant:
 
         # Pattern learning system
         self.pattern_analyzer = TripPatternAnalyzer()
+
+        # Tiered autonomy system
+        self.autonomy_manager = AutonomyManager()
 
         # Memory-keeper tools (will be set by dependency injection or mocking)
         self.mcp__memory_keeper__context_save = None
@@ -208,6 +212,106 @@ class ProactiveTripAssistant:
                 'profile': {},
                 'error': str(e)
             }
+
+    async def execute_proactive_action(self, action_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute a proactive action using tiered autonomy controls
+
+        Args:
+            action_data: Action data including type, cost, impact, description
+
+        Returns:
+            Execution result with autonomy information
+        """
+        try:
+            # Execute through autonomy manager
+            result = await self.autonomy_manager.execute_autonomous_action(action_data)
+
+            # Log the result
+            action_name = action_data.get('action', 'unknown')
+            autonomy_level = result.get('autonomy_level', 'unknown')
+
+            if result.get('executed'):
+                self.logger.info(f"✅ Executed {autonomy_level} action: {action_name}")
+            elif result.get('requires_approval'):
+                self.logger.info(f"⏳ Action requires approval: {action_name}")
+            else:
+                reason = result.get('blocked_reason', 'unknown')
+                self.logger.info(f"🚫 Action blocked: {action_name} - {reason}")
+
+            return {
+                'action': action_name,
+                'timestamp': datetime.now().isoformat(),
+                **result
+            }
+
+        except Exception as e:
+            self.logger.error(f"❌ Failed to execute proactive action: {e}")
+            return {
+                'action': action_data.get('action', 'unknown'),
+                'executed': False,
+                'success': False,
+                'error': str(e)
+            }
+
+    async def suggest_trip_optimizations(self, user_id: str, trip_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Generate proactive trip optimization suggestions with autonomy controls
+
+        Args:
+            user_id: User identifier
+            trip_context: Current trip or planned trip context
+
+        Returns:
+            List of optimization suggestions with autonomy classifications
+        """
+        try:
+            suggestions = []
+
+            # Example proactive suggestions (would be more sophisticated in full implementation)
+            potential_actions = [
+                {
+                    'action': 'send_weather_alert',
+                    'cost': 0.0,
+                    'impact': 'low',
+                    'description': 'Send severe weather warning for planned route',
+                    'priority': 'high'
+                },
+                {
+                    'action': 'book_backup_campsite',
+                    'cost': 35.0,
+                    'impact': 'medium',
+                    'description': 'Reserve backup campsite due to high demand',
+                    'priority': 'medium'
+                },
+                {
+                    'action': 'upgrade_rv_rental',
+                    'cost': 120.0,
+                    'impact': 'high',
+                    'description': 'Upgrade to larger RV for comfort during extended trip',
+                    'priority': 'low'
+                }
+            ]
+
+            # Classify each action and prepare suggestions
+            for action_data in potential_actions:
+                classification = await self.autonomy_manager.classify_action(action_data)
+
+                suggestion = {
+                    **action_data,
+                    'autonomy_level': classification['autonomy_level'],
+                    'can_execute_automatically': classification['can_execute_immediately'],
+                    'requires_approval': classification['requires_approval'],
+                    'classification_reasoning': classification.get('reasoning', '')
+                }
+
+                suggestions.append(suggestion)
+
+            return suggestions
+
+        except Exception as e:
+            self.logger.error(f"❌ Failed to suggest trip optimizations: {e}")
+            return []
 
     async def run_monitoring_cycle(self) -> Dict[str, Any]:
         """
