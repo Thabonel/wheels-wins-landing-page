@@ -1088,7 +1088,8 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         },
                         "event_type": {
                             "type": "string",
-                            "description": "Filter by event type: personal, reminder, trip, booking, maintenance, inspection (optional)"
+                            "description": "Filter by event type: reminder, trip, booking, maintenance, inspection, meeting, personal, birthday, holiday (optional)",
+                            "enum": ["reminder", "trip", "booking", "maintenance", "inspection", "meeting", "personal", "birthday", "holiday"]
                         },
                         "include_past": {
                             "type": "boolean",
