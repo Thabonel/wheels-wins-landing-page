@@ -10,3 +10,20 @@ def test_pam_has_get_calendar_events_import():
     assert callable(get_calendar_events)
 
 
+def test_pam_includes_get_calendar_events_in_schema():
+    """Test that PAM includes get_calendar_events in tool schema"""
+    from app.services.pam.core.pam import PAM
+
+    pam = PAM(user_id="test-user")
+    tools = pam._build_tools_schema()
+
+    tool_names = [tool["name"] for tool in tools]
+    assert "get_calendar_events" in tool_names
+
+    # Find the calendar tool in schema
+    calendar_tool = next(t for t in tools if t["name"] == "get_calendar_events")
+    assert "Get calendar events" in calendar_tool["description"]
+    assert "input_schema" in calendar_tool
+    assert calendar_tool["input_schema"]["type"] == "object"
+
+
