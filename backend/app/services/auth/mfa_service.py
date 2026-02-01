@@ -35,6 +35,23 @@ class MFAStatus:
     last_used: Optional[datetime] = None
     setup_date: Optional[datetime] = None
 
+@dataclass
+class MFASetupResult:
+    """Result of MFA setup operation"""
+    success: bool
+    secret: Optional[str] = None
+    qr_code: Optional[str] = None
+    backup_codes: Optional[List[str]] = None
+    setup_url: Optional[str] = None
+    error: Optional[str] = None
+
+@dataclass
+class MFAVerificationResult:
+    """Result of MFA verification operation"""
+    success: bool
+    error: Optional[str] = None
+    requires_setup: bool = False
+
 class MFAService:
     """Multi-Factor Authentication service with TOTP and backup codes"""
 
