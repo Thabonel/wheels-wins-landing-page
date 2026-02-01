@@ -3,7 +3,47 @@
  * Handles all security-related API communications
  */
 
-import { apiClient } from './apiClient';
+// Using direct fetch calls following existing codebase patterns
+
+/**
+ * Helper function to get auth headers
+ */
+const getAuthHeaders = (): HeadersInit => {
+  const token = localStorage.getItem('auth_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+};
+
+/**
+ * Helper function to build query string from params
+ */
+const buildQueryString = (params: Record<string, any>): string => {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      searchParams.append(key, value.toString());
+    }
+  });
+  return searchParams.toString();
+};
+
+/**
+ * Helper function for API calls
+ */
+const makeRequest = async (url: string, options: RequestInit = {}): Promise<any> => {
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    ...options
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
 
 export interface SecurityDashboardData {
   overview: {
@@ -193,10 +233,9 @@ class SecurityService {
    */
   async getDashboardData(timeRange: string = '24h'): Promise<SecurityDashboardData> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/dashboard`, {
-        params: { time_range: timeRange }
-      });
-      return response.data;
+      const url = `${this.baseUrl}/dashboard?time_range=${encodeURIComponent(timeRange)}`;
+      const data = await makeRequest(url);
+      return data;
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       throw new Error('Failed to load security dashboard data');
@@ -216,10 +255,10 @@ class SecurityService {
     end_date?: string;
   }): Promise<AuditLogResponse> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/audit-log`, {
-        params: filters
-      });
-      return response.data;
+      const queryString = buildQueryString(filters);
+      const url = `${this.baseUrl}/audit-log${queryString ? '?' + queryString : ''}`;
+      const data = await makeRequest(url);
+      return data;
     } catch (error) {
       console.error('Failed to fetch audit log:', error);
       throw new Error('Failed to load audit log');
@@ -237,15 +276,17 @@ class SecurityService {
     end_date?: string;
   }): Promise<void> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/audit-log/export`, {
-        params: { ...filters, format: 'csv' },
-        responseType: 'blob'
+      const queryString = buildQueryString({ ...filters, format: 'csv' });
+      const exportUrl = `${this.baseUrl}/audit-log/export${queryString ? '?' + queryString : ''}`;
+      const response = await fetch(exportUrl, {
+        headers: getAuthHeaders()
       });
 
       // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = downloadUrl;
       link.setAttribute('download', `audit_log_${new Date().getTime()}.csv`);
       document.body.appendChild(link);
       link.click();
@@ -261,10 +302,10 @@ class SecurityService {
    */
   async getThreatDetectionData(timeRange: string = '24h'): Promise<ThreatDetectionData> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/threat-detection`, {
-        params: { time_range: timeRange }
-      });
-      return response.data;
+      const queryString = buildQueryString({ time_range: timeRange });
+      const url = `${this.baseUrl}/threat-detection${queryString ? '?' + queryString : ''}`;
+      const data = await makeRequest(url);
+      return data;
     } catch (error) {
       console.error('Failed to fetch threat detection data:', error);
       throw new Error('Failed to load threat detection data');
@@ -282,10 +323,10 @@ class SecurityService {
     limit?: number;
   }): Promise<IncidentsResponse> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/incidents`, {
-        params: filters
-      });
-      return response.data;
+      const queryString = buildQueryString(filters);
+      const url = `${this.baseUrl}/incidents${queryString ? '?' + queryString : ''}`;
+      const data = await makeRequest(url);
+      return data;
     } catch (error) {
       console.error('Failed to fetch incidents:', error);
       throw new Error('Failed to load incidents');
@@ -297,7 +338,7 @@ class SecurityService {
    */
   async getIncidentDetails(incidentId: string): Promise<IncidentDetails> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/incidents/${incidentId}`);
+      const response = await makeRequest(`${this.baseUrl}/incidents/${incidentId}`);
       return response.data;
     } catch (error) {
       console.error('Failed to fetch incident details:', error);
@@ -314,9 +355,12 @@ class SecurityService {
     assignedTo?: string
   ): Promise<void> {
     try {
-      await apiClient.put(`${this.baseUrl}/incidents/${incidentId}/status`, {
-        new_status: newStatus,
-        assigned_to: assignedTo
+      await makeRequest(`${this.baseUrl}/incidents/${incidentId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          new_status: newStatus,
+          assigned_to: assignedTo
+        })
       });
     } catch (error) {
       console.error('Failed to update incident status:', error);
@@ -333,10 +377,13 @@ class SecurityService {
     reason: string = 'Manual block'
   ): Promise<void> {
     try {
-      await apiClient.post(`${this.baseUrl}/block-ip`, {
-        ip_address: ipAddress,
-        duration_minutes: durationMinutes,
-        reason: reason
+      await makeRequest(`${this.baseUrl}/block-ip`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ip_address: ipAddress,
+          duration_minutes: durationMinutes,
+          reason: reason
+        })
       });
     } catch (error) {
       console.error('Failed to block IP address:', error);
@@ -349,7 +396,9 @@ class SecurityService {
    */
   async unblockIpAddress(ipAddress: string): Promise<void> {
     try {
-      await apiClient.delete(`${this.baseUrl}/block-ip/${ipAddress}`);
+      await makeRequest(`${this.baseUrl}/block-ip/${ipAddress}`, {
+        method: 'DELETE'
+      });
     } catch (error) {
       console.error('Failed to unblock IP address:', error);
       throw new Error('Failed to unblock IP address');
@@ -361,27 +410,30 @@ class SecurityService {
    */
   async exportMetrics(format: 'json' | 'csv', timeRange: string = '24h'): Promise<void> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/metrics/export`, {
-        params: { format, time_range: timeRange },
-        responseType: format === 'json' ? 'json' : 'blob'
+      const queryString = buildQueryString({ format, time_range: timeRange });
+      const url = `${this.baseUrl}/metrics/export${queryString ? '?' + queryString : ''}`;
+      const response = await fetch(url, {
+        headers: getAuthHeaders()
       });
 
       if (format === 'json') {
         // Handle JSON export
-        const dataStr = JSON.stringify(response.data, null, 2);
+        const responseData = await response.json();
+        const dataStr = JSON.stringify(responseData, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = window.URL.createObjectURL(dataBlob);
+        const downloadUrl = window.URL.createObjectURL(dataBlob);
         const link = document.createElement('a');
-        link.href = url;
+        link.href = downloadUrl;
         link.setAttribute('download', `security_metrics_${timeRange}_${new Date().getTime()}.json`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       } else {
         // Handle CSV export
-        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const blob = await response.blob();
+        const csvUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = url;
+        link.href = csvUrl;
         link.setAttribute('download', `security_metrics_${timeRange}_${new Date().getTime()}.csv`);
         document.body.appendChild(link);
         link.click();
@@ -398,7 +450,7 @@ class SecurityService {
    */
   async getSecurityStatistics(): Promise<any> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/statistics`);
+      const response = await makeRequest(`${this.baseUrl}/statistics`);
       return response.data;
     } catch (error) {
       console.error('Failed to fetch security statistics:', error);
