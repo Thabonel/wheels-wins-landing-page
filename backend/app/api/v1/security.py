@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 import json
 
-from app.core.unified_auth import get_current_user, admin_required
+from app.core.unified_auth import get_current_user_unified_unified, require_admin
 from app.core.logging import get_logger
 from app.core.security_monitoring import SecurityMonitor, ThreatSeverity, ThreatType
 from app.services.incident import (
@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 router = APIRouter(
     prefix="/security",
     tags=["security"],
-    dependencies=[Depends(admin_required)]  # All endpoints require admin access
+    dependencies=[Depends(require_admin)]  # All endpoints require admin access
 )
 
 # Initialize security monitor (shared instance)
@@ -40,7 +40,7 @@ async def startup_security_monitor():
 @router.get("/dashboard", response_model=Dict[str, Any])
 async def get_security_dashboard(
     time_range: str = Query("24h", description="Time range: 1h, 24h, 7d, 30d"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_unified)
 ):
     """
     Get comprehensive security dashboard data
@@ -126,7 +126,7 @@ async def get_audit_log(
     source_ip: Optional[str] = Query(None, description="Filter by source IP"),
     start_date: Optional[datetime] = Query(None, description="Start date filter"),
     end_date: Optional[datetime] = Query(None, description="End date filter"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_unified)
 ):
     """
     Get paginated audit log of security events
@@ -187,7 +187,7 @@ async def get_audit_log(
 @router.get("/threat-detection")
 async def get_threat_detection_data(
     time_range: str = Query("24h", description="Time range for threat data"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_unified)
 ):
     """
     Get real-time threat detection data and analytics
@@ -225,7 +225,7 @@ async def get_incidents(
     category_filter: Optional[str] = Query(None, description="Filter by category"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_unified)
 ):
     """
     Get paginated list of security incidents
@@ -251,7 +251,7 @@ async def get_incidents(
 @router.get("/incidents/{incident_id}")
 async def get_incident_details(
     incident_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_unified)
 ):
     """
     Get detailed information about a specific incident
@@ -291,7 +291,7 @@ async def update_incident_status(
     incident_id: str,
     new_status: str,
     assigned_to: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_unified)
 ):
     """
     Update incident status and assignment
@@ -340,7 +340,7 @@ async def block_ip_address(
     ip_address: str,
     duration_minutes: int = 60,
     reason: str = "Manual block",
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_unified)
 ):
     """
     Manually block an IP address
@@ -384,7 +384,7 @@ async def block_ip_address(
 @router.delete("/block-ip/{ip_address}")
 async def unblock_ip_address(
     ip_address: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_unified)
 ):
     """
     Manually unblock an IP address
@@ -419,7 +419,7 @@ async def unblock_ip_address(
 async def export_security_metrics(
     format: str = Query("json", description="Export format: json, csv"),
     time_range: str = Query("24h", description="Time range for export"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_unified)
 ):
     """
     Export security metrics in various formats
