@@ -166,8 +166,15 @@ class AdvancedContextManager:
                 insights = await self._get_context_insights(user_id)
                 context["insights"] = insights
             
-            # Add temporal context
-            context["temporal"] = self._get_temporal_context()
+            # Add temporal context (try to extract user location context)
+            user_context = {}
+            # Try to extract user location from session or user level context
+            if context.get("session_level", {}).get("user_location"):
+                user_context = {"user_location": context["session_level"]["user_location"]}
+            elif context.get("user_level", {}).get("user_location"):
+                user_context = {"user_location": context["user_level"]["user_location"]}
+
+            context["temporal"] = self._get_temporal_context(user_context)
             
             # Add interaction patterns
             context["patterns"] = await self._get_interaction_patterns(user_id)
@@ -474,11 +481,19 @@ class AdvancedContextManager:
         
         return insights
     
-    def _get_temporal_context(self) -> Dict[str, Any]:
-        """Get current temporal context"""
-        
+    def _get_temporal_context(self, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Get current temporal context using user's timezone"""
+        from app.services.pam.utils.timezone_utils import get_temporal_context_for_user
+
+        # Use timezone-aware temporal context instead of hardcoded UTC
+        if user_context:
+            try:
+                return get_temporal_context_for_user(user_context)
+            except Exception as e:
+                logger.warning(f"⚠️  Timezone detection failed, falling back to UTC: {e}")
+
+        # Fallback to UTC if no user context or timezone detection fails
         now = datetime.utcnow()
-        
         return {
             "current_time": now.isoformat(),
             "hour_of_day": now.hour,
@@ -486,7 +501,8 @@ class AdvancedContextManager:
             "is_weekend": now.weekday() >= 5,
             "is_business_hours": 9 <= now.hour <= 17,
             "season": self._get_season(now),
-            "time_zone": "UTC"
+            "time_zone": "UTC",
+            "timezone_fallback": True
         }
     
     def _get_season(self, date: datetime) -> str:
