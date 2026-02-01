@@ -30,6 +30,7 @@ from . import (
     community,  # Community tips contribution system
     intent,  # Intent classification system
     utils,  # Utility endpoints (geolocation proxy, etc.)
+    security,  # Security monitoring and incident response
     # camping,  # Loaded with import guard
     # youtube_scraper,  # Loaded with import guard
 )
@@ -66,6 +67,7 @@ __all__ = [
     'community',  # Community tips contribution system
     'intent',  # Intent classification system
     'utils',  # Utility endpoints (geolocation proxy, etc.)
+    'security',  # Security monitoring and incident response
     # 'camping',  # Loaded with import guard
     # 'youtube_scraper',  # Loaded with import guard
 ]

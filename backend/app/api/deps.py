@@ -1,13 +1,15 @@
 """
 API Dependencies - Common dependencies for FastAPI endpoints
+Enhanced with secure session management and MFA support
 """
 
 from typing import Optional, Dict, Any, Generator
 from datetime import datetime, timedelta
 from functools import wraps
 import json
+import uuid
 
-from fastapi import Depends, HTTPException, status, Header, Query, Request
+from fastapi import Depends, HTTPException, status, Header, Query, Request, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt import PyJWTError  # Import PyJWTError directly
@@ -19,6 +21,9 @@ from app.services.cache import CacheService
 from app.services.pam.enhanced_orchestrator import enhanced_orchestrator as orchestrator, get_enhanced_orchestrator
 from app.core.exceptions import PAMError, AuthenticationError, PermissionError, ErrorCode
 from app.core.logging import get_logger
+from app.services.auth.session_manager import get_session_manager
+from app.services.auth.mfa_service import get_mfa_service
+from app.services.auth.session_compatibility import get_compatibility_layer
 
 logger = get_logger("api.deps")
 
@@ -72,6 +77,9 @@ class CurrentUser(BaseModel):
     email: str
     role: str = "user"
     permissions: list[str] = []
+    session_id: Optional[str] = None
+    mfa_verified: bool = False
+    requires_mfa: bool = False
 
 
 # Database Dependencies
@@ -118,7 +126,286 @@ async def get_pam_orchestrator():
         raise PAMError(f"PAM service error: {error_message}", ErrorCode.NODE_INITIALIZATION_ERROR)
 
 
-# Authentication Dependencies
+# Enhanced Authentication Dependencies with Session Management and MFA
+
+async def verify_secure_jwt_token(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> Dict[str, Any]:
+    """
+    Enhanced JWT verification with session management and MFA validation
+    Checks for session validity and JWT blacklisting
+    """
+    try:
+        if not credentials or not credentials.credentials:
+            logger.error("🔐 No credentials provided")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization header missing",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        token = credentials.credentials
+        logger.info(f"🔐 Verifying secure JWT token (length: {len(token)})")
+
+        # Decode JWT to get payload and JTI
+        try:
+            # First decode without verification to get JTI for blacklist check
+            unverified_payload = jwt.decode(
+                token,
+                options={"verify_signature": False, "verify_exp": False}
+            )
+
+            jti = unverified_payload.get('jti')
+            if not jti:
+                # Generate JTI for tokens that don't have one
+                jti = str(uuid.uuid4())
+                logger.info("🔐 Generated JTI for token without one")
+
+            # Check if JWT is blacklisted
+            session_manager = await get_session_manager()
+            if await session_manager.is_jwt_blacklisted(jti):
+                logger.warning(f"🚫 Blacklisted JWT attempted: {jti}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Token has been revoked",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+        except Exception as e:
+            logger.error(f"🔐 Token preprocessing error: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token format",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Now verify the token properly
+        try:
+            payload = jwt.decode(
+                token,
+                settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value(),
+                algorithms=["HS256"],
+                options={
+                    "verify_signature": True,
+                    "verify_exp": True,
+                    "verify_aud": False,
+                    "verify_iss": False
+                }
+            )
+        except jwt.ExpiredSignatureError:
+            logger.warning("🔐 Token has expired")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except Exception as e:
+            logger.error(f"🔐 Token verification failed: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user_id = payload.get('sub')
+        if not user_id:
+            logger.error(f"🔐 Token missing 'sub' field")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token: missing user ID",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Extract device info from request
+        device_info = {
+            "user_agent": request.headers.get("User-Agent"),
+            "ip_address": request.client.host if request.client else None,
+            "x_forwarded_for": request.headers.get("X-Forwarded-For")
+        }
+
+        # Add session tracking information
+        payload.update({
+            "jti": jti,
+            "device_info": device_info,
+            "auth_method": "secure_jwt"
+        })
+
+        logger.info(f"🔐 Secure JWT verified for user: {user_id}")
+        return payload
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"🔐 Unexpected secure authentication error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+async def verify_mfa_if_required(
+    payload: Dict[str, Any],
+    mfa_code: Optional[str] = Header(None, alias="X-MFA-Code")
+) -> Dict[str, Any]:
+    """
+    Verify MFA if required for the user
+    Returns payload with MFA verification status
+    """
+    user_id = payload.get('sub')
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload"
+        )
+
+    mfa_service = get_mfa_service()
+
+    # Check if MFA is required for this user
+    requires_mfa = await mfa_service.is_mfa_required_for_user(user_id)
+
+    if requires_mfa:
+        if not mfa_code:
+            logger.warning(f"🔐 MFA required but not provided for user {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="MFA code required",
+                headers={"X-MFA-Required": "true"},
+            )
+
+        # Verify MFA code
+        mfa_result = await mfa_service.verify_mfa(user_id, mfa_code)
+
+        if not mfa_result.get('success'):
+            logger.warning(f"🔐 MFA verification failed for user {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=mfa_result.get('error', 'MFA verification failed'),
+                headers={"X-MFA-Required": "true"},
+            )
+
+        logger.info(f"🔐 MFA verified for user {user_id} via {mfa_result.get('method')}")
+        payload.update({
+            "mfa_verified": True,
+            "mfa_method": mfa_result.get('method'),
+            "backup_codes_remaining": mfa_result.get('backup_codes_remaining', 0)
+        })
+    else:
+        payload.update({"mfa_verified": False})
+
+    payload.update({"requires_mfa": requires_mfa})
+    return payload
+
+
+async def create_or_update_session(
+    payload: Dict[str, Any],
+    request: Request
+) -> str:
+    """
+    Create or update session tracking for authenticated user
+    Returns session_id
+    """
+    try:
+        session_manager = await get_session_manager()
+
+        user_id = payload.get('sub')
+        jti = payload.get('jti')
+        device_info = payload.get('device_info', {})
+
+        # Create session
+        session_info = await session_manager.create_session(
+            user_id=user_id,
+            jti=jti,
+            device_info=device_info,
+            ip_address=device_info.get('ip_address'),
+            user_agent=device_info.get('user_agent')
+        )
+
+        return session_info.session_id
+
+    except Exception as e:
+        logger.error(f"🔐 Session creation failed: {e}")
+        # Don't fail authentication if session tracking fails
+        return str(uuid.uuid4())
+
+
+async def get_secure_current_user_compatible(
+    request: Request,
+    response: Response = None
+) -> CurrentUser:
+    """
+    Get current authenticated user with compatibility layer
+    Supports dual-mode authentication and migration
+    """
+    try:
+        # Use compatibility layer for authentication
+        compatibility_layer = await get_compatibility_layer()
+        auth_context = await compatibility_layer.authenticate_request(request)
+
+        if not auth_context:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Check MFA if required
+        mfa_service = await get_mfa_service()
+        requires_mfa = await mfa_service.is_mfa_required_for_user(auth_context.user_id)
+
+        mfa_verified = False
+        if requires_mfa:
+            mfa_code = request.headers.get("X-MFA-Code")
+            if not mfa_code:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="MFA code required",
+                    headers={"X-MFA-Required": "true"},
+                )
+
+            # Verify MFA code
+            mfa_result = await mfa_service.verify_mfa(auth_context.user_id, mfa_code)
+            if not mfa_result.success:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=mfa_result.error or 'MFA verification failed',
+                    headers={"X-MFA-Required": "true"},
+                )
+            mfa_verified = True
+
+        # Get user details from database
+        db = DatabaseService()
+        user_data = await db.get_user_profile(auth_context.user_id)
+
+        if not user_data:
+            raise AuthenticationError("User not found")
+
+        # Handle migration if needed and response is available
+        if response and auth_context.requires_migration:
+            await compatibility_layer.schedule_token_migration(auth_context, response)
+
+        return CurrentUser(
+            user_id=auth_context.user_id,
+            email=user_data.get("email", ""),
+            role=user_data.get("role", "user"),
+            permissions=user_data.get("permissions", []),
+            session_id=auth_context.session_id,
+            mfa_verified=mfa_verified,
+            requires_mfa=requires_mfa
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get secure current user compatible error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed"
+        )
+
+
+# Legacy Authentication Dependencies (for backward compatibility)
 def verify_jwt_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> Dict[str, Any]:
@@ -678,6 +965,91 @@ async def get_optional_user(
         return await get_current_user(payload, db)
     except HTTPException:
         return None
+
+
+# Enhanced Authentication Dependencies with Compatibility Layer
+
+async def get_secure_current_user(
+    request: Request,
+    payload: Dict[str, Any] = Depends(verify_secure_jwt_token)
+) -> CurrentUser:
+    """
+    Get current authenticated user with complete security validation
+    Includes MFA verification and session management (legacy mode)
+    """
+    try:
+        # Verify MFA if required
+        payload = await verify_mfa_if_required(payload)
+
+        # Create/update session
+        session_id = await create_or_update_session(payload, request)
+
+        user_id = payload.get('sub')
+
+        # Get user details from database
+        db = DatabaseService()
+        user_data = await db.get_user_profile(user_id)
+
+        if not user_data:
+            raise AuthenticationError("User not found")
+
+        return CurrentUser(
+            user_id=user_id,
+            email=user_data.get("email", ""),
+            role=user_data.get("role", "user"),
+            permissions=user_data.get("permissions", []),
+            session_id=session_id,
+            mfa_verified=payload.get("mfa_verified", False),
+            requires_mfa=payload.get("requires_mfa", False)
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get secure current user error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate user"
+        )
+
+# MFA-Enhanced Permission Dependencies
+
+def require_mfa_verified():
+    """Require MFA verification for sensitive operations"""
+
+    def dependency(current_user: CurrentUser = Depends(get_secure_current_user_compatible)):
+        if current_user.requires_mfa and not current_user.mfa_verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="MFA verification required for this operation",
+                headers={"X-MFA-Required": "true"},
+            )
+        return current_user
+
+    return dependency
+
+
+def require_admin_with_mfa():
+    """Require admin role with mandatory MFA verification"""
+
+    def dependency(current_user: CurrentUser = Depends(get_secure_current_user_compatible)):
+        # Admin users must have MFA enabled and verified
+        if current_user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin role required"
+            )
+
+        if not current_user.mfa_verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="MFA verification required for admin operations",
+                headers={"X-MFA-Required": "true"},
+            )
+
+        return current_user
+
+    return dependency
 
 
 # Permission Dependencies

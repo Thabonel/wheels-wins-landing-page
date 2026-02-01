@@ -55,16 +55,18 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Environment-specific directives
         if self.environment == "production":
             self.base_csp_directives.extend([
-                "connect-src 'self' https://api.openai.com https://generativelanguage.googleapis.com https://*.supabase.co wss://*.supabase.co https://api.mapbox.com",
-                "upgrade-insecure-requests"
+                "connect-src 'self' https://api.openai.com https://generativelanguage.googleapis.com https://*.supabase.co wss://*.supabase.co https://api.mapbox.com https://api.stripe.com",
+                "upgrade-insecure-requests",
+                "block-all-mixed-content"
             ])
         else:
             # Development/staging: more permissive connect-src
-            self.base_csp_directives.append(
-                "connect-src 'self' https: wss: ws:"
-            )
+            self.base_csp_directives.extend([
+                "connect-src 'self' https: wss: ws:",
+                "report-uri /api/security/csp-report"
+            ])
 
-        # Core security headers (same for all environments, no CSP here)
+        # Enhanced core security headers (same for all environments, no CSP here)
         self.security_headers = {
             # Prevent MIME-sniffing
             "X-Content-Type-Options": "nosniff",
@@ -78,13 +80,36 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             # Control referrer information
             "Referrer-Policy": "strict-origin-when-cross-origin",
 
-            # Control browser features
-            "Permissions-Policy": "geolocation=(self), microphone=(self), camera=(self)",
+            # Enhanced browser feature control
+            "Permissions-Policy": "geolocation=(self), microphone=(self), camera=(self), payment=(self), usb=(), bluetooth=(), magnetometer=(), gyroscope=(), accelerometer=()",
+
+            # Prevent DNS prefetching leaks
+            "X-DNS-Prefetch-Control": "off",
+
+            # Prevent MIME confusion attacks
+            "X-Download-Options": "noopen",
+
+            # Cross-origin policies
+            "Cross-Origin-Embedder-Policy": "require-corp",
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Resource-Policy": "same-origin",
+
+            # Cache control for sensitive content
+            "Cache-Control": "no-store, no-cache, must-revalidate, private",
+            "Pragma": "no-cache",
+            "Expires": "0",
+
+            # Server information hiding
+            "Server": "PAM-Backend",
         }
 
         # HSTS (HTTP Strict Transport Security) - only in production
         if self.environment == "production":
             self.security_headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+            # Remove cache control in production for static assets
+            del self.security_headers["Cache-Control"]
+            del self.security_headers["Pragma"]
+            del self.security_headers["Expires"]
 
     def _build_csp_with_nonce(self, nonce: str) -> str:
         """Build CSP header with nonce for this request"""
@@ -93,8 +118,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # CRITICAL FIX: Use nonce instead of unsafe-inline
         # This prevents XSS attacks while allowing legitimate inline scripts/styles
         csp_directives.extend([
-            f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://unpkg.com",
+            f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net https://unpkg.com 'strict-dynamic'",
             f"style-src 'self' 'nonce-{nonce}' https://fonts.googleapis.com",
+            f"worker-src 'self'",
+            f"manifest-src 'self'",
+            f"media-src 'self' data: blob:",
+            f"child-src 'none'",
+            f"frame-ancestors 'none'",
+            f"sandbox allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox",
         ])
 
         return "; ".join(csp_directives)

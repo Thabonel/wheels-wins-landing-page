@@ -50,6 +50,11 @@ aioredis==2.0.1  # Async Redis client (if not using redis[asyncio])
 slowapi==0.1.9  # Rate limiting for FastAPI
 cachetools==5.3.2  # In-memory caching with TTL
 
+# Phase 2 Security: MFA and Session Management
+pyotp>=2.9.0  # TOTP for MFA
+qrcode[pil]>=7.4.0  # QR code generation for MFA setup
+redis>=5.0.0  # Redis client for session management
+
 # Audio processing for enhanced voice features  
 # Note: Using latest stable version compatible with Python 3.8-3.12
 # For Python 3.13 support, wait for numba dependency updates

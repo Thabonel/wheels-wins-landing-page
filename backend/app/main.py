@@ -103,6 +103,7 @@ from app.api.v1 import (
     knowledge,  # Community Knowledge Center
     utils,  # Utility endpoints (geolocation proxy, etc.) - Phase 2
     usa,  # Universal Site Access - browser automation for PAM
+    security,  # Security monitoring and incident response
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import system_settings as system_settings_api
@@ -641,14 +642,40 @@ async def lifespan(app: FastAPI):
         sentry_service.capture_exception(e)
 
 
-# Create FastAPI app
+# Create FastAPI app with enhanced security for API documentation
+def get_docs_url() -> str | None:
+    """Securely determine if API documentation should be available"""
+    env = getattr(settings, 'NODE_ENV', 'production')
+    debug_mode = getattr(settings, 'DEBUG', False)
+
+    # Only allow docs in development or when explicitly enabled in staging
+    if env == "development" or (env == "staging" and debug_mode):
+        return "/api/docs"
+
+    # Never expose docs in production
+    return None
+
+def get_redoc_url() -> str | None:
+    """Securely determine if ReDoc documentation should be available"""
+    env = getattr(settings, 'NODE_ENV', 'production')
+    debug_mode = getattr(settings, 'DEBUG', False)
+
+    # Only allow ReDoc in development or when explicitly enabled in staging
+    if env == "development" or (env == "staging" and debug_mode):
+        return "/api/redoc"
+
+    # Never expose ReDoc in production
+    return None
+
 app = FastAPI(
     title="PAM Backend API",
     description="High-performance Personal Assistant Manager Backend with Monitoring",
     version="2.0.0",
     lifespan=lifespan,
-    docs_url="/api/docs" if settings.NODE_ENV != "production" else None,
-    redoc_url="/api/redoc" if settings.NODE_ENV != "production" else None,
+    docs_url=get_docs_url(),
+    redoc_url=get_redoc_url(),
+    # Disable OpenAPI schema endpoint in production
+    openapi_url="/api/openapi.json" if get_docs_url() else None,
 )
 
 # Enable distributed tracing with OpenTelemetry if available
@@ -1019,6 +1046,7 @@ app.include_router(support.router, prefix="/api", tags=["Support"])
 app.include_router(stripe_webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(observability_api.router, prefix="/api/v1", tags=["Admin Observability"])
+app.include_router(security.router, prefix="/api/v1", tags=["Security Monitoring"])
 app.include_router(performance.router, prefix="/api/v1", tags=["Performance Monitoring"])
 app.include_router(tts.router, prefix="/api/v1/tts", tags=["Text-to-Speech"])
 # Mundi integration removed
@@ -1087,6 +1115,99 @@ async def security_recommendations():
             "message": str(e),
             "timestamp": datetime.utcnow().isoformat()
         }
+
+# API Documentation Security Status Endpoint
+@app.get("/api/security/docs-status")
+async def docs_security_status():
+    """Check API documentation security configuration"""
+    env = getattr(settings, 'NODE_ENV', 'production')
+    debug_mode = getattr(settings, 'DEBUG', False)
+
+    docs_enabled = get_docs_url() is not None
+    redoc_enabled = get_redoc_url() is not None
+    openapi_enabled = app.openapi_url is not None
+
+    security_status = "SECURE" if env == "production" and not docs_enabled else "WARNING"
+
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "environment": env,
+        "debug_mode": debug_mode,
+        "security_status": security_status,
+        "documentation": {
+            "swagger_docs_enabled": docs_enabled,
+            "swagger_docs_url": get_docs_url(),
+            "redoc_enabled": redoc_enabled,
+            "redoc_url": get_redoc_url(),
+            "openapi_schema_enabled": openapi_enabled,
+            "openapi_schema_url": app.openapi_url,
+        },
+        "security_assessment": {
+            "production_safe": not (env == "production" and docs_enabled),
+            "recommendation": "SECURE: API documentation properly disabled in production" if not (env == "production" and docs_enabled) else "WARNING: API documentation exposed in production environment",
+            "risk_level": "LOW" if not (env == "production" and docs_enabled) else "HIGH"
+        }
+    }
+
+# CSP Violation Reporting Endpoint
+@app.post("/api/security/csp-report")
+async def csp_violation_report(request: Request):
+    """Content Security Policy violation reporting endpoint"""
+    try:
+        # Read the violation report
+        body = await request.body()
+        content_type = request.headers.get("content-type", "")
+
+        # CSP reports can be sent as JSON or form-data
+        if "application/json" in content_type:
+            violation_data = await request.json()
+        else:
+            # Handle form-encoded data
+            form_data = await request.form()
+            violation_data = dict(form_data)
+
+        # Log the CSP violation for security monitoring
+        logger.warning(f"CSP Violation Report: {violation_data}")
+
+        # Extract useful information
+        csp_report = violation_data.get("csp-report", {})
+        if csp_report:
+            violation_info = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "document_uri": csp_report.get("document-uri"),
+                "blocked_uri": csp_report.get("blocked-uri"),
+                "violated_directive": csp_report.get("violated-directive"),
+                "effective_directive": csp_report.get("effective-directive"),
+                "source_file": csp_report.get("source-file"),
+                "line_number": csp_report.get("line-number"),
+                "column_number": csp_report.get("column-number"),
+                "user_agent": request.headers.get("User-Agent", "unknown"),
+                "referrer": request.headers.get("Referer", "none")
+            }
+
+            # Log structured violation for security analysis
+            logger.warning(f"CSP Violation Details: {violation_info}")
+
+        return {"status": "received", "timestamp": datetime.utcnow().isoformat()}
+
+    except Exception as e:
+        logger.error(f"Failed to process CSP violation report: {e}")
+        return {"status": "error", "message": "Failed to process report"}
+
+# Security Headers Testing Endpoint
+@app.get("/api/security/headers-test")
+async def security_headers_test(request: Request):
+    """Test endpoint to verify security headers are properly applied"""
+    return {
+        "timestamp": datetime.utcnow().isoformat(),
+        "message": "Security headers test endpoint",
+        "request_headers": {
+            "user_agent": request.headers.get("User-Agent", "unknown"),
+            "origin": request.headers.get("Origin", "none"),
+            "referer": request.headers.get("Referer", "none")
+        },
+        "note": "Check response headers to verify security configuration"
+    }
 
 # LangServe router for PauterRouter - TEMPORARILY DISABLED due to WebSocket route conflicts
 # pauter_router = PauterRouter()
@@ -1312,6 +1433,129 @@ async def voice_test_endpoint(
         })
 
 
+async def validate_audio_upload(audio: UploadFile) -> None:
+    """Comprehensive audio file upload validation"""
+
+    # File size validation (10MB max)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+    # Read file content for validation
+    content = await audio.read()
+
+    # Reset file pointer for later use
+    audio.file.seek(0)
+
+    # Check file size
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB"
+        )
+
+    # Check minimum file size (empty file protection)
+    if len(content) < 100:  # Less than 100 bytes is suspicious
+        raise HTTPException(
+            status_code=400,
+            detail="File too small or empty"
+        )
+
+    # MIME type validation
+    ALLOWED_MIME_TYPES = [
+        "audio/wav", "audio/wave",
+        "audio/mpeg", "audio/mp3",
+        "audio/mp4", "audio/m4a",
+        "audio/ogg", "audio/webm",
+        "audio/flac", "audio/x-flac",
+        "audio/aac"
+    ]
+
+    if audio.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_MIME_TYPES)}"
+        )
+
+    # File extension validation
+    import os
+    filename = audio.filename or ""
+    _, ext = os.path.splitext(filename.lower())
+
+    ALLOWED_EXTENSIONS = [".wav", ".mp3", ".mp4", ".m4a", ".ogg", ".webm", ".flac", ".aac"]
+
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file extension. Allowed extensions: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
+
+    # Basic file signature validation (magic number check)
+    def check_file_signature(content: bytes) -> bool:
+        """Check if file content matches expected audio file signatures"""
+
+        # Common audio file signatures
+        audio_signatures = [
+            b"RIFF",  # WAV files
+            b"\xff\xfb",  # MP3 files (MPEG-1 Layer 3)
+            b"\xff\xfa",  # MP3 files (MPEG-1 Layer 3)
+            b"ID3",  # MP3 with ID3 tag
+            b"OggS",  # OGG files
+            b"fLaC",  # FLAC files
+            b"\x00\x00\x00\x20ftypM4A",  # M4A files
+        ]
+
+        for signature in audio_signatures:
+            if content.startswith(signature):
+                return True
+
+        # Special check for MP4/M4A (signature at offset 4)
+        if len(content) > 8 and content[4:8] in [b"ftyp", b"fMP4"]:
+            return True
+
+        return False
+
+    if not check_file_signature(content):
+        raise HTTPException(
+            status_code=400,
+            detail="File does not appear to be a valid audio file"
+        )
+
+    # Malware scanning hook (placeholder for future integration)
+    # This would integrate with ClamAV, VirusTotal API, or similar
+    await scan_for_malware(content, audio.filename or "unknown")
+
+    logger.info(f"Audio file validation passed: {audio.filename} ({len(content)} bytes, {audio.content_type})")
+
+async def scan_for_malware(content: bytes, filename: str) -> None:
+    """Malware scanning hook - placeholder for security integration"""
+
+    # Basic suspicious pattern detection
+    suspicious_patterns = [
+        b"<script",  # JavaScript (shouldn't be in audio)
+        b"<?php",   # PHP code (shouldn't be in audio)
+        b"cmd.exe", # Windows command execution
+        b"/bin/sh", # Unix shell execution
+        b"powershell", # PowerShell execution
+    ]
+
+    content_lower = content.lower()
+    for pattern in suspicious_patterns:
+        if pattern in content_lower:
+            logger.warning(f"Suspicious pattern detected in file {filename}: {pattern}")
+            raise HTTPException(
+                status_code=400,
+                detail="File contains suspicious content"
+            )
+
+    # Log file for potential external scanning
+    logger.info(f"File scanned for malware: {filename} ({len(content)} bytes)")
+
+    # TODO: Integrate with real malware scanning service
+    # Example integrations:
+    # - ClamAV local scanning
+    # - VirusTotal API
+    # - AWS GuardDuty malware protection
+    # - Microsoft Defender API
+
 @app.post("/api/v1/pam/voice")
 async def pam_voice(
     audio: UploadFile = File(...),
@@ -1319,6 +1563,11 @@ async def pam_voice(
 ):
     """Complete STT→LLM→TTS pipeline for voice conversations - returns synthesized audio"""
     try:
+        # Security: Validate audio file upload
+        logger.info("🔒 Validating audio file upload...")
+        await validate_audio_upload(audio)
+        logger.info("✅ Audio file validation passed")
+
         # Step 1: Speech-to-Text (STT)
         logger.info("🎤 Processing voice input...")
         audio_data = await audio.read()
