@@ -8,6 +8,7 @@ import '@/styles/mapbox-fixes.css';
 import { toast } from 'sonner';
 import { getMapboxPublicToken } from '@/utils/mapboxConfig';
 import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
+import { transformToGeoJSONLineString, createFallbackGeometry, extractWaypoints } from '@/utils/routeDataTransformers';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
 // Removed custom FreshFullscreenControl - using native Mapbox control instead
@@ -814,6 +815,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Unified template application function - handles both template and saved trip formats
   const applyTemplateToMap = (template: any) => {
     const waypoints: any[] = [];
+    let routeGeometry: any = null;
+
+    console.log('🗺️ Applying template to map:', template.name, template);
 
     // Handle different data structures
     if (template.route) {
@@ -843,9 +847,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           type: 'destination'
         });
       }
-    } else if (template.route_data?.waypoints) {
+    } else if (template.route_data?.waypoints || template.metadata?.route_data?.waypoints) {
       // Saved trip format: route_data.waypoints array
-      const wps = template.route_data.waypoints;
+      const wps = template.route_data?.waypoints || template.metadata?.route_data?.waypoints || [];
       wps.forEach((wp: any, index: number) => {
         const type = index === 0 ? 'origin' : index === wps.length - 1 ? 'destination' : 'waypoint';
         waypoints.push({
@@ -856,8 +860,33 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       });
     }
 
+    // Extract route geometry from various possible locations
+    if (template.metadata?.route_data?.route) {
+      console.log('🛣️ Found route data in metadata.route_data.route');
+      routeGeometry = transformToGeoJSONLineString(template.metadata.route_data.route);
+    } else if (template.route_data?.route) {
+      console.log('🛣️ Found route data in route_data.route');
+      routeGeometry = transformToGeoJSONLineString(template.route_data.route);
+    } else if (template.metadata?.route) {
+      console.log('🛣️ Found route data in metadata.route');
+      routeGeometry = transformToGeoJSONLineString(template.metadata.route);
+    } else if (template.route_geometry) {
+      console.log('🛣️ Found route data in route_geometry');
+      routeGeometry = transformToGeoJSONLineString(template.route_geometry);
+    }
+
+    // If no route geometry found but we have waypoints, create fallback geometry
+    if (!routeGeometry && waypoints.length >= 2) {
+      console.log('🛣️ No route geometry found, creating fallback from waypoints');
+      const waypointData = waypoints.map(wp => ({
+        lat: wp.coordinates[1],
+        lng: wp.coordinates[0]
+      }));
+      routeGeometry = createFallbackGeometry(waypointData);
+    }
+
     if (waypoints.length > 0) {
-      handleApplyTemplate({ ...template, waypoints });
+      handleApplyTemplate({ ...template, waypoints, routeGeometry });
     } else {
       console.warn('No waypoints found in template:', template);
       toast.info(`Template "${template.name}" loaded but contains no route data`);
@@ -866,9 +895,11 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
 
   // Handle template application
   const handleApplyTemplate = (template: any) => {
-    // Clear existing waypoints
+    console.log('🎯 Applying template with waypoints and route geometry:', template.name);
+
+    // Clear existing waypoints and routes
     waypointManager.clearWaypoints();
-    
+
     // Add template waypoints
     template.waypoints.forEach((wp: any) => {
       waypointManager.addWaypoint({
@@ -877,7 +908,21 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         type: wp.type
       });
     });
-    
+
+    // Apply route geometry if available
+    if (template.routeGeometry && waypointManager.drawRoute) {
+      console.log('🛣️ Applying saved route geometry to map');
+      try {
+        waypointManager.drawRoute(template.routeGeometry);
+        console.log('✅ Route geometry applied successfully');
+      } catch (error) {
+        console.error('❌ Error applying route geometry:', error);
+        toast.error('Route display failed - showing waypoints only');
+      }
+    } else {
+      console.log('ℹ️ No route geometry found, waypoints will trigger route calculation');
+    }
+
     // Fly to the first waypoint
     if (map && template.waypoints.length > 0) {
       map.flyTo({
@@ -886,7 +931,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         duration: 2000
       });
     }
-    
+
     toast.success(`Template "${template.name}" applied successfully`);
   };
   

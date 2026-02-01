@@ -97,21 +97,52 @@ export function useFreshWaypointManager({
   
   // Draw route on map with support for alternatives - MUST be defined before calculateRoute
   const drawRoute = useCallback((geometry: any, alternatives?: RouteAlternative[]) => {
-    if (!map) return;
-    
+    if (!map) {
+      console.error('❌ Cannot draw route: map not available');
+      return;
+    }
+
     console.log('🗺️ Drawing route with geometry:', geometry);
-    
-    // Remove existing route layers
-    ['route-main', 'route-alt-1', 'route-alt-2', 'route-alt-3'].forEach(layerId => {
-      if (map.getLayer(layerId)) {
-        map.removeLayer(layerId);
-        console.log(`🗑️ Removed existing layer: ${layerId}`);
-      }
-      if (map.getSource(layerId)) {
-        map.removeSource(layerId);
-        console.log(`🗑️ Removed existing source: ${layerId}`);
-      }
-    });
+
+    // Validate geometry format
+    if (!geometry || typeof geometry !== 'object') {
+      console.error('❌ Invalid geometry format:', geometry);
+      return;
+    }
+
+    // Check if geometry is valid GeoJSON LineString
+    if (geometry.type !== 'LineString' || !Array.isArray(geometry.coordinates) || geometry.coordinates.length < 2) {
+      console.error('❌ Geometry is not a valid LineString:', geometry);
+      return;
+    }
+
+    // Validate coordinate format
+    const hasValidCoordinates = geometry.coordinates.every((coord: any) =>
+      Array.isArray(coord) && coord.length === 2 &&
+      typeof coord[0] === 'number' && typeof coord[1] === 'number' &&
+      !isNaN(coord[0]) && !isNaN(coord[1])
+    );
+
+    if (!hasValidCoordinates) {
+      console.error('❌ Invalid coordinates in geometry:', geometry);
+      return;
+    }
+
+    try {
+      // Remove existing route layers
+      ['route-main', 'route-alt-1', 'route-alt-2', 'route-alt-3'].forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.removeLayer(layerId);
+          console.log(`🗑️ Removed existing layer: ${layerId}`);
+        }
+        if (map.getSource(layerId)) {
+          map.removeSource(layerId);
+          console.log(`🗑️ Removed existing source: ${layerId}`);
+        }
+      });
+    } catch (error) {
+      console.error('Error removing existing route layers:', error);
+    }
     
     // Find a suitable layer to insert routes before (typically labels or symbols)
     const layers = map.getStyle().layers;
@@ -127,90 +158,99 @@ export function useFreshWaypointManager({
     }
     
     console.log(`🎯 Inserting route layers before: ${beforeId || 'top of stack'}`);
-    
-    // Add main route (magnetic road-following route in green)
-    map.addSource('route-main', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: { routeType: 'main' },
-        geometry
-      }
-    });
-    
-    map.addLayer({
-      id: 'route-main',
-      type: 'line',
-      source: 'route-main',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': '#10b981', // Green for main GPS-accurate route
-        'line-width': 6, // Increased width for better visibility
-        'line-opacity': 0.9 // Increased opacity for better visibility
-      }
-    }, beforeId);
-    
-    console.log('✅ Added main route layer above base map');
+
+    try {
+      // Add main route (magnetic road-following route in green)
+      map.addSource('route-main', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: { routeType: 'main' },
+          geometry
+        }
+      });
+
+      map.addLayer({
+        id: 'route-main',
+        type: 'line',
+        source: 'route-main',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#10b981', // Green for main GPS-accurate route
+          'line-width': 6, // Increased width for better visibility
+          'line-opacity': 0.9 // Increased opacity for better visibility
+        }
+      }, beforeId);
+
+      console.log('✅ Added main route layer above base map');
+    } catch (error) {
+      console.error('❌ Error adding main route to map:', error);
+      throw error; // Re-throw so calling code can handle
+    }
     
     // Add alternative routes if available
     if (alternatives && alternatives.length > 0) {
       const altColors = ['#3b82f6', '#8b5cf6', '#f59e0b']; // Blue, Purple, Orange
-      
+
       alternatives.forEach((alt, index) => {
         if (index >= 3) return; // Limit to 3 alternatives
-        
+
         const layerId = `route-alt-${index + 1}`;
         const color = altColors[index] || '#6b7280';
-        
-        map.addSource(layerId, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: { 
-              routeType: 'alternative',
-              altIndex: index,
-              distance: alt.distance,
-              duration: alt.duration
+
+        try {
+          map.addSource(layerId, {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {
+                routeType: 'alternative',
+                altIndex: index,
+                distance: alt.distance,
+                duration: alt.duration
+              },
+              geometry: alt.geometry
+            }
+          });
+
+          map.addLayer({
+            id: layerId,
+            type: 'line',
+            source: layerId,
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round'
             },
-            geometry: alt.geometry
-          }
-        });
-        
-        map.addLayer({
-          id: layerId,
-          type: 'line',
-          source: layerId,
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': color,
-            'line-width': 5, // Increased width for better visibility
-            'line-opacity': 0.8, // Increased opacity
-            'line-dasharray': [3, 3] // More visible dash pattern
-          }
-        }, beforeId); // Insert before labels
-        
-        console.log(`✅ Added alternative route ${index + 1} layer above base map`);
-        
-        // Add click handler for alternative route selection
-        map.on('click', layerId, () => {
-          console.log(`Alternative route ${index + 1} selected`);
-          // TODO: Implement route switching functionality
-        });
-        
-        // Change cursor on hover
-        map.on('mouseenter', layerId, () => {
-          map.getCanvas().style.cursor = 'pointer';
-        });
-        
-        map.on('mouseleave', layerId, () => {
-          map.getCanvas().style.cursor = '';
-        });
+            paint: {
+              'line-color': color,
+              'line-width': 5, // Increased width for better visibility
+              'line-opacity': 0.8, // Increased opacity
+              'line-dasharray': [3, 3] // More visible dash pattern
+            }
+          }, beforeId); // Insert before labels
+
+          console.log(`✅ Added alternative route ${index + 1} layer above base map`);
+
+          // Add click handler for alternative route selection
+          map.on('click', layerId, () => {
+            console.log(`Alternative route ${index + 1} selected`);
+            // TODO: Implement route switching functionality
+          });
+
+          // Change cursor on hover
+          map.on('mouseenter', layerId, () => {
+            map.getCanvas().style.cursor = 'pointer';
+          });
+
+          map.on('mouseleave', layerId, () => {
+            map.getCanvas().style.cursor = '';
+          });
+        } catch (error) {
+          console.error(`❌ Error adding alternative route ${index + 1}:`, error);
+        }
       });
     }
   }, [map]);
@@ -658,6 +698,7 @@ export function useFreshWaypointManager({
     clearWaypoints,
     setRouteProfile,
     calculateRoute,     // ✅ CRITICAL FIX: Export calculateRoute function
+    drawRoute,          // ✅ NEW: Export drawRoute for manual route display
 
     // Undo/Redo - working functions
     undo,               // ✅ Working function
