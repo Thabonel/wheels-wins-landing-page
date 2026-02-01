@@ -15,6 +15,7 @@ import { Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { tripService } from '@/services/tripService';
 import { useAuth } from '@/context/AuthContext';
+import { transformToGeoJSONLineString, createFallbackGeometry } from '@/utils/routeDataTransformers';
 
 interface FreshSaveTripDialogProps {
   isOpen: boolean;
@@ -59,6 +60,23 @@ export default function FreshSaveTripDialog({
     setIsSaving(true);
     
     try {
+      console.log('🗂️ Preparing trip data for save:', tripData);
+
+      // Transform and validate route geometry for proper storage
+      let routeGeometry = null;
+      if (tripData.route?.geometry) {
+        routeGeometry = transformToGeoJSONLineString(tripData.route.geometry);
+        console.log('✅ Transformed route geometry for storage:', routeGeometry);
+      } else if (tripData.waypoints?.length >= 2) {
+        // Create fallback geometry from waypoints
+        const waypointData = tripData.waypoints.map(wp => ({
+          lat: wp.coordinates[1],
+          lng: wp.coordinates[0]
+        }));
+        routeGeometry = createFallbackGeometry(waypointData);
+        console.log('🔄 Created fallback geometry from waypoints:', routeGeometry);
+      }
+
       // PREMIUM SAAS: Ensure we always have valid trip data to save
       const enhancedTripData = {
         ...tripData,
@@ -67,12 +85,18 @@ export default function FreshSaveTripDialog({
           calculateEstimatedDistance(tripData.waypoints) : 0),
         duration: tripData.duration || (tripData.distance ?
           Math.round(tripData.distance * 0.045) : 0), // 45 seconds per km estimate
-        // Ensure we have basic route structure
-        route: tripData.route || (tripData.waypoints?.length >= 2 ? {
+        // Ensure we have proper route structure with validated geometry
+        route: routeGeometry ? {
+          type: 'LineString',
+          coordinates: routeGeometry.coordinates,
+          ...(tripData.route || {})
+        } : (tripData.waypoints?.length >= 2 ? {
           type: 'estimated',
           waypoints: tripData.waypoints
         } : null)
       };
+
+      console.log('🗂️ Enhanced trip data ready for save:', enhancedTripData);
 
       const result = await tripService.saveTrip(user.id, {
         title: finalTripName,
