@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 import json
 
-from app.core.unified_auth import get_current_user_unified_unified, require_admin
+from app.core.unified_auth import get_current_user_unified, require_admin
 from app.core.logging import get_logger
 from app.core.security_monitoring import SecurityMonitor, ThreatSeverity, ThreatType
 from app.services.incident import (
