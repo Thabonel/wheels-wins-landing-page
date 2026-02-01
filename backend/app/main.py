@@ -104,6 +104,7 @@ from app.api.v1 import (
     utils,  # Utility endpoints (geolocation proxy, etc.) - Phase 2
     usa,  # Universal Site Access - browser automation for PAM
     security,  # Security monitoring and incident response
+    trips,  # Trip management API for PAM integration
     # camping,  # Loaded separately with import guard
 )
 from app.api.v1 import system_settings as system_settings_api
@@ -1032,6 +1033,7 @@ app.include_router(user_settings.router, prefix="/api/v1", tags=["User Settings"
 app.include_router(products.router, prefix="/api/v1", tags=["Products"])
 app.include_router(orders.router, prefix="/api/v1", tags=["Orders"])
 app.include_router(maintenance.router, prefix="/api/v1", tags=["Maintenance"])
+app.include_router(trips.router, prefix="", tags=["Trips"])  # Trip management API
 app.include_router(custom_routes.router, prefix="/api/v1", tags=["Routes"])
 app.include_router(utils.router, prefix="/api/v1/utils", tags=["Utilities"])
 app.include_router(onboarding.router, prefix="/api/v1", tags=["Onboarding"])

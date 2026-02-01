@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
+import { Edit3, Bot, ArrowLeft } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
 import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css';
@@ -44,12 +45,16 @@ interface FreshTripPlannerProps {
   onSaveTrip?: (tripData: any) => void;
   onBack?: () => void;
   initialTemplate?: any; // Support passing template directly
+  editMode?: boolean; // Whether we're editing an existing trip
+  originalTripData?: any; // Original trip data when in edit mode
 }
 
 const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   onSaveTrip,
   onBack,
-  initialTemplate
+  initialTemplate,
+  editMode = false,
+  originalTripData = null
 }) => {
   // State
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
@@ -1141,9 +1146,37 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         hasRoute={waypointManager.waypoints.length >= 2 || hasDirectionsRoute}
       />
 
+      {/* Edit Mode Indicator */}
+      {editMode && originalTripData && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white px-6 py-3 rounded-lg shadow-lg z-[10002] flex items-center gap-2">
+          <Edit3 className="w-4 h-4" />
+          <span className="font-medium">Editing: {originalTripData.title}</span>
+          {originalTripData.metadata?.created_by === 'pam_ai' && (
+            <div className="bg-purple-500 px-2 py-1 rounded text-xs flex items-center gap-1">
+              <Bot className="w-3 h-3" />
+              PAM
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Back to My Trips Button (Edit Mode) */}
+      {editMode && (
+        <button
+          onClick={() => {
+            // Navigate back to My Trips
+            window.history.back();
+          }}
+          className="absolute top-4 left-4 bg-white/90 hover:bg-white text-gray-700 px-3 py-2 rounded-lg shadow-lg z-[10002] flex items-center gap-2 text-sm font-medium transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to My Trips</span>
+        </button>
+      )}
+
       {/* Add waypoint indicator */}
       {isAddingWaypoint && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg">
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-[10001]">
           Click on the map to add a waypoint
         </div>
       )}
@@ -1297,6 +1330,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           distance: waypointManager.currentRoute?.distance,
           duration: waypointManager.currentRoute?.duration
         }}
+        editMode={editMode}
+        originalTripData={originalTripData}
         onSaveSuccess={(savedTrip) => {
           console.log('Trip saved:', savedTrip);
           if (onSaveTrip) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Save, Loader2 } from 'lucide-react';
+import { Save, Loader2, Edit3, Plus, Bot } from 'lucide-react';
 import { toast } from 'sonner';
 import { tripService } from '@/services/tripService';
 import { useAuth } from '@/context/AuthContext';
@@ -28,18 +28,37 @@ interface FreshSaveTripDialogProps {
     duration?: number;
   };
   onSaveSuccess?: (savedTrip: any) => void;
+  editMode?: boolean;
+  originalTripData?: any;
 }
 
 export default function FreshSaveTripDialog({
   isOpen,
   onClose,
   tripData,
-  onSaveSuccess
+  onSaveSuccess,
+  editMode = false,
+  originalTripData = null
 }: FreshSaveTripDialogProps) {
   const { user } = useAuth();
   const [tripName, setTripName] = useState('');
   const [description, setDescription] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [saveAsNew, setSaveAsNew] = useState(false);
+
+  // Initialize form with existing data when in edit mode
+  useEffect(() => {
+    if (editMode && originalTripData) {
+      setTripName(originalTripData.title || '');
+      setDescription(originalTripData.description || '');
+      setSaveAsNew(false);
+    } else {
+      // Reset for new trip
+      setTripName('');
+      setDescription('');
+      setSaveAsNew(false);
+    }
+  }, [editMode, originalTripData, isOpen]);
 
   const handleSave = async () => {
     if (!user) {
@@ -98,13 +117,25 @@ export default function FreshSaveTripDialog({
 
       console.log('🗂️ Enhanced trip data ready for save:', enhancedTripData);
 
-      const result = await tripService.saveTrip(user.id, {
+      let result;
+      const tripDataToSave = {
         title: finalTripName,
         description: description.trim() || undefined,
         route_data: enhancedTripData,
         status: 'planning',
         privacy_level: 'private'
-      });
+      };
+
+      // Determine if this is an update or new save
+      if (editMode && originalTripData && !saveAsNew) {
+        // Update existing trip
+        console.log('🔄 Updating existing trip:', originalTripData.id);
+        result = await tripService.updateTrip(originalTripData.id, tripDataToSave);
+      } else {
+        // Save as new trip (either new trip or save-as-new)
+        console.log('💾 Saving as new trip');
+        result = await tripService.saveTrip(user.id, tripDataToSave);
+      }
 
       // Check if the save was actually successful
       if (result.success && result.data) {
@@ -179,15 +210,82 @@ export default function FreshSaveTripDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Save className="w-5 h-5" />
-            Save Trip
+            {editMode && !saveAsNew ? (
+              <>
+                <Edit3 className="w-5 h-5" />
+                Update Trip
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                Save Trip
+              </>
+            )}
           </DialogTitle>
           <DialogDescription>
-            Save your planned route to access it later or share with friends.
+            {editMode && !saveAsNew ? (
+              <>
+                Update your existing trip "{originalTripData?.title}" with your changes.
+                {originalTripData?.metadata?.created_by === 'pam_ai' && (
+                  <div className="flex items-center gap-1 mt-1 text-purple-600">
+                    <Bot className="w-3 h-3" />
+                    <span className="text-xs">Originally created by PAM AI</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              'Save your planned route to access it later or share with friends.'
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {editMode && (
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Save Options</Label>
+              <div className="grid grid-cols-1 gap-2">
+                <div
+                  className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                    !saveAsNew ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setSaveAsNew(false)}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded-full border-2 ${
+                      !saveAsNew ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                    }`}>
+                      {!saveAsNew && <div className="w-2 h-2 bg-white rounded-full m-auto mt-0.5"></div>}
+                    </div>
+                    <Edit3 className="w-4 h-4 text-blue-600" />
+                    <span className="font-medium">Update existing trip</span>
+                  </div>
+                  <p className="text-sm text-gray-600 ml-6 mt-1">
+                    Save changes to "{originalTripData?.title}"
+                  </p>
+                </div>
+                <div
+                  className={`border rounded-lg p-3 cursor-pointer transition-colors ${
+                    saveAsNew ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setSaveAsNew(true)}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded-full border-2 ${
+                      saveAsNew ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                    }`}>
+                      {saveAsNew && <div className="w-2 h-2 bg-white rounded-full m-auto mt-0.5"></div>}
+                    </div>
+                    <Plus className="w-4 h-4 text-green-600" />
+                    <span className="font-medium">Save as new trip</span>
+                  </div>
+                  <p className="text-sm text-gray-600 ml-6 mt-1">
+                    Create a new trip copy with your changes
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="trip-name">Trip Name *</Label>
             <Input
@@ -229,8 +327,8 @@ export default function FreshSaveTripDialog({
         </div>
 
         <DialogFooter>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={onClose}
             disabled={isSaving}
           >
@@ -239,16 +337,26 @@ export default function FreshSaveTripDialog({
           <Button
             onClick={handleSave}
             disabled={isSaving}
+            className={editMode && !saveAsNew ? 'bg-blue-600 hover:bg-blue-700' : ''}
           >
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
+                {editMode && !saveAsNew ? 'Updating...' : 'Saving...'}
               </>
             ) : (
               <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Trip
+                {editMode && !saveAsNew ? (
+                  <>
+                    <Edit3 className="mr-2 h-4 w-4" />
+                    Update Trip
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Trip
+                  </>
+                )}
               </>
             )}
           </Button>

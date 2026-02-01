@@ -41,7 +41,7 @@ export default function TripPlannerApp() {
   // Handle case where auth context might not be available
   const user = auth?.user || null;
   
-  // Check URL parameters for initial tab
+  // Check URL parameters for initial tab and edit mode
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tab = urlParams.get('tab');
@@ -49,6 +49,12 @@ export default function TripPlannerApp() {
       return 'plan-trip';
     }
     return 'trip-templates';
+  };
+
+  // Check for edit mode in URL
+  const checkEditMode = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('mode') === 'edit';
   };
   
   const [activeTab, setActiveTab] = useState(getInitialTab());
@@ -59,6 +65,10 @@ export default function TripPlannerApp() {
   // State for simplified integration
   const [routeData, setRouteData] = useState<any>(null);
   const [budgetData, setBudgetData] = useState<any>(null);
+
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [originalTripData, setOriginalTripData] = useState<any>(null);
 
   useEffect(() => {
     if (user && showWelcome) {
@@ -93,8 +103,18 @@ export default function TripPlannerApp() {
         const tripData = JSON.parse(savedTripData);
         console.log('📦 Loading saved trip from sessionStorage:', tripData.title);
 
+        // Check if this is edit mode
+        const isEditMode = tripData.editMode || checkEditMode();
+
         // Clear sessionStorage to prevent reloading on refresh
         sessionStorage.removeItem('loadTripData');
+
+        // Set edit mode and original data
+        if (isEditMode) {
+          setEditMode(true);
+          setOriginalTripData(tripData.originalData || tripData);
+          console.log('✏️ Entering edit mode for trip:', tripData.title);
+        }
 
         // Load the saved trip
         handleLoadSavedTrip(tripData);
@@ -294,13 +314,24 @@ export default function TripPlannerApp() {
 
           <TabsContent value="plan-trip" className="mt-0">
             <div className="h-[600px] relative rounded-lg overflow-hidden">
-              <FreshTripPlanner 
+              <FreshTripPlanner
                 initialTemplate={selectedTemplate}
+                editMode={editMode}
+                originalTripData={originalTripData}
                 onSaveTrip={(tripData) => {
                   console.log('Trip saved:', tripData);
+                  // If we were in edit mode, clear it after successful save
+                  if (editMode) {
+                    setEditMode(false);
+                    setOriginalTripData(null);
+                    // Update URL to remove edit mode
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('mode');
+                    window.history.replaceState({}, '', url.toString());
+                  }
                   toast({
-                    title: "Trip Saved",
-                    description: "Your trip has been saved successfully!"
+                    title: editMode ? "Trip Updated" : "Trip Saved",
+                    description: editMode ? "Your trip changes have been saved successfully!" : "Your trip has been saved successfully!"
                   });
                 }}
               />
