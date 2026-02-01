@@ -16,6 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 from app.core.logging import get_logger
+from app.core.comprehensive_security_audit import security_audit_logger, audit_security_event, AuditEventType, AuditSeverity
 
 try:
     import redis.asyncio as aioredis
@@ -426,7 +427,7 @@ class ThreatDetector:
 
 class SecurityMonitor:
     """Security monitoring and response system"""
-    
+
     def __init__(self, redis_url: str = "redis://localhost:6379"):
         import os
         # Try to get Redis URL from environment if not provided
@@ -438,7 +439,7 @@ class SecurityMonitor:
         self.event_storage: List[SecurityEvent] = []
         self.blocked_ips: Set[str] = set()
         self.blocked_users: Set[str] = set()
-        
+
         # Alert thresholds
         self.alert_thresholds = {
             ThreatSeverity.CRITICAL: 1,  # Alert immediately
@@ -446,6 +447,10 @@ class SecurityMonitor:
             ThreatSeverity.MEDIUM: 10,   # Alert after 10 events
             ThreatSeverity.LOW: 50       # Alert after 50 events
         }
+
+        # Incident correlation tracking
+        self.correlation_events: List[SecurityEvent] = []
+        self.last_incident_check = time.time()
     
     async def initialize(self) -> bool:
         """Initialize Redis connection"""
@@ -481,24 +486,34 @@ class SecurityMonitor:
     async def process_request(self, request: Request, response: Response = None) -> List[SecurityEvent]:
         """Process request and detect threats"""
         threats = self.threat_detector.detect_threats(request, response)
-        
+
         for threat in threats:
             await self._handle_threat(threat)
-        
+
+        # Check if we should create an incident
+        if threats:
+            await self._check_incident_creation(threats)
+
         return threats
     
     async def _handle_threat(self, event: SecurityEvent):
         """Handle detected security threat"""
         # Store event
         await self._store_event(event)
-        
+
+        # Log to comprehensive audit system
+        await self._audit_security_event(event)
+
         # Execute automated response
         if event.response_action:
             await self._execute_response(event)
-        
+
         # Check if alert should be sent
         await self._check_alert_thresholds(event)
-        
+
+        # Add to correlation tracking
+        self.correlation_events.append(event)
+
         logger.warning(f"Security threat detected: {event.threat_type.value} from {event.source_ip}")
     
     async def _store_event(self, event: SecurityEvent):
@@ -667,6 +682,82 @@ class SecurityMonitor:
             stats["severity_levels"][event.severity.value] += 1
         
         return dict(stats)
+
+    async def _audit_security_event(self, event: SecurityEvent):
+        """Log security event to comprehensive audit system"""
+        try:
+            # Map threat severity to audit severity
+            severity_map = {
+                ThreatSeverity.LOW: AuditSeverity.LOW,
+                ThreatSeverity.MEDIUM: AuditSeverity.MEDIUM,
+                ThreatSeverity.HIGH: AuditSeverity.HIGH,
+                ThreatSeverity.CRITICAL: AuditSeverity.CRITICAL
+            }
+
+            audit_severity = severity_map.get(event.severity, AuditSeverity.MEDIUM)
+
+            # Map threat type to audit event type
+            audit_event_type = AuditEventType.THREAT_DETECTED
+
+            await audit_security_event(
+                event_type=audit_event_type,
+                source_ip=event.source_ip,
+                threat_type=event.threat_type.value,
+                severity=audit_severity,
+                details={
+                    'event_id': event.event_id,
+                    'endpoint': event.endpoint,
+                    'method': event.method,
+                    'user_agent': event.user_agent,
+                    'user_id': event.user_id,
+                    'response_action': event.response_action.value if event.response_action else None,
+                    'blocked': event.blocked,
+                    **event.details
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to audit security event: {e}")
+
+    async def _check_incident_creation(self, new_threats: List[SecurityEvent]):
+        """Check if threats warrant incident creation"""
+        try:
+            # Add new threats to correlation window
+            current_time = time.time()
+
+            # Keep only recent events (last 10 minutes)
+            self.correlation_events = [
+                event for event in self.correlation_events
+                if (current_time - event.timestamp.timestamp()) < 600
+            ]
+
+            # Check for incident creation criteria every 2 minutes
+            if current_time - self.last_incident_check < 120:
+                return
+
+            self.last_incident_check = current_time
+
+            # Import incident response automation (avoid circular import)
+            try:
+                from app.services.incident import incident_response_automation
+
+                # Process correlated events for potential incident creation
+                if self.correlation_events:
+                    incident = await incident_response_automation.process_security_events(
+                        self.correlation_events
+                    )
+
+                    if incident:
+                        logger.critical(f"Security incident created: {incident.incident_id}")
+
+                        # Clear processed events from correlation
+                        self.correlation_events = []
+
+            except ImportError as e:
+                logger.warning(f"Incident response automation not available: {e}")
+
+        except Exception as e:
+            logger.error(f"Error checking incident creation: {e}")
 
 
 class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
