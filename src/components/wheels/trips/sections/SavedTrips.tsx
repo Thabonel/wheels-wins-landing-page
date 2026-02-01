@@ -8,11 +8,15 @@ import {
   Clock,
   Trash2,
   Play,
-  Share2
+  Share2,
+  Bot,
+  Edit3,
+  User
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { SavedTrip as SavedTripType } from '@/types/userTrips';
 
 interface SavedTrip {
   id: string;
@@ -48,7 +52,8 @@ export default function SavedTrips() {
       setLoading(true);
       
       // Query trips from user_trips table (user's personal saved trips)
-      const { data: trips, error } = await supabase
+      // Note: Using any type temporarily while database table is being created
+      const { data: trips, error } = await (supabase as any)
         .from('user_trips')
         .select('*')
         .eq('user_id', user?.id)
@@ -65,7 +70,7 @@ export default function SavedTrips() {
       }
 
       // Set trips directly since the interface matches the table structure
-      setTrips(trips || []);
+      setTrips((trips || []) as SavedTripType[]);
     } catch (error) {
       console.error('Error loading trips:', error);
       // Only show error for unexpected errors
@@ -79,7 +84,7 @@ export default function SavedTrips() {
     if (!confirm('Are you sure you want to delete this trip?')) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_trips')
         .delete()
         .eq('id', tripId)
@@ -95,30 +100,58 @@ export default function SavedTrips() {
     }
   };
 
-  const handleLoadTrip = (trip: SavedTrip) => {
+  const handleLoadTrip = (trip: SavedTrip, isEdit = false) => {
     // Store trip data in sessionStorage for the trip planner to load
     const tripData = {
       id: trip.id,
       title: trip.title,
       description: trip.description,
       metadata: trip.metadata || null,
+      editMode: isEdit,
+      originalData: isEdit ? trip : null,
     };
 
     sessionStorage.setItem('loadTripData', JSON.stringify(tripData));
 
-    // Navigate to Trip Planner
-    navigate(`/wheels?tab=trip-planner&trip=${trip.id}`);
+    // Navigate to Trip Planner with edit mode parameter
+    const editParam = isEdit ? '&mode=edit' : '';
+    navigate(`/wheels?tab=trip-planner&trip=${trip.id}${editParam}`);
   };
 
   const handleShareTrip = async (trip: SavedTrip) => {
     const shareUrl = `${window.location.origin}/wheels/trips/shared/${trip.id}`;
-    
+
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast.success('Share link copied to clipboard!');
     } catch (error) {
       toast.error('Failed to copy share link');
     }
+  };
+
+  // Check if trip was created by PAM AI
+  const isPAMTrip = (trip: SavedTrip): boolean => {
+    return trip.metadata?.created_by === 'pam_ai' ||
+           trip.metadata?.source === 'pam' ||
+           trip.description?.includes('[PAM AI Generated]');
+  };
+
+  // Get trip creator indicator
+  const getTripCreatorInfo = (trip: SavedTrip) => {
+    if (isPAMTrip(trip)) {
+      return {
+        icon: Bot,
+        label: 'PAM AI',
+        color: 'bg-purple-100 text-purple-800',
+        description: 'AI-generated trip plan'
+      };
+    }
+    return {
+      icon: User,
+      label: 'Manual',
+      color: 'bg-blue-100 text-blue-800',
+      description: 'User-created trip'
+    };
   };
 
   if (loading) {
@@ -162,21 +195,40 @@ export default function SavedTrips() {
         <Card key={trip.id} className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="text-lg">{trip.title}</CardTitle>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <CardTitle className="text-lg">{trip.title}</CardTitle>
+                  {(() => {
+                    const creatorInfo = getTripCreatorInfo(trip);
+                    const IconComponent = creatorInfo.icon;
+                    return (
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${creatorInfo.color}`}>
+                        <IconComponent className="w-3 h-3" />
+                        <span>{creatorInfo.label}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
                 {trip.description && (
                   <p className="text-sm text-gray-600 mt-1">{trip.description}</p>
                 )}
               </div>
-              {trip.status && (
-                <span className={`text-xs px-2 py-1 rounded ${
-                  trip.status === 'completed' ? 'bg-green-100 text-green-800' :
-                  trip.status === 'active' ? 'bg-blue-100 text-blue-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {trip.status}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {trip.status && (
+                  <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
+                    trip.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    trip.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {trip.status}
+                  </span>
+                )}
+                {isPAMTrip(trip) && (
+                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
+                    PAM Enhanced
+                  </div>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -215,7 +267,7 @@ export default function SavedTrips() {
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
-                onClick={() => handleLoadTrip(trip)}
+                onClick={() => handleLoadTrip(trip, false)}
                 className="flex-1"
               >
                 <Play className="w-4 h-4 mr-1" />
@@ -224,7 +276,17 @@ export default function SavedTrips() {
               <Button
                 size="sm"
                 variant="outline"
+                onClick={() => handleLoadTrip(trip, true)}
+                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                title="Edit this trip"
+              >
+                <Edit3 className="w-4 h-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={() => handleShareTrip(trip)}
+                title="Share trip link"
               >
                 <Share2 className="w-4 h-4" />
               </Button>
@@ -232,6 +294,8 @@ export default function SavedTrips() {
                 size="sm"
                 variant="outline"
                 onClick={() => handleDeleteTrip(trip.id)}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                title="Delete trip"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
