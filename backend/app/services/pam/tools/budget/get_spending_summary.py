@@ -20,6 +20,7 @@ from app.services.pam.tools.exceptions import (
 from app.services.pam.tools.utils import (
     validate_uuid,
     validate_date_format,
+    normalize_date_format,
     safe_db_select,
 )
 
@@ -60,10 +61,13 @@ async def get_spending_summary(
     try:
         validate_uuid(user_id, "user_id")
 
+        # Normalize date formats to YYYY-MM-DD
         if start_date:
             validate_date_format(start_date, "start_date")
+            start_date = normalize_date_format(start_date)
         if end_date:
             validate_date_format(end_date, "end_date")
+            end_date = normalize_date_format(end_date)
 
         valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"]
         if period not in valid_periods:

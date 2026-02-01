@@ -21,6 +21,7 @@ from app.services.pam.tools.utils import (
     validate_uuid,
     validate_positive_number,
     validate_date_format,
+    normalize_date_format,
     safe_db_insert,
 )
 
@@ -125,11 +126,17 @@ async def plan_trip(
         if budget is not None:
             validate_positive_number(budget, "budget")
 
+        # Normalize date formats to YYYY-MM-DD
+        normalized_start_date = None
+        normalized_end_date = None
+
         if start_date:
             validate_date_format(start_date, "start_date")
+            normalized_start_date = normalize_date_format(start_date)
 
         if end_date:
             validate_date_format(end_date, "end_date")
+            normalized_end_date = normalize_date_format(end_date)
 
         try:
             validated = PlanTripInput(
@@ -138,8 +145,8 @@ async def plan_trip(
                 destination=destination,
                 budget=budget,
                 stops=stops,
-                start_date=start_date,
-                end_date=end_date
+                start_date=normalized_start_date,
+                end_date=normalized_end_date
             )
         except ValidationError as e:
             error_msg = e.errors()[0]['msg']

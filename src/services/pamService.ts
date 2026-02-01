@@ -24,10 +24,11 @@
  */
 
 import { getPamLocationContext, formatLocationForPam } from '@/utils/pamLocationContext';
+import { cleanDatesForPam, getTodayForPam } from '@/utils/pamDateFormat';
 import { logger } from '@/lib/logger';
 import type { Pam2ChatRequest, Pam2ChatResponse, Pam2HealthResponse, UIAction } from '@/types/pamTypes';
 import { MessageQueue, type QueuedMessage } from '@/utils/messageQueue';
-import { type PamContext, type PamApiMessage, validatePamContext } from '@/types/pamContext';
+import { type PamApiMessage, validatePamContext } from '@/types/pamContext';
 import { toast } from 'sonner';
 import { pamTripBridge, extractMapActionFromToolResult } from './pamTripBridge';
 
@@ -1508,12 +1509,17 @@ class PamService {
           // Add environment context
           environment: this.getEnvironment(),
           timestamp: Date.now(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // User's browser timezone
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, // User's browser timezone
+          // Add current date in PAM format for date-based queries
+          current_date: getTodayForPam()
         };
+
+        // Clean any existing date fields to ensure PAM format compliance
+        const cleanedContext = cleanDatesForPam(enhancedContext);
 
         // Validate context before sending (development/staging only)
         if (this.getEnvironment() !== 'production') {
-          const validation = validatePamContext(enhancedContext);
+          const validation = validatePamContext(cleanedContext);
           if (validation.warnings.length > 0) {
             console.warn('⚠️ PAM Context Validation Warnings:');
             validation.warnings.forEach(w => console.warn(w));
@@ -1526,29 +1532,52 @@ class PamService {
 
         return {
           ...message,
-          context: enhancedContext
+          context: {
+            user_id: message.user_id,
+            ...cleanedContext
+          }
         };
       } else {
         console.log('🌍 No location context available for PAM');
+        const contextWithDefaults = {
+          ...message.context,
+          environment: this.getEnvironment(),
+          timestamp: Date.now(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, // User's browser timezone
+          // Add current date in PAM format for date-based queries
+          current_date: getTodayForPam()
+        };
+
+        // Clean any existing date fields to ensure PAM format compliance
+        const cleanedContext = cleanDatesForPam(contextWithDefaults);
+
         return {
           ...message,
           context: {
-            ...message.context,
-            environment: this.getEnvironment(),
-            timestamp: Date.now(),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // User's browser timezone
+            user_id: message.user_id,
+            ...cleanedContext
           }
         };
       }
     } catch (error) {
       console.warn('⚠️ Failed to enhance message with location:', error);
+      const fallbackContext = {
+        ...message.context,
+        environment: this.getEnvironment(),
+        timestamp: Date.now(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, // User's browser timezone
+        // Add current date in PAM format for date-based queries
+        current_date: getTodayForPam()
+      };
+
+      // Clean any existing date fields to ensure PAM format compliance
+      const cleanedContext = cleanDatesForPam(fallbackContext);
+
       return {
         ...message,
         context: {
-          ...message.context,
-          environment: this.getEnvironment(),
-          timestamp: Date.now(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // User's browser timezone
+          user_id: message.user_id,
+          ...cleanedContext
         }
       };
     }
@@ -1559,11 +1588,9 @@ class PamService {
   // =====================================================
 
   async testConnection(): Promise<boolean> {
-    const startTime = Date.now();
     try {
       // For WebSocket, test the connection state directly
       if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-        const latency = Date.now() - startTime;
         this.metrics.lastHealthCheck = Date.now();
 
         this.updateStatus({
