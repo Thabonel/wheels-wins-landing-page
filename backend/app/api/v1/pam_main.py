@@ -1317,12 +1317,34 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
             context["user_location"] = context["userLocation"]
             logger.info(f"📍 [DEBUG] User location received: {context['user_location']}")
         
-        # Add current timestamp in user's timezone (if location provided)
-        context["server_timestamp"] = datetime.utcnow().isoformat()
-        
-        # TODO: Add timezone detection based on user location
-        # For now, note that user reported it's August 1st in their timezone
-        context["user_timezone_note"] = "User reported August 1st in their location"
+        # Add timezone-aware server timestamp
+        from app.services.pam.utils.timezone_utils import (
+            get_user_local_time,
+            get_timezone_info,
+            normalize_context_timezone
+        )
+
+        try:
+            # Normalize context for backward compatibility
+            context = normalize_context_timezone(context)
+
+            # Get user's local time instead of UTC
+            user_local_time = get_user_local_time(context)
+            utc_time = datetime.utcnow()
+
+            # Add both local and UTC timestamps for clarity
+            context["server_timestamp"] = user_local_time.isoformat()
+            context["server_timestamp_utc"] = utc_time.isoformat()
+            context["timezone_info"] = get_timezone_info(context)
+
+            logger.info(f"⏰ Time context added - Local: {user_local_time.strftime('%I:%M %p %Z')}, "
+                      f"UTC: {utc_time.strftime('%I:%M %p UTC')}")
+
+        except Exception as e:
+            logger.error(f"❌ Timezone processing failed: {e}")
+            # Fallback to UTC
+            context["server_timestamp"] = datetime.utcnow().isoformat()
+            context["timezone_error"] = str(e)
         
         logger.info(f"🔍 [DEBUG] handle_websocket_chat called with:")
         logger.info(f"  - Raw data: {data}")
