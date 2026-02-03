@@ -5874,6 +5874,114 @@ Example: To add an item to a list:
         logger.error(f"❌ Universal Action tool registration failed: {e}")
         failed_count += 1
 
+    # ===============================
+    # UNIVERSAL EXTRACT TOOL (OpenClaw Site-Agnostic Extraction)
+    # Critical for: Extracting structured data from any website
+    # ===============================
+    try:
+        logger.debug("🔄 Attempting to register Universal Extract tool...")
+        UniversalExtractTool = lazy_import(
+            "app.services.pam.tools.universal_extract_tool",
+            "UniversalExtractTool"
+        )
+        UNIVERSAL_EXTRACT_FUNCTION = lazy_import(
+            "app.services.pam.tools.universal_extract_tool",
+            "UNIVERSAL_EXTRACT_FUNCTION"
+        )
+
+        if UniversalExtractTool is None:
+            raise ImportError("UniversalExtractTool not available")
+
+        registry.register_tool(
+            tool=UniversalExtractTool(),
+            function_definition=UNIVERSAL_EXTRACT_FUNCTION if UNIVERSAL_EXTRACT_FUNCTION else {
+                "name": "universal_extract",
+                "description": "Extract structured data from any website URL using AI-powered site-agnostic extraction. Automatically detects page type and extracts relevant information.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "URL to extract data from"
+                        },
+                        "intent": {
+                            "type": "string",
+                            "description": "What information to extract (e.g., 'get the price', 'find campground amenities')"
+                        },
+                        "output_format": {
+                            "type": "string",
+                            "enum": ["json", "markdown", "natural"],
+                            "description": "Output format for extracted data"
+                        }
+                    },
+                    "required": ["url"]
+                }
+            },
+            capability=ToolCapability.EXTERNAL_API,
+            priority=1,
+            max_execution_time=60
+        )
+        logger.info("✅ Universal Extract (site-agnostic extraction) tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Universal Extract tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Universal Extract tool registration failed: {e}")
+        failed_count += 1
+
+    # ===============================
+    # UNIVERSAL BROWSER TOOL (OpenClaw Enhanced Browser Automation)
+    # Critical for: Advanced browser automation with form filling and workflows
+    # ===============================
+    try:
+        logger.debug("🔄 Attempting to register Universal Browser tool...")
+        UniversalBrowserTool = lazy_import(
+            "app.services.pam.tools.universal_browser_tool",
+            "UniversalBrowserTool"
+        )
+        UNIVERSAL_BROWSER_FUNCTION = lazy_import(
+            "app.services.pam.tools.universal_browser_tool",
+            "UNIVERSAL_BROWSER_FUNCTION"
+        )
+
+        if UniversalBrowserTool is None:
+            raise ImportError("UniversalBrowserTool not available")
+
+        registry.register_tool(
+            tool=UniversalBrowserTool(),
+            function_definition=UNIVERSAL_BROWSER_FUNCTION if UNIVERSAL_BROWSER_FUNCTION else {
+                "name": "universal_browser",
+                "description": "Advanced browser automation with form filling, multi-step workflows, and smart element detection.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["navigate", "index_page", "click", "type", "fill_form", "extract", "scroll", "screenshot", "pause", "resume"],
+                            "description": "Browser action to perform"
+                        },
+                        "url": {"type": "string", "description": "URL to navigate to"},
+                        "element_index": {"type": "integer", "description": "Element number to interact with"},
+                        "text": {"type": "string", "description": "Text to type"},
+                        "form_data": {"type": "object", "description": "Form fields to fill"}
+                    },
+                    "required": ["action"]
+                }
+            },
+            capability=ToolCapability.BROWSER_AUTOMATION,
+            priority=1,
+            max_execution_time=90
+        )
+        logger.info("✅ Universal Browser (enhanced automation) tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"⚠️ Could not register Universal Browser tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"❌ Universal Browser tool registration failed: {e}")
+        failed_count += 1
+
     # Registration summary
     total_attempted = registered_count + failed_count
     success_rate = (registered_count / total_attempted * 100) if total_attempted > 0 else 0

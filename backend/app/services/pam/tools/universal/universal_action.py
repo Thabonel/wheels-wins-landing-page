@@ -15,7 +15,10 @@ Supported actions:
 - resume: Resume after manual interaction
 """
 
+import os
+import re
 import time
+import uuid
 from typing import Dict, Any, Optional, List
 
 from ..base_tool import BaseTool, ToolResult
@@ -27,6 +30,7 @@ from app.services.usa import (
     RateLimitError,
     ElementNotFoundError,
 )
+from app.core.url_validator import validate_url_safe, SSRFProtectionError
 
 # Tool schema for Claude function calling
 UNIVERSAL_ACTION_SCHEMA = {
@@ -229,6 +233,15 @@ class UniversalActionTool(BaseTool):
         if not url:
             return self._create_error_result("URL is required for navigate action")
 
+        # SSRF protection - validate URL before navigation
+        try:
+            validate_url_safe(url)
+        except SSRFProtectionError:
+            self.logger.warning(f"SSRF protection blocked navigation to: {url}")
+            return self._create_error_result(
+                "This URL is not accessible for security reasons. Only public websites can be accessed."
+            )
+
         await session.page.goto(url, wait_until="domcontentloaded", timeout=30000)
         screenshot_url = await self._take_screenshot(session, user_id)
 
@@ -380,10 +393,34 @@ class UniversalActionTool(BaseTool):
         })
 
     async def _take_screenshot(self, session, user_id: str) -> str:
-        """Take screenshot and return URL path"""
+        """Take screenshot and return URL path with path traversal protection"""
+        # Validate user_id format (alphanumeric + underscore + hyphen only)
+        if not re.match(r'^[a-zA-Z0-9_-]+$', user_id):
+            self.logger.warning(f"Invalid user_id format for screenshot: {user_id[:20]}...")
+            # Use a safe fallback
+            safe_user_id = "anonymous"
+        else:
+            safe_user_id = user_id
+
+        # Generate unique filename with timestamp and UUID to prevent collisions
         timestamp = int(time.time())
-        filename = f"usa_{user_id}_{timestamp}.png"
-        path = f"/tmp/{filename}"
+        unique_id = uuid.uuid4().hex[:8]
+        filename = f"usa_{safe_user_id}_{timestamp}_{unique_id}.png"
+
+        # Use configurable screenshot directory with fallback
+        screenshot_dir = os.environ.get("SCREENSHOT_DIR", "/tmp/usa_screenshots")
+
+        # Ensure directory exists
+        os.makedirs(screenshot_dir, exist_ok=True)
+
+        # Build path and verify no traversal
+        path = os.path.join(screenshot_dir, filename)
+        real_dir = os.path.realpath(screenshot_dir)
+        real_path = os.path.realpath(path)
+
+        if not real_path.startswith(real_dir + os.sep):
+            self.logger.error(f"Path traversal attempt detected in screenshot path")
+            return ""
 
         try:
             await session.page.screenshot(path=path, full_page=False)

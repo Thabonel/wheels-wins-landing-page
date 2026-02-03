@@ -63,8 +63,16 @@ openai-whisper>=20240930
 # Advanced TTS (optional - edge-tts provides basic functionality)
 # TTS>=0.22.0
 
-# Advanced web scraping (optional)
-# lxml==4.9.3
+# OpenClaw Security Module Dependencies
+# Browser automation (for extraction module)
+playwright>=1.40.0
+playwright-stealth>=1.0.6
+
+# HTML parsing (for extraction module)
+lxml>=5.0.0
+
+# Security (for dynamic tools sandbox)
+RestrictedPython>=6.0
 
 # Recipe scraping for PAM meal planning (595+ supported sites)
 recipe-scrapers>=15.9.0
