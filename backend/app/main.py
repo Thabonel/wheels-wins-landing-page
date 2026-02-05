@@ -115,6 +115,7 @@ from app.api import news  # News RSS feed proxy
 from app.api.v1 import observability as observability_api
 from app.api import actions
 from app.api.v1 import voice_streaming
+from app.api.v1.fuel_receipts import router as fuel_receipts_router
 from app.webhooks import stripe_webhooks
 from app.api.deps import verify_supabase_jwt_token
 
@@ -945,6 +946,7 @@ app.include_router(monitoring.router, prefix="/api", tags=["Monitoring"])
 app.include_router(wins.router, prefix="/api", tags=["Wins"])
 app.include_router(wheels.router, prefix="/api", tags=["Wheels"])
 app.include_router(receipts.router, prefix="/api/v1", tags=["Receipts"])
+app.include_router(fuel_receipts_router, prefix="/api/v1", tags=["fuel-receipts"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
 
