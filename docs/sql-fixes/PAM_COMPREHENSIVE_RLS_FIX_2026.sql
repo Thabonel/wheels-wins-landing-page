@@ -419,18 +419,18 @@ BEGIN
     -- Users can insert their own posts
     CREATE POLICY "posts_user_insert" ON public.posts
       FOR INSERT TO authenticated
-      WITH CHECK (auth.uid() = user_id);
+      WITH CHECK (auth.uid() = author_id);
 
     -- Users can update their own posts
     CREATE POLICY "posts_user_update" ON public.posts
       FOR UPDATE TO authenticated
-      USING (auth.uid() = user_id)
-      WITH CHECK (auth.uid() = user_id);
+      USING (auth.uid() = author_id)
+      WITH CHECK (auth.uid() = author_id);
 
     -- Users can delete their own posts
     CREATE POLICY "posts_user_delete" ON public.posts
       FOR DELETE TO authenticated
-      USING (auth.uid() = user_id);
+      USING (auth.uid() = author_id);
 
     -- Service role full access for PAM backend
     CREATE POLICY "posts_service_role" ON public.posts
@@ -558,7 +558,7 @@ BEGIN
     -- Users can read messages they sent or received
     CREATE POLICY "messages_user_select" ON public.messages
       FOR SELECT TO authenticated
-      USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+      USING (auth.uid() = sender_id OR auth.uid() = recipient_id);
 
     -- Users can send messages
     CREATE POLICY "messages_user_insert" ON public.messages
