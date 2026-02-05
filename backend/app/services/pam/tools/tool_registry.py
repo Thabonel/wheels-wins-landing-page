@@ -389,6 +389,23 @@ class ToolRegistry:
             self.tool_definitions[tool_name].enabled = True
             logger.info(f"✅ Tool '{tool_name}' enabled")
 
+    def get_all_tools(self) -> Dict[str, 'BaseTool']:
+        """Get all registered tool instances"""
+        return dict(self.tools)
+
+    def get_all_tool_definitions(self) -> List[Dict[str, Any]]:
+        """Get all tool definitions in OpenAI function format (includes disabled)"""
+        definitions = []
+        for tool_name, definition in self.tool_definitions.items():
+            if tool_name not in self.tools:
+                continue
+            definitions.append({
+                "name": tool_name,
+                "description": definition.description,
+                "parameters": definition.parameters
+            })
+        return definitions
+
 
 # Global tool registry instance
 _tool_registry: Optional[ToolRegistry] = None
