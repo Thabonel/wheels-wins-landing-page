@@ -51,6 +51,8 @@ class ToolCapability(Enum):
 
     # Browser Automation (Universal Site Access)
     BROWSER_AUTOMATION = "browser_automation"
+    BROWSE = "browse"
+    DATA_EXTRACTION = "data_extraction"
 
 
 # Compatibility mapping for migration
