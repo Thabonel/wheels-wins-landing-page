@@ -70,3 +70,27 @@ def test_parse_receipt_text_overall_confidence():
     result = parse_receipt_text(STANDARD_RECEIPT)
     assert "overall_confidence" in result
     assert 0 <= result["overall_confidence"] <= 1.0
+
+
+def test_add_fuel_entry_accepts_receipt_url():
+    """add_fuel_entry must accept receipt_url parameter"""
+    import inspect
+    from app.services.pam.tools.fuel.fuel_crud import add_fuel_entry
+    sig = inspect.signature(add_fuel_entry)
+    assert "receipt_url" in sig.parameters
+    assert "receipt_metadata" in sig.parameters
+
+
+def test_scan_fuel_receipt_tool_exists():
+    """scan_fuel_receipt must be importable"""
+    from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt
+    assert callable(scan_fuel_receipt)
+
+
+def test_scan_fuel_receipt_registered_in_registry():
+    """scan_fuel_receipt must be in tool registry after loading"""
+    from app.services.pam.tools.tool_registry import ToolRegistry, _register_all_tools
+    import asyncio
+    registry = ToolRegistry()
+    asyncio.get_event_loop().run_until_complete(_register_all_tools(registry))
+    assert "scan_fuel_receipt" in registry.get_all_tools()

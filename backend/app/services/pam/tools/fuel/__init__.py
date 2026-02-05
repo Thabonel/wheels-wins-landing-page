@@ -10,10 +10,12 @@ from .fuel_crud import (
     delete_fuel_entry,
     get_fuel_stats,
 )
+from .scan_receipt import scan_fuel_receipt
 
 __all__ = [
     "add_fuel_entry",
     "update_fuel_entry",
     "delete_fuel_entry",
     "get_fuel_stats",
+    "scan_fuel_receipt",
 ]

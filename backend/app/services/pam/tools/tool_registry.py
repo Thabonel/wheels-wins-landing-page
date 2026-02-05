@@ -5030,6 +5030,59 @@ async def _register_all_tools(registry: ToolRegistry):
         logger.error(f"❌ get_fuel_stats tool registration failed: {e}")
         failed_count += 1
 
+    # Scan Fuel Receipt
+    try:
+        logger.debug("Attempting to register scan_fuel_receipt tool...")
+        from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt
+
+        class ScanFuelReceiptWrapper(BaseTool):
+            def __init__(self):
+                super().__init__(
+                    "scan_fuel_receipt",
+                    "Scan a fuel receipt image to extract fuel data (total, volume, price, date, station). Use when user uploads or sends a receipt photo.",
+                    capabilities=[ToolCapability.USER_DATA]
+                )
+                self.scan_func = scan_fuel_receipt
+
+            async def initialize(self):
+                self.is_initialized = True
+                return True
+
+            async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+                return await self.scan_func(user_id=user_id, **parameters)
+
+        registry.register_tool(
+            tool=ScanFuelReceiptWrapper(),
+            function_definition={
+                "name": "scan_fuel_receipt",
+                "description": "Scan a fuel receipt image to extract fuel data (total, volume, price, date, station). Use when user uploads or sends a receipt photo.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "receipt_url": {
+                            "type": "string",
+                            "description": "URL of the uploaded receipt image"
+                        },
+                        "ocr_text": {
+                            "type": "string",
+                            "description": "Optional pre-extracted OCR text from frontend Tesseract.js"
+                        }
+                    },
+                    "required": ["receipt_url"]
+                }
+            },
+            capability=ToolCapability.USER_DATA,
+            priority=2
+        )
+        logger.info("scan_fuel_receipt tool registered")
+        registered_count += 1
+    except ImportError as e:
+        logger.warning(f"Could not register scan_fuel_receipt tool: {e}")
+        failed_count += 1
+    except Exception as e:
+        logger.error(f"scan_fuel_receipt tool registration failed: {e}")
+        failed_count += 1
+
     # =============================================================================
     # PRD-04: UNREGISTERED TOOLS - Previously created but not registered
     # =============================================================================
