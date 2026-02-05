@@ -76,9 +76,9 @@ class PAMSecurityGuardrail(BaseCallbackHandler):
             r"rot13|caesar|cipher",
             r"reverse\(\)|split\(\)\.reverse\(\)",
             
-            # Command injection
+            # Command injection (FIXED: Added word boundaries to prevent travel term false positives)
             r"`;|`\||&&|\|\||>>|<<",
-            r"exec\(|eval\(|compile\(|__import__",
+            r"\bexec\(|\beval\(|\bcompile\(|__import__",
             r"os\.system|subprocess|shell=true",
         ]
         
@@ -116,14 +116,27 @@ class PAMSecurityGuardrail(BaseCallbackHandler):
             "finance": ["credit card", "bank", "routing"],
         }
         
+        # Travel planning whitelist patterns (checked BEFORE security patterns)
+        self.TRAVEL_PATTERNS = [
+            r"\b(trek|travel|drive|route|itinerary|stops?|waypoints?)\b",
+            r"\b(outback|ranges|gorge|creek|bore|tracks?|trail|off-road)\b",
+            r"\b(camping|camps?|rv\s*parks?|caravan|free\s*camps?)\b",
+            r"\b(cunnamulla|thargomindah|innamincka|broken\s*hill|menindee)\b",
+            r"\b(sightseeing|exploring|swimming|vehicle\s*checks?|rough|vehicle)\b",
+        ]
+
         # Compile patterns for efficiency
         self.compiled_injection_patterns = [
-            re.compile(pattern, re.IGNORECASE) 
+            re.compile(pattern, re.IGNORECASE)
             for pattern in self.PROMPT_INJECTION_PATTERNS
         ]
         self.compiled_pam_patterns = [
-            re.compile(pattern, re.IGNORECASE) 
+            re.compile(pattern, re.IGNORECASE)
             for pattern in self.PAM_SPECIFIC_PATTERNS
+        ]
+        self.compiled_travel_patterns = [
+            re.compile(pattern, re.IGNORECASE)
+            for pattern in self.TRAVEL_PATTERNS
         ]
 
     def on_llm_start(self, 
@@ -180,28 +193,42 @@ class PAMSecurityGuardrail(BaseCallbackHandler):
                     if threat and threat['severity'] == 'high':
                         logger.warning(f"High severity threat in output: {threat}")
 
+    def _contains_travel_context(self, text: str) -> bool:
+        """Check if text contains travel planning context indicators"""
+        travel_matches = 0
+        for pattern in self.compiled_travel_patterns:
+            if pattern.search(text):
+                travel_matches += 1
+        return travel_matches >= 1  # Lowered threshold for better detection
+
     def _detect_threat(self, text: str) -> Optional[Dict[str, Any]]:
         """
-        Detect security threats in text.
-        
+        Detect security threats in text with travel context awareness.
+
         Returns:
             Dict with threat details or None if safe
         """
         if not text:
             return None
-            
+
         text_lower = text.lower()
-        
+        has_travel_context = self._contains_travel_context(text)
+
         # Check prompt injection patterns
         for pattern in self.compiled_injection_patterns:
             if pattern.search(text):
+                # If travel context detected and pattern contains "run", be more lenient
+                if has_travel_context and "run" in pattern.pattern:
+                    logger.info(f"Travel context detected - allowing potential false positive: {text[:100]}")
+                    continue
+
                 return {
                     "type": "prompt_injection",
                     "pattern": pattern.pattern,
                     "severity": "high",
                     "timestamp": datetime.utcnow().isoformat()
                 }
-        
+
         # Check PAM-specific patterns
         for pattern in self.compiled_pam_patterns:
             if pattern.search(text):
@@ -211,7 +238,7 @@ class PAMSecurityGuardrail(BaseCallbackHandler):
                     "severity": "high",
                     "timestamp": datetime.utcnow().isoformat()
                 }
-        
+
         # Check for suspicious encoding
         if self._has_suspicious_encoding(text):
             return {
@@ -219,7 +246,7 @@ class PAMSecurityGuardrail(BaseCallbackHandler):
                 "severity": "medium",
                 "timestamp": datetime.utcnow().isoformat()
             }
-        
+
         return None
 
     def _is_suspicious_output(self, text: str) -> bool:

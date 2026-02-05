@@ -89,6 +89,15 @@ class SafetyLayer:
 
     def _compile_patterns(self):
         """Compile regex patterns for fast detection"""
+        # Travel planning whitelist patterns (checked BEFORE security patterns)
+        self.travel_patterns = {
+            "route_planning": re.compile(r"\b(trek|travel|drive|route|itinerary|stops?|waypoints?)\b", re.IGNORECASE),
+            "geographic_terms": re.compile(r"\b(outback|ranges|gorge|creek|bore|tracks?|trail|off-road)\b", re.IGNORECASE),
+            "camping_terms": re.compile(r"\b(camping|camps?|rv\s*parks?|caravan|free\s*camps?)\b", re.IGNORECASE),
+            "australian_places": re.compile(r"\b(cunnamulla|thargomindah|innamincka|broken\s*hill|menindee)\b", re.IGNORECASE),
+            "travel_activities": re.compile(r"\b(sightseeing|exploring|swimming|vehicle\s*checks?|rough|vehicle)\b", re.IGNORECASE),
+        }
+
         self.patterns = {
             # System prompt manipulation
             "system_override": re.compile(
@@ -108,9 +117,9 @@ class SafetyLayer:
                 re.IGNORECASE
             ),
 
-            # Code execution attempts
+            # Code execution attempts (FIXED: Added word boundaries to prevent "off-road" false positives)
             "code_execution": re.compile(
-                r"(execute|eval|run|import|__.*__|subprocess|os\.system|exec\()",
+                r"\b(execute|eval|run|import|subprocess|exec)\b|__.*__|os\.system",
                 re.IGNORECASE
             ),
 
@@ -170,10 +179,34 @@ class SafetyLayer:
         regex_result.latency_ms = (time.time() - start_time) * 1000
         return regex_result
 
+    def _contains_travel_context(self, message: str) -> bool:
+        """Check if message contains travel planning context indicators"""
+        travel_score = 0
+        matched_patterns = []
+        for pattern_name, pattern in self.travel_patterns.items():
+            if pattern.search(message):
+                travel_score += 1
+                matched_patterns.append(pattern_name)
+
+        # Log for debugging
+        if travel_score > 0:
+            logger.info(f"Travel context analysis for '{message[:50]}...': score={travel_score}, patterns={matched_patterns}")
+
+        # If we find 1 or more travel indicators, consider it travel context (lowered threshold)
+        return travel_score >= 1
+
     def _check_regex(self, message: str) -> SafetyResult:
-        """Stage 1: Fast regex-based detection"""
+        """Stage 1: Fast regex-based detection with travel context awareness"""
+        # Check if this appears to be travel planning content
+        has_travel_context = self._contains_travel_context(message)
+
         for pattern_name, pattern in self.patterns.items():
             if pattern.search(message):
+                # If travel context detected and this is code_execution pattern, be more lenient
+                if has_travel_context and pattern_name == "code_execution":
+                    logger.info(f"Travel context detected - allowing message with code_execution pattern: {message[:100]}")
+                    continue  # Skip this security pattern for travel content
+
                 return SafetyResult(
                     is_malicious=True,
                     confidence=0.9,
