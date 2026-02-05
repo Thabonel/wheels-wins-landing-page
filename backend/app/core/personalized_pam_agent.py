@@ -121,8 +121,9 @@ class PersonalizedPamAgent:
         # Context cache for conversation persistence
         self.user_contexts: Dict[str, UserContext] = {}
 
-        # Get tool registry (initialize if needed)
+        # Get tool registry (async initialization happens on first use)
         self.tool_registry = get_tool_registry()
+        self._registry_initialized = False
 
         # Domain Memory router for complex multi-step tasks
         self._domain_memory_router: Optional[DomainMemoryRouter] = None
@@ -166,6 +167,14 @@ class PersonalizedPamAgent:
                 enable_all=True,
             )
         return self._context_manager
+
+    async def _ensure_registry_initialized(self):
+        """Lazy async initialization of tool registry on first use."""
+        if not self._registry_initialized:
+            self.tool_registry = await initialize_tool_registry()
+            self._registry_initialized = True
+            tool_count = len(self.tool_registry.get_all_tools())
+            logger.info(f"Tool registry initialized with {tool_count} tools")
 
     def _is_complex_request(self, message: str) -> bool:
         """
@@ -290,6 +299,9 @@ class PersonalizedPamAgent:
         - Routes complex requests through sub-agent orchestration
         """
         try:
+            # Ensure tool registry is loaded with all tools
+            await self._ensure_registry_initialized()
+
             # Convert user_id to UUID for context engineering
             user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
 
