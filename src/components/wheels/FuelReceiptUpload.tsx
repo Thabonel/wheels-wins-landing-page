@@ -177,6 +177,40 @@ export default function FuelReceiptUpload({
     };
   };
 
+  const callTextParseAPI = async (
+    ocrText: string,
+    token: string
+  ): Promise<ExtractedData> => {
+    const resp = await fetch(
+      `${BACKEND_URL}/api/v1/fuel/parse-receipt-text`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: ocrText }),
+      }
+    );
+
+    if (!resp.ok) {
+      throw new Error("Text parsing failed");
+    }
+
+    const result = await resp.json();
+    const data = result.extracted || result;
+
+    return {
+      total: data.total ?? null,
+      volume: data.volume ?? null,
+      price: data.price ?? null,
+      date: data.date ?? null,
+      station: data.station ?? null,
+      unit: data.unit || (isImperial ? "gal" : "L"),
+      overall_confidence: result.overall_confidence || data.overall_confidence || 0,
+    };
+  };
+
   const callVisionAPI = async (
     file: File,
     token: string
@@ -245,29 +279,31 @@ export default function FuelReceiptUpload({
 
       // Step 2: Try Tesseract.js OCR first (client-side, free)
       setProcessingStep("Reading receipt with OCR...");
-      let useVisionFallback = false;
+      let handled = false;
 
       try {
         const ocr = await runTesseractOCR(selectedFile);
 
         if (
-          ocr.confidence < CONFIDENCE_THRESHOLD ||
-          ocr.text.trim().length < MIN_OCR_TEXT_LENGTH
+          ocr.confidence >= CONFIDENCE_THRESHOLD &&
+          ocr.text.trim().length >= MIN_OCR_TEXT_LENGTH
         ) {
-          // Low confidence or too little text - fall back to Vision API
-          useVisionFallback = true;
-        } else {
-          // Tesseract got text, but we still need structured parsing.
-          // Send to Vision API which does better structured extraction.
-          useVisionFallback = true;
+          // Good OCR result - parse the text server-side with regex
+          setProcessingStep("Parsing receipt data...");
+          try {
+            const parsed = await callTextParseAPI(ocr.text, token);
+            applyExtractedData(parsed);
+            handled = true;
+          } catch {
+            // Text parsing failed, fall through to Vision API
+          }
         }
-      } catch (ocrErr) {
-        console.error("Tesseract OCR failed:", ocrErr);
-        useVisionFallback = true;
+      } catch {
+        // Tesseract failed entirely, fall through to Vision API
       }
 
-      // Step 3: Use backend Vision API for structured data extraction
-      if (useVisionFallback) {
+      // Step 3: Vision API fallback when Tesseract was insufficient
+      if (!handled) {
         setProcessingStep("Analyzing receipt with AI...");
         const visionData = await callVisionAPI(selectedFile, token);
         applyExtractedData(visionData);

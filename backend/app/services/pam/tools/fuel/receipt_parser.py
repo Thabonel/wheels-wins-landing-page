@@ -115,9 +115,7 @@ def _extract_date(text: str) -> tuple[Optional[str], float]:
         (r"(\d{4})-(\d{1,2})-(\d{1,2})", "ymd", 0.95),
         # MM/DD/YYYY
         (r"(\d{1,2})/(\d{1,2})/(\d{4})", "mdy", 0.85),
-        # DD/MM/YYYY (ambiguous, lower confidence)
-        (r"(\d{1,2})-(\d{1,2})-(\d{4})", "mdy", 0.75),
-        # MM-DD-YYYY
+        # DD-MM-YYYY or MM-DD-YYYY (ambiguous with dashes, lower confidence)
         (r"(\d{1,2})-(\d{1,2})-(\d{4})", "mdy", 0.75),
     ]
 

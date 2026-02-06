@@ -6,10 +6,11 @@ Claude Vision-based OCR extraction as a fallback parsing method.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+import json
 import uuid
 import mimetypes
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.core.database import get_supabase_client
 from app.api.deps import verify_supabase_jwt_token
@@ -32,9 +33,30 @@ ALLOWED_MIME_TYPES = [
 ]
 
 
+MAX_BASE64_SIZE = 10 * 1024 * 1024  # ~7.5MB image after base64 encoding
+
+
 class VisionParseRequest(BaseModel):
     image_base64: str
     mime_type: str = "image/jpeg"
+
+    @field_validator("image_base64")
+    @classmethod
+    def validate_base64_size(cls, v: str) -> str:
+        if len(v) > MAX_BASE64_SIZE:
+            raise ValueError(f"Image too large. Maximum base64 size is {MAX_BASE64_SIZE} bytes")
+        return v
+
+    @field_validator("mime_type")
+    @classmethod
+    def validate_mime_type(cls, v: str) -> str:
+        if v not in ALLOWED_MIME_TYPES:
+            raise ValueError(f"Unsupported mime type: {v}. Allowed: {', '.join(ALLOWED_MIME_TYPES)}")
+        return v
+
+
+class TextParseRequest(BaseModel):
+    text: str
 
 
 @router.post("/fuel/upload-receipt")
@@ -64,8 +86,6 @@ async def upload_fuel_receipt(
                 detail=f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / 1024 / 1024}MB",
             )
 
-        await file.seek(0)
-
         content_type = file.content_type
         if content_type not in ALLOWED_MIME_TYPES:
             guessed_type = mimetypes.guess_type(file.filename)[0]
@@ -77,7 +97,7 @@ async def upload_fuel_receipt(
             content_type = guessed_type
 
         file_ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         unique_filename = f"{user_id}/fuel-receipts/{timestamp}_{uuid.uuid4().hex[:8]}.{file_ext}"
 
         supabase = get_supabase_client()
@@ -212,8 +232,6 @@ async def parse_receipt_with_vision(
             lines = [l for l in lines if not l.strip().startswith("```")]
             raw_text = "\n".join(lines).strip()
 
-        import json
-
         extracted = json.loads(raw_text)
 
         # Compute overall_confidence from per-field confidence values
@@ -250,3 +268,20 @@ async def parse_receipt_with_vision(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to parse receipt with vision",
         )
+
+
+@router.post("/fuel/parse-receipt-text")
+async def parse_receipt_text_endpoint(
+    body: TextParseRequest,
+    current_user: dict = Depends(verify_supabase_jwt_token),
+):
+    """Parse OCR text to extract structured fuel receipt data using regex patterns."""
+    from app.services.pam.tools.fuel.receipt_parser import parse_receipt_text
+
+    result = parse_receipt_text(body.text)
+    return {
+        "success": True,
+        "extracted": result,
+        "method": "tesseract_ocr",
+        "overall_confidence": result.get("overall_confidence", 0),
+    }
