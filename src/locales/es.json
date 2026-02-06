@@ -255,7 +255,7 @@
   "pricingplans.video_course_not_included": "Video Curso no incluido",
   "pricingplans.monthly_membership": "Membresía Mensual",
   "pricingplans.annual_membership": "Membresía Anual",
-  "pricingplans.best_value_just_825month_plus_": "Mejor precio - solo $8.25/mes y recibe el Video Curso de $97 GRATIS",
+  "pricingplans.best_value_just_825month_plus_": "Mejor precio - solo $8.25/mes y recibe el Video Curso de $47 GRATIS",
   "pricingplans.contextauthcontext": "@/context/AuthContext",
   "pricingplans.componentstrialconfirmationdia": "@/components/TrialConfirmationDialog",
   "pricingplans.hooksusesubscriptionflow": "@/hooks/useSubscriptionFlow",
@@ -283,7 +283,7 @@
   "featuredproduct": {
     "title": "Crea Videos de Viaje Divertidos para Amigos y Familia",
     "description": "Aprende a filmar, editar y compartir aventuras usando solo tu smartphone.",
-    "price": "$97",
+    "price": "$47",
     "button": "Ver Curso →"
   },
   "testimonials2": {
@@ -341,7 +341,7 @@
     "annual": {
       "badge": "Mejor Valor",
       "title": "Membresía Anual",
-      "description": "Mejor valor - solo $8.25/mes más el Video Curso de $97 GRATIS",
+      "description": "Mejor valor - solo $8.25/mes más el Video Curso de $47 GRATIS",
       "period": "/año",
       "feature1": "Acceso completo a nuestra plataforma y comunidad",
       "feature2": "Incluye Video Curso (valor {{value}})",

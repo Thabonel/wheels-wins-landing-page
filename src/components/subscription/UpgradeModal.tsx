@@ -26,7 +26,7 @@ export default function UpgradeModal({ open, onOpenChange, isExpired = false }: 
   // AUD base prices
   const monthlyPrice = convertPrice(18, region);
   const annualPrice = convertPrice(216, region);
-  const courseSavings = convertPrice(97, region);
+  const courseSavings = convertPrice(47, region);
 
   const handleSubscribe = async (plan: 'monthly' | 'annual') => {
     // This will be connected to Stripe checkout
@@ -100,7 +100,7 @@ export default function UpgradeModal({ open, onOpenChange, isExpired = false }: 
             </div>
             <CardHeader className="text-center pt-8">
               <CardTitle className="text-xl">Annual Membership</CardTitle>
-              <CardDescription>Save 33% + FREE $97 Video Course</CardDescription>
+              <CardDescription>Save 33% + FREE $47 Video Course</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <div className="mb-6">
@@ -126,7 +126,7 @@ export default function UpgradeModal({ open, onOpenChange, isExpired = false }: 
                 <li className="flex items-start">
                   <Star className="h-5 w-5 mr-2 text-purple-600 flex-shrink-0 mt-0.5" />
                   <span className="font-medium text-purple-700">
-                    FREE Video Course ($97 value)
+                    FREE Video Course ($47 value)
                   </span>
                 </li>
               </ul>
