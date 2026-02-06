@@ -29,7 +29,7 @@ const FeaturedProduct = () => {
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <span className="text-2xl font-bold text-primary">A$97 or free with annual membership</span>
+                  <span className="text-2xl font-bold text-primary">A$47 or free with annual membership</span>
                   <Button
                     className="font-semibold"
                     size="lg"
