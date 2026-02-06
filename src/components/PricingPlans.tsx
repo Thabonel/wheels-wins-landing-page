@@ -24,7 +24,7 @@ const PricingPlans = () => {
   // Convert prices based on region
   const monthlyPrice = convertPrice(9.99, region);
   const annualPrice = convertPrice(99, region);
-  const videoCourseValue = convertPrice(97, region);
+  const videoCourseValue = convertPrice(47, region);
 
   const handleSubscription = async (priceId: string, planName: string) => {
     // If user is not authenticated, store the plan and redirect to signup
@@ -215,7 +215,7 @@ const PricingPlans = () => {
                   </li>
                   <li className="flex items-start">
                     <span className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5 text-primary font-medium">-</span>
-                    <span>Free video course (A$97 value)</span>
+                    <span>Free video course (A$47 value)</span>
                   </li>
                 </ul>
               </CardContent>
@@ -289,7 +289,7 @@ const PricingPlans = () => {
                     <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>
                   </tr>
                   <tr className="bg-gray-50">
-                    <td className="p-4">Free RV travel video course (A$97 value)</td>
+                    <td className="p-4">Free RV travel video course (A$47 value)</td>
                     <td className="text-center p-4"><span className="text-gray-400">-</span></td>
                     <td className="text-center p-4"><span className="text-gray-400">-</span></td>
                     <td className="text-center p-4"><span className="text-green-600 font-medium">Yes</span></td>

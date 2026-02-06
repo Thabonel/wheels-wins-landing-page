@@ -338,7 +338,7 @@
   "pricingplans.video_course_not_included": "Video Course not included",
   "pricingplans.monthly_membership": "Monthly Membership",
   "pricingplans.annual_membership": "Annual Membership",
-  "pricingplans.best_value_just_825month_plus_": "Best value - just $8.25/month plus get the $97 Video Course FREE",
+  "pricingplans.best_value_just_825month_plus_": "Best value - just $8.25/month plus get the $47 Video Course FREE",
   "pricingplans.contextauthcontext": "@/context/AuthContext",
   "pricingplans.componentstrialconfirmationdia": "@/components/TrialConfirmationDialog",
   "pricingplans.hooksusesubscriptionflow": "@/hooks/useSubscriptionFlow",
@@ -366,7 +366,7 @@
   "featuredproduct": {
     "title": "Make Fun Travel Videos for Friends & Family",
     "description": "Learn to film, edit, and share adventures using just your smartphone.",
-    "price": "$97",
+    "price": "$47",
     "button": "View Course →"
   },
   "testimonials2": {
@@ -424,7 +424,7 @@
     "annual": {
       "badge": "Best Value",
       "title": "Annual Membership",
-      "description": "Best value - just $8.25/month plus get the $97 Video Course FREE",
+      "description": "Best value - just $8.25/month plus get the $47 Video Course FREE",
       "period": "/year",
       "feature1": "Full access to our platform and community",
       "feature2": "Includes Video Course ({{value}} value)",
