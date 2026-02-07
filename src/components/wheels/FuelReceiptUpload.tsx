@@ -373,7 +373,7 @@ export default function FuelReceiptUpload({
         user_id: user.id,
         date: formData.date || getTodayDateLocal(),
         location: formData.station,
-        odometer: parseFloat(formData.odometer) || null,
+        odometer: formData.odometer ? Math.round(parseFloat(formData.odometer)) : null,
         volume: volume || null,
         price: price || null,
         total: total || null,
