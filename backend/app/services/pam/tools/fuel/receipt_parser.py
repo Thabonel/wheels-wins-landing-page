@@ -158,6 +158,29 @@ def _extract_station(text: str) -> tuple[Optional[str], float]:
     return None, 0.0
 
 
+def _extract_odometer(text: str) -> tuple[Optional[float], float]:
+    """Extract odometer/mileage reading. Returns (value, confidence)."""
+    patterns = [
+        # "Odometer: 123456" or "ODO: 123456"
+        (r"(?:ODO(?:METER)?|MILEAGE|KM|MILES)\s*:?\s*(\d{3,7})", 0.90),
+        # "123,456 km" or "123,456 mi"
+        (r"(\d{1,3}(?:,\d{3})+)\s*(?:km|mi|miles)", 0.85),
+        # "123456 km" or "123456 mi"
+        (r"(\d{4,7})\s*(?:km|mi|miles)", 0.80),
+    ]
+
+    for pattern, confidence in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            try:
+                val_str = match.group(1).replace(",", "")
+                return float(val_str), confidence
+            except ValueError:
+                continue
+
+    return None, 0.0
+
+
 def parse_receipt_text(text: str) -> Dict[str, Any]:
     """
     Parse OCR text from a fuel receipt and extract structured data.
@@ -179,6 +202,7 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
             "price": None,
             "date": None,
             "station": None,
+            "odometer": None,
             "unit": "L",
             "confidence": {
                 "total": 0.0,
@@ -186,6 +210,7 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
                 "price": 0.0,
                 "date": 0.0,
                 "station": 0.0,
+                "odometer": 0.0,
             },
             "overall_confidence": 0.0,
         }
@@ -195,6 +220,7 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
     price, price_conf = _extract_price(text)
     date_str, date_conf = _extract_date(text)
     station, station_conf = _extract_station(text)
+    odometer, odo_conf = _extract_odometer(text)
 
     confidence = {
         "total": total_conf,
@@ -202,7 +228,22 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
         "price": price_conf,
         "date": date_conf,
         "station": station_conf,
+        "odometer": odo_conf,
     }
+
+    # Auto-calculate missing field if we have 2 of 3
+    if total and price and not volume:
+        volume = round(total / price, 2)
+        volume_conf = min(total_conf, price_conf) * 0.9
+        confidence["volume"] = volume_conf
+    elif total and volume and not price:
+        price = round(total / volume, 3)
+        price_conf = min(total_conf, volume_conf) * 0.9
+        confidence["price"] = price_conf
+    elif volume and price and not total:
+        total = round(volume * price, 2)
+        total_conf = min(volume_conf, price_conf) * 0.9
+        confidence["total"] = total_conf
 
     # Overall confidence is the average of non-zero field confidences
     non_zero = [v for v in confidence.values() if v > 0]
@@ -214,6 +255,7 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
         "price": price,
         "date": date_str,
         "station": station,
+        "odometer": odometer,
         "unit": unit,
         "confidence": confidence,
         "overall_confidence": round(overall, 4),

@@ -71,7 +71,9 @@ async def scan_fuel_receipt(
                             "Extract fuel receipt data as JSON. Return ONLY valid JSON:\n"
                             '{"total": number or null, "volume": number or null, '
                             '"price": number or null, "date": "YYYY-MM-DD" or null, '
-                            '"station": "string" or null, "unit": "L" or "GAL"}'
+                            '"station": "string" or null, "odometer": number or null, '
+                            '"unit": "L" or "GAL"}. '
+                            "Calculate missing values if possible (total = volume * price)."
                         )
                     }
                 ]

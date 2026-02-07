@@ -188,14 +188,16 @@ async def parse_receipt_with_vision(
         extraction_prompt = (
             "Extract the following structured data from this fuel receipt image. "
             "Return ONLY valid JSON with these fields:\n"
-            '- "total": number or null (total cost in dollars)\n'
+            '- "total": number or null (total cost)\n'
             '- "volume": number or null (fuel volume)\n'
             '- "price": number or null (price per unit)\n'
             '- "date": "YYYY-MM-DD" string or null\n'
             '- "station": string or null (station name)\n'
+            '- "odometer": number or null (odometer/mileage reading if visible)\n'
             '- "unit": "L" or "GAL" (fuel unit)\n'
-            '- "confidence": object with keys total, volume, price, date, station '
+            '- "confidence": object with keys total, volume, price, date, station, odometer '
             "each valued 0.0-1.0 indicating extraction confidence\n"
+            "If you can calculate a missing value from others (e.g. total = volume * price), include it.\n"
             "Return only the JSON object, no markdown or explanation."
         )
 
@@ -247,6 +249,7 @@ async def parse_receipt_with_vision(
                 "price": extracted.get("price"),
                 "date": extracted.get("date"),
                 "station": extracted.get("station"),
+                "odometer": extracted.get("odometer"),
                 "unit": extracted.get("unit", "L"),
             },
             "method": "claude_vision",

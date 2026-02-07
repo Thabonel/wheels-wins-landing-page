@@ -72,6 +72,26 @@ def test_parse_receipt_text_overall_confidence():
     assert 0 <= result["overall_confidence"] <= 1.0
 
 
+def test_parse_receipt_text_extracts_odometer():
+    text = "TOTAL: $67.50\nVolume: 45.00L\nOdometer: 123456"
+    result = parse_receipt_text(text)
+    assert result["odometer"] == 123456
+
+
+def test_parse_receipt_text_extracts_odometer_with_km():
+    text = "TOTAL: $67.50\n45.00L\n123,456 km"
+    result = parse_receipt_text(text)
+    assert result["odometer"] == 123456
+
+
+def test_parse_receipt_text_auto_calculates_volume():
+    text = "TOTAL: $67.50\nPrice: $1.50/L"
+    result = parse_receipt_text(text)
+    assert result["total"] == 67.50
+    assert result["price"] == 1.50
+    assert result["volume"] == 45.0
+
+
 def test_add_fuel_entry_accepts_receipt_url():
     """add_fuel_entry must accept receipt_url parameter"""
     import inspect
