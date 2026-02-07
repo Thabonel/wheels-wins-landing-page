@@ -3,6 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import AddExpenseForm from './expenses/AddExpenseForm';
+import ExpenseReceiptUpload from './expenses/ExpenseReceiptUpload';
+import FuelReceiptUpload from '@/components/wheels/FuelReceiptUpload';
 import AddIncomeForm from './income/AddIncomeForm';
 import { useIncomeData } from './income/useIncomeData';
 import { X } from 'lucide-react';
@@ -26,9 +28,9 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({ open, onClos
       case 'expense':
         return 'Add Expense';
       case 'fuel':
-        return 'Log Fuel Expense';
+        return 'Log Fuel';
       case 'receipt':
-        return 'Upload Receipt';
+        return 'Scan Receipt';
       case 'voice':
         return 'Voice Entry';
       case 'income':
@@ -40,15 +42,25 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({ open, onClos
 
   const getContent = () => {
     switch (open) {
-      case 'expense':
       case 'fuel':
+        return (
+          <FuelReceiptUpload
+            onEntryCreated={onClose}
+            onCancel={onClose}
+          />
+        );
       case 'receipt':
+        return (
+          <ExpenseReceiptUpload
+            onExpenseCreated={onClose}
+            onCancel={onClose}
+          />
+        );
+      case 'expense':
       case 'voice':
         return (
           <AddExpenseForm
             onClose={onClose}
-            presetCategory={open === 'fuel' ? 'Fuel' : undefined}
-            startWithReceipt={open === 'receipt'}
             startWithVoice={open === 'voice'}
           />
         );
