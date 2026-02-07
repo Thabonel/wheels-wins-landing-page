@@ -131,6 +131,14 @@ async def calculate_gas_cost(
         if gas_price is not None:
             validate_positive_number(gas_price, "gas_price")
 
+        # Convert parameters before validation
+        if distance_km is not None and distance_miles is None:
+            distance_miles = convert_km_to_miles(distance_km)
+
+        # Set default MPG if not provided
+        if mpg is None:
+            mpg = DEFAULT_RV_MPG
+
         try:
             validated = CalculateGasCostInput(
                 user_id=user_id,
@@ -146,13 +154,8 @@ async def calculate_gas_cost(
                 context={"validation_errors": e.errors()}
             )
 
-        # Handle distance input (accept either miles or km, convert to miles internally)
-        if validated.distance_km is not None:
-            distance_miles = convert_km_to_miles(validated.distance_km)
-        else:
-            distance_miles = validated.distance_miles
-
-        if validated.mpg is None:
+        # Refine MPG from user vehicle data if using default
+        if mpg == DEFAULT_RV_MPG:
             try:
                 vehicle_response = await safe_db_select(
                     "vehicles",

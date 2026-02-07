@@ -36,7 +36,9 @@ async def add_fuel_entry(
     entry_date: Optional[str] = None,
     filled_to_top: bool = True,
     station: Optional[str] = None,
-    notes: Optional[str] = None
+    notes: Optional[str] = None,
+    receipt_url: Optional[str] = None,
+    receipt_metadata: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Add a fuel log entry with smart calculation.
@@ -139,6 +141,10 @@ async def add_fuel_entry(
             record_data["station"] = station
         if notes:
             record_data["notes"] = notes
+        if receipt_url:
+            record_data["receipt_url"] = receipt_url
+        if receipt_metadata:
+            record_data["receipt_metadata"] = receipt_metadata
 
         entry = await safe_db_insert("fuel_log", record_data, user_id)
 

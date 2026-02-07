@@ -4,7 +4,7 @@ Database Utilities
 Reusable database operations with consistent error handling.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 import logging
 
 from app.core.database import get_supabase_client
@@ -182,32 +182,47 @@ async def safe_db_delete(
 
 async def safe_db_select(
     table: str,
-    filters: Dict[str, Any],
-    user_id: str,
+    filters: Optional[Dict[str, Any]] = None,
+    user_id: Optional[str] = None,
+    # Support both 'select' and 'columns' for backward compatibility
     select: str = "*",
+    columns: Optional[str] = None,
+    # Add 'single' parameter for single record return
+    single: bool = False,
+    # Existing optional parameters
     order_by: Optional[str] = None,
     order_desc: bool = False,
     limit: Optional[int] = None
-) -> List[Dict[str, Any]]:
+) -> Union[List[Dict[str, Any]], Dict[str, Any], None]:
     """
     Safely select records from database with error handling.
+    Updated with backward compatibility for all PAM tool usage patterns.
 
     Args:
         table: Table name
-        filters: Dict of column: value filters (uses .eq())
-        user_id: User ID (for logging/context)
+        filters: Dict of column: value filters (optional for backward compatibility)
+        user_id: User ID (optional for logging/context)
         select: Columns to select (default: '*')
+        columns: Alias for select parameter (backward compatibility)
+        single: Return single record instead of list
         order_by: Column to order by (optional)
         order_desc: Sort descending (default: False)
         limit: Limit number of results (optional)
 
     Returns:
-        List of matching records
+        List of matching records, or single record if single=True
 
     Raises:
         DatabaseError: If select fails
     """
     try:
+        # Handle parameter compatibility
+        if columns is not None:
+            select = columns
+
+        if filters is None:
+            filters = {}
+
         supabase = get_supabase_client()
         query = supabase.table(table).select(select)
 
@@ -224,7 +239,13 @@ async def safe_db_select(
             query = query.limit(limit)
 
         result = query.execute()
-        return result.data or []
+        data = result.data or []
+
+        # Handle single record return
+        if single:
+            return data[0] if data else None
+
+        return data
 
     except Exception as e:
         logger.error(

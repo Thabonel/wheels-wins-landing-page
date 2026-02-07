@@ -80,6 +80,9 @@ from app.services.pam.tools.trip.estimate_travel_time import estimate_travel_tim
 from app.services.pam.tools.trip.save_favorite_spot import save_favorite_spot
 from app.services.pam.tools.trip.update_vehicle_fuel_consumption import update_vehicle_fuel_consumption
 
+# Import fuel receipt tools
+from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt
+
 # Import social tools
 from app.services.pam.tools.social.create_post import create_post
 from app.services.pam.tools.social.message_friend import message_friend
@@ -748,6 +751,24 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         "l_per_100km": {"type": "number", "description": "Fuel consumption in liters per 100 kilometers"},
                         "vehicle_id": {"type": "string", "description": "Specific vehicle ID (optional, uses primary vehicle if not provided)"}
                     }
+                }
+            },
+            {
+                "name": "scan_fuel_receipt",
+                "description": "Scan a fuel receipt image to extract fuel data (total, volume, price, date, station). Use when user uploads or sends a receipt photo.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "receipt_url": {
+                            "type": "string",
+                            "description": "URL of the uploaded receipt image"
+                        },
+                        "ocr_text": {
+                            "type": "string",
+                            "description": "Optional pre-extracted OCR text from frontend Tesseract.js"
+                        }
+                    },
+                    "required": ["receipt_url"]
                 }
             },
             # Social tools
@@ -1667,6 +1688,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             "estimate_travel_time": estimate_travel_time,
             "save_favorite_spot": save_favorite_spot,
             "update_vehicle_fuel_consumption": update_vehicle_fuel_consumption,
+            "scan_fuel_receipt": scan_fuel_receipt,
             # Social tools
             "create_post": create_post,
             "message_friend": message_friend,

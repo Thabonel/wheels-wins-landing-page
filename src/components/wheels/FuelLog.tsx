@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { getMapboxPublicToken } from "@/utils/mapboxConfig";
 import { Pencil, Trash2, CheckCircle2 } from "lucide-react";
 import { getTodayDateLocal } from "@/utils/format";
+import FuelReceiptUpload from "./FuelReceiptUpload";
 
 export default function FuelLog() {
   const { region } = useRegion();
@@ -43,6 +44,7 @@ export default function FuelLog() {
   });
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [showReceiptUpload, setShowReceiptUpload] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Fetch entries from Supabase
@@ -307,8 +309,12 @@ export default function FuelLog() {
 
       <div className="flex flex-col items-end gap-2">
         <p className="text-sm text-gray-600 text-right">You can ask Pam to log fuel, or add it manually:</p>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild><Button>Add Fuel Entry</Button></DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowReceiptUpload(true)}>
+            Scan Receipt
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild><Button>Add Fuel Entry</Button></DialogTrigger>
           <DialogContent><div className="space-y-4">
             <div><Label>Date</Label><Input type="date" value={newEntry.date} onChange={e => setNewEntry({ ...newEntry, date: e.target.value })} /></div>
             <div><Label>Location</Label><Input value={newEntry.location} onChange={e => setNewEntry({ ...newEntry, location: e.target.value })} /></div>
@@ -333,7 +339,23 @@ export default function FuelLog() {
             <Button onClick={handleAddEntry} disabled={(!newEntry.volume && !newEntry.price) || !newEntry.total}>Save Entry</Button>
           </div></DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {showReceiptUpload && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="text-lg font-semibold mb-3">Scan Fuel Receipt</h3>
+            <FuelReceiptUpload
+              onEntryCreated={(entry) => {
+                setFuelEntries(prev => [entry, ...prev]);
+                setShowReceiptUpload(false);
+              }}
+              onCancel={() => setShowReceiptUpload(false)}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {loading ? <p>Loading...</p> : <div className="rounded-md border overflow-hidden"><Table>
         <TableHeader><TableRow>
@@ -344,6 +366,7 @@ export default function FuelLog() {
           <TableHead>Total</TableHead>
           <TableHead>{consumptionLabel}</TableHead>
           <TableHead>Odometer</TableHead>
+          <TableHead>Receipt</TableHead>
           <TableHead>Actions</TableHead>
         </TableRow></TableHeader>
         <TableBody>{fuelEntries.map(entry => (
@@ -364,6 +387,14 @@ export default function FuelLog() {
               </div>
             </TableCell>
             <TableCell>{entry.odometer ?? '-'}</TableCell>
+            <TableCell>
+              {entry.receipt_url ? (
+                <a href={entry.receipt_url} target="_blank" rel="noopener noreferrer"
+                   className="text-blue-600 hover:underline text-sm">
+                  View
+                </a>
+              ) : '-'}
+            </TableCell>
             <TableCell>
               <div className="flex gap-2">
                 <Button
