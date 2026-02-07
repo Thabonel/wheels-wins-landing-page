@@ -195,7 +195,8 @@ export default function FuelReceiptUpload({
     );
 
     if (!resp.ok) {
-      throw new Error("Text parsing failed");
+      const errBody = await resp.json().catch(() => ({}));
+      throw new Error(errBody.detail || `Text parsing failed (${resp.status})`);
     }
 
     const result = await resp.json();
@@ -235,7 +236,8 @@ export default function FuelReceiptUpload({
     );
 
     if (!resp.ok) {
-      throw new Error("Vision analysis failed");
+      const errBody = await resp.json().catch(() => ({}));
+      throw new Error(errBody.detail || `Vision analysis failed (${resp.status})`);
     }
 
     const visionResult = await resp.json();
