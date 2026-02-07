@@ -25,15 +25,22 @@ router = APIRouter(prefix="/transition", tags=["transition"])
 # Supabase client factory (dependency injection pattern to prevent import-time failures)
 def get_supabase_client() -> Client:
     """Create Supabase client with proper error handling."""
-    supabase_url = os.getenv("SUPABASE_URL")
-    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    try:
+        from app.core.config import settings
+        supabase_url = str(settings.SUPABASE_URL)
+        service_role_key = settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value()
+        return create_client(supabase_url, service_role_key)
+    except Exception:
+        # Fallback to environment variables for compatibility
+        supabase_url = os.getenv("SUPABASE_URL")
+        service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-    if not supabase_url:
-        raise ValueError("SUPABASE_URL environment variable is required")
-    if not service_role_key:
-        raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
+        if not supabase_url:
+            raise ValueError("SUPABASE_URL environment variable is required")
+        if not service_role_key:
+            raise ValueError("SUPABASE_SERVICE_ROLE_KEY environment variable is required")
 
-    return create_client(supabase_url, service_role_key)
+        return create_client(supabase_url, service_role_key)
 
 # Global client instance (initialized lazily)
 _supabase_client: Optional[Client] = None

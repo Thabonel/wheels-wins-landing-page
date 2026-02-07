@@ -32,7 +32,7 @@ class ToolPrefilter:
     """Intelligent tool prefiltering to reduce token usage by 87%"""
 
     # Core tools that should ALWAYS be included
-    # UPDATED: December 2025 - Use ACTUAL tool names from pam.py
+    # UPDATED: February 2026 - Added key trip tools to fix filtering issue
     CORE_TOOLS = {
         "analyze_budget",           # Core financial tool
         "get_spending_summary",     # Quick spending overview
@@ -40,7 +40,11 @@ class ToolPrefilter:
         "create_calendar_event",    # Calendar management
         "get_calendar_events",      # Calendar reading (CRITICAL for "what's planned")
         "search_knowledge",         # Knowledge base access
-        "create_expense"            # Common expense logging
+        "create_expense",           # Common expense logging
+        # TRIP PLANNING CORE TOOLS (always available for travel queries)
+        "plan_trip",                # Primary trip planning tool
+        "find_rv_parks",            # RV park search
+        "calculate_gas_cost"        # Fuel cost calculations
     }
 
     # Keyword patterns for detecting user intent (case-insensitive regex)
@@ -58,16 +62,18 @@ class ToolPrefilter:
             r'\b(monthly|weekly|daily)\b'
         ],
         "trip": [
-            r'\b(trip|trips|travel|traveling|travelling)\b',
-            r'\b(route|routes|routing|navigation)\b',
-            r'\b(drive|driving|drove)\b',
-            r'\b(plan|planning|itinerary)\b',
-            r'\b(waypoint|waypoints|stop|stops|destination)\b',
-            r'\b(optimize|optimization|best route)\b',
-            r'\b(distance|miles|kilometers|km)\b',
-            r'\b(fuel|gas|diesel|cost per mile)\b',
-            r'\b(upcoming|scheduled|planned)\b',
-            r'\b(map|maps|directions)\b'
+            r'\b(trip|trips|travel|traveling|travelling|trek|trekking)\b',
+            r'\b(route|routes|routing|navigation|navigate)\b',
+            r'\b(drive|driving|drove|journey|adventure)\b',
+            r'\b(plan|planning|itinerary|properly|waypoints?)\b',
+            r'\b(stop|stops|destination|destinations|location)\b',
+            r'\b(optimize|optimization|best route|milestones?)\b',
+            r'\b(distance|miles|kilometers|km|2200km|fuel stops?)\b',
+            r'\b(fuel|gas|diesel|cost per mile|vehicle checks?)\b',
+            r'\b(upcoming|scheduled|planned|bookings?)\b',
+            r'\b(map|maps|directions|outback|ranges|rv parks?)\b',
+            r'\b(camping|camp|camps|bore|bores)\b',
+            r'\b(recommendations?|sightseeing|explore|exploring)\b'
         ],
         "social": [
             r'\b(friend|friends|buddy|buddies)\b',
@@ -229,7 +235,7 @@ class ToolPrefilter:
         user_message: str,
         all_tools: List[Dict],
         context: Optional[Dict] = None,
-        max_tools: int = 10
+        max_tools: int = 15
     ) -> List[Dict]:
         """
         Filter tools based on relevance to reduce token usage
@@ -262,23 +268,37 @@ class ToolPrefilter:
 
         # 2. Detect categories from user message
         detected_categories = self.detect_categories(user_message)
+        logger.info(f"🔍 PREFILTER: Detected categories: {detected_categories}")
 
         # 3. Get context category (from current page)
         context_category = self.get_context_category(context)
         if context_category:
             detected_categories.add(context_category)
+            logger.info(f"🔍 PREFILTER: Added context category: {context_category}")
 
-        # 4. Add tools from detected categories
-        for tool in all_tools:
-            # Support both formats: {"function": {"name": "..."}} and {"name": "..."}
-            tool_name = tool.get("function", {}).get("name") or tool.get("name", "")
-            if tool_name in tool_names_included:
-                continue
+        logger.info(f"🔍 PREFILTER: Final categories: {detected_categories}")
 
-            tool_category = self.TOOL_CATEGORIES.get(tool_name)
-            if tool_category in detected_categories:
-                filtered_tools.append(tool)
-                tool_names_included.add(tool_name)
+        # 4. Add tools from detected categories (with trip priority)
+        # PRIORITY FIX: If trip is detected, prioritize trip tools first
+        priority_categories = []
+        if "trip" in detected_categories:
+            priority_categories.append("trip")
+        # Add remaining categories
+        for cat in detected_categories:
+            if cat not in priority_categories:
+                priority_categories.append(cat)
+
+        for category in priority_categories:
+            for tool in all_tools:
+                # Support both formats: {"function": {"name": "..."}} and {"name": "..."}
+                tool_name = tool.get("function", {}).get("name") or tool.get("name", "")
+                if tool_name in tool_names_included:
+                    continue
+
+                tool_category = self.TOOL_CATEGORIES.get(tool_name)
+                if tool_category == category:
+                    filtered_tools.append(tool)
+                    tool_names_included.add(tool_name)
 
         # 5. Add recently used tools (for conversation continuity)
         for recent_tool_name in self.recent_tools:
@@ -311,8 +331,16 @@ class ToolPrefilter:
         self.last_filter_stats = self.get_filtering_stats(all_tools, filtered_tools)
 
         # DIAGNOSTIC: Log final result
-        logger.info(f"🔍 PREFILTER: Returning {len(filtered_tools)} tools")
-        logger.info(f"🔍 PREFILTER: Tool names: {[t.get('name', t.get('function', {}).get('name', 'UNKNOWN')) for t in filtered_tools]}")
+        logger.info(f"🔍 PREFILTER: Returning {len(filtered_tools)} tools (increased from 10 to 15 limit)")
+        filtered_tool_names = [t.get('name', t.get('function', {}).get('name', 'UNKNOWN')) for t in filtered_tools]
+        logger.info(f"🔍 PREFILTER: Tool names: {filtered_tool_names}")
+
+        # Check if trip tools are included
+        trip_tools_included = [name for name in filtered_tool_names if self.TOOL_CATEGORIES.get(name) == "trip"]
+        if trip_tools_included:
+            logger.info(f"🔍 PREFILTER: ✅ Trip tools included: {trip_tools_included}")
+        elif "trip" in detected_categories:
+            logger.warning(f"🔍 PREFILTER: ⚠️ Trip category detected but no trip tools included!")
 
         return filtered_tools
 

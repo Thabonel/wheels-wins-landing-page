@@ -280,8 +280,9 @@ class CSRFProtector:
         # Origins that are always allowed (same-origin + development platforms)
         self.allowed_origins: Set[str] = {
             "https://wheelsandwins.com",
-            "https://www.wheelsandwins.com", 
+            "https://www.wheelsandwins.com",
             "https://wheels-wins-landing-page.netlify.app",
+            "https://wheels-wins-staging.netlify.app",
             "https://4fd8d7d4-1c59-4996-a0dd-48be31131e7c.lovableproject.com",  # Lovable platform
             "http://localhost:8080",  # Local development
             "http://localhost:3000",  # Alternative local dev
@@ -436,7 +437,8 @@ class XSSCSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/api/v1/pam/chat",  # PAM chat endpoint
             "/api/v1/pam/ws",  # PAM WebSocket endpoint
             "/api/v1/pam_ai_sdk",  # PAM AI SDK endpoint
-            "/api/v1/pam/health"  # PAM health check endpoint
+            "/api/v1/pam/health",  # PAM health check endpoint
+            "/api/v1/fuel",  # Fuel receipt endpoints (JWT-protected)
         ]
         
         # Content types to check for XSS
