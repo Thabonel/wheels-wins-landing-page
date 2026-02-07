@@ -28,6 +28,7 @@ interface ExtractedData {
   price: number | null;
   date: string | null;
   station: string | null;
+  odometer: number | null;
   unit: string;
   receipt_url?: string;
   overall_confidence: number;
@@ -206,6 +207,7 @@ export default function FuelReceiptUpload({
       price: data.price ?? null,
       date: data.date ?? null,
       station: data.station ?? null,
+      odometer: data.odometer ?? null,
       unit: data.unit || (isImperial ? "gal" : "L"),
       overall_confidence: result.overall_confidence || data.overall_confidence || 0,
     };
@@ -245,6 +247,7 @@ export default function FuelReceiptUpload({
       price: data.price ?? null,
       date: data.date ?? null,
       station: data.station ?? null,
+      odometer: data.odometer ?? null,
       unit: data.unit || (isImperial ? "gal" : "L"),
       overall_confidence: visionResult.overall_confidence || 0.9,
     };
@@ -258,7 +261,7 @@ export default function FuelReceiptUpload({
       price: data.price?.toString() || "",
       date: data.date || getTodayDateLocal(),
       station: data.station || "",
-      odometer: "",
+      odometer: data.odometer?.toString() || "",
     });
   };
 
@@ -321,6 +324,7 @@ export default function FuelReceiptUpload({
         price: null,
         date: null,
         station: null,
+        odometer: null,
         unit: isImperial ? "gal" : "L",
         overall_confidence: 0,
       });
@@ -341,8 +345,18 @@ export default function FuelReceiptUpload({
   const handleSubmit = async () => {
     if (!user) return;
 
-    const total = parseFloat(formData.total);
-    const volume = parseFloat(formData.volume);
+    let total = parseFloat(formData.total) || 0;
+    let volume = parseFloat(formData.volume) || 0;
+    let price = parseFloat(formData.price) || 0;
+
+    // Auto-calculate missing field from the other two
+    if (volume && price && !total) {
+      total = Math.round(volume * price * 100) / 100;
+    } else if (total && price && !volume) {
+      volume = Math.round((total / price) * 100) / 100;
+    } else if (total && volume && !price) {
+      price = Math.round((total / volume) * 1000) / 1000;
+    }
 
     if (!total && !volume) {
       setError("Please enter at least a total cost or volume");
@@ -359,7 +373,7 @@ export default function FuelReceiptUpload({
         location: formData.station,
         odometer: parseFloat(formData.odometer) || null,
         volume: volume || null,
-        price: parseFloat(formData.price) || null,
+        price: price || null,
         total: total || null,
         filled_to_top: true,
         receipt_url: receiptUrl,
@@ -379,7 +393,7 @@ export default function FuelReceiptUpload({
 
       if (dbError) {
         console.error("Failed to save fuel entry:", dbError);
-        setError("Failed to save fuel entry. Please try again.");
+        setError(`Failed to save: ${dbError.message || "Please try again."}`);
         return;
       }
 
