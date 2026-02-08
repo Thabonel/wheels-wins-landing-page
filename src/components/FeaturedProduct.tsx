@@ -33,7 +33,7 @@ const FeaturedProduct = () => {
                   <Button
                     className="font-semibold"
                     size="lg"
-                    onClick={() => window.open('https://videocourse.wheelsandwins.com', '_blank')}
+                    onClick={() => window.open('https://newsite.wheelsandwins.com/', '_blank')}
                   >
                     → View Course
                   </Button>
