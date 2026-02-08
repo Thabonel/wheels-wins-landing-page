@@ -69,7 +69,7 @@ class ToolPrefilter:
             r'\b(stop|stops|destination|destinations|location)\b',
             r'\b(optimize|optimization|best route|milestones?)\b',
             r'\b(distance|miles|kilometers|km|2200km|fuel stops?)\b',
-            r'\b(fuel|gas|diesel|cost per mile|vehicle checks?)\b',
+            r'\b(fuel|gas|diesel|cost per mile|vehicle checks?|receipts?)\b',
             r'\b(upcoming|scheduled|planned|bookings?)\b',
             r'\b(map|maps|directions|outback|ranges|rv parks?)\b',
             r'\b(camping|camp|camps|bore|bores)\b',
@@ -155,6 +155,7 @@ class ToolPrefilter:
         "estimate_travel_time": "trip",
         "save_favorite_spot": "trip",
         "update_vehicle_fuel_consumption": "trip",
+        "scan_fuel_receipt": "trip",
 
         # Social tools (10 tools from pam.py)
         "create_post": "social",
