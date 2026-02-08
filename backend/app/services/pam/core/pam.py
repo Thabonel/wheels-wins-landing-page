@@ -1246,13 +1246,6 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         max_tools=10
                     )
 
-                # DIAGNOSTIC: Log tools after filtering
-                logger.info(f"🔧 DIAGNOSTIC: Filtered tools count: {len(filtered_tools)}")
-                logger.info(f"🔧 DIAGNOSTIC: Filtered tool names: {[t.get('name', t.get('function', {}).get('name', 'UNKNOWN')) for t in filtered_tools]}")
-                logger.info(f"🔧 DIAGNOSTIC: create_calendar_event in filtered? {'create_calendar_event' in [t.get('name', t.get('function', {}).get('name', '')) for t in filtered_tools]}")
-
-                # CRITICAL: Never send 0 tools to Claude - it causes minimal/empty responses
-                # Always keep at least 5 core tools for basic conversation
                 if len(filtered_tools) == 0:
                     logger.warning("⚠️ Tool prefiltering returned 0 tools, using all tools as fallback")
                     filtered_tools = self.tools
@@ -1263,18 +1256,6 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                     f"Tool prefiltering: {stats['filtered_tools']}/{stats['total_tools']} tools "
                     f"({stats['reduction_percentage']}% reduction, {stats['tokens_saved']} tokens saved)"
                 )
-
-                # Force-include calendar tools (workaround for filtering issues)
-                calendar_tool_names = {"create_calendar_event", "update_calendar_event", "delete_calendar_event", "get_calendar_events"}
-                calendar_tools = [t for t in self.tools if (t.get("name") or t.get("function", {}).get("name", "")) in calendar_tool_names]
-
-                # Merge with filtered tools (deduplicate)
-                filtered_tool_names = {t.get("name") or t.get("function", {}).get("name", "") for t in filtered_tools}
-                for calendar_tool in calendar_tools:
-                    tool_name = calendar_tool.get("name") or calendar_tool.get("function", {}).get("name", "")
-                    if tool_name not in filtered_tool_names:
-                        filtered_tools.append(calendar_tool)
-                        logger.info(f"🔧 Force-added calendar tool: {tool_name}")
 
             except Exception as e:
                 # Fallback to all tools if prefiltering fails
@@ -1715,6 +1696,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             "create_calendar_event": create_calendar_event,
             "update_calendar_event": update_calendar_event,
             "delete_calendar_event": delete_calendar_event,
+            "get_calendar_events": get_calendar_events,
             # Shop tools (affiliate products)
             "search_products": search_products,
             "get_product_details": get_product_details,

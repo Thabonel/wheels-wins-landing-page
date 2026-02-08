@@ -5,9 +5,8 @@ based on user preferences stored in user_settings.regional_preferences
 """
 
 import logging
-from typing import Dict, Any, Optional, Literal
-import os
-from supabase import create_client, Client
+from typing import Literal
+from app.core.database import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +32,7 @@ async def get_user_unit_preference(user_id: str) -> UnitSystem:
         "metric" for international users (km, L/100km, liters)
     """
     try:
-        supabase: Client = create_client(
-            os.getenv("SUPABASE_URL"),
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        )
+        supabase = get_supabase_client()
 
         # Get user's regional preferences
         response = supabase.table("user_settings").select(
