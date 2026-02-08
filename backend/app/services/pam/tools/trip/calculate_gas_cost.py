@@ -5,10 +5,8 @@ Estimate fuel costs for a trip based on distance and vehicle MPG
 
 import logging
 from typing import Any, Dict, Optional
-import os
 from decimal import Decimal, ROUND_HALF_UP
 from pydantic import ValidationError
-from supabase import create_client, Client
 from .unit_conversion import (
     get_user_unit_preference,
     format_gas_cost_response,
@@ -49,11 +47,6 @@ async def _detect_user_region(user_id: str) -> str:
     """
     try:
         validate_uuid(user_id, "user_id")
-
-        supabase: Client = create_client(
-            os.getenv("SUPABASE_URL"),
-            os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        )
 
         response = await safe_db_select(
             "user_settings",
