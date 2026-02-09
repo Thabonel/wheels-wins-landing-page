@@ -137,7 +137,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const hasShownWelcomeRef = useRef(false);
+  // hasShownWelcomeRef removed - greeting handled by system prompt on first user message
   const tokenRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const conversationEndTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const connectionStartTimeRef = useRef<number>(0);
@@ -231,16 +231,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     // eslint-disable-next-line
   }, [user?.id, sessionId]);
 
-  // On first ready connection, show greeting once
-  useEffect(() => {
-    if (!pamEnabled) return;
-    const isReady = !!user && !!session?.access_token;
-    if (isReady && messages.length === 0 && !hasShownWelcomeRef.current) {
-      logger.debug('💬 PAM: Adding greeting message on first ready connection');
-      addMessage("🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?", "pam");
-      hasShownWelcomeRef.current = true;
-    }
-  }, [user, session?.access_token, messages.length]);
+  // Greeting removed - PAM greets naturally via system prompt when user sends first message
 
   // Auto-start wake word listening if enabled in settings
   useEffect(() => {
@@ -458,13 +449,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         try {
           const parsed = JSON.parse(savedState);
           if (parsed.messages && Array.isArray(parsed.messages)) {
-            // Filter duplicate greetings - keep only the first one
-            const greetingText = "🤖 Hi! I'm PAM, your AI travel companion! How can I help you today?";
-            const filtered = parsed.messages.filter((msg, index) =>
-              msg.text !== greetingText || parsed.messages.findIndex(m => m.text === greetingText) === index
-            );
-            setMessages(filtered);
-            logger.debug('📚 PAM: Restored conversation from localStorage:', filtered.length, 'messages (duplicates filtered)');
+            setMessages(parsed.messages);
+            logger.debug('📚 PAM: Restored conversation from localStorage:', parsed.messages.length, 'messages');
             
             // Restore session ID if available
             if (parsed.sessionId) {
