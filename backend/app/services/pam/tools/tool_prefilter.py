@@ -44,7 +44,9 @@ class ToolPrefilter:
         # TRIP PLANNING CORE TOOLS (always available for travel queries)
         "plan_trip",                # Primary trip planning tool
         "find_rv_parks",            # RV park search
-        "calculate_gas_cost"        # Fuel cost calculations
+        "calculate_gas_cost",       # Fuel cost calculations
+        # WEB SEARCH (always available as universal fallback)
+        "web_search"                # General web search for anything
     }
 
     # Keyword patterns for detecting user intent (case-insensitive regex)
@@ -97,7 +99,12 @@ class ToolPrefilter:
             r'\b(order|orders|ordering)\b',
             r'\b(wishlist|favorites|saved)\b',
             r'\b(nearby|local|close)\b',
-            r'\b(recommendation|recommendations|suggest|suggestions)\b'
+            r'\b(recommendation|recommendations|suggest|suggestions)\b',
+            r'\b(find|find me|search for|look for|where can i)\b',
+            r'\b(cheap|cheapest|affordable|best price|lowest price)\b',
+            r'\b(tyre|tyres|tire|tires)\b',
+            r'\b(parts|spares|accessories|gear|equipment)\b',
+            r'\b(brand|model|size|fit|compatible)\b'
         ],
         "rv": [
             r'\b(rv|rvs|recreational vehicle|motorhome)\b',
