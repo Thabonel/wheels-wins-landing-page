@@ -238,15 +238,19 @@ async def root_health_check():
 @router.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
     """Standard health check endpoint - optimized for speed"""
-    # Fast endpoint for load balancers and monitoring
-    # No system metrics to avoid blocking operations
-    return {
+    result = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "pam-backend",
         "version": "2.0.0",
-        "environment": os.getenv("ENVIRONMENT", "production")
+        "environment": os.getenv("ENVIRONMENT", "production"),
     }
+    try:
+        import anthropic
+        result["anthropic_sdk"] = anthropic.__version__
+    except Exception:
+        result["anthropic_sdk"] = "not_installed"
+    return result
 
 @router.get("/detailed", status_code=status.HTTP_200_OK)
 async def detailed_health_check():
