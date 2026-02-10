@@ -18,17 +18,18 @@ router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
 
-# Maximum file size: 5MB
-MAX_FILE_SIZE = 5 * 1024 * 1024
-# Allowed MIME types
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_MIME_TYPES = [
     "image/jpeg",
-    "image/jpg", 
+    "image/jpg",
     "image/png",
     "image/gif",
     "image/webp",
     "image/heic",
-    "image/heif"
+    "image/heif",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]
 
 @router.post("/receipts/upload")
