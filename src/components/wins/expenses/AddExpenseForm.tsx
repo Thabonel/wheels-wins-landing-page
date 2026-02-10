@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,12 +12,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useExpenseActions } from "@/hooks/useExpenseActions";
-import ReceiptUpload from "./ReceiptUpload";
+import SmartReceiptScanner from "@/components/shared/SmartReceiptScanner";
+import { type UniversalExtractedData } from "@/hooks/useReceiptScanner";
 import { AlertCircle, Loader2, Mic, MicOff, Volume2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { receiptService } from "@/services/receiptService";
-import { useAuth } from "@/context/AuthContext";
 
 import { format } from "date-fns";
 
@@ -28,26 +27,22 @@ interface AddExpenseFormProps {
   startWithVoice?: boolean;
 }
 
-export default function AddExpenseForm({ onClose, presetCategory, startWithReceipt, startWithVoice }: AddExpenseFormProps) {
+export default function AddExpenseForm({ onClose, presetCategory, startWithVoice }: AddExpenseFormProps) {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(presetCategory || "");
   const [description, setDescription] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [receipt, setReceipt] = useState<File | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [shouldOpenReceipt, setShouldOpenReceipt] = useState(startWithReceipt || false);
   const [voiceEnabled, setVoiceEnabled] = useState(startWithVoice || false);
   
   const { addExpense, categories } = useExpenseActions();
   const { toast } = useToast();
-  const { user } = useAuth();
   
   // Voice commands integration - but with form-only mode
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const voiceRecognitionRef = useRef<any>(null);
-  
   // Initialize voice recognition when enabled
   useEffect(() => {
     if (!voiceEnabled) {
@@ -164,13 +159,28 @@ export default function AddExpenseForm({ onClose, presetCategory, startWithRecei
     });
   };
   
-  // Check if we should open receipt upload on mount (for backward compatibility)
-  useState(() => {
-    if (!startWithReceipt && typeof window !== 'undefined' && sessionStorage.getItem('openReceiptUpload') === 'true') {
-      setShouldOpenReceipt(true);
-      // Don't remove it here as WinsExpenses handles it
+  const handleReceiptExtracted = (data: UniversalExtractedData) => {
+    if (data.total) {
+      setAmount(data.total.toString());
+      if (errors.amount) setErrors(prev => ({ ...prev, amount: '' }));
     }
-  });
+    if (data.suggested_category && categories.includes(data.suggested_category)) {
+      setCategory(data.suggested_category);
+      if (errors.category) setErrors(prev => ({ ...prev, category: '' }));
+    }
+    if (data.vendor || data.description) {
+      const desc = [data.vendor, data.description].filter(Boolean).join(' - ');
+      setDescription(desc);
+      if (errors.description) setErrors(prev => ({ ...prev, description: '' }));
+    }
+    if (data.date) {
+      const parsed = new Date(data.date + 'T00:00:00');
+      if (!isNaN(parsed.getTime())) {
+        setSelectedDate(parsed);
+        if (errors.date) setErrors(prev => ({ ...prev, date: '' }));
+      }
+    }
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -208,35 +218,12 @@ export default function AddExpenseForm({ onClose, presetCategory, startWithRecei
     setIsSubmitting(true);
 
     try {
-      // If there's a receipt, upload it first
-      let receiptUrl = null;
-      if (receipt && user) {
-        try {
-          // Try API upload first
-          const uploadResult = await receiptService.uploadReceipt(receipt);
-          receiptUrl = uploadResult.receipt_url;
-        } catch (apiError) {
-          console.warn('API upload failed, trying direct upload:', apiError);
-          // Fallback to direct Supabase upload
-          try {
-            receiptUrl = await receiptService.uploadReceiptDirect(receipt, user.id);
-          } catch (directError) {
-            console.error('Direct upload also failed:', directError);
-            toast({
-              title: "Warning",
-              description: "Receipt upload failed, but expense will be saved",
-              variant: "destructive"
-            });
-          }
-        }
-      }
-
       const success = addExpense({
         amount: parseFloat(amount),
         category,
         description,
         date: format(selectedDate!, 'yyyy-MM-dd'),
-        receiptUrl, // This will be added to the expense data
+        receiptUrl,
       });
 
       if (success) {
@@ -250,7 +237,7 @@ export default function AddExpenseForm({ onClose, presetCategory, startWithRecei
         setCategory("");
         setDescription("");
         setSelectedDate(new Date());
-        setReceipt(null);
+        setReceiptUrl(null);
         setErrors({});
         
         if (onClose) {
@@ -462,11 +449,15 @@ export default function AddExpenseForm({ onClose, presetCategory, startWithRecei
             )}
           </div>
 
-          {/* Receipt Upload */}
-          <ReceiptUpload 
-            onReceiptChange={setReceipt}
-            className="mt-2"
-          />
+          {/* Receipt Scanner - auto-fills form fields from scanned data */}
+          <div className="grid gap-2 mt-2">
+            <label className="text-sm font-medium">Scan Receipt (Optional)</label>
+            <SmartReceiptScanner
+              onExtracted={handleReceiptExtracted}
+              onReceiptUploaded={(url) => setReceiptUrl(url)}
+              compact
+            />
+          </div>
         </form>
 
         {/* Info Alert */}
