@@ -1,9 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 
-const API_BASE_URL = 
-  import.meta.env.VITE_API_URL || 
-  import.meta.env.VITE_BACKEND_URL || 
-  'https://pam-backend.onrender.com';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  (typeof window !== 'undefined' && (window.location.hostname.includes("staging") || window.location.hostname.includes("wheels-wins-staging"))
+    ? "https://wheels-wins-backend-staging.onrender.com"
+    : "https://pam-backend.onrender.com");
 
 interface UploadReceiptResponse {
   success: boolean;
@@ -93,7 +95,7 @@ export const receiptService = {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const fileName = `${userId}/receipts/${timestamp}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('receipts')
       .upload(fileName, file);
 
@@ -108,5 +110,47 @@ export const receiptService = {
       .getPublicUrl(fileName);
 
     return publicUrl;
+  },
+
+  // Universal receipt text parsing - sends OCR text to backend AI for structured extraction
+  async parseReceiptText(text: string): Promise<any> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('Authentication required');
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/receipts/parse-text`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Text parsing failed');
+    }
+    return response.json();
+  },
+
+  // Universal receipt vision parsing - sends base64 image to backend AI for extraction
+  async parseReceiptVision(imageBase64: string, mimeType: string): Promise<any> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('Authentication required');
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/receipts/parse-vision`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image_base64: imageBase64, mime_type: mimeType }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.detail || 'Vision parsing failed');
+    }
+    return response.json();
   }
 };
