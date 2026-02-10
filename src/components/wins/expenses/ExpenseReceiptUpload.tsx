@@ -68,8 +68,9 @@ export default function ExpenseReceiptUpload({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
-      setError("Please select an image or PDF file");
+    const docTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+    if (!file.type.startsWith("image/") && !docTypes.includes(file.type)) {
+      setError("Please select an image, PDF, or Word document");
       return;
     }
 
@@ -278,9 +279,11 @@ export default function ExpenseReceiptUpload({
       }
 
       let handled = false;
+      const isImage = selectedFile.type.startsWith("image/");
+      const isPDF = selectedFile.type === "application/pdf";
 
-      // Tesseract OCR only works on images, not PDFs
-      if (selectedFile.type.startsWith("image/")) {
+      // Tesseract OCR only works on images
+      if (isImage) {
         setProcessingStep("Reading receipt with OCR...");
         try {
           const ocr = await runTesseractOCR(selectedFile);
@@ -303,10 +306,20 @@ export default function ExpenseReceiptUpload({
         }
       }
 
-      if (!handled) {
+      // Vision API handles images and PDFs
+      if (!handled && (isImage || isPDF)) {
         setProcessingStep("Analyzing receipt with AI...");
         const visionData = await callVisionAPI(selectedFile, token);
         applyExtractedData(visionData);
+        handled = true;
+      }
+
+      // Word docs: upload succeeds but no AI extraction - show manual form
+      if (!handled) {
+        setProcessingStep("");
+        applyExtractedData({
+          total: null, date: null, station: null, overall_confidence: 0,
+        });
       }
     } catch (err: any) {
       console.error("Receipt processing error:", err);
@@ -376,7 +389,7 @@ export default function ExpenseReceiptUpload({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf,.pdf"
+            accept="image/*,application/pdf,.pdf,.doc,.docx"
             onChange={handleFileSelect}
             className="hidden"
           />
@@ -401,11 +414,10 @@ export default function ExpenseReceiptUpload({
       {/* File preview + scan button */}
       {previewUrl && !extracted && (
         <div className="space-y-3">
-          {selectedFile?.type === "application/pdf" ? (
+          {selectedFile && !selectedFile.type.startsWith("image/") ? (
             <div className="max-h-64 mx-auto rounded-lg shadow bg-gray-50 flex flex-col items-center justify-center p-8">
               <FileText className="w-12 h-12 text-red-500" />
               <p className="text-sm text-gray-600 mt-2">{selectedFile.name}</p>
-              <p className="text-xs text-gray-400">PDF document</p>
             </div>
           ) : (
             <img
@@ -495,7 +507,7 @@ export default function ExpenseReceiptUpload({
               </div>
             </div>
             {previewUrl && (
-              selectedFile?.type === "application/pdf" ? (
+              selectedFile && !selectedFile.type.startsWith("image/") ? (
                 <div className="max-h-32 flex items-center gap-2 p-2 bg-gray-50 rounded">
                   <FileText className="w-6 h-6 text-red-500 shrink-0" />
                   <span className="text-sm text-gray-600 truncate">{selectedFile.name}</span>

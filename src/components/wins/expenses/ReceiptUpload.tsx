@@ -21,7 +21,8 @@ export default function ReceiptUpload({
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
+    const docTypes = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+    if (file && (file.type.startsWith("image/") || docTypes.includes(file.type))) {
       // Validate file size (max 5MB)
       if (file.size > 10 * 1024 * 1024) {
         alert("File size must be less than 10MB");
@@ -105,10 +106,10 @@ export default function ReceiptUpload({
             onClick={() => window.open(preview, '_blank')}
             className="mt-3 w-full"
           >
-            {fileName?.toLowerCase().endsWith('.pdf') ? (
+            {fileName && /\.(pdf|doc|docx)$/i.test(fileName) ? (
               <div className="w-full h-32 flex flex-col items-center justify-center bg-gray-50 rounded">
                 <FileText className="w-10 h-10 text-red-500" />
-                <span className="text-xs text-gray-500 mt-1">PDF - Click to view</span>
+                <span className="text-xs text-gray-500 mt-1">{fileName}</span>
               </div>
             ) : (
               <img
@@ -125,7 +126,7 @@ export default function ReceiptUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,application/pdf,.pdf"
+        accept="image/*,application/pdf,.pdf,.doc,.docx"
         onChange={handleFileSelect}
         className="hidden"
       />
