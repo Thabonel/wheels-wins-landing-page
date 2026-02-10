@@ -21,7 +21,7 @@ router = APIRouter()
 setup_logging()
 logger = get_logger(__name__)
 
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_MIME_TYPES = [
     "image/jpeg",
     "image/jpg",
@@ -30,6 +30,9 @@ ALLOWED_MIME_TYPES = [
     "image/webp",
     "image/heic",
     "image/heif",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]
 
 
@@ -201,6 +204,9 @@ async def parse_receipt_with_vision(
             "Return only the JSON object, no markdown or explanation."
         )
 
+        # PDFs use "document" content type, images use "image"
+        content_type = "document" if body.mime_type == "application/pdf" else "image"
+
         message = await client.messages.create(
             model="claude-sonnet-4-5-20250929",
             max_tokens=512,
@@ -209,7 +215,7 @@ async def parse_receipt_with_vision(
                     "role": "user",
                     "content": [
                         {
-                            "type": "image",
+                            "type": content_type,
                             "source": {
                                 "type": "base64",
                                 "media_type": body.mime_type,
