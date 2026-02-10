@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { useRegion } from "@/context/RegionContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Camera, Upload, Loader2 } from "lucide-react";
+import { Camera, Upload, Loader2, FileText } from "lucide-react";
 import Tesseract from "tesseract.js";
 import { getTodayDateLocal } from "@/utils/format";
 
@@ -72,15 +72,13 @@ export default function FuelReceiptUpload({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      setError("Please select an image file");
+    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+      setError("Please select an image or PDF file");
       return;
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      setError("Image must be smaller than 10MB");
+      setError("File must be smaller than 10MB");
       return;
     }
 
@@ -282,32 +280,32 @@ export default function FuelReceiptUpload({
         setReceiptUrl(uploadedUrl);
       }
 
-      // Step 2: Try Tesseract.js OCR first (client-side, free)
-      setProcessingStep("Reading receipt with OCR...");
       let handled = false;
 
-      try {
-        const ocr = await runTesseractOCR(selectedFile);
+      // Tesseract OCR only works on images, not PDFs
+      if (selectedFile.type.startsWith("image/")) {
+        setProcessingStep("Reading receipt with OCR...");
+        try {
+          const ocr = await runTesseractOCR(selectedFile);
 
-        if (
-          ocr.confidence >= CONFIDENCE_THRESHOLD &&
-          ocr.text.trim().length >= MIN_OCR_TEXT_LENGTH
-        ) {
-          // Good OCR result - parse the text server-side with regex
-          setProcessingStep("Parsing receipt data...");
-          try {
-            const parsed = await callTextParseAPI(ocr.text, token);
-            applyExtractedData(parsed);
-            handled = true;
-          } catch {
-            // Text parsing failed, fall through to Vision API
+          if (
+            ocr.confidence >= CONFIDENCE_THRESHOLD &&
+            ocr.text.trim().length >= MIN_OCR_TEXT_LENGTH
+          ) {
+            setProcessingStep("Parsing receipt data...");
+            try {
+              const parsed = await callTextParseAPI(ocr.text, token);
+              applyExtractedData(parsed);
+              handled = true;
+            } catch {
+              // Text parsing failed, fall through to Vision API
+            }
           }
+        } catch {
+          // Tesseract failed, fall through to Vision API
         }
-      } catch {
-        // Tesseract failed entirely, fall through to Vision API
       }
 
-      // Step 3: Vision API fallback when Tesseract was insufficient
       if (!handled) {
         setProcessingStep("Analyzing receipt with AI...");
         const visionData = await callVisionAPI(selectedFile, token);
@@ -415,7 +413,7 @@ export default function FuelReceiptUpload({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf,.pdf"
             onChange={handleFileSelect}
             className="hidden"
           />
@@ -431,23 +429,31 @@ export default function FuelReceiptUpload({
               </Button>
             </div>
             <p className="text-sm text-gray-500">
-              Take a photo of your fuel receipt or upload one
+              Upload a receipt photo, PDF invoice, or take a photo
             </p>
           </div>
         </div>
       )}
 
-      {/* Image preview + scan button */}
+      {/* File preview + scan button */}
       {previewUrl && !extracted && (
         <div className="space-y-3">
-          <img
-            src={previewUrl}
-            alt="Receipt preview"
-            className="max-h-64 mx-auto rounded-lg shadow"
-          />
+          {selectedFile?.type === "application/pdf" ? (
+            <div className="max-h-64 mx-auto rounded-lg shadow bg-gray-50 flex flex-col items-center justify-center p-8">
+              <FileText className="w-12 h-12 text-red-500" />
+              <p className="text-sm text-gray-600 mt-2">{selectedFile.name}</p>
+              <p className="text-xs text-gray-400">PDF document</p>
+            </div>
+          ) : (
+            <img
+              src={previewUrl}
+              alt="Receipt preview"
+              className="max-h-64 mx-auto rounded-lg shadow"
+            />
+          )}
           <div className="flex gap-2 justify-center">
             <Button onClick={clearSelection} variant="outline">
-              Change Photo
+              Change File
             </Button>
             <Button onClick={processReceipt} disabled={isProcessing}>
               {isProcessing ? (
@@ -538,11 +544,18 @@ export default function FuelReceiptUpload({
               </div>
             </div>
             {previewUrl && (
-              <img
-                src={previewUrl}
-                alt="Receipt"
-                className="max-h-32 rounded"
-              />
+              selectedFile?.type === "application/pdf" ? (
+                <div className="max-h-32 flex items-center gap-2 p-2 bg-gray-50 rounded">
+                  <FileText className="w-6 h-6 text-red-500 shrink-0" />
+                  <span className="text-sm text-gray-600 truncate">{selectedFile.name}</span>
+                </div>
+              ) : (
+                <img
+                  src={previewUrl}
+                  alt="Receipt"
+                  className="max-h-32 rounded"
+                />
+              )
             )}
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Camera, Upload, X, FileImage } from "lucide-react";
+import { Camera, Upload, X, FileImage, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ReceiptUploadProps {
@@ -21,10 +21,10 @@ export default function ReceiptUpload({
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith("image/")) {
+    if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
       // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert("File size must be less than 5MB");
+      if (file.size > 10 * 1024 * 1024) {
+        alert("File size must be less than 10MB");
         return;
       }
 
@@ -48,7 +48,7 @@ export default function ReceiptUpload({
 
   return (
     <div className={cn("space-y-3", className)}>
-      <label className="text-sm font-medium">Receipt Photo (Optional)</label>
+      <label className="text-sm font-medium">Receipt (Optional)</label>
       
       {!preview ? (
         <div className="flex gap-2">
@@ -105,11 +105,18 @@ export default function ReceiptUpload({
             onClick={() => window.open(preview, '_blank')}
             className="mt-3 w-full"
           >
-            <img
-              src={preview}
-              alt="Receipt preview"
-              className="w-full h-32 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity"
-            />
+            {fileName?.toLowerCase().endsWith('.pdf') ? (
+              <div className="w-full h-32 flex flex-col items-center justify-center bg-gray-50 rounded">
+                <FileText className="w-10 h-10 text-red-500" />
+                <span className="text-xs text-gray-500 mt-1">PDF - Click to view</span>
+              </div>
+            ) : (
+              <img
+                src={preview}
+                alt="Receipt preview"
+                className="w-full h-32 object-cover rounded cursor-pointer hover:opacity-90 transition-opacity"
+              />
+            )}
           </button>
         </div>
       )}
@@ -118,11 +125,11 @@ export default function ReceiptUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf,.pdf"
         onChange={handleFileSelect}
         className="hidden"
       />
-      
+
       <input
         ref={cameraInputRef}
         type="file"
