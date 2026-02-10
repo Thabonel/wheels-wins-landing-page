@@ -36,13 +36,21 @@ class HealthStatus(str, Enum):
 @router.get("/health")
 async def health_check():
     """Basic health check endpoint"""
-    return {
+    result = {
         "status": HealthStatus.HEALTHY,
         "service": "wheels-wins-pam-api",
         "version": getattr(settings, 'VERSION', '1.0.0'),
         "environment": getattr(settings, 'NODE_ENV', 'development'),
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
+    try:
+        import anthropic
+        result["anthropic_sdk"] = anthropic.__version__
+        result["pdf_support"] = hasattr(anthropic.types, "DocumentBlockParam")
+    except Exception:
+        result["anthropic_sdk"] = "not_installed"
+        result["pdf_support"] = False
+    return result
 
 @router.get("/health/ping")
 async def ping():
