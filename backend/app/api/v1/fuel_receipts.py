@@ -209,7 +209,7 @@ async def parse_receipt_with_vision(
 
         message = await client.messages.create(
             model="claude-sonnet-4-5-20250929",
-            max_tokens=512,
+            max_tokens=1024,
             messages=[
                 {
                     "role": "user",
@@ -272,10 +272,10 @@ async def parse_receipt_with_vision(
             detail="Vision service returned unparseable response",
         )
     except Exception as e:
-        logger.error(f"Vision receipt parse error: {e}")
+        logger.error(f"Vision receipt parse error: {type(e).__name__}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to parse receipt with vision",
+            detail=f"Failed to parse receipt with vision: {type(e).__name__}",
         )
 
 
