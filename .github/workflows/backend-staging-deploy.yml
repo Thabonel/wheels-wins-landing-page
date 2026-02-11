@@ -38,7 +38,7 @@ jobs:
         SECRET_KEY: "test-secret-key-for-ci-only-not-real-abcdefghijklmnopqrstuvwxyz1234"
         NODE_ENV: "testing"
       run: |
-        python -m pytest tests/unit/ -v --tb=short
+        python -m pytest tests/unit/ -v --tb=short --no-cov -o "addopts="
         
     - name: Deploy to Render
       env:
