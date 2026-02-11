@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +43,7 @@ export default function ExpenseReceiptUpload({
     date: "",
   });
 
-  const handleExtracted = (data: UniversalExtractedData) => {
+  const handleExtracted = useCallback((data: UniversalExtractedData) => {
     setExtracted(data);
 
     setFormData({
@@ -54,16 +54,20 @@ export default function ExpenseReceiptUpload({
       description: [data.vendor, data.description].filter(Boolean).join(" - ") || "",
       date: data.date || getTodayDateLocal(),
     });
-  };
+  }, [categories]);
 
-  const handleFileChange = (file: File | null) => {
+  const handleFileChange = useCallback((file: File | null) => {
     setPreviewFile(file);
     if (file) {
       setPreviewUrl(URL.createObjectURL(file));
     } else {
       setPreviewUrl(null);
     }
-  };
+  }, []);
+
+  const handleReceiptUploaded = useCallback((url: string) => {
+    setReceiptUrl(url);
+  }, []);
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -108,7 +112,7 @@ export default function ExpenseReceiptUpload({
         <SmartReceiptScanner
           onExtracted={handleExtracted}
           onFileChange={handleFileChange}
-          onReceiptUploaded={(url) => setReceiptUrl(url)}
+          onReceiptUploaded={handleReceiptUploaded}
         />
       )}
 
