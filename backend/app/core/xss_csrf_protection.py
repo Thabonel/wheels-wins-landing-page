@@ -439,6 +439,7 @@ class XSSCSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/api/v1/pam_ai_sdk",  # PAM AI SDK endpoint
             "/api/v1/pam/health",  # PAM health check endpoint
             "/api/v1/fuel",  # Fuel receipt endpoints (JWT-protected)
+            "/api/v1/receipts",  # Universal receipt endpoints (JWT-protected)
         ]
         
         # Content types to check for XSS

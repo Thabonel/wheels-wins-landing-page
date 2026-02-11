@@ -65,10 +65,10 @@ export default function SmartReceiptScanner({
     }
   }, [receiptUrl, onReceiptUploaded]);
 
-  const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      handleFileSelect(file);
+      await handleFileSelect(file);
     }
     // Reset the input so the same file can be re-selected
     e.target.value = "";
@@ -119,14 +119,14 @@ export default function SmartReceiptScanner({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,application/pdf,.pdf,.doc,.docx"
+            accept="image/*,.heic,.HEIC,application/pdf,.pdf,.doc,.docx"
             onChange={onFileInputChange}
             className="hidden"
           />
           <input
             ref={cameraInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.heic,.HEIC"
             capture="environment"
             onChange={onFileInputChange}
             className="hidden"
@@ -154,7 +154,7 @@ export default function SmartReceiptScanner({
             </div>
             {!compact && (
               <p className="text-sm text-muted-foreground">
-                Upload a receipt photo, PDF invoice, or Word document
+                Upload a receipt photo (JPG, PNG, HEIC), PDF invoice, or Word document
               </p>
             )}
           </div>
@@ -262,14 +262,14 @@ export default function SmartReceiptScanner({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,application/pdf,.pdf,.doc,.docx"
+        accept="image/*,.heic,.HEIC,application/pdf,.pdf,.doc,.docx"
         onChange={onFileInputChange}
         className="hidden"
       />
       <input
         ref={cameraInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.heic,.HEIC"
         capture="environment"
         onChange={onFileInputChange}
         className="hidden"
