@@ -29,6 +29,13 @@ jobs:
         
     - name: Run backend tests
       working-directory: ./backend
+      env:
+        ANTHROPIC_API_KEY: "sk-ant-api03-test-key-for-ci-only-not-real-abcdefghijklmnopqrstuvwxyz1234567890"
+        GEMINI_API_KEY: "AIzaSyC-test-gemini-key-for-ci-only-not-real-1234567890abcdef"
+        SUPABASE_URL: "https://testproject.supabase.co"
+        SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key-for-ci-only-not-real-abcdefghijklmnopqrstuvwxyz"
+        DATABASE_URL: "postgresql://test:test@localhost:5432/test"
+        NODE_ENV: "testing"
       run: |
         python -m pytest tests/ -v --tb=short
         
