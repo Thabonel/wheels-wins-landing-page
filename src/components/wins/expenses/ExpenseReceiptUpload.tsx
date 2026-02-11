@@ -14,8 +14,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useExpenseActions } from "@/hooks/useExpenseActions";
 import SmartReceiptScanner from "@/components/shared/SmartReceiptScanner";
 import { type UniversalExtractedData } from "@/hooks/useReceiptScanner";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, Plus } from "lucide-react";
 import { getTodayDateLocal } from "@/utils/format";
+import { defaultCategories } from "@/components/wins/expenses/mockData";
 
 interface ExpenseReceiptUploadProps {
   onExpenseCreated: () => void;
@@ -27,7 +28,7 @@ export default function ExpenseReceiptUpload({
   onCancel,
 }: ExpenseReceiptUploadProps) {
   const { user } = useAuth();
-  const { addExpense, categories } = useExpenseActions();
+  const { addExpense, categories, addCategory } = useExpenseActions();
 
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [extracted, setExtracted] = useState<UniversalExtractedData | null>(null);
@@ -36,6 +37,11 @@ export default function ExpenseReceiptUpload({
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // New category creation states
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+
   const [formData, setFormData] = useState({
     amount: "",
     category: "",
@@ -43,18 +49,81 @@ export default function ExpenseReceiptUpload({
     date: "",
   });
 
+  // Combine default categories with user categories, ensuring no duplicates
+  const allCategories = [
+    ...new Set([...defaultCategories, ...categories])
+  ].sort();
+
   const handleExtracted = useCallback((data: UniversalExtractedData) => {
     setExtracted(data);
 
+    // Enhanced category suggestion mapping
+    const mapSuggestedCategory = (suggestion: string): string => {
+      const lower = suggestion.toLowerCase();
+
+      // Direct matches first
+      if (allCategories.includes(suggestion)) return suggestion;
+
+      // Smart mapping based on common receipt types
+      const mappings: Record<string, string> = {
+        'fuel': 'Fuel',
+        'gas': 'Fuel',
+        'gasoline': 'Fuel',
+        'diesel': 'Fuel',
+        'food': 'Groceries',
+        'grocery': 'Groceries',
+        'restaurant': 'Restaurants',
+        'dining': 'Restaurants',
+        'coffee': 'Coffee',
+        'camp': 'Campgrounds',
+        'camping': 'Campgrounds',
+        'rv park': 'RV Parks',
+        'hotel': 'Hotels',
+        'motel': 'Hotels',
+        'lodging': 'Hotels',
+        'maintenance': 'Maintenance',
+        'repair': 'Repairs',
+        'auto': 'Maintenance',
+        'car wash': 'Maintenance',
+        'oil': 'Oil Change',
+        'tire': 'Tires',
+        'propane': 'Propane',
+        'laundry': 'Laundry',
+        'toll': 'Toll',
+        'parking': 'Parking',
+        'entertainment': 'Entertainment',
+        'attraction': 'Attractions',
+        'tour': 'Tours',
+        'souvenir': 'Souvenirs',
+        'medical': 'Medical',
+        'pharmacy': 'Pharmacy',
+        'drug': 'Pharmacy',
+        'supply': 'Supplies',
+        'general': 'Miscellaneous',
+        'other': 'Other'
+      };
+
+      // Check for partial matches
+      for (const [key, category] of Object.entries(mappings)) {
+        if (lower.includes(key)) {
+          return category;
+        }
+      }
+
+      return ""; // No good match found
+    };
+
+    const suggestedCategory = data.suggested_category
+      ? mapSuggestedCategory(data.suggested_category)
+      : "";
+
     setFormData({
       amount: data.total?.toString() || "",
-      category: data.suggested_category && categories.includes(data.suggested_category)
-        ? data.suggested_category
-        : "",
+      category: suggestedCategory,
       description: [data.vendor, data.description].filter(Boolean).join(" - ") || "",
       date: data.date || getTodayDateLocal(),
     });
-  }, [categories]);
+  }, [allCategories]);
 
   const handleFileChange = useCallback((file: File | null) => {
     setPreviewFile(file);
@@ -68,6 +137,24 @@ export default function ExpenseReceiptUpload({
   const handleReceiptUploaded = useCallback((url: string) => {
     setReceiptUrl(url);
   }, []);
+
+  const handleCreateNewCategory = useCallback(async () => {
+    if (!newCategoryName.trim()) return;
+
+    setIsAddingCategory(true);
+    setError(null);
+
+    const success = await addCategory(newCategoryName.trim());
+
+    if (success) {
+      // Auto-select the newly created category
+      setFormData(prev => ({ ...prev, category: newCategoryName.trim() }));
+      setNewCategoryName("");
+      setShowNewCategoryInput(false);
+    }
+
+    setIsAddingCategory(false);
+  }, [newCategoryName, addCategory]);
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -139,23 +226,114 @@ export default function ExpenseReceiptUpload({
               </div>
               <div>
                 <Label>Category</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, category: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {showNewCategoryInput ? (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Enter new category name"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleCreateNewCategory();
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleCreateNewCategory}
+                        disabled={!newCategoryName.trim() || isAddingCategory}
+                      >
+                        {isAddingCategory ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Plus className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setShowNewCategoryInput(false);
+                          setNewCategoryName("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => {
+                        if (value === "CREATE_NEW") {
+                          setShowNewCategoryInput(true);
+                        } else {
+                          setFormData({ ...formData, category: value });
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {/* Popular/Essential categories first */}
+                        <div className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-50">
+                          Essential Travel
+                        </div>
+                        {["Fuel", "Toll", "Parking", "Insurance"].map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+
+                        <div className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-50">
+                          Camping & Accommodation
+                        </div>
+                        {["Campgrounds", "RV Parks", "Hotels", "Boondocking"].map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+
+                        <div className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-50">
+                          Food & Dining
+                        </div>
+                        {["Groceries", "Restaurants", "Coffee", "Snacks"].map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+
+                        <div className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-50">
+                          All Categories
+                        </div>
+                        {allCategories
+                          .filter(cat => !["Fuel", "Toll", "Parking", "Insurance", "Campgrounds", "RV Parks", "Hotels", "Boondocking", "Groceries", "Restaurants", "Coffee", "Snacks"].includes(cat))
+                          .map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+
+                        <div className="border-t mt-2 pt-2">
+                          <SelectItem value="CREATE_NEW" className="font-medium text-blue-600">
+                            <div className="flex items-center gap-2">
+                              <Plus className="h-4 w-4" />
+                              Create New Category
+                            </div>
+                          </SelectItem>
+                        </div>
+                      </SelectContent>
+                    </Select>
+                    {formData.category && (
+                      <p className="text-xs text-gray-500">
+                        Selected: <span className="font-medium">{formData.category}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="col-span-2">
                 <Label>Description</Label>
