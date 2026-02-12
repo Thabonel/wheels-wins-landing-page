@@ -218,7 +218,7 @@ export default function AddExpenseForm({ onClose, presetCategory, startWithVoice
     setIsSubmitting(true);
 
     try {
-      const success = addExpense({
+      const success = await addExpense({
         amount: parseFloat(amount),
         category,
         description,

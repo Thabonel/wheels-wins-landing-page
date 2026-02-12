@@ -132,7 +132,7 @@ export default function MobileExpenseForm({ onClose, presetCategory }: MobileExp
     setIsSubmitting(true);
 
     try {
-      const success = addExpense({
+      const success = await addExpense({
         amount: parseFloat(amount),
         category,
         description,
