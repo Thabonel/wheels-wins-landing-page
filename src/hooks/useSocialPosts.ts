@@ -24,14 +24,16 @@ export function useSocialPosts() {
 
     setIsSubmitting(true);
     try {
-      const postData = {
+      const postData: Record<string, any> = {
         user_id: user.id,
         content: content.trim(),
-        media_urls: imageUrl ? [imageUrl] : [],
-        post_type: imageUrl ? 'image' : 'text',
-        visibility: 'public',
-        ...(groupId && { trip_id: groupId }) // Using trip_id to reference group for now
       };
+      if (imageUrl) {
+        postData.image_url = imageUrl;
+      }
+      if (groupId) {
+        postData.group_id = groupId;
+      }
 
       const { error } = await supabase
         .from('social_posts')
