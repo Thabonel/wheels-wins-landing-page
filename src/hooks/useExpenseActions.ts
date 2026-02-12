@@ -86,14 +86,17 @@ export function useExpenseActions() {
     }
 
     try {
-      const { data, error } = await supabase.from("expenses").insert({
+      const insertData: Record<string, any> = {
         amount: Number(expense.amount),
         category: expense.category,
         date: expense.date,
         description: expense.description,
         user_id: user.id,
-        receipt_url: expense.receiptUrl || null
-      }).select().single();
+      };
+      if (expense.receiptUrl) {
+        insertData.receipt_url = expense.receiptUrl;
+      }
+      const { data, error } = await supabase.from("expenses").insert(insertData).select().single();
 
       if (error) {
         console.error('Error adding expense:', error);
@@ -108,7 +111,7 @@ export function useExpenseActions() {
         category: data.category,
         description: data.description || '',
         date: data.date,
-        receiptUrl: data.receipt_url || null
+        receiptUrl: (data as any).receipt_url || null
       };
       
       setExpenses(prev => [newExpense, ...prev]);
