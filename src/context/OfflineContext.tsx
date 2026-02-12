@@ -1,16 +1,20 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { offlineManager } from '@/services/offlineManager';
 
 interface OfflineContextType {
   isOffline: boolean;
   setOffline: (offline: boolean) => void;
   addToQueue: (action: string, data: any) => void;
+  queueSize: number;
+  cacheStats: { entries: number; size: number; maxSize: number };
 }
 
 const OfflineContext = createContext<OfflineContextType | undefined>(undefined);
 
 export const OfflineProvider = ({ children }: { children: React.ReactNode }) => {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [queueSize, setQueueSize] = useState(offlineManager.queueSize);
 
   useEffect(() => {
     const goOnline = () => setIsOffline(false);
@@ -25,17 +29,32 @@ export const OfflineProvider = ({ children }: { children: React.ReactNode }) => 
     };
   }, []);
 
+  // Sync queue size periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setQueueSize(offlineManager.queueSize);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   const setOffline = (offline: boolean) => {
     setIsOffline(offline);
   };
 
-  const addToQueue = (action: string, data: any) => {
-    console.log('Adding to offline queue:', action, data);
-    // In a real implementation, this would store the action for later sync
-  };
+  const addToQueue = useCallback((action: string, data: any) => {
+    offlineManager.addToQueue({
+      endpoint: `/api/v1/${action.replace(/_/g, '-')}`,
+      method: 'POST',
+      data,
+      priority: 'medium',
+    });
+    setQueueSize(offlineManager.queueSize);
+  }, []);
+
+  const cacheStats = offlineManager.cacheStats;
 
   return (
-    <OfflineContext.Provider value={{ isOffline, setOffline, addToQueue }}>
+    <OfflineContext.Provider value={{ isOffline, setOffline, addToQueue, queueSize, cacheStats }}>
       {children}
     </OfflineContext.Provider>
   );

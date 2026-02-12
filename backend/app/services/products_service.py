@@ -7,12 +7,12 @@ class ProductsService:
         self.client = get_supabase_client()
 
     async def create_product(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        result = self.client.table("shop_products").insert(data).execute()
+        result = self.client.table("affiliate_products").insert(data).execute()
         return result.data[0] if result.data else None
 
     async def get_product(self, product_id: str) -> Optional[Dict[str, Any]]:
         result = (
-            self.client.table("shop_products")
+            self.client.table("affiliate_products")
             .select("*")
             .eq("id", product_id)
             .single()
@@ -22,7 +22,7 @@ class ProductsService:
 
     async def update_product(self, product_id: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         result = (
-            self.client.table("shop_products")
+            self.client.table("affiliate_products")
             .update(data)
             .eq("id", product_id)
             .execute()
@@ -30,11 +30,11 @@ class ProductsService:
         return result.data[0] if result.data else None
 
     async def delete_product(self, product_id: str) -> bool:
-        result = self.client.table("shop_products").delete().eq("id", product_id).execute()
+        result = self.client.table("affiliate_products").delete().eq("id", product_id).execute()
         return bool(result.data)
 
     async def list_products(self) -> list[Dict[str, Any]]:
-        result = self.client.table("shop_products").select("*").execute()
+        result = self.client.table("affiliate_products").select("*").execute()
         return result.data or []
 
     async def update_product_availability(
