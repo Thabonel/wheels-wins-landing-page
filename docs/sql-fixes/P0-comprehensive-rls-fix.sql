@@ -236,29 +236,14 @@ GRANT SELECT ON public.social_group_members TO anon;
 
 -- ============================================================
 -- PART 7: Fix Marketplace Listings RLS
+-- Table already exists with user_id column (NOT seller_id)
 -- ============================================================
-
-CREATE TABLE IF NOT EXISTS public.marketplace_listings (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title TEXT NOT NULL,
-    description TEXT,
-    price DECIMAL(10,2),
-    category TEXT,
-    condition TEXT DEFAULT 'used' CHECK (condition IN ('new', 'used', 'refurbished')),
-    location TEXT,
-    seller_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'sold', 'draft', 'expired')),
-    images JSONB DEFAULT '[]',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_marketplace_listings_seller_id ON public.marketplace_listings(seller_id);
-CREATE INDEX IF NOT EXISTS idx_marketplace_listings_status ON public.marketplace_listings(status);
 
 ALTER TABLE public.marketplace_listings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Anyone can view active listings" ON public.marketplace_listings;
+DROP POLICY IF EXISTS "Users can view active listings" ON public.marketplace_listings;
+DROP POLICY IF EXISTS "Users can manage own listings" ON public.marketplace_listings;
 DROP POLICY IF EXISTS "Users can create listings" ON public.marketplace_listings;
 DROP POLICY IF EXISTS "Users can update own listings" ON public.marketplace_listings;
 DROP POLICY IF EXISTS "Users can delete own listings" ON public.marketplace_listings;
@@ -266,52 +251,23 @@ DROP POLICY IF EXISTS "Users can delete own listings" ON public.marketplace_list
 CREATE POLICY "Anyone can view active listings" ON public.marketplace_listings
     FOR SELECT USING (
         status = 'active'
-        OR (select auth.uid())::uuid = seller_id
+        OR (select auth.uid())::uuid = user_id
     );
 
 CREATE POLICY "Users can create listings" ON public.marketplace_listings
-    FOR INSERT WITH CHECK ((select auth.uid())::uuid = seller_id);
+    FOR INSERT WITH CHECK ((select auth.uid())::uuid = user_id);
 
 CREATE POLICY "Users can update own listings" ON public.marketplace_listings
-    FOR UPDATE USING ((select auth.uid())::uuid = seller_id);
+    FOR UPDATE USING ((select auth.uid())::uuid = user_id);
 
 CREATE POLICY "Users can delete own listings" ON public.marketplace_listings
-    FOR DELETE USING ((select auth.uid())::uuid = seller_id);
+    FOR DELETE USING ((select auth.uid())::uuid = user_id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.marketplace_listings TO authenticated;
 GRANT SELECT ON public.marketplace_listings TO anon;
 
--- ============================================================
--- PART 8: Fix Marketplace Favorites RLS
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS public.marketplace_favorites (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    listing_id UUID NOT NULL REFERENCES public.marketplace_listings(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    UNIQUE(user_id, listing_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_marketplace_favorites_user_id ON public.marketplace_favorites(user_id);
-CREATE INDEX IF NOT EXISTS idx_marketplace_favorites_listing_id ON public.marketplace_favorites(listing_id);
-
-ALTER TABLE public.marketplace_favorites ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view own favorites" ON public.marketplace_favorites;
-DROP POLICY IF EXISTS "Users can add favorites" ON public.marketplace_favorites;
-DROP POLICY IF EXISTS "Users can remove favorites" ON public.marketplace_favorites;
-
-CREATE POLICY "Users can view own favorites" ON public.marketplace_favorites
-    FOR SELECT USING ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can add favorites" ON public.marketplace_favorites
-    FOR INSERT WITH CHECK ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can remove favorites" ON public.marketplace_favorites
-    FOR DELETE USING ((select auth.uid())::uuid = user_id);
-
-GRANT SELECT, INSERT, DELETE ON public.marketplace_favorites TO authenticated;
+-- NOTE: Skipping marketplace_favorites - table does not exist in DB
+-- (DB uses user_wishlists instead, which already has RLS from migration)
 
 -- ============================================================
 -- PART 9: Fix Hustle Ideas (public read, auth write)
@@ -368,7 +324,7 @@ AND tablename IN (
     'expenses', 'income_entries',
     'social_posts', 'post_votes', 'post_comments',
     'social_groups', 'social_group_members',
-    'marketplace_listings', 'marketplace_favorites',
+    'marketplace_listings',
     'hustle_ideas'
 )
 ORDER BY tablename, policyname;
