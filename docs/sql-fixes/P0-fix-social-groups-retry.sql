@@ -1,166 +1,11 @@
--- P0-1 + P0-2: Comprehensive RLS Fix for Expenses and Social Features
--- Run this in Supabase SQL Editor as a single batch
+-- Fix for PART 5 failure: social_groups uses owner_id, not created_by
+-- Run this after the main P0-comprehensive-rls-fix.sql errored on PART 5
+-- This covers PART 5 onwards (everything that was skipped due to the error)
 -- Date: 2026-02-12
--- Fixes: Expense saving (UUID type mismatch), Social features RLS
 
 -- ============================================================
--- PART 1: Fix Expenses RLS (P0-1)
--- Problem: auth.uid() cast to TEXT but user_id is UUID
--- ============================================================
-
-DROP POLICY IF EXISTS "expenses_fixed_policy" ON expenses;
-DROP POLICY IF EXISTS "expenses_simple_user_policy" ON expenses;
-DROP POLICY IF EXISTS "Users can view own expenses" ON expenses;
-DROP POLICY IF EXISTS "Users can insert own expenses" ON expenses;
-DROP POLICY IF EXISTS "Users can update own expenses" ON expenses;
-DROP POLICY IF EXISTS "Users can delete own expenses" ON expenses;
-
-ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own expenses" ON expenses
-FOR SELECT USING ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can insert own expenses" ON expenses
-FOR INSERT WITH CHECK ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can update own expenses" ON expenses
-FOR UPDATE USING ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can delete own expenses" ON expenses
-FOR DELETE USING ((select auth.uid())::uuid = user_id);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON expenses TO authenticated;
-
--- ============================================================
--- PART 2: Fix Social Posts RLS (P0-2)
--- Problem: Policies may be missing or have wrong UUID casting
--- ============================================================
-
--- Ensure social_posts table exists
-CREATE TABLE IF NOT EXISTS public.social_posts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  image_url TEXT,
-  video_url TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  status TEXT DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected', 'hidden')),
-  location TEXT DEFAULT 'feed' CHECK (location IN ('feed', 'group', 'profile')),
-  group_id UUID,
-  upvotes INTEGER DEFAULT 0,
-  downvotes INTEGER DEFAULT 0,
-  comments_count INTEGER DEFAULT 0,
-  comment_count INTEGER DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_social_posts_user_id ON public.social_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_social_posts_created_at ON public.social_posts(created_at);
-CREATE INDEX IF NOT EXISTS idx_social_posts_status ON public.social_posts(status);
-
-ALTER TABLE public.social_posts ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Anyone can view approved posts" ON public.social_posts;
-DROP POLICY IF EXISTS "Users can create posts" ON public.social_posts;
-DROP POLICY IF EXISTS "Users can update their own posts" ON public.social_posts;
-DROP POLICY IF EXISTS "Users can delete their own posts" ON public.social_posts;
-
-CREATE POLICY "Anyone can view approved posts" ON public.social_posts
-    FOR SELECT USING (
-        status = 'approved'
-        OR ((select auth.uid())::uuid = user_id)
-    );
-
-CREATE POLICY "Users can create posts" ON public.social_posts
-    FOR INSERT WITH CHECK ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can update their own posts" ON public.social_posts
-    FOR UPDATE USING ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can delete their own posts" ON public.social_posts
-    FOR DELETE USING ((select auth.uid())::uuid = user_id);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.social_posts TO authenticated;
-GRANT SELECT ON public.social_posts TO anon;
-
--- ============================================================
--- PART 3: Fix Post Votes RLS
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS public.post_votes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  post_id UUID NOT NULL REFERENCES public.social_posts(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  vote_type BOOLEAN NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(post_id, user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_post_votes_post_id ON public.post_votes(post_id);
-CREATE INDEX IF NOT EXISTS idx_post_votes_user_id ON public.post_votes(user_id);
-
-ALTER TABLE public.post_votes ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view all votes" ON public.post_votes;
-DROP POLICY IF EXISTS "Users can create their own votes" ON public.post_votes;
-DROP POLICY IF EXISTS "Users can update their own votes" ON public.post_votes;
-DROP POLICY IF EXISTS "Users can delete their own votes" ON public.post_votes;
-
-CREATE POLICY "Users can view all votes" ON public.post_votes
-    FOR SELECT USING (true);
-
-CREATE POLICY "Users can create their own votes" ON public.post_votes
-    FOR INSERT WITH CHECK ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can update their own votes" ON public.post_votes
-    FOR UPDATE USING ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can delete their own votes" ON public.post_votes
-    FOR DELETE USING ((select auth.uid())::uuid = user_id);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.post_votes TO authenticated;
-GRANT SELECT ON public.post_votes TO anon;
-
--- ============================================================
--- PART 4: Fix Post Comments RLS
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS public.post_comments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    post_id UUID NOT NULL REFERENCES public.social_posts(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_post_comments_post_id ON public.post_comments(post_id);
-CREATE INDEX IF NOT EXISTS idx_post_comments_user_id ON public.post_comments(user_id);
-
-ALTER TABLE public.post_comments ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Anyone can view comments" ON public.post_comments;
-DROP POLICY IF EXISTS "Users can create comments" ON public.post_comments;
-DROP POLICY IF EXISTS "Users can update own comments" ON public.post_comments;
-DROP POLICY IF EXISTS "Users can delete own comments" ON public.post_comments;
-
-CREATE POLICY "Anyone can view comments" ON public.post_comments
-    FOR SELECT USING (true);
-
-CREATE POLICY "Users can create comments" ON public.post_comments
-    FOR INSERT WITH CHECK ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can update own comments" ON public.post_comments
-    FOR UPDATE USING ((select auth.uid())::uuid = user_id);
-
-CREATE POLICY "Users can delete own comments" ON public.post_comments
-    FOR DELETE USING ((select auth.uid())::uuid = user_id);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.post_comments TO authenticated;
-GRANT SELECT ON public.post_comments TO anon;
-
--- ============================================================
--- PART 5: Fix Social Groups RLS
--- Note: Table already exists with owner_id column (not created_by)
+-- PART 5 (FIXED): Fix Social Groups RLS
+-- Table already exists with owner_id column
 -- ============================================================
 
 ALTER TABLE public.social_groups ENABLE ROW LEVEL SECURITY;
@@ -171,6 +16,8 @@ DROP POLICY IF EXISTS "Group members can view private groups" ON public.social_g
 DROP POLICY IF EXISTS "Group owners can manage groups" ON public.social_groups;
 DROP POLICY IF EXISTS "Authenticated users can create groups" ON public.social_groups;
 DROP POLICY IF EXISTS "Group creators can update" ON public.social_groups;
+DROP POLICY IF EXISTS "Group owners can update" ON public.social_groups;
+DROP POLICY IF EXISTS "Group owners can delete" ON public.social_groups;
 
 CREATE POLICY "Anyone can view groups" ON public.social_groups
     FOR SELECT USING (true);
@@ -218,6 +65,7 @@ DROP POLICY IF EXISTS "Anyone can view group members" ON public.social_group_mem
 DROP POLICY IF EXISTS "Users can join groups" ON public.social_group_members;
 DROP POLICY IF EXISTS "Users can leave groups" ON public.social_group_members;
 DROP POLICY IF EXISTS "Users can update own membership" ON public.social_group_members;
+DROP POLICY IF EXISTS "Group members can view membership" ON public.social_group_members;
 
 CREATE POLICY "Anyone can view group members" ON public.social_group_members
     FOR SELECT USING (true);
