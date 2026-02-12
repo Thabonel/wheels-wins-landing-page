@@ -14,15 +14,13 @@ class AdminNode:
     async def dashboard_overview(self) -> Dict[str, Any]:
         try:
             users = self.supabase.table("admin_users").select("id").execute()
-            orders = self.supabase.table("shop_orders").select("id").execute()
             products = (
-                self.supabase.table("shop_products").select("id").eq("status", "active").execute()
+                self.supabase.table("affiliate_products").select("id").eq("is_active", True).execute()
             )
             return {
                 "success": True,
                 "data": {
                     "total_users": len(users.data) if users.data else 0,
-                    "total_orders": len(orders.data) if orders.data else 0,
                     "active_products": len(products.data) if products.data else 0,
                 },
                 "message": "Admin dashboard overview",

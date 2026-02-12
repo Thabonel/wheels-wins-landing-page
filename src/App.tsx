@@ -49,20 +49,19 @@ import { PhotoSyncHandler } from './components/PhotoSyncHandler';
 const TermsOfService = lazyWithRetry(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazyWithRetry(() => import('./pages/PrivacyPolicy'));
 const CookiePolicy = lazyWithRetry(() => import('./pages/CookiePolicy'));
-const AuthTest = lazyWithRetry(() => import('./pages/AuthTest'));
-// Temporarily disabled - AI SDK not configured
-// const PamAiSdkTest = lazyWithRetry(() => import('./pages/PamAiSdkTest'));
-const PamVoiceTest = lazyWithRetry(() => import('./pages/PamVoiceTest'));
-const PAMVoiceHybridTest = lazyWithRetry(() => import('./pages/PAMVoiceHybridTest'));
-// const PamWebSocketTest = lazyWithRetry(() => import('./pages/PamWebSocketTest')); // Disabled - using unified PAM service
-const PAMTestingPage = lazyWithRetry(() => import('./pages/PAMTestingPage'));
-const PAMDevTestPage = lazyWithRetry(() => import('./pages/PAMDevTestPage'));
-const PAMFallbackTestPage = lazyWithRetry(() => import('./dev/PAMFallbackTestPage'));
-const PerformanceTestPage = lazyWithRetry(() => import('./dev/PerformanceTestPage'));
-const SiteQALog = lazyWithRetry(() => import('./pages/SiteQALog'));
-const FreshTripPlannerTest = lazyWithRetry(() => import('./pages/FreshTripPlannerTest'));
-const WheelsSimple = lazyWithRetry(() => import('./pages/WheelsSimple'));
-const PamDirectApiTest = lazyWithRetry(() => import('./pages/PamDirectApiTest'));
+// Dev/test pages - only loaded in non-production environments
+const isDevOrStaging = import.meta.env.DEV || window.location.hostname.includes('staging');
+const AuthTest = isDevOrStaging ? lazyWithRetry(() => import('./pages/AuthTest')) : null;
+const PamVoiceTest = isDevOrStaging ? lazyWithRetry(() => import('./pages/PamVoiceTest')) : null;
+const PAMVoiceHybridTest = isDevOrStaging ? lazyWithRetry(() => import('./pages/PAMVoiceHybridTest')) : null;
+const PAMTestingPage = isDevOrStaging ? lazyWithRetry(() => import('./pages/PAMTestingPage')) : null;
+const PAMDevTestPage = isDevOrStaging ? lazyWithRetry(() => import('./pages/PAMDevTestPage')) : null;
+const PAMFallbackTestPage = isDevOrStaging ? lazyWithRetry(() => import('./dev/PAMFallbackTestPage')) : null;
+const PerformanceTestPage = isDevOrStaging ? lazyWithRetry(() => import('./dev/PerformanceTestPage')) : null;
+const SiteQALog = isDevOrStaging ? lazyWithRetry(() => import('./pages/SiteQALog')) : null;
+const FreshTripPlannerTest = isDevOrStaging ? lazyWithRetry(() => import('./pages/FreshTripPlannerTest')) : null;
+const WheelsSimple = isDevOrStaging ? lazyWithRetry(() => import('./pages/WheelsSimple')) : null;
+const PamDirectApiTest = isDevOrStaging ? lazyWithRetry(() => import('./pages/PamDirectApiTest')) : null;
 const Transition = lazyWithRetry(() => import('./pages/Transition'));
 const Safety = lazyWithRetry(() => import('./pages/Safety'));
 
@@ -131,19 +130,18 @@ function App() {
                                   <Route path="/terms" element={<TermsOfService />} />
                                   <Route path="/privacy" element={<PrivacyPolicy />} />
                                   <Route path="/cookies" element={<CookiePolicy />} />
-                                  <Route path="/auth-test" element={<ProtectedRoute><AuthTest /></ProtectedRoute>} />
-                                  {/* <Route path="/pam-ai-sdk-test" element={<PamAiSdkTest />} /> */}
-                                  <Route path="/pam-voice-test" element={<PamVoiceTest />} />
-                                  <Route path="/pam-voice-hybrid-test" element={<ProtectedRoute><PAMVoiceHybridTest /></ProtectedRoute>} />
-                                  {/* <Route path="/pam-websocket-test" element={<PamWebSocketTest />} /> */}
-                                  <Route path="/pam-testing" element={<ProtectedRoute><PAMTestingPage /></ProtectedRoute>} />
-                                  <Route path="/pam-dev-test" element={<PAMDevTestPage />} />
-                                  <Route path="/pam-fallback-test" element={<PAMFallbackTestPage />} />
-                                  <Route path="/performance-test" element={<PerformanceTestPage />} />
-                                  <Route path="/qa" element={<SiteQALog />} />
-                                  <Route path="/fresh-trip-planner" element={<FreshTripPlannerTest />} />
-                                  <Route path="/wheels-simple" element={<WheelsSimple />} />
-                                  <Route path="/pam-direct-api-test" element={<PamDirectApiTest />} />
+                                  {/* Dev/test routes - hidden in production */}
+                                  {AuthTest && <Route path="/auth-test" element={<ProtectedRoute><AuthTest /></ProtectedRoute>} />}
+                                  {PamVoiceTest && <Route path="/pam-voice-test" element={<PamVoiceTest />} />}
+                                  {PAMVoiceHybridTest && <Route path="/pam-voice-hybrid-test" element={<ProtectedRoute><PAMVoiceHybridTest /></ProtectedRoute>} />}
+                                  {PAMTestingPage && <Route path="/pam-testing" element={<ProtectedRoute><PAMTestingPage /></ProtectedRoute>} />}
+                                  {PAMDevTestPage && <Route path="/pam-dev-test" element={<PAMDevTestPage />} />}
+                                  {PAMFallbackTestPage && <Route path="/pam-fallback-test" element={<PAMFallbackTestPage />} />}
+                                  {PerformanceTestPage && <Route path="/performance-test" element={<PerformanceTestPage />} />}
+                                  {SiteQALog && <Route path="/qa" element={<SiteQALog />} />}
+                                  {FreshTripPlannerTest && <Route path="/fresh-trip-planner" element={<FreshTripPlannerTest />} />}
+                                  {WheelsSimple && <Route path="/wheels-simple" element={<WheelsSimple />} />}
+                                  {PamDirectApiTest && <Route path="/pam-direct-api-test" element={<PamDirectApiTest />} />}
                                   <Route path="*" element={<div className="container p-8 text-center"><h1 className="text-2xl font-bold mb-4">404 - Page Not Found</h1><p>The page you're looking for doesn't exist.</p></div>} />
                                 </Routes>
                             </Suspense>

@@ -75,7 +75,7 @@ from app.api.v1 import (
     receipts,
     pam,
     pam_realtime_hybrid,  # Hybrid: OpenAI voice + Claude reasoning
-    pam_tools,  # PAM tool execution endpoints
+    # pam_tools removed - functionality handled by main pam router
     auth,
     subscription,
     support,
@@ -87,7 +87,7 @@ from app.api.v1 import (
     voice_conversation,  # Re-enabled after fixing user schema import
     profiles,
     products,
-    orders,
+    # orders removed - shop uses affiliate links, no internal order management needed
     maintenance,
     custom_routes,
     mapbox,
@@ -954,88 +954,26 @@ app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
 
 # PAM Voice Hybrid: OpenAI Realtime API (voice I/O) + Claude Sonnet 4.5 (reasoning)
 app.include_router(pam_realtime_hybrid.router, prefix="/api/v1", tags=["PAM Voice Hybrid"])
-app.include_router(pam_tools.router, prefix="/api/v1", tags=["PAM Tools"])
-
-# PAM 2.0 - Clean, modular implementation (Phase 1 setup)
-# PAM 2.0 - Modular AI Assistant (New Architecture)
-try:
-    from app.services.pam_2.api.routes import router as pam_2_router
-    from app.services.pam_2.api.websocket import websocket_endpoint as pam_2_websocket
-    app.include_router(pam_2_router, prefix="/api/v1/pam-2", tags=["PAM 2.0"])
-    app.websocket("/api/v1/pam-2/chat/ws/{user_id}")(pam_2_websocket)
-    logger.info("✅ PAM 2.0 modular architecture loaded successfully")
-except Exception as pam2_error:
-    logger.error(f"❌ Failed to load PAM 2.0: {pam2_error}")
-    # Fallback to old PAM 2.0 if new structure fails
-    try:
-        from app.api.v1 import pam_2
-        app.include_router(pam_2.router, prefix="/api/v1/pam-2", tags=["PAM 2.0 Fallback"])
-        logger.warning("⚠️ Using fallback PAM 2.0 implementation")
-    except Exception as fallback_error:
-        logger.error(f"❌ PAM 2.0 fallback also failed: {fallback_error}")
-
-# PAM Hybrid System - REMOVED (simplified to single Claude Sonnet 4.5 implementation)
-# Hybrid system deleted during Day 1 cleanup (October 1, 2025)
-# See docs/DELETION_MANIFEST_20251001.md for details
-
-# PAM Simple - NEW clean implementation (Day 2, October 1, 2025)
-# Simple WebSocket + REST endpoints using core PAM brain
+# PAM Simple - Fallback REST endpoint (used by frontend when WebSocket unavailable)
 try:
     from app.api.v1 import pam_simple
     app.include_router(pam_simple.router, prefix="/api/v1/pam-simple", tags=["PAM Simple"])
-    logger.info("✅ PAM Simple (Claude Sonnet 4.5) loaded successfully")
+    logger.info("PAM Simple fallback loaded successfully")
 except Exception as simple_error:
-    logger.error(f"❌ Failed to load PAM Simple: {simple_error}")
+    logger.error(f"Failed to load PAM Simple: {simple_error}")
 
-# PAM 2.0 Simple + Tools - Barry-inspired architecture (October 4, 2025)
-# Combines Barry AI's proven simplicity with PAM's 40 action tools
-try:
-    from app.api.v1 import pam_simple_with_tools
-    app.include_router(pam_simple_with_tools.router, prefix="/api/v1/pam-simple", tags=["PAM 2.0 Simple"])
-    logger.info("✅ PAM 2.0 Simple + Tools (Barry-inspired) loaded successfully")
-except Exception as pam2_error:
-    logger.error(f"❌ Failed to load PAM 2.0 Simple: {pam2_error}")
-    print(f"⚠️ PAM 2.0 Simple unavailable: {pam2_error}")
-
-# PAM Savings API - Day 3 (October 1, 2025)
-# Savings tracking and celebration endpoints
+# PAM Savings API - Savings tracking endpoints
 try:
     from app.api.v1.pam import savings
     app.include_router(savings.router, prefix="/api/v1/pam/savings", tags=["PAM Savings"])
-    logger.info("✅ PAM Savings API loaded successfully")
+    logger.info("PAM Savings API loaded successfully")
 except Exception as savings_error:
-    logger.error(f"❌ Failed to load PAM Savings API: {savings_error}")
-
-# Usage Tracking API - For safe code cleanup (October 8-22, 2025)
-try:
-    from app.api.v1 import usage_tracking
-    app.include_router(usage_tracking.router, prefix="/api/v1/usage-tracking", tags=["Usage Tracking"])
-    logger.info("✅ Usage tracking API loaded successfully")
-except Exception as tracking_error:
-    logger.error(f"❌ Failed to load usage tracking API: {tracking_error}")
-
-# Import and add intent classification routes
-try:
-    from app.api.v1 import intent
-    app.include_router(intent.router, prefix="/api/v1/pam", tags=["Intent Classification"])
-    print("✅ Intent classification routes added successfully")
-except ImportError as e:
-    print(f"⚠️  Intent classification routes not available: {e}")
-except Exception as e:
-    print(f"❌ Failed to add intent classification routes: {e}")
-
-# Domain Memory Agent System - Long-running task management (December 2025)
-try:
-    from app.api.v1 import domain_memory
-    app.include_router(domain_memory.router, prefix="/api/v1", tags=["Domain Memory"])
-    logger.info("✅ Domain Memory API loaded successfully")
-except Exception as dm_error:
-    logger.error(f"❌ Failed to load Domain Memory API: {dm_error}")
+    logger.error(f"Failed to load PAM Savings API: {savings_error}")
 
 app.include_router(profiles.router, prefix="/api/v1", tags=["Profiles"])
 app.include_router(user_settings.router, prefix="/api/v1", tags=["User Settings"])
 app.include_router(products.router, prefix="/api/v1", tags=["Products"])
-app.include_router(orders.router, prefix="/api/v1", tags=["Orders"])
+# orders router removed - shop uses affiliate links, no internal order management
 app.include_router(maintenance.router, prefix="/api/v1", tags=["Maintenance"])
 app.include_router(trips.router, prefix="", tags=["Trips"])  # Trip management API
 app.include_router(custom_routes.router, prefix="/api/v1", tags=["Routes"])

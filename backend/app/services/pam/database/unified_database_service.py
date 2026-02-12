@@ -202,7 +202,7 @@ class PamDatabaseService:
         "youtube_hustles", "hustle_ideas", "user_hustle_attempts",
         
         # E-commerce
-        "shop_products", "shop_orders", "affiliate_sales",
+        "affiliate_products", "affiliate_sales",
         
         # Social
         "social_groups", "group_memberships", "social_posts", "marketplace_listings", "facebook_groups",
