@@ -9,7 +9,7 @@ Current active PAM endpoint: backend/app/api/v1/pam_main.py
   - pam_main.py uses EnhancedPamOrchestrator instead
 
 This file provides:
-  - 40 tools (budget, trip, social, shop, profile)
+  - 50+ tools (budget, trip, seasonal, social, shop, profile)
   - Claude Sonnet 4.5 integration
   - Prompt caching for 40-60% latency reduction
 
@@ -79,6 +79,9 @@ from app.services.pam.tools.trip.find_attractions import find_attractions
 from app.services.pam.tools.trip.estimate_travel_time import estimate_travel_time
 from app.services.pam.tools.trip.save_favorite_spot import save_favorite_spot
 from app.services.pam.tools.trip.update_vehicle_fuel_consumption import update_vehicle_fuel_consumption
+from app.services.pam.tools.trip.suggest_seasonal_route import suggest_seasonal_route
+from app.services.pam.tools.trip.find_longstay_parks import find_longstay_parks
+from app.services.pam.tools.trip.seasonal_weather_check import seasonal_weather_check
 
 # Import fuel receipt tools
 from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt
@@ -284,7 +287,7 @@ class PAM:
 - You're a competent, friendly travel partner (not a servant, not a boss - an equal)
 - You help RVers save money, plan trips, manage budgets, and stay connected
 - You take ACTION - you don't just answer questions, you DO things
-- You have FULL ACCESS to 40+ tools that let you control the website and help users
+- You have FULL ACCESS to 50+ tools that let you control the website and help users
 
 **CRITICAL - YOU HAVE TOOLS (NEVER DENY THIS):**
 You have FULL ACCESS to the following tools. NEVER say "I don't have access to tools" or "I can't do that" - YOU CAN.
@@ -313,6 +316,11 @@ You have FULL ACCESS to the following tools. NEVER say "I don't have access to t
 - estimate_travel_time - Calculate drive times
 - save_favorite_spot - Save favorite locations
 - update_vehicle_fuel_consumption - Update MPG
+
+**Seasonal Migration Tools (3):**
+- suggest_seasonal_route - Plan seasonal migration routes for Grey Nomads
+- find_longstay_parks - Find parks with monthly rates and extended stays
+- seasonal_weather_check - Check typical weather patterns for travel timing
 
 **Social/Community Tools (10):**
 - create_post - Post to social feed
@@ -415,7 +423,7 @@ WRONG - DO NOT DO THIS:
   YOU: "I've added that to your calendar" ❌ (didn't actually call tool - this is hallucination!)
 
 **IMPORTANT - YOU HAVE FULL ACCESS TO ALL TOOLS:**
-As listed above, you have 40+ tools across budget, trips, social, calendar, profile, shop, and knowledge.
+As listed above, you have 50+ tools across budget, trips, seasonal migration, social, calendar, profile, shop, and knowledge.
 - ALWAYS use the appropriate tool when a user asks for help
 - NEVER claim you can't do something if there's a tool for it
 - If a tool execution fails, tell user there was a technical error (don't say you lack access)
@@ -441,6 +449,16 @@ The user pays AU$14/month for your service. Your job is to save them MORE than t
 - Track savings automatically - tools like find_cheap_gas and optimize_route now auto-record savings.
 - Periodically remind users about their monthly savings: "You've saved $X this month so far!"
 - Your goal is to make yourself FREE by saving users more than their subscription cost.
+
+**SEASONAL MIGRATION AWARENESS:**
+You understand Australian Grey Nomad seasonal migration patterns:
+- Many users travel south (VIC/SA) in summer and north (QLD/NT) in winter
+- "Heading south for summer" or "going north for the dry season" are common migration patterns
+- When users mention multi-month trips, seasonal travel, or annual migrations, proactively use your seasonal tools
+- Suggest optimal departure timing based on weather windows
+- Recommend long-stay parks with monthly rates when trips exceed 2 weeks
+- Mention seasonal events (Birdsville Races, Tamworth Country Music, etc.) when relevant to their route
+- Use suggest_seasonal_route for migration planning, find_longstay_parks for extended stays, seasonal_weather_check for timing
 
 **Current date and time:** {self._get_current_datetime_for_user()}
 
@@ -769,6 +787,48 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         }
                     },
                     "required": ["receipt_url"]
+                }
+            },
+            # Seasonal migration tools
+            {
+                "name": "suggest_seasonal_route",
+                "description": "Suggest an optimal seasonal migration route for Grey Nomads. Use when user mentions seasonal travel, heading south/north for winter/summer, annual migration, snowbird plans, or multi-month trips.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "origin": {"type": "string", "description": "Starting location (e.g. 'Brisbane', 'Melbourne')"},
+                        "destination_region": {"type": "string", "description": "Target region (e.g. 'southern victoria', 'top end', 'wa coast')"},
+                        "travel_month": {"type": "string", "description": "When they want to travel (e.g. 'may', 'october')"},
+                        "duration_weeks": {"type": "integer", "description": "Total migration duration in weeks"},
+                        "budget": {"type": "number", "description": "Total budget for the migration"}
+                    },
+                    "required": ["origin", "destination_region"]
+                }
+            },
+            {
+                "name": "find_longstay_parks",
+                "description": "Find caravan parks and campgrounds with monthly rates or extended-stay discounts. Use when user asks about long stays, monthly rates, extended camping, or staying somewhere for weeks/months.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "region": {"type": "string", "description": "Region to search (e.g. 'Hervey Bay', 'Murray River', 'Echuca')"},
+                        "min_stay_days": {"type": "integer", "description": "Minimum stay in days (default: 30)"},
+                        "max_monthly_rate": {"type": "number", "description": "Maximum monthly rate in dollars"},
+                        "amenities": {"type": "array", "items": {"type": "string"}, "description": "Required amenities"}
+                    },
+                    "required": ["region"]
+                }
+            },
+            {
+                "name": "seasonal_weather_check",
+                "description": "Check typical seasonal weather patterns for an Australian region and month. Use when user asks about best time to visit, weather expectations, or travel timing decisions. Returns historical averages not live forecasts.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "region": {"type": "string", "description": "Region to check (e.g. 'Top End', 'Victoria', 'Hervey Bay')"},
+                        "month": {"type": "string", "description": "Month to check (e.g. 'may', 'july', 'october')"}
+                    },
+                    "required": ["region", "month"]
                 }
             },
             # Social tools
@@ -1670,6 +1730,10 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             "save_favorite_spot": save_favorite_spot,
             "update_vehicle_fuel_consumption": update_vehicle_fuel_consumption,
             "scan_fuel_receipt": scan_fuel_receipt,
+            # Seasonal migration tools
+            "suggest_seasonal_route": suggest_seasonal_route,
+            "find_longstay_parks": find_longstay_parks,
+            "seasonal_weather_check": seasonal_weather_check,
             # Social tools
             "create_post": create_post,
             "message_friend": message_friend,

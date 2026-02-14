@@ -11,6 +11,12 @@ from decimal import Decimal
 
 from app.services.pam.schemas.base import BaseToolInput, LocationInput, AmountInput, DateInput
 
+VALID_MONTHS = [
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+    "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+]
+
 
 class UnitsSystem(str, Enum):
     """Valid unit systems"""
@@ -245,4 +251,87 @@ class SaveFavoriteSpotInput(BaseToolInput, LocationInput):
         v = v.strip()
         if not v:
             raise ValueError("Field cannot be empty")
+        return v
+
+
+class SuggestSeasonalRouteInput(BaseToolInput):
+    """Validation for suggest_seasonal_route tool"""
+
+    origin: str = Field(..., min_length=1, max_length=500, description="Starting location")
+    destination_region: str = Field(..., min_length=1, max_length=500, description="Target region")
+    travel_month: Optional[str] = Field(None, max_length=20, description="Travel month (e.g. 'may')")
+    duration_weeks: Optional[int] = Field(None, gt=0, le=52, description="Migration duration in weeks")
+    budget: Optional[Decimal] = Field(None, gt=0, max_digits=10, decimal_places=2, description="Total budget")
+
+    @validator("origin", "destination_region")
+    def validate_locations(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError("Location cannot be empty")
+        return v
+
+    @validator("travel_month")
+    def validate_travel_month(cls, v):
+        if v is None:
+            return v
+        v = v.strip().lower()
+        if v and v not in VALID_MONTHS:
+            raise ValueError(f"Invalid month: {v}")
+        return v
+
+    @validator("budget")
+    def validate_budget(cls, v):
+        if v and v > 100_000:
+            raise ValueError("Budget must be less than $100,000")
+        return round(v, 2) if v else None
+
+
+class FindLongstayParksInput(BaseToolInput):
+    """Validation for find_longstay_parks tool"""
+
+    region: str = Field(..., min_length=1, max_length=500, description="Region to search")
+    min_stay_days: Optional[int] = Field(30, gt=0, le=365, description="Minimum stay in days")
+    max_monthly_rate: Optional[float] = Field(None, gt=0, description="Maximum monthly rate")
+    amenities: Optional[List[str]] = Field(None, description="Required amenities")
+
+    @validator("region")
+    def validate_region(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError("Region cannot be empty")
+        return v
+
+    @validator("max_monthly_rate")
+    def validate_rate(cls, v):
+        if v and v > 10_000:
+            raise ValueError("Monthly rate must be less than $10,000")
+        return round(v, 2) if v else None
+
+    @validator("amenities")
+    def validate_amenities(cls, v):
+        if v:
+            return [a.strip().lower() for a in v if a.strip()]
+        return v
+
+
+class SeasonalWeatherCheckInput(BaseToolInput):
+    """Validation for seasonal_weather_check tool"""
+
+    region: str = Field(..., min_length=1, max_length=500, description="Region to check")
+    month: str = Field(..., min_length=1, max_length=20, description="Month to check")
+
+    @validator("region")
+    def validate_region(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError("Region cannot be empty")
+        return v
+
+    @validator("month")
+    def validate_month(cls, v):
+        v = v.strip().lower()
+        if not v:
+            raise ValueError("Month cannot be empty")
+        if v not in VALID_MONTHS:
+            raise ValueError(f"Invalid month: {v}")
         return v
