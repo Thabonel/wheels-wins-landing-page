@@ -23,7 +23,9 @@ export interface GearItem {
 }
 
 export const gearCatalog: GearItem[] = [
-  // --- Leveling & Stabilization ---
+  // =============================================
+  // Leveling & Stabilization
+  // =============================================
   {
     id: "maxxhaul-wheel-chocks",
     category: "Leveling & Stabilization",
@@ -58,8 +60,18 @@ export const gearCatalog: GearItem[] = [
     primaryUrl: "https://rvsnappad.com/discount/RVTT10",
     primaryCtaLabel: "Visit supplier (discount link)",
   },
+  {
+    id: "spirit-level-bubble",
+    category: "Leveling & Stabilization",
+    title: "Spirit Level Bubble Levelers (2 Pack)",
+    why: "Stick-on bubble levels for your dashboard or frame. See at a glance if you're parked level.",
+    amazonAuSearchUrl: amazonAuSearch("spirit level bubble leveler stick on caravan RV"),
+    localSearchUrl: googleSearch("spirit level bubble leveler caravan"),
+  },
 
-  // --- Water & Plumbing ---
+  // =============================================
+  // Water & Plumbing
+  // =============================================
   {
     id: "camco-tastepure-filter",
     category: "Water & Plumbing",
@@ -100,8 +112,18 @@ export const gearCatalog: GearItem[] = [
     amazonAuSearchUrl: amazonAuSearch("RV winterizing blow out plug adapter"),
     localSearchUrl: googleSearch("RV winterizing blow out plug"),
   },
+  {
+    id: "flush-mount-tank-gauge",
+    category: "Water & Plumbing",
+    title: "Flush Mount Water Tank Gauge",
+    why: "Real-time water level monitoring without drilling into your tank. Know exactly how much water you have left.",
+    amazonAuSearchUrl: amazonAuSearch("flush mount water tank gauge RV real time"),
+    localSearchUrl: googleSearch("flush mount water tank gauge RV"),
+  },
 
-  // --- Sanitation ---
+  // =============================================
+  // Sanitation
+  // =============================================
   {
     id: "thetford-toilet-seal",
     category: "Sanitation",
@@ -118,8 +140,18 @@ export const gearCatalog: GearItem[] = [
     amazonAuSearchUrl: amazonAuSearch("RV liquid toilet treatment holding tank"),
     localSearchUrl: googleSearch("RV caravan toilet chemical treatment"),
   },
+  {
+    id: "portable-toilet",
+    category: "Sanitation",
+    title: "Portable Camping Toilet",
+    why: "Lightweight emergency toilet for when there are no facilities. Essential for remote camping.",
+    amazonAuSearchUrl: amazonAuSearch("portable camping toilet lightweight"),
+    localSearchUrl: googleSearch("portable camping toilet"),
+  },
 
-  // --- Cleaning & Protection ---
+  // =============================================
+  // Cleaning & Protection
+  // =============================================
   {
     id: "303-protectant",
     category: "Cleaning & Protection",
@@ -161,7 +193,9 @@ export const gearCatalog: GearItem[] = [
     localSearchUrl: googleSearch("Boeshield T-9 lubricant protectant"),
   },
 
-  // --- Tools & Accessories ---
+  // =============================================
+  // Tools & Accessories
+  // =============================================
   {
     id: "klein-11-in-1",
     category: "Tools & Accessories",
@@ -202,6 +236,658 @@ export const gearCatalog: GearItem[] = [
     amazonAuSearchUrl: amazonAuSearch("RV 12V dimmer switch replacement LED"),
     localSearchUrl: googleSearch("RV 12V dimmer switch LED"),
   },
+  {
+    id: "tire-inflation-deflation-kit",
+    category: "Tools & Accessories",
+    title: "Tire Inflation & Deflation Kit",
+    why: "Professional tire pressure management system with equalizer. Essential for off-road terrain adjustments.",
+    amazonAuSearchUrl: amazonAuSearch("tire inflation deflation kit equalizer off-road"),
+    localSearchUrl: googleSearch("tire inflation deflation kit off-road"),
+  },
+  {
+    id: "adjustable-tire-deflator",
+    category: "Tools & Accessories",
+    title: "Adjustable Tire Deflator with Auto-Stop (10-40 PSI)",
+    why: "Set your target PSI and walk away - auto-stop deflators take the guesswork out of airing down.",
+    amazonAuSearchUrl: amazonAuSearch("adjustable tire deflator auto stop 10-40 PSI valve stem"),
+    localSearchUrl: googleSearch("adjustable tire deflator auto stop"),
+  },
+  {
+    id: "telescoping-ladder",
+    category: "Tools & Accessories",
+    title: "Telescoping Extension Ladder (3.9M)",
+    why: "Collapses down small for storage, extends to 3.9M for roof access. Heavy-duty 150kg capacity.",
+    amazonAuSearchUrl: amazonAuSearch("telescoping extension ladder 3.9m heavy duty carbon steel"),
+    localSearchUrl: googleSearch("telescoping extension ladder 3.9m"),
+  },
+  {
+    id: "rv-hose-storage-bags",
+    category: "Tools & Accessories",
+    title: "Waterproof RV Hose Storage Bags (4 Pack)",
+    why: "Keep wet, dirty hoses contained and your storage compartment clean.",
+    amazonAuSearchUrl: amazonAuSearch("waterproof RV hose storage bags 4 pack"),
+    localSearchUrl: googleSearch("waterproof RV hose storage bags"),
+  },
+  {
+    id: "needle-torque-wrench",
+    category: "Tools & Accessories",
+    title: "3/4-Inch Drive Needle Torque Wrench (0-500 Nm)",
+    why: "Check wheel nut torque on the roadside. Essential for anyone towing or running heavy wheels.",
+    amazonAuSearchUrl: amazonAuSearch("3/4 inch drive needle torque wrench 500 Nm"),
+    localSearchUrl: googleSearch("3/4 inch drive needle torque wrench"),
+  },
+  {
+    id: "click-torque-wrench",
+    category: "Tools & Accessories",
+    title: "3/4\" Drive Click Torque Wrench (50-500 Nm)",
+    why: "Click-type for precise torque readings. Hear and feel the click when you hit the target.",
+    amazonAuSearchUrl: amazonAuSearch("3/4 drive click torque wrench 50-500 Nm"),
+    localSearchUrl: googleSearch("3/4 drive click torque wrench 500 Nm"),
+  },
+  {
+    id: "torque-multiplier",
+    category: "Tools & Accessories",
+    title: "Torque Multiplier Wrench Set",
+    why: "Multiplies your torque for those impossibly tight lug nuts. Makes roadside wheel changes possible.",
+    amazonAuSearchUrl: amazonAuSearch("torque multiplier wrench set lug nut"),
+    localSearchUrl: googleSearch("torque multiplier wrench set"),
+  },
+
+  // =============================================
+  // Recovery Gear
+  // =============================================
+  {
+    id: "auto-tire-deflators",
+    category: "Recovery Gear",
+    title: "Automatic Tire Air Deflators",
+    why: "Cheap and effective automatic deflators for airing down before hitting the dirt.",
+    amazonAuSearchUrl: amazonAuSearch("automatic adjustable tire air deflators pressure gauge"),
+    localSearchUrl: googleSearch("automatic tire air deflators"),
+  },
+  {
+    id: "led-road-flares",
+    category: "Recovery Gear",
+    title: "LED Road Flares (6 Pack)",
+    why: "Magnetic LED flares for roadside emergencies. Much safer and reusable compared to traditional flares.",
+    amazonAuSearchUrl: amazonAuSearch("LED road flares emergency lights 6 pack magnetic"),
+    localSearchUrl: googleSearch("LED road flares emergency 6 pack"),
+  },
+  {
+    id: "warning-triangle-vest-kit",
+    category: "Recovery Gear",
+    title: "Warning Triangle Kit with Reflective Safety Vest",
+    why: "Two warning triangles and two reflective vests. Legal requirement in many countries and essential for breakdowns.",
+    amazonAuSearchUrl: amazonAuSearch("warning triangle kit foldable reflective safety vest"),
+    localSearchUrl: googleSearch("warning triangle kit reflective safety vest"),
+  },
+  {
+    id: "kinetic-tow-rope",
+    category: "Recovery Gear",
+    title: "Kinetic Recovery Tow Rope (25mm x 6m)",
+    why: "Heavy-duty kinetic rope that stretches to absorb shock during recovery. 17-tonne breaking strength.",
+    amazonAuSearchUrl: amazonAuSearch("kinetic recovery tow rope 25mm 6m heavy duty"),
+    localSearchUrl: googleSearch("kinetic recovery tow rope 25mm"),
+  },
+  {
+    id: "snatch-block-pulley",
+    category: "Recovery Gear",
+    title: "Heavy Duty Snatch Block Pulley",
+    why: "Doubles your winch pulling power and lets you change pull direction. Essential recovery kit.",
+    amazonAuSearchUrl: amazonAuSearch("snatch block ring heavy duty pulley winch recovery"),
+    localSearchUrl: googleSearch("heavy duty snatch block pulley winch"),
+  },
+  {
+    id: "recovery-ring-snatch-block",
+    category: "Recovery Gear",
+    title: "Recovery Ring Snatch Block (46,000 lbs)",
+    why: "Lightweight aluminium snatch block rated for 46,000 lbs. Pairs with soft shackles for safer recovery.",
+    amazonAuSearchUrl: amazonAuSearch("recovery ring snatch block 46000 lbs aluminium"),
+    localSearchUrl: googleSearch("recovery ring snatch block 46000 lbs"),
+  },
+  {
+    id: "towing-strap-rope",
+    category: "Recovery Gear",
+    title: "Towing Strap with Protective Sleeve (17 Tonne)",
+    why: "Stronger than steel at 17-tonne breaking strength. Comes with protective sleeve and it floats.",
+    amazonAuSearchUrl: amazonAuSearch("towing strap trailer pull rope 38000 lbs protective sleeve"),
+    localSearchUrl: googleSearch("towing strap 17 tonne protective sleeve"),
+  },
+  {
+    id: "winch-cable-damper",
+    category: "Recovery Gear",
+    title: "Winch Cable Damper",
+    why: "Drape over your winch line during recovery. If the cable snaps, the damper absorbs the energy.",
+    amazonAuSearchUrl: amazonAuSearch("winch cable damper cushion pad reflective safety"),
+    localSearchUrl: googleSearch("winch cable damper safety"),
+  },
+  {
+    id: "synthetic-winch-rope",
+    category: "Recovery Gear",
+    title: "Synthetic Winch Rope Kit (1/2\" x 100ft)",
+    why: "Lighter and safer than steel cable. Includes protective sleeve and hook. 14.5-tonne rated.",
+    amazonAuSearchUrl: amazonAuSearch("synthetic winch rope cable kit 100ft hook 32000 lbs"),
+    localSearchUrl: googleSearch("synthetic winch rope kit 100ft"),
+  },
+  {
+    id: "rhino-recovery-strap",
+    category: "Recovery Gear",
+    title: "RHINO USA Recovery Strap (20ft, 14 Tonne)",
+    why: "Triple-reinforced loop ends with 14-tonne break strength. A trusted name in recovery gear.",
+    amazonAuSearchUrl: amazonAuSearch("RHINO USA recovery strap 20ft heavy duty"),
+    localSearchUrl: googleSearch("RHINO USA recovery strap 20ft"),
+  },
+  {
+    id: "kinetic-recovery-rope",
+    category: "Recovery Gear",
+    title: "Kinetic Recovery Rope (1.1\" - 48,000 lbs)",
+    why: "Professional-grade kinetic rope for serious stuck vehicle recovery. The stretch absorbs shock loads.",
+    amazonAuSearchUrl: amazonAuSearch("kinetic recovery rope 1.1 inch 48000 lbs"),
+    localSearchUrl: googleSearch("kinetic recovery rope 48000 lbs"),
+  },
+  {
+    id: "kinetic-recovery-shackle",
+    category: "Recovery Gear",
+    title: "Kinetic Recovery Shackle",
+    why: "Nylon construction is safer than metal shackles - won't become a deadly projectile if something fails.",
+    amazonAuSearchUrl: amazonAuSearch("kinetic recovery shackle nylon soft"),
+    localSearchUrl: googleSearch("kinetic recovery shackle nylon"),
+  },
+  {
+    id: "snatch-block-12000lb",
+    category: "Recovery Gear",
+    title: "Recovery Snatch Block (12,000 lb)",
+    why: "Double your winch line pulling power. Changes pull direction for complex recovery setups.",
+    amazonAuSearchUrl: amazonAuSearch("recovery snatch block 12000 lb winch pulley"),
+    localSearchUrl: googleSearch("recovery snatch block 12000 lb"),
+  },
+  {
+    id: "traction-boards",
+    category: "Recovery Gear",
+    title: "Traction Boards / Recovery Tracks",
+    why: "Slide under your wheels when bogged in sand, mud, or snow. U-shaped design prevents sideslip.",
+    amazonAuSearchUrl: amazonAuSearch("traction boards recovery tracks tire ladder off-road"),
+    localSearchUrl: googleSearch("traction boards recovery tracks"),
+  },
+
+  // =============================================
+  // Camping & Expedition
+  // =============================================
+  {
+    id: "van-cargo-nets",
+    category: "Camping & Expedition",
+    title: "Van Storage Cargo Nets (2 Pack)",
+    why: "Keeps gear from flying around during travel. Mount on walls or ceiling for extra storage space.",
+    amazonAuSearchUrl: amazonAuSearch("van storage cargo net 2 pack"),
+    localSearchUrl: googleSearch("van storage cargo net"),
+  },
+  {
+    id: "portable-camping-chair",
+    category: "Camping & Expedition",
+    title: "Portable Camping Chair",
+    why: "Lightweight and packable - the kind of chair you'll actually bring every time.",
+    amazonAuSearchUrl: amazonAuSearch("portable camping chair lightweight packable"),
+    localSearchUrl: googleSearch("portable camping chair lightweight"),
+  },
+  {
+    id: "ultralight-camping-chair",
+    category: "Camping & Expedition",
+    title: "Ultralight Camping Chair",
+    why: "For when every gram counts. Packs down tiny but still comfortable enough for a long evening around the fire.",
+    amazonAuSearchUrl: amazonAuSearch("ultralight portable camping chair compact"),
+    localSearchUrl: googleSearch("ultralight camping chair compact"),
+  },
+  {
+    id: "padded-folding-chair",
+    category: "Camping & Expedition",
+    title: "Padded Folding Camping Chair with Carry Bag",
+    why: "Extra padding for those long camp sessions. Folds flat and comes with its own bag.",
+    amazonAuSearchUrl: amazonAuSearch("padded folding outdoor camping chair with bag"),
+    localSearchUrl: googleSearch("padded folding camping chair with bag"),
+  },
+  {
+    id: "magnetic-gas-level",
+    category: "Camping & Expedition",
+    title: "Magnetic Gas Level Indicator",
+    why: "Sticks to the outside of your gas bottle and shows the fill level. No more guessing if you'll run out mid-cook.",
+    amazonAuSearchUrl: amazonAuSearch("magnetic gas level indicator bottle"),
+    localSearchUrl: googleSearch("magnetic gas level indicator"),
+  },
+  {
+    id: "propane-splitter-gauge",
+    category: "Camping & Expedition",
+    title: "Propane Splitter with Gauge",
+    why: "Run two appliances from one gas bottle with a built-in gauge to monitor levels.",
+    amazonAuSearchUrl: amazonAuSearch("propane gas splitter with gauge"),
+    localSearchUrl: googleSearch("propane gas splitter with gauge"),
+  },
+  {
+    id: "ferro-rod-fire-starter",
+    category: "Camping & Expedition",
+    title: "Ferro Rod Flint Fire Starter",
+    why: "Waterproof and windproof - starts fires when matches and lighters fail. Works in any conditions.",
+    amazonAuSearchUrl: amazonAuSearch("ferro rod flint fire starter camping"),
+    localSearchUrl: googleSearch("ferro rod flint fire starter"),
+  },
+  {
+    id: "swivel-campfire-grill",
+    category: "Camping & Expedition",
+    title: "Swivel Campfire Grill (Heavy Duty)",
+    why: "Stakes into the ground and swivels over the fire. Adjustable height for perfect heat control.",
+    amazonAuSearchUrl: amazonAuSearch("swivel campfire grill heavy duty steel grate"),
+    localSearchUrl: googleSearch("swivel campfire grill heavy duty"),
+  },
+  {
+    id: "camping-bread-toaster",
+    category: "Camping & Expedition",
+    title: "Stainless Steel Camp Bread Toaster",
+    why: "Toast bread over a camp stove or open flame. Simple, lightweight, and works perfectly.",
+    amazonAuSearchUrl: amazonAuSearch("stainless steel bread toaster camping stovetop"),
+    localSearchUrl: googleSearch("camping bread toaster stovetop"),
+  },
+  {
+    id: "camping-table-chairs",
+    category: "Camping & Expedition",
+    title: "Camping Table with 4 Chairs",
+    why: "Complete dining set that folds into one carry bag. Perfect for the campsite or tailgate.",
+    amazonAuSearchUrl: amazonAuSearch("camping folding table with 4 chairs set"),
+    localSearchUrl: googleSearch("camping table with chairs set"),
+  },
+  {
+    id: "kitchen-tripod",
+    category: "Camping & Expedition",
+    title: "Campfire Kitchen Tripod",
+    why: "Hang a pot or billy over the campfire. Adjustable chain for height control.",
+    amazonAuSearchUrl: amazonAuSearch("camping kitchen tripod campfire cooking"),
+    localSearchUrl: googleSearch("campfire kitchen tripod"),
+  },
+  {
+    id: "bbq-plate-skillet",
+    category: "Camping & Expedition",
+    title: "Camping Fire BBQ Plate + Skillet",
+    why: "Cast iron combo that goes straight on the coals. Cooks steaks, eggs, and everything in between.",
+    amazonAuSearchUrl: amazonAuSearch("camping fire BBQ plate skillet cast iron"),
+    localSearchUrl: googleSearch("camping fire BBQ plate skillet"),
+  },
+  {
+    id: "fish-grilling-basket",
+    category: "Camping & Expedition",
+    title: "Fish Grilling Basket",
+    why: "Holds fish securely so you can flip without it falling apart. Works on any grill or campfire.",
+    amazonAuSearchUrl: amazonAuSearch("fish grilling basket campfire BBQ"),
+    localSearchUrl: googleSearch("fish grilling basket BBQ"),
+  },
+  {
+    id: "foldable-bbq-grill",
+    category: "Camping & Expedition",
+    title: "Foldable Collapsible BBQ Grill",
+    why: "Collapses completely flat for storage. Full-size grilling surface when you need it.",
+    amazonAuSearchUrl: amazonAuSearch("foldable collapsible BBQ grill portable camping"),
+    localSearchUrl: googleSearch("foldable collapsible BBQ grill portable"),
+  },
+  {
+    id: "camp-oven",
+    category: "Camping & Expedition",
+    title: "Camp Oven",
+    why: "Bake bread, roast meat, and cook stews over the campfire. A bush cooking essential.",
+    amazonAuSearchUrl: amazonAuSearch("camp oven cast iron camping"),
+    localSearchUrl: googleSearch("camp oven cast iron"),
+  },
+  {
+    id: "camping-kitchen-table",
+    category: "Camping & Expedition",
+    title: "Camping Kitchen Table",
+    why: "Dedicated prep and cooking surface with storage shelves. Makes camp cooking much more organized.",
+    amazonAuSearchUrl: amazonAuSearch("camping kitchen table portable folding"),
+    localSearchUrl: googleSearch("camping kitchen table portable"),
+  },
+  {
+    id: "rechargeable-mosquito-repeller",
+    category: "Camping & Expedition",
+    title: "Rechargeable Mosquito Repeller",
+    why: "USB-rechargeable and chemical-free. Creates a mozzie-free zone around your campsite.",
+    amazonAuSearchUrl: amazonAuSearch("rechargeable mosquito repeller camping"),
+    localSearchUrl: googleSearch("rechargeable mosquito repeller camping"),
+  },
+  {
+    id: "fly-away-fans",
+    category: "Camping & Expedition",
+    title: "Fly Away Fan (2 Pack)",
+    why: "Spinning fan blades keep flies off your food at the campsite table. Battery powered and silent.",
+    amazonAuSearchUrl: amazonAuSearch("fly away fan repellent 2 pack camping food"),
+    localSearchUrl: googleSearch("fly away fan 2 pack camping"),
+  },
+  {
+    id: "camping-gear-bag",
+    category: "Camping & Expedition",
+    title: "Camping Gear Bag (42L)",
+    why: "Durable 42-litre bag sized perfectly for organizing camp gear, cooking equipment, or recovery kit.",
+    amazonAuSearchUrl: amazonAuSearch("camping gear bag 42L durable"),
+    localSearchUrl: googleSearch("camping gear bag 42L"),
+  },
+  {
+    id: "telescopic-camping-lights",
+    category: "Camping & Expedition",
+    title: "Telescopic Camping Lights (Rechargeable)",
+    why: "Extend tall for area lighting, collapse small for packing. USB rechargeable.",
+    amazonAuSearchUrl: amazonAuSearch("telescopic camping lights rechargeable"),
+    localSearchUrl: googleSearch("telescopic camping lights rechargeable"),
+  },
+  {
+    id: "solar-camping-lantern",
+    category: "Camping & Expedition",
+    title: "Solar-Powered Camping Lantern",
+    why: "Charges in the sun during the day, lights your campsite at night. Zero running cost.",
+    amazonAuSearchUrl: amazonAuSearch("solar powered rechargeable camping lantern"),
+    localSearchUrl: googleSearch("solar powered camping lantern"),
+  },
+  {
+    id: "camping-string-lights",
+    category: "Camping & Expedition",
+    title: "Camping String Lights",
+    why: "Festoon lights that make any campsite feel like home. USB powered for easy setup.",
+    amazonAuSearchUrl: amazonAuSearch("camping string lights USB outdoor"),
+    localSearchUrl: googleSearch("camping string lights USB"),
+  },
+  {
+    id: "camping-lights-3pack",
+    category: "Camping & Expedition",
+    title: "Camping Lights (3 Pack)",
+    why: "Affordable set of three hanging lights for your campsite, awning, or tent.",
+    amazonAuSearchUrl: amazonAuSearch("camping lights 3 pack hanging tent"),
+    localSearchUrl: googleSearch("camping lights 3 pack"),
+  },
+  {
+    id: "waterproof-string-lights",
+    category: "Camping & Expedition",
+    title: "Waterproof Camping String Lights (10m)",
+    why: "10 metres of waterproof festoon lights. Leave them up in the rain without worry.",
+    amazonAuSearchUrl: amazonAuSearch("10m camping string lights waterproof"),
+    localSearchUrl: googleSearch("10m waterproof camping string lights"),
+  },
+  {
+    id: "trasharoo-trash-bag",
+    category: "Camping & Expedition",
+    title: "Trasharoo Spare Tire Trash Bag",
+    why: "Waterproof trash bag that mounts to your spare tire. Keeps rubbish outside where it belongs.",
+    amazonAuSearchUrl: amazonAuSearch("Trasharoo spare tire trash bag"),
+    localSearchUrl: googleSearch("Trasharoo spare tire trash bag"),
+  },
+  {
+    id: "collapsible-wash-basins",
+    category: "Camping & Expedition",
+    title: "Collapsible Wash Basins (3 Pack)",
+    why: "Fold flat for storage, pop open when you need a basin for dishes, laundry, or washing up.",
+    amazonAuSearchUrl: amazonAuSearch("collapsible wash basins 3 pack camping"),
+    localSearchUrl: googleSearch("collapsible wash basins camping"),
+  },
+  {
+    id: "adhesive-towel-rails",
+    category: "Camping & Expedition",
+    title: "Adhesive Towel Rails (5 Pack)",
+    why: "Stick-on towel rails that mount anywhere without drilling. Keep towels and cloths organized.",
+    amazonAuSearchUrl: amazonAuSearch("adhesive towel rails 5 pack"),
+    localSearchUrl: googleSearch("adhesive towel rails 5 pack"),
+  },
+  {
+    id: "camping-washing-line",
+    category: "Camping & Expedition",
+    title: "Camping Washing Line (8M, 2 Pack)",
+    why: "8-metre lines that stretch between trees or poles. Dry your gear at camp instead of stuffing it away wet.",
+    amazonAuSearchUrl: amazonAuSearch("camping washing line 8m portable 2 pack"),
+    localSearchUrl: googleSearch("camping washing line 8m"),
+  },
+
+  // =============================================
+  // Parts & Upgrades
+  // =============================================
+  {
+    id: "wireless-switch-panel",
+    category: "Parts & Upgrades",
+    title: "4 Gang Wireless Switch Panel",
+    why: "Control offroad lights and accessories without running wires through the firewall.",
+    amazonAuSearchUrl: amazonAuSearch("4 gang wireless switch panel offroad lights"),
+    localSearchUrl: googleSearch("4 gang wireless switch panel offroad"),
+  },
+  {
+    id: "carplay-stereo-dashcam",
+    category: "Parts & Upgrades",
+    title: "Wireless CarPlay/Android Auto Stereo with Dash Cam (9\")",
+    why: "All-in-one unit: 9-inch touchscreen, wireless CarPlay, 4K dash cam, and backup camera.",
+    amazonAuSearchUrl: amazonAuSearch("wireless carplay android auto car stereo dash cam 9 inch"),
+    localSearchUrl: googleSearch("wireless carplay stereo dash cam 9 inch"),
+  },
+  {
+    id: "gps-tracker",
+    category: "Parts & Upgrades",
+    title: "Premium GPS Tracking System",
+    why: "Know where your vehicle is at all times. Peace of mind when your rig is parked up.",
+    amazonAuSearchUrl: amazonAuSearch("GPS tracking system vehicle premium"),
+    localSearchUrl: googleSearch("GPS tracking system vehicle"),
+  },
+  {
+    id: "led-chassis-lights",
+    category: "Parts & Upgrades",
+    title: "LED Chassis/Rock Lights",
+    why: "Illuminate under your vehicle for night camp setup, trail visibility, or just because they look cool.",
+    amazonAuSearchUrl: amazonAuSearch("LED chassis rock lights truck aluminium alloy"),
+    localSearchUrl: googleSearch("LED chassis rock lights truck"),
+  },
+  {
+    id: "car-seat-organizer",
+    category: "Parts & Upgrades",
+    title: "Car Seat Organizer",
+    why: "11 compartments and a cup holder keep everything within reach. Collapsible when not in use.",
+    amazonAuSearchUrl: amazonAuSearch("car seat organizer large capacity cup holder collapsible"),
+    localSearchUrl: googleSearch("car seat organizer large capacity"),
+  },
+  {
+    id: "starlink-mini-rugged-mount",
+    category: "Parts & Upgrades",
+    title: "Starlink Mini Fully Enclosed Rugged Mount",
+    why: "Flat and magnetic mount that keeps your Starlink Mini protected and secure on the road.",
+    amazonAuSearchUrl: amazonAuSearch("Starlink Mini rugged flat magnet mount enclosed"),
+    localSearchUrl: googleSearch("Starlink Mini rugged mount enclosed"),
+  },
+  {
+    id: "starlink-mini-magnetic-mount",
+    category: "Parts & Upgrades",
+    title: "Starlink Mini Magnetic Roof Mount",
+    why: "Slap it on the roof and you're connected. Magnetic mount for quick Starlink Mini deployment.",
+    amazonAuSearchUrl: amazonAuSearch("Starlink Mini magnetic roof mount"),
+    localSearchUrl: googleSearch("Starlink Mini magnetic roof mount"),
+  },
+  {
+    id: "universal-quick-release-mount",
+    category: "Parts & Upgrades",
+    title: "Universal Quick Release Mount",
+    why: "Quick-release mounting system for accessories. Swap between vehicles without tools.",
+    amazonAuSearchUrl: amazonAuSearch("universal quick release mount vehicle accessories"),
+    localSearchUrl: googleSearch("universal quick release mount vehicle"),
+  },
+  {
+    id: "rv-fridge-bars",
+    category: "Parts & Upgrades",
+    title: "RV Refrigerator Bars (2 Pack)",
+    why: "Stop everything tumbling out when you open the fridge door after a bumpy drive.",
+    amazonAuSearchUrl: amazonAuSearch("RV refrigerator bars fridge shelf guard 2 pack"),
+    localSearchUrl: googleSearch("RV refrigerator bars fridge guard"),
+  },
+  {
+    id: "rv-fridge-door-latch",
+    category: "Parts & Upgrades",
+    title: "RV Refrigerator Door Latch",
+    why: "Replacement latch that actually keeps the fridge shut on bumpy roads. Quick and easy upgrade.",
+    amazonAuSearchUrl: amazonAuSearch("RV refrigerator door latch replacement"),
+    localSearchUrl: googleSearch("RV refrigerator door latch replacement"),
+  },
+
+  // =============================================
+  // Electronics
+  // =============================================
+  {
+    id: "wireless-security-camera",
+    category: "Electronics",
+    title: "Wireless Smart Security Camera",
+    why: "Two-year battery life means no wiring hassle. Keep an eye on your rig from anywhere.",
+    amazonAuSearchUrl: amazonAuSearch("wireless smart security camera battery life outdoor"),
+    localSearchUrl: googleSearch("wireless smart security camera long battery"),
+  },
+  {
+    id: "solar-backup-camera",
+    category: "Electronics",
+    title: "Solar Backup Camera (Wireless)",
+    why: "Solar-powered, magnetic mount - attaches in seconds with no wiring. See behind your rig clearly.",
+    amazonAuSearchUrl: amazonAuSearch("solar backup camera wireless magnetic mount"),
+    localSearchUrl: googleSearch("solar backup camera wireless magnetic"),
+  },
+  {
+    id: "portable-carplay-screen",
+    category: "Electronics",
+    title: "Portable Wireless CarPlay/Android Auto Screen (7\")",
+    why: "Add wireless CarPlay to any vehicle without replacing your head unit. Portable and easy to move between vehicles.",
+    amazonAuSearchUrl: amazonAuSearch("portable wireless apple carplay android auto touch screen 7 inch"),
+    localSearchUrl: googleSearch("portable wireless carplay screen 7 inch"),
+  },
+  {
+    id: "strobe-offroad-lights",
+    category: "Electronics",
+    title: "Strobe Offroad LED Lights",
+    why: "High-performance LED strobe lights for enhanced visibility. Great for night driving off-road.",
+    amazonAuSearchUrl: amazonAuSearch("Auxbeam strobe offroad LED lights"),
+    localSearchUrl: googleSearch("strobe offroad LED lights"),
+  },
+
+  // =============================================
+  // Outdoor Gear
+  // =============================================
+  {
+    id: "camp-stove",
+    category: "Outdoor Gear",
+    title: "Camp Stove with Carrying Case",
+    why: "Reliable dual-burner camp stove that packs away neatly. A campsite kitchen essential.",
+    amazonAuSearchUrl: amazonAuSearch("camping stove with carrying case portable"),
+    localSearchUrl: googleSearch("camp stove with carrying case"),
+  },
+  {
+    id: "hibachi-bbq-grill",
+    category: "Outdoor Gear",
+    title: "Charcoal Hibachi BBQ Portable Grill",
+    why: "Compact charcoal grill that delivers authentic BBQ flavour. Great for campsite cooking.",
+    amazonAuSearchUrl: amazonAuSearch("charcoal hibachi BBQ portable grill"),
+    localSearchUrl: googleSearch("charcoal hibachi BBQ portable grill"),
+  },
+  {
+    id: "folding-campfire-grill",
+    category: "Outdoor Gear",
+    title: "Folding Campfire Grill",
+    why: "Folds flat for packing, opens up for grilling over any campfire. No assembly needed.",
+    amazonAuSearchUrl: amazonAuSearch("folding campfire grill portable"),
+    localSearchUrl: googleSearch("folding campfire grill portable"),
+  },
+  {
+    id: "rechargeable-fly-zapper",
+    category: "Outdoor Gear",
+    title: "Rechargeable Fly Zapper",
+    why: "Electric fly swatter that's rechargeable. Satisfying and effective against bush flies.",
+    amazonAuSearchUrl: amazonAuSearch("rechargeable electric fly zapper swatter"),
+    localSearchUrl: googleSearch("rechargeable fly zapper"),
+  },
+  {
+    id: "mosquito-head-net-2pack",
+    category: "Outdoor Gear",
+    title: "Mosquito Head Net Hat (2 Pack)",
+    why: "Pull over any hat for instant face and neck protection from mosquitoes and midges.",
+    amazonAuSearchUrl: amazonAuSearch("mosquito head net hat 2 pack"),
+    localSearchUrl: googleSearch("mosquito head net hat 2 pack"),
+  },
+  {
+    id: "mosquito-head-net-4pack",
+    category: "Outdoor Gear",
+    title: "Mosquito Head Nets (4 Pack)",
+    why: "Family pack of head nets - enough for the whole crew when the mozzies are thick.",
+    amazonAuSearchUrl: amazonAuSearch("mosquito head net 4 pack"),
+    localSearchUrl: googleSearch("mosquito head net 4 pack"),
+  },
+  {
+    id: "mosquito-net-compact",
+    category: "Outdoor Gear",
+    title: "Compact Mosquito Head Net (2 Pack)",
+    why: "Ultra-packable mesh nets that weigh almost nothing. Keep in your daypack for surprise mozzie attacks.",
+    amazonAuSearchUrl: amazonAuSearch("compact mosquito head net 2 pack lightweight"),
+    localSearchUrl: googleSearch("compact mosquito head net lightweight"),
+  },
+  {
+    id: "led-headlamp",
+    category: "Outdoor Gear",
+    title: "LED Headlamp (Rechargeable)",
+    why: "Hands-free lighting for night walks, camp setup, and vehicle repairs. USB rechargeable.",
+    amazonAuSearchUrl: amazonAuSearch("LED headlamp rechargeable bright"),
+    localSearchUrl: googleSearch("LED headlamp rechargeable"),
+  },
+  {
+    id: "camping-fan",
+    category: "Outdoor Gear",
+    title: "Rechargeable Camping Fan",
+    why: "Portable fan that clips or hangs anywhere. Essential for hot nights in the tent or camper.",
+    amazonAuSearchUrl: amazonAuSearch("rechargeable camping fan portable clip"),
+    localSearchUrl: googleSearch("rechargeable camping fan portable"),
+  },
+  {
+    id: "portable-shower",
+    category: "Outdoor Gear",
+    title: "Portable Camping Shower",
+    why: "Rechargeable pump turns any water container into a shower. Rinse off after a dusty day on the road.",
+    amazonAuSearchUrl: amazonAuSearch("portable camping shower rechargeable pump"),
+    localSearchUrl: googleSearch("portable camping shower rechargeable"),
+  },
+  {
+    id: "emergency-rain-poncho",
+    category: "Outdoor Gear",
+    title: "Emergency Rain Poncho",
+    why: "Reusable poncho that packs tiny. Keep one in every vehicle and pack for surprise downpours.",
+    amazonAuSearchUrl: amazonAuSearch("emergency rain poncho reusable"),
+    localSearchUrl: googleSearch("emergency rain poncho reusable"),
+  },
+  {
+    id: "vehicle-first-aid-kit",
+    category: "Outdoor Gear",
+    title: "Vehicle First Aid Kit",
+    why: "Comprehensive first aid kit sized for your vehicle. Keep one in every rig you own.",
+    amazonAuSearchUrl: amazonAuSearch("SURVIVAL vehicle first aid kit comprehensive"),
+    localSearchUrl: googleSearch("vehicle first aid kit comprehensive"),
+  },
+
+  // =============================================
+  // Apparel & Footwear
+  // =============================================
+  {
+    id: "ecco-hiking-boots",
+    category: "Apparel & Footwear",
+    title: "ECCO Offroad Waterproof Hiking Boots",
+    why: "Waterproof hiking boots built for off-road terrain. Durable construction for serious trail use.",
+    amazonAuSearchUrl: amazonAuSearch("ECCO offroad waterproof hiking boots"),
+    localSearchUrl: googleSearch("ECCO offroad waterproof hiking boots"),
+  },
+  {
+    id: "timberland-chelsea-boots",
+    category: "Apparel & Footwear",
+    title: "Timberland Stormbucks Chelsea Boots",
+    why: "Versatile Chelsea boots that work on the trail and in town. Good-looking and hard-wearing.",
+    amazonAuSearchUrl: amazonAuSearch("Timberland Stormbucks Chelsea boots men"),
+    localSearchUrl: googleSearch("Timberland Stormbucks Chelsea boots"),
+  },
+
+  // =============================================
+  // Books & Guides
+  // =============================================
+  {
+    id: "offroad-guide-book",
+    category: "Books & Guides",
+    title: "Off-Road Essential Guide",
+    why: "Comprehensive off-road driving guide. Essential reading for 4x4 and overland enthusiasts.",
+    amazonAuSearchUrl: amazonAuSearch("off-road essential guide book 4x4"),
+    localSearchUrl: googleSearch("off-road essential guide book"),
+  },
 ];
 
 /** All unique categories in display order */
@@ -211,4 +897,11 @@ export const gearCategories = [
   "Sanitation",
   "Cleaning & Protection",
   "Tools & Accessories",
+  "Recovery Gear",
+  "Camping & Expedition",
+  "Parts & Upgrades",
+  "Electronics",
+  "Outdoor Gear",
+  "Apparel & Footwear",
+  "Books & Guides",
 ] as const;
