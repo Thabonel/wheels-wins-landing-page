@@ -6052,6 +6052,102 @@ Example: To add an item to a list:
         logger.error(f"❌ Universal Browser tool registration failed: {e}")
         failed_count += 1
 
+    # --- suggest_seasonal_route ---
+    class SuggestSeasonalRouteWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "suggest_seasonal_route",
+                "Suggest optimal seasonal migration routes for Grey Nomads. Use when user mentions seasonal travel, heading south/north, annual migration, or multi-month trips.",
+                capabilities=[ToolCapability.TRIP_PLANNING]
+            )
+            try:
+                from app.services.pam.tools.trip.suggest_seasonal_route import suggest_seasonal_route
+                self.suggest_seasonal_route_func = suggest_seasonal_route
+            except ImportError:
+                self.suggest_seasonal_route_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.suggest_seasonal_route_func is None:
+                return self._create_error_result("suggest_seasonal_route function not available").to_dict()
+            return await self.suggest_seasonal_route_func(user_id=user_id, **parameters)
+
+    try:
+        logger.debug("Attempting to register suggest_seasonal_route tool...")
+        registry.register_tool(tool=SuggestSeasonalRouteWrapper(), priority=1)
+        logger.info("suggest_seasonal_route tool registered")
+        registered_count += 1
+    except Exception as e:
+        logger.error(f"suggest_seasonal_route tool registration failed: {e}")
+        failed_count += 1
+
+    # --- find_longstay_parks ---
+    class FindLongstayParksWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "find_longstay_parks",
+                "Find caravan parks with monthly rates or extended-stay discounts. Use when user asks about long stays or monthly rates.",
+                capabilities=[ToolCapability.TRIP_PLANNING]
+            )
+            try:
+                from app.services.pam.tools.trip.find_longstay_parks import find_longstay_parks
+                self.find_longstay_parks_func = find_longstay_parks
+            except ImportError:
+                self.find_longstay_parks_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.find_longstay_parks_func is None:
+                return self._create_error_result("find_longstay_parks function not available").to_dict()
+            return await self.find_longstay_parks_func(user_id=user_id, **parameters)
+
+    try:
+        logger.debug("Attempting to register find_longstay_parks tool...")
+        registry.register_tool(tool=FindLongstayParksWrapper(), priority=1)
+        logger.info("find_longstay_parks tool registered")
+        registered_count += 1
+    except Exception as e:
+        logger.error(f"find_longstay_parks tool registration failed: {e}")
+        failed_count += 1
+
+    # --- seasonal_weather_check ---
+    class SeasonalWeatherCheckWrapper(BaseTool):
+        def __init__(self):
+            super().__init__(
+                "seasonal_weather_check",
+                "Check typical seasonal weather patterns for an Australian region and month. Historical averages for travel timing decisions.",
+                capabilities=[ToolCapability.TRIP_PLANNING]
+            )
+            try:
+                from app.services.pam.tools.trip.seasonal_weather_check import seasonal_weather_check
+                self.seasonal_weather_check_func = seasonal_weather_check
+            except ImportError:
+                self.seasonal_weather_check_func = None
+
+        async def initialize(self):
+            self.is_initialized = True
+            return True
+
+        async def execute(self, user_id: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+            if self.seasonal_weather_check_func is None:
+                return self._create_error_result("seasonal_weather_check function not available").to_dict()
+            return await self.seasonal_weather_check_func(user_id=user_id, **parameters)
+
+    try:
+        logger.debug("Attempting to register seasonal_weather_check tool...")
+        registry.register_tool(tool=SeasonalWeatherCheckWrapper(), priority=1)
+        logger.info("seasonal_weather_check tool registered")
+        registered_count += 1
+    except Exception as e:
+        logger.error(f"seasonal_weather_check tool registration failed: {e}")
+        failed_count += 1
+
     # Registration summary
     total_attempted = registered_count + failed_count
     success_rate = (registered_count / total_attempted * 100) if total_attempted > 0 else 0

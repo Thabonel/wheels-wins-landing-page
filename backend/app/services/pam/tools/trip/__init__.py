@@ -11,6 +11,9 @@ from .find_attractions import find_attractions
 from .estimate_travel_time import estimate_travel_time
 from .save_favorite_spot import save_favorite_spot
 from .update_vehicle_fuel_consumption import update_vehicle_fuel_consumption
+from .suggest_seasonal_route import suggest_seasonal_route
+from .find_longstay_parks import find_longstay_parks
+from .seasonal_weather_check import seasonal_weather_check
 
 __all__ = [
     "plan_trip",
@@ -24,4 +27,7 @@ __all__ = [
     "estimate_travel_time",
     "save_favorite_spot",
     "update_vehicle_fuel_consumption",
+    "suggest_seasonal_route",
+    "find_longstay_parks",
+    "seasonal_weather_check",
 ]
