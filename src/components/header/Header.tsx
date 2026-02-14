@@ -50,7 +50,7 @@ const Header = () => {
                 className="bg-card text-foreground border-border hover:bg-muted hover:border-primary/30 min-h-[44px] px-3 sm:px-4 font-body transition-all"
                 size="sm"
               >
-                Shop
+                Gear
               </Button>
             </Link>
             <LoginButton />

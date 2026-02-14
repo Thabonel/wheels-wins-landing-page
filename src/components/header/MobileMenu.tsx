@@ -83,7 +83,7 @@ const MobileMenu = () => {
                       className="block text-lg font-medium text-gray-900 hover:text-blue-600 py-2"
                       onClick={() => setIsOpen(false)}
                     >
-                      Shop
+                      Gear
                     </Link>
                     <Link 
                       to="/profile" 
@@ -109,7 +109,7 @@ const MobileMenu = () => {
                       className="block text-lg font-medium text-gray-900 hover:text-blue-600 py-2"
                       onClick={() => setIsOpen(false)}
                     >
-                      Shop
+                      Gear
                     </Link>
                     <div className="space-y-3 pt-4">
                       <Link to="/login" onClick={() => setIsOpen(false)}>
