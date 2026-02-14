@@ -24,7 +24,7 @@ const NavigationLinks = ({ isVisible }: NavigationLinksProps) => {
     { label: "Wheels", path: "/wheels" },
     { label: "Wins", path: "/wins" },
     { label: "Social", path: "/social" },
-    { label: "Shop", path: "/shop" },
+    { label: "Gear", path: "/shop" },
     // Conditionally add Transition link
     ...(showTransition ? [{ label: "Transition", path: "/transition" }] : []),
   ];
