@@ -361,34 +361,53 @@ class PAMSecurityMiddleware:
         return True, "OK"
     
     def detect_suspicious_patterns(self, user_id: str, message_content: str) -> tuple[bool, str]:
-        """Detect suspicious message patterns"""
-        suspicious_patterns = [
-            # SQL injection patterns
-            r'(union|select|insert|update|delete|drop|exec|execute)\s',
-            # XSS patterns (additional to bleach)
+        """Detect suspicious message patterns in user messages.
+
+        Only flags actual attack patterns, not normal conversation.
+        SQL keywords like 'select', 'update', 'delete' are common English
+        words so we require SQL-specific syntax (e.g. SELECT ... FROM).
+        """
+        import re
+
+        # Case-insensitive patterns (attack signatures that need syntax context)
+        ci_patterns = [
+            # SQL injection - require SQL syntax, not bare keywords
+            r"union\s+(all\s+)?select\s",
+            r"select\s+.{1,100}\s+from\s",
+            r"insert\s+into\s",
+            r"update\s+\w+\s+set\s",
+            r"delete\s+from\s",
+            r"drop\s+(table|database|index)\s",
+            r";\s*--",
+            # XSS patterns
             r'<script[^>]*>',
             r'javascript:',
             r'vbscript:',
+            r'on(error|load|click|mouseover)\s*=',
             # Path traversal
             r'\.\./.*\.\.',
             r'/etc/passwd',
             r'/proc/',
-            # Command injection (specific patterns, not dollar amounts)
+            # Command injection
             r'\$\(.*\)',
             r'\$\{.*\}',
-            r'`.*`',
-            r'&&',
-            r'\|\|',
-            r';\s*(rm|cat|ls|curl|wget|bash|sh)',
-            # Excessive caps (potential spam/abuse)
-            r'^[A-Z\s!]{50,}$'
+            r';\s*(rm|cat|ls|curl|wget|bash|sh)\s',
         ]
-        
-        import re
-        for pattern in suspicious_patterns:
+
+        for pattern in ci_patterns:
             if re.search(pattern, message_content, re.IGNORECASE):
                 return True, f"Suspicious pattern detected: {pattern}"
-        
+
+        # Case-SENSITIVE patterns (must NOT use IGNORECASE)
+        cs_patterns = [
+            # ALL CAPS spam - only matches actual shouting (uppercase only)
+            r'^[A-Z\s!]{50,}$',
+        ]
+
+        for pattern in cs_patterns:
+            if re.search(pattern, message_content):
+                return True, f"Suspicious pattern detected: {pattern}"
+
         return False, "OK"
     
     def log_security_event(self, event_type: str, user_id: str, details: str):
