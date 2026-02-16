@@ -9,7 +9,7 @@ Current active PAM endpoint: backend/app/api/v1/pam_main.py
   - pam_main.py uses EnhancedPamOrchestrator instead
 
 This file provides:
-  - 50+ tools (budget, trip, seasonal, social, shop, profile)
+  - 54+ tools (budget, trip, seasonal, social, shop, profile, medical)
   - Claude Sonnet 4.5 integration
   - Prompt caching for 40-60% latency reduction
 
@@ -114,6 +114,12 @@ from app.services.pam.tools.profile.create_vehicle import create_vehicle
 # Import admin tools
 from app.services.pam.tools.admin.add_knowledge import add_knowledge
 from app.services.pam.tools.admin.search_knowledge import search_knowledge
+
+# Import medical tools
+from app.services.pam.tools.medical.get_medical_records import get_medical_records
+from app.services.pam.tools.medical.search_medical_records import search_medical_records
+from app.services.pam.tools.medical.get_medications import get_medications
+from app.services.pam.tools.medical.get_emergency_info import get_emergency_info
 
 # Import calendar tools
 from app.services.pam.tools.create_calendar_event import create_calendar_event
@@ -287,7 +293,7 @@ class PAM:
 - You're a competent, friendly travel partner (not a servant, not a boss - an equal)
 - You help RVers save money, plan trips, manage budgets, and stay connected
 - You take ACTION - you don't just answer questions, you DO things
-- You have FULL ACCESS to 50+ tools that let you control the website and help users
+- You have FULL ACCESS to 54+ tools that let you control the website and help users
 
 **CRITICAL - YOU HAVE TOOLS (NEVER DENY THIS):**
 You have FULL ACCESS to the following tools. NEVER say "I don't have access to tools" or "I can't do that" - YOU CAN.
@@ -356,6 +362,12 @@ You have FULL ACCESS to the following tools. NEVER say "I don't have access to t
 - add_knowledge - Store information (admin)
 - search_knowledge - Search knowledge base
 
+**Medical/Health Tools (4):**
+- get_medical_records - View uploaded medical documents and records
+- search_medical_records - Search medical document contents by keyword
+- get_medications - Get current medication list and refill dates
+- get_emergency_info - Get emergency info (blood type, allergies, contacts)
+
 **NEVER SAY ANY OF THESE:**
 - "I don't have access to tools"
 - "I can't create expenses/events/posts"
@@ -404,6 +416,9 @@ You MUST use tools when the user asks about:
 - Gas prices, fuel, cheap gas -> Call find_cheap_gas
 - Products, shopping, gear, tools, equipment -> Call search_products or recommend_products
 - Savings, how much saved, PAM savings -> Call track_savings or get_user_stats
+- Medical records, documents, lab results, health documents -> Call get_medical_records or search_medical_records
+- Medications, prescriptions, refill, what meds am I on -> Call get_medications
+- Allergies, emergency info, blood type, emergency contacts -> Call get_emergency_info
 
 DO NOT just respond with text when tools can provide real user data.
 ALWAYS prefer tool results over generic answers.
@@ -423,7 +438,7 @@ WRONG - DO NOT DO THIS:
   YOU: "I've added that to your calendar" ❌ (didn't actually call tool - this is hallucination!)
 
 **IMPORTANT - YOU HAVE FULL ACCESS TO ALL TOOLS:**
-As listed above, you have 50+ tools across budget, trips, seasonal migration, social, calendar, profile, shop, and knowledge.
+As listed above, you have 54+ tools across budget, trips, seasonal migration, social, calendar, profile, shop, knowledge, and medical.
 - ALWAYS use the appropriate tool when a user asks for help
 - NEVER claim you can't do something if there's a tool for it
 - If a tool execution fails, tell user there was a technical error (don't say you lack access)
@@ -459,6 +474,20 @@ You understand Australian Grey Nomad seasonal migration patterns:
 - Recommend long-stay parks with monthly rates when trips exceed 2 weeks
 - Mention seasonal events (Birdsville Races, Tamworth Country Music, etc.) when relevant to their route
 - Use suggest_seasonal_route for migration planning, find_longstay_parks for extended stays, seasonal_weather_check for timing
+
+**MEDICAL RECORDS AWARENESS:**
+You have access to the user's medical section of the app:
+- Users upload medical documents (lab results, prescriptions, doctor notes, imaging)
+- Documents are OCR-scanned so you can search their contents
+- Users track medications with dosages and refill dates
+- Users store emergency info (blood type, allergies, emergency contacts)
+
+When users ask about medical documents, medications, or health info:
+- Use search_medical_records to find relevant document content
+- Use get_medications to check their medication list
+- Use get_emergency_info for allergies, conditions, emergency contacts
+- ALWAYS include a disclaimer: you can help find and summarize their uploaded medical information, but you are NOT a doctor and cannot provide medical diagnoses or advice
+- For urgent health concerns, recommend they contact their doctor or call 000 (Australia) / 911 (US)
 
 **Current date and time:** {self._get_current_datetime_for_user()}
 
@@ -1102,6 +1131,55 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         "min_priority": {"type": "integer", "minimum": 1, "maximum": 10, "description": "Minimum priority (default: 1)"},
                         "limit": {"type": "integer", "description": "Max results (default: 10)"}
                     },
+                    "required": []
+                }
+            },
+            # Medical tools
+            {
+                "name": "get_medical_records",
+                "description": "Retrieve user's uploaded medical records and documents. Use when user asks about their medical documents, lab results, or health records.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "record_type": {
+                            "type": "string",
+                            "enum": ["lab_result", "prescription", "doctor_note", "imaging", "vaccination", "other"],
+                            "description": "Optional filter by record type"
+                        },
+                        "limit": {"type": "integer", "description": "Max records to return (default: 20)"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "search_medical_records",
+                "description": "Search through user's medical documents by keyword. Use when user asks about specific health conditions, test results, or document contents.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search term to look for in medical documents"},
+                        "limit": {"type": "integer", "description": "Max results to return (default: 10)"}
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "get_medications",
+                "description": "Get user's current medication list with dosages and refill dates. Use when user asks about their medications or prescriptions.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "active_only": {"type": "boolean", "description": "Only return active medications (default: true)"}
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "get_emergency_info",
+                "description": "Get user's emergency medical information (blood type, allergies, conditions, emergency contacts). Use when user asks about their allergies, blood type, or emergency info.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
                     "required": []
                 }
             },
@@ -1764,7 +1842,12 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             # Shop tools (affiliate products)
             "search_products": search_products,
             "get_product_details": get_product_details,
-            "recommend_products": recommend_products
+            "recommend_products": recommend_products,
+            # Medical tools
+            "get_medical_records": get_medical_records,
+            "search_medical_records": search_medical_records,
+            "get_medications": get_medications,
+            "get_emergency_info": get_emergency_info,
             # Transition tools (AMENDMENT #5): Archived (not in official architecture)
         }
 
