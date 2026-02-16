@@ -53,7 +53,7 @@ APScheduler==3.12.0
 
 # Essential processing - UPDATED TO ADDRESS TORCH WARNINGS
 numpy==1.26.4
-Pillow==11.4.0
+Pillow==12.1.1
 
 # System monitoring
 psutil==7.0.1
