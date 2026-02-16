@@ -152,6 +152,29 @@ async def search_medical_records(
         )
 
         records = response.data if response.data else []
+        found_ids = {r["id"] for r in records}
+
+        # Also find records with no searchable text (NULL ocr_text and summary)
+        # so PAM knows they exist but couldn't be text-searched
+        all_response = (
+            supabase.table("medical_records")
+            .select("id,type,title,test_date")
+            .eq("user_id", validated.user_id)
+            .is_("ocr_text", "null")
+            .limit(validated.limit)
+            .execute()
+        )
+        unsearchable = []
+        if all_response.data:
+            for r in all_response.data:
+                if r["id"] not in found_ids:
+                    unsearchable.append({
+                        "id": r["id"],
+                        "type": r.get("type"),
+                        "title": r.get("title"),
+                        "test_date": r.get("test_date"),
+                        "note": "No OCR text available - document exists but content could not be read",
+                    })
 
         # Build results with snippets (strip full OCR text to save tokens)
         results = []
@@ -170,8 +193,23 @@ async def search_medical_records(
 
         logger.info(
             f"Search for '{validated.query}' (terms: {terms}) found {len(results)} "
-            f"medical records for user {validated.user_id}"
+            f"matching + {len(unsearchable)} unsearchable medical records "
+            f"for user {validated.user_id}"
         )
+
+        message_parts = []
+        if results:
+            message_parts.append(
+                f"Found {len(results)} medical record(s) matching '{validated.query}'"
+            )
+        if unsearchable:
+            message_parts.append(
+                f"{len(unsearchable)} document(s) have no readable text and could not be searched"
+            )
+        if not results and not unsearchable:
+            message_parts.append(
+                f"No medical records found matching '{validated.query}'"
+            )
 
         return {
             "success": True,
@@ -179,11 +217,8 @@ async def search_medical_records(
             "search_terms": terms,
             "results_found": len(results),
             "results": results,
-            "message": (
-                f"Found {len(results)} medical record(s) matching '{validated.query}'"
-                if results
-                else f"No medical records found matching '{validated.query}'"
-            ),
+            "unsearchable_records": unsearchable,
+            "message": ". ".join(message_parts),
         }
 
     except CustomValidationError:
