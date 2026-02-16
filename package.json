@@ -217,7 +217,6 @@
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.19",
     "vite-bundle-analyzer": "^1.1.0",
-    "vite-plugin-node-polyfills": "^0.25.0",
     "vitest": "^3.2.4"
   },
   "overrides": {
