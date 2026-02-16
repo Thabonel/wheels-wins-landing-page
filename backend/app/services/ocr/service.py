@@ -144,17 +144,42 @@ class OCRService:
     # --- OCR Providers ---
 
     async def _ocr_google_vision(self, image_bytes: bytes) -> OCRResult:
-        """Extract text using Google Cloud Vision API (non-generative, no hallucination)."""
-        from google.cloud import vision
+        """Extract text using Google Cloud Vision REST API with API key."""
+        import base64
+        import httpx
+        from app.core.config import settings
 
-        client = vision.ImageAnnotatorClient()
-        image = vision.Image(content=image_bytes)
-        response = client.text_detection(image=image)
+        api_key = settings.GOOGLE_CLOUD_VISION_API_KEY
+        if not api_key:
+            raise Exception("GOOGLE_CLOUD_VISION_API_KEY not configured")
 
-        if response.error.message:
-            raise Exception(f"Google Vision API error: {response.error.message}")
+        b64_image = base64.b64encode(image_bytes).decode()
 
-        annotations = response.text_annotations
+        payload = {
+            "requests": [{
+                "image": {"content": b64_image},
+                "features": [{"type": "TEXT_DETECTION"}],
+            }]
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"https://vision.googleapis.com/v1/images:annotate?key={api_key}",
+                json=payload,
+            )
+
+        if resp.status_code != 200:
+            raise Exception(f"Google Vision API HTTP {resp.status_code}: {resp.text[:200]}")
+
+        result = resp.json()
+        response_data = result.get("responses", [{}])[0]
+
+        # Check for API-level error
+        error = response_data.get("error")
+        if error:
+            raise Exception(f"Google Vision API error: {error.get('message', str(error))}")
+
+        annotations = response_data.get("textAnnotations", [])
         if not annotations:
             return OCRResult(
                 text="",
@@ -163,16 +188,18 @@ class OCRService:
                 method="google_cloud_vision",
             )
 
-        full_text = annotations[0].description.strip()
+        full_text = annotations[0].get("description", "").strip()
 
-        # Calculate average word confidence from full_text_annotation
+        # Extract per-word confidence from fullTextAnnotation
         word_confidences = []
-        if response.full_text_annotation:
-            for page in response.full_text_annotation.pages:
-                for block in page.blocks:
-                    for paragraph in block.paragraphs:
-                        for word in paragraph.words:
-                            word_confidences.append(word.confidence)
+        full_text_annotation = response_data.get("fullTextAnnotation", {})
+        for page in full_text_annotation.get("pages", []):
+            for block in page.get("blocks", []):
+                for paragraph in block.get("paragraphs", []):
+                    for word in paragraph.get("words", []):
+                        conf = word.get("confidence")
+                        if conf is not None:
+                            word_confidences.append(conf)
 
         avg_confidence = (
             sum(word_confidences) / len(word_confidences)

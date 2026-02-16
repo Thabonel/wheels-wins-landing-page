@@ -133,6 +133,12 @@ class Settings(BaseSettings):
 
         return v
 
+    # Google Cloud Vision API key (for OCR service)
+    GOOGLE_CLOUD_VISION_API_KEY: str = Field(
+        default="",
+        description="Google Cloud Vision API key for non-generative OCR"
+    )
+
     # Anthropic Configuration (Fallback AI Provider)
     ANTHROPIC_API_KEY: SecretStr = Field(
         default="",
