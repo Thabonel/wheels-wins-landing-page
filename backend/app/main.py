@@ -986,7 +986,7 @@ app.include_router(national_parks.router, prefix="/api/v1", tags=["National Park
 # app.include_router(websocket.router, prefix="/api", tags=["WebSocket"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
-app.include_router(support.router, prefix="/api", tags=["Support"])
+app.include_router(support.router, prefix="/api/v1", tags=["Support"])
 app.include_router(stripe_webhooks.router, prefix="/api", tags=["Webhooks"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(observability_api.router, prefix="/api/v1", tags=["Admin Observability"])

@@ -1,6 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from datetime import datetime
 
 from app.services.database import get_database_service
 
@@ -30,8 +29,6 @@ async def create_ticket(ticket: TicketCreate):
             "category": ticket.category,
             "current_page": ticket.current_page,
             "status": "open",
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
         }).execute()
         if not result.data:
             raise HTTPException(status_code=400, detail="Failed to create ticket")
@@ -63,10 +60,9 @@ async def update_ticket_status(ticket_id: str, update: TicketStatusUpdate):
     try:
         result = supabase.table("support_tickets").update({
             "status": update.status,
-            "updated_at": datetime.utcnow().isoformat(),
         }).eq("id", ticket_id).execute()
-        if result.error:
-            raise HTTPException(status_code=400, detail="Failed to update ticket")
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Ticket not found")
         return {"id": ticket_id, "status": update.status}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
