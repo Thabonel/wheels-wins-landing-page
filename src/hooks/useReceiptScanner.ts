@@ -1,8 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import Tesseract from "tesseract.js";
 import heic2any from "heic2any";
-import { useOCRWorker } from "./useOCRWorker";
 
 const BACKEND_URL =
   import.meta.env.VITE_API_URL ||
@@ -13,7 +11,6 @@ const BACKEND_URL =
     ? "https://wheels-wins-backend-staging.onrender.com"
     : "https://pam-backend.onrender.com");
 
-const CONFIDENCE_THRESHOLD = 0.7;
 const MIN_OCR_TEXT_LENGTH = 20;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -48,7 +45,6 @@ function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      // Strip the data URI prefix to get raw base64
       resolve(result.split(",")[1]);
     };
     reader.onerror = reject;
@@ -64,7 +60,6 @@ async function convertHeicToJpg(file: File): Promise<File> {
       quality: 0.9,
     }) as Blob;
 
-    // Create a new File object with the converted blob
     const convertedFile = new File(
       [convertedBlob],
       file.name.replace(/\.heic$/i, '.jpg'),
@@ -78,71 +73,6 @@ async function convertHeicToJpg(file: File): Promise<File> {
   }
 }
 
-async function preprocessImageForOCR(file: File): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-
-    if (!ctx) {
-      reject(new Error('Canvas context not available'));
-      return;
-    }
-
-    img.onload = () => {
-      try {
-        // Calculate optimal dimensions (max 1920x1080 for performance, maintain aspect ratio)
-        const maxWidth = 1920;
-        const maxHeight = 1080;
-        let { width, height } = img;
-
-        if (width > maxWidth || height > maxHeight) {
-          const widthRatio = maxWidth / width;
-          const heightRatio = maxHeight / height;
-          const ratio = Math.min(widthRatio, heightRatio);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-
-        // Set canvas dimensions
-        canvas.width = width;
-        canvas.height = height;
-
-        // Apply preprocessing filters for better OCR
-        ctx.filter = 'contrast(1.2) brightness(1.1) saturate(0.8)';
-
-        // Draw the optimized image
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Convert back to File with high quality for OCR
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            reject(new Error('Failed to process image'));
-            return;
-          }
-
-          const processedFile = new File(
-            [blob],
-            file.name.replace(/\.[^/.]+$/, '_processed.jpg'),
-            { type: 'image/jpeg' }
-          );
-
-          resolve(processedFile);
-        }, 'image/jpeg', 0.95); // High quality for OCR accuracy
-
-      } catch (error) {
-        reject(new Error(`Image preprocessing failed: ${error.message || error}`));
-      }
-    };
-
-    img.onerror = () => {
-      reject(new Error('Failed to load image for preprocessing'));
-    };
-
-    img.src = URL.createObjectURL(file);
-  });
-}
-
 export function useReceiptScanner() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -152,11 +82,7 @@ export function useReceiptScanner() {
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Track the object URL so we can revoke it on cleanup
   const objectUrlRef = useRef<string | null>(null);
-
-  // OCR Worker for non-blocking processing
-  const { processOCR, isWorkerSupported } = useOCRWorker();
 
   const handleFileSelect = useCallback(async (file: File): Promise<boolean> => {
     if (!isAcceptedFileType(file)) {
@@ -169,20 +95,18 @@ export function useReceiptScanner() {
       return false;
     }
 
-    // Revoke previous object URL to prevent memory leaks
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
     }
 
     let processedFile = file;
 
-    // Check if the file is HEIC and convert it to JPG
+    // Convert HEIC to JPG for iPhone users
     if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
       try {
         setError("Converting HEIC image...");
         processedFile = await convertHeicToJpg(file);
         setError(null);
-        console.log('HEIC file converted successfully:', processedFile.name);
       } catch (conversionError) {
         console.error('HEIC conversion failed:', conversionError);
         setError("Failed to convert HEIC image. Please try a JPG or PNG format.");
@@ -254,7 +178,6 @@ export function useReceiptScanner() {
           setReceiptUrl(uploadResult.receipt_url);
         }
       } else {
-        // Upload failure is non-fatal - we can still try to extract data
         console.error("Receipt upload returned:", uploadResp.status);
       }
 
@@ -262,7 +185,7 @@ export function useReceiptScanner() {
       const isPDF = selectedFile.type === "application/pdf";
       const isWordDoc = ACCEPTED_DOC_TYPES.slice(1).includes(selectedFile.type);
 
-      // Step 2: Word docs have no extraction pipeline - show empty data
+      // Step 2: Word docs have no extraction pipeline
       if (isWordDoc) {
         setExtracted({
           receipt_type: "unknown",
@@ -279,107 +202,53 @@ export function useReceiptScanner() {
 
       let handled = false;
 
-      // Step 3: For images, try Tesseract OCR first (with format validation)
-      if (isImage) {
-        setProcessingStep("Optimizing image for OCR...");
+      // Step 3: For images and PDFs, use backend OCR service
+      if (isImage || isPDF) {
+        setProcessingStep("Extracting text from receipt...");
         try {
-          // Check if image format is supported by Tesseract.js
-          const supportedFormats = ['image/jpeg', 'image/png', 'image/bmp', 'image/tiff', 'image/gif'];
-          const isTesseractSupported = supportedFormats.includes(selectedFile.type);
+          const ocrForm = new FormData();
+          ocrForm.append("file", selectedFile);
 
-          if (!isTesseractSupported) {
-            console.log(`Tesseract.js doesn't support ${selectedFile.type}, skipping to vision API`);
-            throw new Error(`Unsupported image format for OCR: ${selectedFile.type}`);
-          }
+          const ocrResp = await fetch(`${BACKEND_URL}/api/v1/ocr/extract`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: ocrForm,
+          });
 
-          // Preprocess image for better OCR accuracy
-          let imageForOCR = selectedFile;
-          try {
-            imageForOCR = await preprocessImageForOCR(selectedFile);
-            console.log('Image preprocessed for OCR:', imageForOCR.name);
-          } catch (preprocessError) {
-            console.warn('Image preprocessing failed, using original:', preprocessError);
-            // Continue with original image if preprocessing fails
-          }
+          if (ocrResp.ok) {
+            const ocrResult = await ocrResp.json();
+            const ocrText = ocrResult.text || "";
 
-          setProcessingStep("Reading receipt with OCR...");
+            // If OCR produced good text, try universal text parsing
+            if (ocrText.trim().length >= MIN_OCR_TEXT_LENGTH) {
+              setProcessingStep("Parsing receipt data...");
+              try {
+                const textResp = await fetch(`${BACKEND_URL}/api/v1/receipts/parse-text`, {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ text: ocrText }),
+                });
 
-          // Use Web Worker for OCR if supported, fallback to main thread
-          let ocrText: string;
-          let ocrConfidence: number;
-
-          if (isWorkerSupported()) {
-            try {
-              const workerResult = await processOCR(imageForOCR, "eng", {}, (progress) => {
-                setProcessingStep(progress.status);
-              });
-              ocrText = workerResult.text;
-              ocrConfidence = workerResult.confidence;
-              console.log('OCR processed with Web Worker');
-            } catch (workerError) {
-              console.warn('Web Worker OCR failed, falling back to main thread:', workerError);
-              // Fallback to main thread processing
-              const ocrResult = await Tesseract.recognize(imageForOCR, "eng", {
-                logger: (m) => {
-                  if (m.status === "recognizing text") {
-                    const pct = Math.round((m.progress || 0) * 100);
-                    setProcessingStep(`Reading receipt... ${pct}%`);
-                  }
-                },
-              });
-              ocrText = ocrResult.data.text;
-              ocrConfidence = (ocrResult.data.confidence || 0) / 100;
-            }
-          } else {
-            // Direct processing when Web Worker not supported
-            const ocrResult = await Tesseract.recognize(imageForOCR, "eng", {
-              logger: (m) => {
-                if (m.status === "recognizing text") {
-                  const pct = Math.round((m.progress || 0) * 100);
-                  setProcessingStep(`Reading receipt... ${pct}%`);
+                if (textResp.ok) {
+                  const textResult = await textResp.json();
+                  const data = textResult.extracted || textResult;
+                  setExtracted(normalizeExtractedData(data, textResult));
+                  handled = true;
                 }
-              },
-            });
-            ocrText = ocrResult.data.text;
-            ocrConfidence = (ocrResult.data.confidence || 0) / 100;
-            console.log('OCR processed on main thread');
-          }
-
-          // Step 4: If OCR produced good text, try universal text parsing
-          if (ocrConfidence >= CONFIDENCE_THRESHOLD && ocrText.trim().length >= MIN_OCR_TEXT_LENGTH) {
-            setProcessingStep("Parsing receipt data...");
-            try {
-              const textResp = await fetch(`${BACKEND_URL}/api/v1/receipts/parse-text`, {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                  "X-Requested-With": "XMLHttpRequest", // Help bypass CSRF
-                },
-                credentials: "include", // Include cookies
-                mode: "cors", // Explicit CORS mode
-                body: JSON.stringify({ text: ocrText }),
-              });
-
-              if (textResp.ok) {
-                const textResult = await textResp.json();
-                const data = textResult.extracted || textResult;
-                setExtracted(normalizeExtractedData(data, textResult));
-                handled = true;
+              } catch (textParseError) {
+                console.log("Text parsing failed:", textParseError);
               }
-            } catch (textParseError) {
-              // Text parse failed - fall through to vision API
-              console.log("Text parsing failed:", textParseError);
             }
           }
         } catch (ocrError) {
-          // Tesseract failed - log error and fall through to vision API
-          console.log("Tesseract OCR failed:", ocrError);
-          setProcessingStep("OCR failed, trying AI vision...");
+          console.log("Backend OCR failed:", ocrError);
         }
       }
 
-      // Step 5: For images and PDFs, fall back to vision API
+      // Step 4: Fall back to vision API for direct structured extraction
       if (!handled && (isImage || isPDF)) {
         setProcessingStep("Analyzing receipt with AI...");
         const base64 = await fileToBase64(selectedFile);
@@ -389,10 +258,7 @@ export function useReceiptScanner() {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
-            "X-Requested-With": "XMLHttpRequest", // Help bypass CSRF
           },
-          credentials: "include", // Include cookies
-          mode: "cors", // Explicit CORS mode
           body: JSON.stringify({
             image_base64: base64,
             mime_type: selectedFile.type,
@@ -410,7 +276,7 @@ export function useReceiptScanner() {
         handled = true;
       }
 
-      // Step 6: Nothing worked - provide empty data so caller can show manual entry
+      // Step 5: Nothing worked
       if (!handled) {
         setExtracted({
           receipt_type: "unknown",

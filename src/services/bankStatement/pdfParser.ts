@@ -1,4 +1,14 @@
-import { parseDocument } from './documentParser';
+import { parseDocument, parseTextWithDocumentParser } from './documentParser';
+import { supabase } from '@/integrations/supabase/client';
+
+const BACKEND_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  (typeof window !== "undefined" &&
+  (window.location.hostname.includes("staging") ||
+    window.location.hostname.includes("wheels-wins-staging"))
+    ? "https://wheels-wins-backend-staging.onrender.com"
+    : "https://pam-backend.onrender.com");
 
 interface ParsedTransaction {
   id: string;
@@ -9,54 +19,38 @@ interface ParsedTransaction {
   originalData?: Record<string, any>;
 }
 
-export const parsePdfFile = async (file: File, sessionId: string): Promise<ParsedTransaction[]> => {
-  // Use the universal document parser which handles PDFs, images, and invoices
-  return parseDocument(file, sessionId);
-};
+async function extractTextViaBackendOCR(file: File): Promise<string | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return null;
 
-const generateTransactionId = (date: Date, description: string, amount: number): string => {
-  const dateStr = date.toISOString().split('T')[0];
-  const descHash = description.substring(0, 10).replace(/\W/g, '');
-  const amountStr = Math.round(amount * 100).toString();
-  const random = Math.random().toString(36).substring(7);
-  
-  return `${dateStr}-${descHash}-${amountStr}-${random}`;
-};
+    const formData = new FormData();
+    formData.append('file', file);
 
-// Mock transactions for development/testing
-const generateMockTransactions = (): ParsedTransaction[] => {
-  const merchants = [
-    'Walmart Supercenter',
-    'Shell Gas Station',
-    'Amazon.com',
-    'Netflix Subscription',
-    'Whole Foods Market',
-    'Target Store',
-    'Starbucks Coffee',
-    'Home Depot',
-    'Uber Trip',
-    'Electric Company',
-  ];
-  
-  const transactions: ParsedTransaction[] = [];
-  const today = new Date();
-  
-  for (let i = 0; i < 20; i++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - Math.floor(Math.random() * 30));
-    
-    const amount = Math.round((Math.random() * 200 + 10) * 100) / 100;
-    const isCredit = Math.random() > 0.85;
-    const merchant = merchants[Math.floor(Math.random() * merchants.length)];
-    
-    transactions.push({
-      id: generateTransactionId(date, merchant, amount),
-      date,
-      description: merchant,
-      amount,
-      type: isCredit ? 'credit' : 'debit',
+    const resp = await fetch(`${BACKEND_URL}/api/v1/ocr/extract`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: formData,
     });
+
+    if (!resp.ok) return null;
+
+    const result = await resp.json();
+    return result.text || null;
+  } catch {
+    return null;
   }
-  
-  return transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
+export const parsePdfFile = async (file: File, sessionId: string): Promise<ParsedTransaction[]> => {
+  // Try backend OCR first for better text extraction
+  const ocrText = await extractTextViaBackendOCR(file);
+
+  if (ocrText && ocrText.trim().length > 50) {
+    // Got good text from backend OCR - parse it for transactions
+    return parseTextWithDocumentParser(ocrText, file.name);
+  }
+
+  // Fall back to client-side document parser
+  return parseDocument(file, sessionId);
 };

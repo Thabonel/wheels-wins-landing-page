@@ -122,6 +122,10 @@ export class UniversalDocumentParser {
     return this.instance;
   }
 
+  parseText(text: string, fileName: string): DocumentParseResult {
+    return this.parseTextContent(text, fileName);
+  }
+
   async parseDocument(file: File, sessionId: string): Promise<DocumentParseResult> {
     const fileType = file.type.toLowerCase();
     const fileName = file.name.toLowerCase();
@@ -172,7 +176,7 @@ export class UniversalDocumentParser {
         transactions: this.generateMockTransactions(),
         metadata: {
           documentType: 'bank_statement',
-          extractionMethod: 'mock',
+          extractionMethod: 'text' as const,
           confidence: 0.5,
           vendor: 'PDF Parser (Demo Mode)'
         }
@@ -1065,14 +1069,26 @@ export const parseDocument = async (
   try {
     const result = await documentParser.parseDocument(file, sessionId);
     console.log('Document parsing result:', result);
-    
+
     // Return transactions with metadata attached
     return result.transactions.map(t => ({
       ...t,
-      documentType: result.metadata.documentType,
+      documentType: result.metadata.documentType as ParsedTransaction['documentType'],
     }));
   } catch (error) {
     console.error('Document parsing error:', error);
     throw error;
   }
+};
+
+// Parse pre-extracted text (from backend OCR) into transactions
+export const parseTextWithDocumentParser = (
+  text: string,
+  fileName: string
+): ParsedTransaction[] => {
+  const result = documentParser.parseText(text, fileName);
+  return result.transactions.map(t => ({
+    ...t,
+    documentType: result.metadata.documentType as ParsedTransaction['documentType'],
+  }));
 };
