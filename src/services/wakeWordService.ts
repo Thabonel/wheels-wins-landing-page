@@ -238,12 +238,19 @@ class WakeWordService {
     }
 
     this.restartTimeout = setTimeout(() => {
-      if (this.isListening && this.options) {
+      if (this.isListening && this.options && this.recognition) {
         try {
-          this.recognition?.start();
-        } catch (error) {
-          logger.error('Failed to restart wake word recognition:', error);
+          this.recognition.stop();
+        } catch {
+          // Already stopped - safe to ignore
         }
+        setTimeout(() => {
+          try {
+            this.recognition?.start();
+          } catch (error) {
+            logger.error('Failed to restart wake word recognition:', error);
+          }
+        }, 100);
       }
     }, 1000); // 1 second delay before restart
   }

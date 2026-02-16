@@ -118,6 +118,23 @@ class ToolPrefilter:
             r'\b(reservation|reservations|reserve|book|booking)\b',
             r'\b(rv park|rv parks|rv resort)\b'
         ],
+        "medical": [
+            r'\b(medical|medicine|medicines|medic)\b',
+            r'\b(health|healthy|healthcare)\b',
+            r'\b(doctor|doctors|dr|physician|gp)\b',
+            r'\b(medication|medications|meds|prescription|prescriptions)\b',
+            r'\b(blood|blood type|blood test|bloodwork)\b',
+            r'\b(allergy|allergies|allergic)\b',
+            r'\b(emergency info|emergency contacts?|ice)\b',
+            r'\b(lab results?|test results?|pathology)\b',
+            r'\b(diagnosis|diagnosed|condition|conditions)\b',
+            r'\b(hospital|clinic|specialist)\b',
+            r'\b(refill|dosage|dose|tablet|tablets|pill|pills)\b',
+            r'\b(scan|scans|x-ray|xray|mri|ct scan|imaging|ultrasound)\b',
+            r'\b(surgery|surgical|operation)\b',
+            r'\b(medical documents?|medical records?|health records?)\b',
+            r'\b(neck|spine|cervical|lumbar|shoulder)\b',
+        ],
         # CRITICAL: Calendar keywords for voice commands like "book an appointment"
         "calendar": [
             r'\b(calendar|calendars)\b',
@@ -199,7 +216,13 @@ class ToolPrefilter:
 
         # Admin tools (2 tools from pam.py)
         "add_knowledge": "admin",
-        "search_knowledge": "admin"
+        "search_knowledge": "admin",
+
+        # Medical tools (4 tools from pam.py)
+        "get_medical_records": "medical",
+        "search_medical_records": "medical",
+        "get_medications": "medical",
+        "get_emergency_info": "medical",
     }
 
     # Context page to category mapping
@@ -218,7 +241,9 @@ class ToolPrefilter:
         "/calendar": "calendar",
         "/schedule": "calendar",
         "/appointments": "calendar",
-        "/pam_chat": "calendar"  # Voice chat should include calendar tools
+        "/pam_chat": "calendar",  # Voice chat should include calendar tools
+        "/medical": "medical",
+        "/health": "medical",
     }
 
     def __init__(self, max_recent_tools: int = 5):
