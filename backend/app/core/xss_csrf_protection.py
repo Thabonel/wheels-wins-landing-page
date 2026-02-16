@@ -440,6 +440,7 @@ class XSSCSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/api/v1/pam/health",  # PAM health check endpoint
             "/api/v1/fuel",  # Fuel receipt endpoints (JWT-protected)
             "/api/v1/receipts",  # Universal receipt endpoints (JWT-protected)
+            "/api/v1/ocr",  # Unified OCR endpoint (JWT-protected)
             "/api/v1/support",  # Support ticket endpoints
         ]
         

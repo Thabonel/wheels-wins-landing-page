@@ -25,11 +25,15 @@ import { MedicalRecordType } from '@/types/medical';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import * as pdfjsLib from 'pdfjs-dist';
-import Tesseract from 'tesseract.js';
 
-// Set the worker source for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+const BACKEND_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_URL ||
+  (typeof window !== "undefined" &&
+  (window.location.hostname.includes("staging") ||
+    window.location.hostname.includes("wheels-wins-staging"))
+    ? "https://wheels-wins-backend-staging.onrender.com"
+    : "https://pam-backend.onrender.com");
 
 interface DocumentUploadDialogProps {
   open: boolean;
@@ -52,61 +56,13 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
     test_date: ''
   });
 
-  // Check file type helpers
-  const isTextFile = (filename: string) => /\.(txt|csv)$/i.test(filename);
-  const isMarkdownFile = (filename: string) => /\.(md|markdown)$/i.test(filename);
-  const isPdfFile = (filename: string) => /\.pdf$/i.test(filename);
-  const isImageFile = (filename: string) => /\.(jpg|jpeg|png|gif|webp|bmp|tiff|tif)$/i.test(filename);
-
-  // Extract text from PDF using pdf.js
-  const extractPdfText = async (file: File): Promise<string> => {
-    setExtractionStatus('Extracting text from PDF...');
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let fullText = '';
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        setExtractionProgress(Math.round((i / pdf.numPages) * 100));
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items
-          .map((item: any) => item.str)
-          .join(' ');
-        fullText += pageText + '\n\n';
-      }
-
-      return fullText.trim();
-    } catch (error) {
-      console.error('PDF extraction error:', error);
-      return '';
-    }
-  };
-
-  // Extract text from image using Tesseract.js OCR
-  const extractImageText = async (file: File): Promise<string> => {
-    setExtractionStatus('Running OCR on image...');
-    try {
-      const result = await Tesseract.recognize(file, 'eng', {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            setExtractionProgress(Math.round(m.progress * 100));
-          }
-        }
-      });
-      return result.data.text.trim();
-    } catch (error) {
-      console.error('OCR error:', error);
-      return '';
-    }
-  };
-
-  // Main text extraction function
+  // Extract text from document using the unified backend OCR service.
+  // Uses sensitivity=high for medical docs (non-generative OCR only).
   const extractTextContent = async (file: File): Promise<string | null> => {
     const filename = file.name;
 
-    // Plain text files - read directly
-    if (isTextFile(filename) || isMarkdownFile(filename)) {
+    // Plain text files - read directly (no OCR needed)
+    if (/\.(txt|csv|md|markdown)$/i.test(filename)) {
       setExtractionStatus('Reading text file...');
       setExtractionProgress(50);
       const text = await file.text();
@@ -114,17 +70,41 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
       return text;
     }
 
-    // PDF files - use pdf.js
-    if (isPdfFile(filename)) {
-      return await extractPdfText(file);
+    // PDFs and images - use backend OCR service
+    if (/\.(pdf|jpg|jpeg|png|gif|webp|bmp|tiff|tif|heic|heif)$/i.test(filename)) {
+      setExtractionStatus('Extracting text from document...');
+      setExtractionProgress(30);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('No auth session for OCR extraction');
+        return null;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/v1/ocr/extract?sensitivity=high`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: formData,
+        }
+      );
+
+      setExtractionProgress(80);
+
+      if (!response.ok) {
+        console.error('OCR extraction failed:', response.status);
+        return null;
+      }
+
+      const result = await response.json();
+      setExtractionProgress(100);
+      return result.text || null;
     }
 
-    // Image files - use Tesseract OCR
-    if (isImageFile(filename)) {
-      return await extractImageText(file);
-    }
-
-    // Other file types - no extraction
     return null;
   };
 

@@ -7,19 +7,17 @@ import { useAuth } from "@/context/AuthContext";
 import { useRegion } from "@/context/RegionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Camera, Upload, Loader2, FileText } from "lucide-react";
-import Tesseract from "tesseract.js";
 import { getTodayDateLocal } from "@/utils/format";
 
-// Backend URL - same pattern used across the codebase (see api.ts, receiptService.ts)
 const BACKEND_URL =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_BACKEND_URL ||
+  (typeof window !== "undefined" &&
   (window.location.hostname.includes("staging") ||
-  window.location.hostname.includes("wheels-wins-staging")
+    window.location.hostname.includes("wheels-wins-staging"))
     ? "https://wheels-wins-backend-staging.onrender.com"
     : "https://pam-backend.onrender.com");
 
-const CONFIDENCE_THRESHOLD = 0.7;
 const MIN_OCR_TEXT_LENGTH = 20;
 
 interface ExtractedData {
@@ -159,21 +157,27 @@ export default function FuelReceiptUpload({
     return result.receipt_url || null;
   };
 
-  const runTesseractOCR = async (
-    file: File
+  const runBackendOCR = async (
+    file: File,
+    token: string
   ): Promise<{ text: string; confidence: number }> => {
-    const result = await Tesseract.recognize(file, "eng", {
-      logger: (m) => {
-        if (m.status === "recognizing text") {
-          const pct = Math.round((m.progress || 0) * 100);
-          setProcessingStep(`Reading receipt... ${pct}%`);
-        }
-      },
+    const ocrForm = new FormData();
+    ocrForm.append("file", file);
+
+    const resp = await fetch(`${BACKEND_URL}/api/v1/ocr/extract`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: ocrForm,
     });
 
+    if (!resp.ok) {
+      throw new Error(`OCR extraction failed (${resp.status})`);
+    }
+
+    const result = await resp.json();
     return {
-      text: result.data.text,
-      confidence: (result.data.confidence || 0) / 100,
+      text: result.text || "",
+      confidence: result.confidence || 0,
     };
   };
 
@@ -285,16 +289,13 @@ export default function FuelReceiptUpload({
       const isImage = selectedFile.type.startsWith("image/");
       const isPDF = selectedFile.type === "application/pdf";
 
-      // Tesseract OCR only works on images
-      if (isImage) {
-        setProcessingStep("Reading receipt with OCR...");
+      // Backend OCR for images and PDFs
+      if (isImage || isPDF) {
+        setProcessingStep("Extracting text from receipt...");
         try {
-          const ocr = await runTesseractOCR(selectedFile);
+          const ocr = await runBackendOCR(selectedFile, token);
 
-          if (
-            ocr.confidence >= CONFIDENCE_THRESHOLD &&
-            ocr.text.trim().length >= MIN_OCR_TEXT_LENGTH
-          ) {
+          if (ocr.text.trim().length >= MIN_OCR_TEXT_LENGTH) {
             setProcessingStep("Parsing receipt data...");
             try {
               const parsed = await callTextParseAPI(ocr.text, token);
@@ -305,11 +306,11 @@ export default function FuelReceiptUpload({
             }
           }
         } catch {
-          // Tesseract failed, fall through to Vision API
+          // Backend OCR failed, fall through to Vision API
         }
       }
 
-      // Vision API handles images and PDFs
+      // Vision API fallback for images and PDFs
       if (!handled && (isImage || isPDF)) {
         setProcessingStep("Analyzing receipt with AI...");
         const visionData = await callVisionAPI(selectedFile, token);
