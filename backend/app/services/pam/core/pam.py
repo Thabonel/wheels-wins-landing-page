@@ -1381,7 +1381,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         user_message=message,
                         all_tools=self.tools,
                         context=context,
-                        max_tools=10
+                        max_tools=15
                     )
 
                 if len(filtered_tools) == 0:
