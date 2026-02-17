@@ -415,10 +415,11 @@ class WAFMiddleware(BaseHTTPMiddleware):
             "/api/v1/pam/ws",
             "/api/v1/pam-simple/chat",
             "/api/v1/pam-2/chat",
-            # Support/receipt/fuel endpoints - JSON bodies trigger false positives
+            # Support/receipt/fuel/OCR endpoints - binary uploads trigger false positives
             "/api/v1/support",
             "/api/v1/fuel",
             "/api/v1/receipts",
+            "/api/v1/ocr",
         ]
     
     async def dispatch(self, request: Request, call_next) -> Response:
