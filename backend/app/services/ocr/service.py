@@ -22,14 +22,10 @@ def get_supabase_client():
 class OCRService:
     """Unified OCR service with caching, fallback chain, and structured logging."""
 
-    # --- Hashing ---
-
     def _compute_hash(self, file_bytes: bytes) -> str:
         """Compute SHA256 hash of file bytes, prefixed with 'sha256:'."""
         digest = hashlib.sha256(file_bytes).hexdigest()
         return f"sha256:{digest}"
-
-    # --- Cache ---
 
     async def _check_cache(self, file_hash: str) -> Optional[OCRResult]:
         """Check ocr_cache table for a previous result with this hash."""
@@ -54,7 +50,7 @@ class OCRService:
                 )
             return None
         except Exception as e:
-            logger.warning(f"Cache lookup failed: {e}")
+            logger.warning("Cache lookup failed", extra={"error": str(e)})
             return None
 
     async def _save_cache(self, file_hash: str, result: OCRResult) -> None:
@@ -70,9 +66,7 @@ class OCRService:
                 "page_count": result.page_count,
             }).execute()
         except Exception as e:
-            logger.warning(f"Cache save failed: {e}")
-
-    # --- PDF text extraction ---
+            logger.warning("Cache save failed", extra={"error": str(e)})
 
     def _try_pdf_text(self, file_bytes: bytes) -> Optional[str]:
         """Extract text from a digital PDF using pdfplumber. Returns None if
@@ -96,8 +90,6 @@ class OCRService:
         except Exception as e:
             logger.debug(f"PDF text extraction failed: {e}")
             return None
-
-    # --- Image preprocessing ---
 
     def _preprocess_image(self, file_bytes: bytes, filename: str) -> bytes:
         """Preprocess image: HEIC conversion, EXIF rotation, resize, RGB convert."""
@@ -140,8 +132,6 @@ class OCRService:
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=95)
         return buf.getvalue()
-
-    # --- OCR Providers ---
 
     async def _ocr_google_vision(self, image_bytes: bytes) -> OCRResult:
         """Extract text using Google Cloud Vision REST API with API key."""
@@ -249,6 +239,8 @@ class OCRService:
             }],
         )
 
+        if not message.content:
+            raise Exception("Claude returned empty content")
         text = message.content[0].text.strip()
 
         # VLM confidence is heuristic-based
@@ -282,7 +274,10 @@ class OCRService:
             "Do not add any commentary, headers, or formatting.",
         ])
 
-        text = response.text.strip()
+        try:
+            text = response.text.strip()
+        except (ValueError, AttributeError):
+            raise Exception("Gemini returned empty or blocked response")
         confidence = 0.75 if len(text) > 10 else 0.4
 
         return OCRResult(
@@ -291,8 +286,6 @@ class OCRService:
             confidence_method="heuristic",
             method="gemini",
         )
-
-    # --- Main pipeline ---
 
     async def extract_text(
         self,
@@ -349,7 +342,7 @@ class OCRService:
         try:
             image_bytes = self._preprocess_image(file_bytes, filename)
         except Exception as e:
-            logger.warning(f"Image preprocessing failed, using raw bytes: {e}")
+            logger.warning("Image preprocessing failed, using raw bytes", extra={"error": str(e)})
             image_bytes = file_bytes
 
         # 4. Primary: Google Cloud Vision (non-generative, no hallucination)
@@ -361,8 +354,7 @@ class OCRService:
             await self._save_cache(file_hash, result)
             return result
         except Exception as e:
-            logger.warning(f"Google Vision failed: {e}")
-            fallback_reason = f"google_vision_{type(e).__name__}"
+            logger.warning("Google Vision failed", extra={"error": str(e)})
 
         # If sensitivity=high, stop here - no VLM processing for sensitive docs
         if sensitivity == "high":
@@ -385,7 +377,7 @@ class OCRService:
             await self._save_cache(file_hash, result)
             return result
         except Exception as e:
-            logger.warning(f"Claude Vision failed: {e}")
+            logger.warning("Claude Vision failed", extra={"error": str(e)})
 
         # 6. Second fallback: Gemini
         try:
@@ -396,7 +388,10 @@ class OCRService:
             await self._save_cache(file_hash, result)
             return result
         except Exception as e:
-            logger.error(f"All OCR methods failed. Tried: {methods_tried}. Last error: {e}")
+            logger.error("All OCR methods failed", extra={
+                "methods_tried": methods_tried,
+                "last_error": str(e),
+            })
 
         # All failed
         elapsed = int((time.time() - start_time) * 1000)
