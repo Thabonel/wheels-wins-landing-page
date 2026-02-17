@@ -21,7 +21,8 @@ anthropic>=0.45.0  # Claude Sonnet 4 + PDF document support (>=0.41 required for
 
 # OCR Service Dependencies
 pdfplumber>=0.11.0  # PDF text extraction (digital PDFs)
-# pillow-heif>=0.18.0  # HEIC support server-side (optional - needs libheif system lib)
+pillow-heif>=0.18.0  # HEIC support server-side (for mobile receipt uploads)
+httpx>=0.27.0  # Async HTTP client for Google Cloud Vision API
 
 # AI Agent Observability (stable versions)
 langfuse>=2.0.0
