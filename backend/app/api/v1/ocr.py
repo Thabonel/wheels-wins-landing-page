@@ -208,11 +208,16 @@ async def create_ocr_job(
     # Launch background task
     asyncio.create_task(_run_ocr_job(job_id, file_bytes, file.filename or "unknown", sensitivity))
 
-    # Evict old jobs (>1 hour) to prevent memory leak
+    # Evict old jobs (>1 hour) and enforce max count to prevent memory leak
     cutoff = time.time() - 3600
     stale = [k for k, v in _ocr_jobs.items() if v.get("created_at", 0) < cutoff]
     for k in stale:
         _ocr_jobs.pop(k, None)
+
+    if len(_ocr_jobs) > 1000:
+        oldest = sorted(_ocr_jobs, key=lambda k: _ocr_jobs[k].get("created_at", 0))
+        for k in oldest[:len(_ocr_jobs) - 1000]:
+            _ocr_jobs.pop(k, None)
 
     return {"job_id": job_id, "status": "queued"}
 
@@ -241,7 +246,7 @@ async def get_ocr_job(
     if job["status"] == "completed":
         response["result"] = job.get("result")
     elif job["status"] == "failed":
-        response["error"] = job.get("error")
+        response["error"] = "OCR processing failed"
 
     return response
 
@@ -258,30 +263,24 @@ async def ocr_stats(
         from app.core.database import get_supabase_client
         client = get_supabase_client()
 
-        # Total cached results (indicates total successful extractions)
-        total_resp = client.table("ocr_cache").select("file_hash", count="exact").execute()
-        total_cached = total_resp.count or 0
+        # Single query for method and confidence, with exact count
+        resp = client.table("ocr_cache").select("method, confidence", count="exact").execute()
+        total_cached = resp.count or 0
 
-        # Method distribution
-        method_counts = {}
-        if total_cached > 0:
-            all_resp = client.table("ocr_cache").select("method").execute()
-            for row in (all_resp.data or []):
-                m = row.get("method", "unknown")
-                method_counts[m] = method_counts.get(m, 0) + 1
+        # Aggregate method counts and confidence in one pass
+        method_counts: Dict[str, int] = {}
+        method_confs: Dict[str, list] = {}
+        for row in (resp.data or []):
+            m = row.get("method", "unknown")
+            method_counts[m] = method_counts.get(m, 0) + 1
+            c = row.get("confidence")
+            if c is not None:
+                method_confs.setdefault(m, []).append(c)
 
-        # Average confidence by method
-        avg_confidence = {}
-        if total_cached > 0:
-            conf_resp = client.table("ocr_cache").select("method, confidence").execute()
-            method_confs: Dict[str, list] = {}
-            for row in (conf_resp.data or []):
-                m = row.get("method", "unknown")
-                c = row.get("confidence")
-                if c is not None:
-                    method_confs.setdefault(m, []).append(c)
-            for m, confs in method_confs.items():
-                avg_confidence[m] = round(sum(confs) / len(confs), 4) if confs else 0
+        avg_confidence = {
+            m: round(sum(confs) / len(confs), 4)
+            for m, confs in method_confs.items() if confs
+        }
 
         # Active async jobs
         active_jobs = sum(1 for j in _ocr_jobs.values() if j["status"] in ("queued", "processing"))
@@ -294,7 +293,7 @@ async def ocr_stats(
         }
 
     except Exception as e:
-        logger.error(f"Failed to get OCR stats: {e}")
+        logger.error("Failed to get OCR stats", extra={"error": str(e)})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve OCR statistics",

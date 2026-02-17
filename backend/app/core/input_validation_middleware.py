@@ -435,7 +435,10 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
             "/docs",
             "/openapi.json",
             "/favicon.ico",
-            "/metrics"
+            "/metrics",
+            "/api/v1/ocr",  # Binary file uploads (JWT-protected)
+            "/api/v1/fuel",  # Fuel receipt uploads (JWT-protected)
+            "/api/v1/receipts",  # Receipt uploads (JWT-protected)
         ]
     
     async def dispatch(self, request: Request, call_next) -> Response:
