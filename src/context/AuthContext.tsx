@@ -296,6 +296,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLastError(null);
     setLoading(true);
 
+    // Cancel any pending auth state debounce to prevent interference
+    if (authStateDebounceRef.current) {
+      clearTimeout(authStateDebounceRef.current);
+      authStateDebounceRef.current = null;
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -303,6 +309,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
+        // Stale session tokens can cause false "Invalid login credentials" errors.
+        // Clear the local session and retry once before showing the error.
+        if (error.message?.includes('Invalid login credentials')) {
+          try {
+            await supabase.auth.signOut({ scope: 'local' });
+          } catch {
+            // Ignore signOut errors - we just want to clear stale state
+          }
+
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (retryError) {
+            const authError = createAuthError(retryError);
+            setLastError(authError);
+            throw retryError;
+          }
+          // Retry succeeded
+          return;
+        }
+
         const authError = createAuthError(error);
         setLastError(authError);
         throw error;

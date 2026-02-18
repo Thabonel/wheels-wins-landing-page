@@ -38,6 +38,7 @@ import AdminProtection from './components/admin/AdminProtection';
 // import { LazyPamIntegrationProvider } from './components/pam/LazyPamIntegrationProvider';
 // import { PamProvider } from './context/PamContext';
 import { StagingBanner } from './components/StagingBanner';
+import { InstallPrompt } from './components/pwa/InstallPrompt';
 import { logEnvironmentInfo } from './config/environment';
 import { logEnvironmentStatus } from './config/env-validator';
 import { AppErrorBoundary } from './components/common/ErrorBoundary';
@@ -80,6 +81,7 @@ function App() {
       <AppErrorBoundary>
         <Toaster />
         <StagingBanner />
+        <InstallPrompt />
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
             <PhotoSyncHandler />
