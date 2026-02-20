@@ -1,5 +1,32 @@
 # Security & Monitoring - Quick Start
 
+## 🚨 **CRITICAL SECURITY ALERT: F-GRADE ISSUES FOUND**
+
+A security scan has identified **critical vulnerabilities** requiring immediate action. **User data is at risk.**
+
+### ⏰ **IMMEDIATE ACTION REQUIRED (24 hours)**
+
+1. **Run Security Audit**
+   ```bash
+   ./scripts/security_audit.sh
+   ```
+
+2. **Apply Critical Fixes** (Test in staging first!)
+   ```sql
+   -- In Supabase SQL Editor:
+   -- Copy/paste: docs/sql-fixes/IMMEDIATE_SECURITY_FIXES.sql
+   ```
+
+3. **Read Full Report**: `docs/security/SECURITY_ASSESSMENT_REPORT.md`
+
+**Issues Found:**
+- 🔴 **5 CRITICAL**: Admin over-privileges, missing RLS, cross-user access
+- 🟠 **92 HIGH**: Permissive policies, broad grants, info disclosure
+- 🟡 **190 MEDIUM**: Schema exposure, missing audits
+- ⚪ **5 LOW**: Security headers, CORS config
+
+---
+
 ## 🎯 What You Need to Know
 
 Wheels & Wins now has **enterprise-grade security** based on lessons learned from a 3-day production outage at UnimogCommunityHub.
@@ -98,8 +125,47 @@ Security       | RLS Policies            | ✅ OK     | 8/8 tables OK
 
 ---
 
+## 🔒 **NEW: Critical Security Tools**
+
+### Security Audit Script
+**Location:** `scripts/security_audit.sh`
+```bash
+# Run comprehensive security analysis
+./scripts/security_audit.sh
+```
+
+### Immediate Security Fixes
+**Location:** `docs/sql-fixes/IMMEDIATE_SECURITY_FIXES.sql`
+⚠️ **Test in staging first, then production**
+
+**What it fixes:**
+- ✅ Removes `USING (true)` policies
+- ✅ Restricts admin privileges
+- ✅ Enables RLS on all user tables
+- ✅ Creates user-scoped access policies
+- ✅ Removes dangerous broad permissions
+
+### Comprehensive Audit Queries
+**Location:** `docs/sql-fixes/SECURITY_AUDIT_COMPREHENSIVE.sql`
+Deep security analysis to identify all vulnerabilities.
+
+### Security Testing Checklist
+- [ ] Run security audit script
+- [ ] Test with multiple user accounts
+- [ ] Verify users cannot access other users' data
+- [ ] Confirm admin access is properly limited
+- [ ] Check all app features still work
+
+---
+
 ## 📚 Full Documentation
 
+**NEW (February 2026):**
+- **🚨 F-Grade Security Assessment**: `docs/security/SECURITY_ASSESSMENT_REPORT.md`
+- **🔧 Immediate Security Fixes**: `docs/sql-fixes/IMMEDIATE_SECURITY_FIXES.sql`
+- **🔍 Security Audit Queries**: `docs/sql-fixes/SECURITY_AUDIT_COMPREHENSIVE.sql`
+
+**Existing:**
 - **Security Implementation Summary**: `docs/SECURITY_IMPLEMENTATION_SUMMARY.md`
 - **Emergency Rollback Guide**: `docs/EMERGENCY_ROLLBACK_GUIDE.md`
 - **Master Security Guide** (source): `docs/MASTER_SECURITY_GUIDE.md`
@@ -217,4 +283,6 @@ gitleaks detect --verbose
 
 **Remember: This system exists because something broke in production. Keep it maintained!**
 
-**Last Updated**: January 10, 2025
+**⚠️ CRITICAL UPDATE**: F-grade security issues found February 21, 2026. **Apply immediate fixes ASAP.**
+
+**Last Updated**: February 21, 2026
