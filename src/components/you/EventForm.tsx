@@ -116,6 +116,26 @@ const EventForm: React.FC<EventFormProps> = ({
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Date</FormLabel>
+              <FormControl>
+                <Input
+                  type="date"
+                  value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value ? new Date(e.target.value) : new Date();
+                    field.onChange(selectedDate);
+                  }}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
