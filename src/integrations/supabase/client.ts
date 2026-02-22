@@ -5,7 +5,6 @@ import type { Database } from './types';
 let SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 let SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-
 // Auto-detect and fix swapped environment variables (common Netlify configuration issue)
 const isJWTToken = (value: string) => value.startsWith('eyJ') && value.includes('.');
 const isValidURL = (value: string) => {
@@ -22,10 +21,10 @@ if ((import.meta.env.MODE === 'staging' || (typeof window !== 'undefined' && win
   console.log('🔍 Supabase Configuration Debug:', {
     mode: import.meta.env.MODE,
     urlLength: SUPABASE_URL?.length,
-    urlFirst20: `${SUPABASE_URL?.substring(0, 20)  }...`,
-    urlLast20: `...${  SUPABASE_URL?.substring(SUPABASE_URL.length - 20)}`,
+    urlFirst20: `${SUPABASE_URL?.substring(0, 20)}...`,
+    urlLast20: `...${SUPABASE_URL?.substring(SUPABASE_URL.length - 20)}`,
     hasKey: !!SUPABASE_ANON_KEY,
-    keyPrefix: `${SUPABASE_ANON_KEY?.substring(0, 10)  }...`,
+    keyPrefix: `${SUPABASE_ANON_KEY?.substring(0, 10)}...`,
     urlHasSpaces: SUPABASE_URL?.includes(' '),
     urlHasNewlines: SUPABASE_URL?.includes('\n'),
     urlHasTrailingSlash: SUPABASE_URL?.endsWith('/'),
@@ -48,130 +47,203 @@ if (SUPABASE_URL) {
   }
 }
 
-// Enhanced validation with better error messaging for Netlify deployment debugging
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  const envVars = {
-    VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || 'undefined',
-    VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? '[REDACTED]' : 'undefined',
-    MODE: import.meta.env.MODE,
-    PROD: import.meta.env.PROD,
-    DEV: import.meta.env.DEV
-  };
-  
-  console.error('Supabase Environment Variables Check:', envVars);
-  
-  throw new Error(
-    `Missing required Supabase environment variables for ${import.meta.env.MODE} mode. ` +
-    `VITE_SUPABASE_URL: ${SUPABASE_URL ? 'SET' : 'MISSING'}, ` +
-    `VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY ? 'SET' : 'MISSING'}. ` +
-    'Please configure these in your Netlify site environment variables.'
+// Lazy initialization with retry logic
+let supabaseClient: ReturnType<typeof createClient<Database>> | null = null;
+let initializationAttempts = 0;
+const MAX_INIT_ATTEMPTS = 3;
+
+function createSupabaseClient(): ReturnType<typeof createClient<Database>> {
+  initializationAttempts++;
+
+  // Reload environment variables on each attempt (handles race conditions)
+  const currentURL = import.meta.env.VITE_SUPABASE_URL || '';
+  const currentKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+  console.log(`🚀 Supabase client initialization attempt ${initializationAttempts}`, {
+    hasURL: !!currentURL,
+    hasKey: !!currentKey,
+    urlLength: currentURL.length,
+    keyLength: currentKey.length
+  });
+
+  // Enhanced validation with better error messaging for Netlify deployment debugging
+  if (!currentURL || !currentKey) {
+    const envVars = {
+      VITE_SUPABASE_URL: currentURL || 'undefined',
+      VITE_SUPABASE_ANON_KEY: currentKey ? '[REDACTED]' : 'undefined',
+      MODE: import.meta.env.MODE,
+      PROD: import.meta.env.PROD,
+      DEV: import.meta.env.DEV,
+      attempt: initializationAttempts
+    };
+
+    console.error('Supabase Environment Variables Check:', envVars);
+
+    throw new Error(
+      `Missing required Supabase environment variables for ${import.meta.env.MODE} mode (attempt ${initializationAttempts}/${MAX_INIT_ATTEMPTS}). ` +
+      `VITE_SUPABASE_URL: ${currentURL ? 'SET' : 'MISSING'}, ` +
+      `VITE_SUPABASE_ANON_KEY: ${currentKey ? 'SET' : 'MISSING'}. ` +
+      'Please configure these in your Netlify site environment variables.'
+    );
+  }
+
+  // Additional URL validation to catch invalid URLs before Supabase client creation
+  if (!isValidURL(currentURL)) {
+    console.error('Invalid VITE_SUPABASE_URL:', currentURL);
+    throw new Error(`Invalid VITE_SUPABASE_URL: "${currentURL}". Please provide a valid Supabase URL.`);
+  }
+
+  // Create the supabase client optimized for minimal JWT size (SaaS best practice)
+  return createClient<Database>(
+    currentURL,
+    currentKey,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        storageKey: 'pam-auth-token',
+        // Optimize JWT claims for minimal size
+        detectSessionInUrl: false, // Reduce auth metadata
+        flowType: 'pkce', // Use more efficient flow
+        debug: import.meta.env.MODE === 'development', // Enable debug logging in dev
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 10, // Reduce for mobile
+        },
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'pam-mobile',
+        },
+      }
+      // Removed db.schema to allow access to all schemas (public, storage, etc.)
+      // This fixes: "relation 'objects' does not exist" error when uploading to storage
+    }
   );
 }
 
-// Additional URL validation to catch invalid URLs before Supabase client creation
-if (!isValidURL(SUPABASE_URL)) {
-  console.error('Invalid VITE_SUPABASE_URL:', SUPABASE_URL);
-  throw new Error(`Invalid VITE_SUPABASE_URL: "${SUPABASE_URL}". Please provide a valid Supabase URL.`);
+// Lazy initialization function with retry logic
+function getSupabaseClient(): ReturnType<typeof createClient<Database>> {
+  if (supabaseClient) {
+    return supabaseClient;
+  }
+
+  try {
+    supabaseClient = createSupabaseClient();
+    console.log('✅ Supabase client initialized successfully');
+    return supabaseClient;
+  } catch (error) {
+    console.error(`❌ Supabase client initialization failed (attempt ${initializationAttempts}/${MAX_INIT_ATTEMPTS}):`, error);
+
+    // Retry logic for production race conditions
+    if (initializationAttempts < MAX_INIT_ATTEMPTS && import.meta.env.PROD) {
+      console.log('🔄 Retrying Supabase client initialization in production...');
+      // Small delay to allow environment to settle
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          try {
+            resolve(getSupabaseClient());
+          } catch (retryError) {
+            reject(retryError);
+          }
+        }, 100 * initializationAttempts); // Exponential backoff
+      }) as any; // TypeScript workaround for async return
+    }
+
+    throw error;
+  }
 }
 
-// Create the supabase client optimized for minimal JWT size (SaaS best practice)
-export const supabase = createClient<Database>(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      storageKey: 'pam-auth-token',
-      // Optimize JWT claims for minimal size
-      detectSessionInUrl: false, // Reduce auth metadata
-      flowType: 'pkce', // Use more efficient flow
-      debug: import.meta.env.MODE === 'development', // Enable debug logging in dev
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 10, // Reduce for mobile
-      },
-    },
-    global: {
-      headers: {
-        'X-Client-Info': 'pam-mobile',
-      },
+// Export a proxy that lazily initializes the client
+export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
+  get(_, prop) {
+    const client = getSupabaseClient();
+    const value = (client as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
     }
-    // Removed db.schema to allow access to all schemas (public, storage, etc.)
-    // This fixes: "relation 'objects' does not exist" error when uploading to storage
+    return value;
   }
-);
+});
 
 // Add auth debugging for development
 if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'staging') {
-  console.log('🔧 Supabase Client Configuration:', {
-    url: SUPABASE_URL,
-    hasAnonKey: !!SUPABASE_ANON_KEY,
-    keyPrefix: `${SUPABASE_ANON_KEY?.substring(0, 10)  }...`,
-    authStorageKey: 'pam-auth-token',
-    flowType: 'pkce'
-  });
+  // Defer auth debugging until client is actually used
+  setTimeout(() => {
+    try {
+      const client = getSupabaseClient();
+      console.log('🔧 Supabase Client Configuration:', {
+        url: SUPABASE_URL,
+        hasAnonKey: !!SUPABASE_ANON_KEY,
+        keyPrefix: `${SUPABASE_ANON_KEY?.substring(0, 10)}...`,
+        authStorageKey: 'pam-auth-token',
+        flowType: 'pkce'
+      });
 
-  // Monitor auth state changes in Supabase client
-  supabase.auth.onAuthStateChange((event, session) => {
-    console.log('📡 Supabase Auth State Change:', {
-      event,
-      hasSession: !!session,
-      hasAccessToken: !!session?.access_token,
-      tokenExpiry: session?.expires_at,
-      userId: session?.user?.id,
-      timestamp: new Date().toISOString()
-    });
+      // Monitor auth state changes in Supabase client
+      client.auth.onAuthStateChange((event, session) => {
+        console.log('📡 Supabase Auth State Change:', {
+          event,
+          hasSession: !!session,
+          hasAccessToken: !!session?.access_token,
+          tokenExpiry: session?.expires_at,
+          userId: session?.user?.id,
+          timestamp: new Date().toISOString()
+        });
 
-    // Log JWT token details for debugging auth.uid() issues
-    if (session?.access_token) {
-      try {
-        // Decode JWT header to check if it's properly formatted
-        const parts = session.access_token.split('.');
-        if (parts.length === 3) {
-          const header = JSON.parse(atob(parts[0]));
-          const payload = JSON.parse(atob(parts[1]));
+        // Log JWT token details for debugging auth.uid() issues
+        if (session?.access_token) {
+          try {
+            // Decode JWT header to check if it's properly formatted
+            const parts = session.access_token.split('.');
+            if (parts.length === 3) {
+              const header = JSON.parse(atob(parts[0]));
+              const payload = JSON.parse(atob(parts[1]));
 
-          console.log('🔍 JWT Debug:', {
-            algorithm: header.alg,
-            type: header.typ,
-            issuer: payload.iss,
-            subject: payload.sub,
-            audience: payload.aud,
-            role: payload.role,
-            expirationTime: new Date(payload.exp * 1000).toISOString(),
-            issuedAt: new Date(payload.iat * 1000).toISOString(),
-            claims: Object.keys(payload)
-          });
+              console.log('🔍 JWT Debug:', {
+                algorithm: header.alg,
+                type: header.typ,
+                issuer: payload.iss,
+                subject: payload.sub,
+                audience: payload.aud,
+                role: payload.role,
+                expirationTime: new Date(payload.exp * 1000).toISOString(),
+                issuedAt: new Date(payload.iat * 1000).toISOString(),
+                claims: Object.keys(payload)
+              });
 
-          // Check if the JWT contains the required claims for auth.uid()
-          if (!payload.sub) {
-            console.error('❌ JWT missing "sub" claim - this will cause auth.uid() to return null');
-          }
-          if (!payload.role) {
-            console.error('❌ JWT missing "role" claim - this may cause permission issues');
-          }
-          // Enhanced role detection with proper admin role support
-          if (payload.role === 'admin') {
-            console.info('🔐 JWT role is "admin" - this is supported and will work with database RLS policies');
-            console.info('📊 Admin role provides equivalent access to "authenticated" role for user data');
-          } else if (payload.role === 'authenticated') {
-            console.info('🔐 JWT role is "authenticated" - standard user role');
-          } else if (payload.role !== 'service_role' && payload.role !== 'anon') {
-            console.warn('⚠️ JWT role is unexpected:', payload.role);
-            console.warn('💡 Expected roles: "authenticated", "admin", "service_role", or "anon"');
+              // Check if the JWT contains the required claims for auth.uid()
+              if (!payload.sub) {
+                console.error('❌ JWT missing "sub" claim - this will cause auth.uid() to return null');
+              }
+              if (!payload.role) {
+                console.error('❌ JWT missing "role" claim - this may cause permission issues');
+              }
+              // Enhanced role detection with proper admin role support
+              if (payload.role === 'admin') {
+                console.info('🔐 JWT role is "admin" - this is supported and will work with database RLS policies');
+                console.info('📊 Admin role provides equivalent access to "authenticated" role for user data');
+              } else if (payload.role === 'authenticated') {
+                console.info('🔐 JWT role is "authenticated" - standard user role');
+              } else if (payload.role !== 'service_role' && payload.role !== 'anon') {
+                console.warn('⚠️ JWT role is unexpected:', payload.role);
+                console.warn('💡 Expected roles: "authenticated", "admin", "service_role", or "anon"');
+              }
+            } else {
+              console.error('❌ Invalid JWT format - token does not have 3 parts');
+            }
+          } catch (error) {
+            console.error('❌ Failed to decode JWT token:', error);
           }
         } else {
-          console.error('❌ Invalid JWT format - token does not have 3 parts');
+          console.log('⚠️ No access token in session');
         }
-      } catch (error) {
-        console.error('❌ Failed to decode JWT token:', error);
-      }
-    } else {
-      console.log('⚠️ No access token in session');
+      });
+    } catch (error) {
+      console.warn('Auth debugging setup failed:', error);
     }
-  });
+  }, 1000);
 }
 
 export default supabase;
