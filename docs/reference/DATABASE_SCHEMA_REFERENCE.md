@@ -1,6 +1,6 @@
 # PAM Database Schema - THE SOURCE OF TRUTH
 
-**Last Updated:** February 22, 2026 (Documentation cleanup - schema verified current)
+**Last Updated:** January 15, 2025
 **Purpose:** Single source of truth for ALL database table schemas
 **Rule:** Read this BEFORE writing ANY database queries
 

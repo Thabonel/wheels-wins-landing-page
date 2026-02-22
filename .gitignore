@@ -147,3 +147,6 @@ e2e/reports/*.json
 # MCP configuration with secrets
 .claude.json
 scripts/import-mcp-servers.sh
+
+# Archived Documentation (historical context only)
+docs/archive/
