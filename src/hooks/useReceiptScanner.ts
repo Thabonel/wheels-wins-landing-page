@@ -81,6 +81,8 @@ export function useReceiptScanner() {
   const [extracted, setExtracted] = useState<UniversalExtractedData | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingReview, setPendingReview] = useState(false);
+  const [pendingData, setPendingData] = useState<UniversalExtractedData | null>(null);
 
   const objectUrlRef = useRef<string | null>(null);
 
@@ -141,7 +143,23 @@ export function useReceiptScanner() {
     clearSelection();
     setProcessingStep("");
     setIsProcessing(false);
+    setPendingReview(false);
+    setPendingData(null);
   }, [clearSelection]);
+
+  const confirmExtraction = useCallback(() => {
+    if (pendingData) {
+      setExtracted(pendingData);
+      setPendingReview(false);
+      setPendingData(null);
+    }
+  }, [pendingData]);
+
+  const rejectExtraction = useCallback(() => {
+    setPendingReview(false);
+    setPendingData(null);
+    setError("Extraction rejected - please enter details manually.");
+  }, []);
 
   const processReceipt = useCallback(async () => {
     if (!selectedFile) {
@@ -235,7 +253,8 @@ export function useReceiptScanner() {
                 if (textResp.ok) {
                   const textResult = await textResp.json();
                   const data = textResult.extracted || textResult;
-                  setExtracted(normalizeExtractedData(data, textResult));
+                  setPendingData(normalizeExtractedData(data, textResult));
+                  setPendingReview(true);
                   handled = true;
                 }
               } catch (textParseError) {
@@ -272,7 +291,8 @@ export function useReceiptScanner() {
 
         const visionResult = await visionResp.json();
         const data = visionResult.extracted || visionResult;
-        setExtracted(normalizeExtractedData(data, visionResult));
+        setPendingData(normalizeExtractedData(data, visionResult));
+        setPendingReview(true);
         handled = true;
       }
 
@@ -307,10 +327,14 @@ export function useReceiptScanner() {
     extracted,
     receiptUrl,
     error,
+    pendingReview,
+    pendingData,
     handleFileSelect,
     processReceipt,
     clearSelection,
     reset,
+    confirmExtraction,
+    rejectExtraction,
   };
 }
 

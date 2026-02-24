@@ -140,6 +140,9 @@ class PersonalizedPamAgent:
         self._context_manager: Optional["ContextEngineeringManager"] = None
         self._embeddings_service = embeddings_service
 
+        # Vector memory for cross-session context (optional)
+        self._vector_memory = None
+
         if self.enable_context_engineering:
             logger.info("Context Engineering ENABLED - using 4-tier memory system")
         else:
@@ -899,7 +902,18 @@ Respond naturally and conversationally, leveraging all context available.""")
         # Keep only recent history
         if len(user_context.conversation_history) > 20:
             user_context.conversation_history = user_context.conversation_history[-20:]
-    
+
+        # Store in vector memory for cross-session retrieval
+        if self._vector_memory:
+            try:
+                await self._vector_memory.store_conversation_memory(
+                    user_id=user_context.user_id,
+                    user_message=user_message,
+                    agent_response=assistant_response.get("content", ""),
+                )
+            except Exception as e:
+                logger.debug(f"Vector memory storage failed (non-blocking): {e}")
+
     async def get_health_status(self) -> Dict[str, Any]:
         """Health check for the unified agent"""
         status = {
