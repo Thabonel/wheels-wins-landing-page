@@ -318,6 +318,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           timestamp: new Date().toISOString()
         });
 
+        // For iPad debugging - add error details to the error message itself
+        if (error.message?.includes('string did not match') || error.message?.includes('expected pattern')) {
+          const debugInfo = `\n\nDEBUG INFO:\nStatus: ${error.status}\nName: ${error.name}\nDevice: ${navigator.userAgent.includes('iPad') ? 'iPad' : 'Other'}\nBrowser: ${navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Safari'}\nTime: ${new Date().toISOString()}`;
+          error.message = error.message + debugInfo;
+        }
+
         // Stale session tokens can cause false "Invalid login credentials" errors.
         // Clear the local session and retry once before showing the error.
         if (error.message?.includes('Invalid login credentials')) {
