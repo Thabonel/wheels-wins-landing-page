@@ -96,7 +96,7 @@ async def save_favorite_spot(
             "user_id": validated.user_id,
             "location_name": validated.name,
             "location_address": validated.location,
-            "category": validated.category.value,
+            "category": validated.category,
             "notes": validated.notes,
             "rating": validated.rating,
             "created_at": datetime.now().isoformat()
