@@ -15,6 +15,31 @@
 - Simple hyphens (-) not em-dashes (—)
 - Human, handcrafted feel - avoid generic "tech startup" look
 
+### 🚨 CRITICAL: Authentication System Protection
+
+**CATASTROPHIC FAILURE PREVENTION** (Feb 26, 2025 incident - see `docs/CRITICAL_FAULT_2025-02-26_SUPABASE_PROXY.md`)
+
+**NEVER MODIFY `src/integrations/supabase/client.ts` WITHOUT:**
+1. **Staging deployment first** - test on wheels-wins-staging.netlify.app
+2. **Multi-device testing** - iPad Chrome, iPad Safari, MacBook Chrome/Safari
+3. **Auth endpoint verification** - confirm JSON responses (not HTML)
+4. **Console error checking** - zero authentication JavaScript errors
+
+**FORBIDDEN PATTERNS IN AUTHENTICATION CODE:**
+- ❌ **JavaScript Proxy patterns** (caused 4-day production outage)
+- ❌ **Complex async initialization patterns**
+- ❌ **Lazy loading for critical auth infrastructure**
+- ❌ **Abstract patterns that obscure debugging**
+
+**AUTHENTICATION CHANGE PROTOCOL:**
+1. **Read the fault analysis** first: `docs/CRITICAL_FAULT_2025-02-26_SUPABASE_PROXY.md`
+2. **Deploy to staging** and test thoroughly
+3. **Verify auth works** across all device/browser combinations
+4. **Check browser console** for any errors
+5. **Only then push to production**
+
+**If authentication breaks, users cannot access the app AT ALL.**
+
 ### Production Push Protection
 
 **NEVER push directly to production (main branch) without explicit approval.**
