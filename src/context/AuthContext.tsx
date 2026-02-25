@@ -309,6 +309,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
+        // Debug logging for iPad pattern error investigation
+        console.error('🔍 Supabase Auth Error Details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString()
+        });
+
         // Stale session tokens can cause false "Invalid login credentials" errors.
         // Clear the local session and retry once before showing the error.
         if (error.message?.includes('Invalid login credentials')) {
