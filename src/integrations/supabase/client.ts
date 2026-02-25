@@ -155,17 +155,15 @@ function getSupabaseClient(): ReturnType<typeof createClient<Database>> {
   }
 }
 
-// Export a proxy that lazily initializes the client
-export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
-  get(_, prop) {
-    const client = getSupabaseClient();
-    const value = (client as any)[prop];
-    if (typeof value === 'function') {
-      return value.bind(client);
-    }
-    return value;
+// Initialize client directly (removed problematic Proxy pattern)
+export const supabase = (() => {
+  try {
+    return getSupabaseClient();
+  } catch (error) {
+    console.error('Failed to initialize Supabase client:', error);
+    throw error;
   }
-});
+})();
 
 // Add auth debugging for development
 if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'staging') {
