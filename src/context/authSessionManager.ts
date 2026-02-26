@@ -18,6 +18,16 @@ const hydrateFromStorage = () => {
 
   hydratedFromStorage = true;
 
+  // Check if we're in iOS PWA mode with storage isolation
+  const isPWAStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+  const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+
+  if (isPWAStandalone && isIOSDevice) {
+    console.warn('[AuthSessionManager] iOS PWA storage isolation detected - skipping localStorage hydration');
+    // In iOS PWA mode, don't try to hydrate from localStorage as it's isolated
+    return;
+  }
+
   try {
     let raw = window.localStorage.getItem(STORAGE_KEY);
 

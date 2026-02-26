@@ -19,14 +19,24 @@ export function InstallPrompt() {
             <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
               Add Wheels & Wins to your home screen
             </p>
-            {isIOS ? (
-              <p className="mt-1 text-xs text-stone-600 dark:text-stone-400">
-                Tap the share button, then "Add to Home Screen" for the full app experience.
-              </p>
+{isIOS ? (
+              <>
+                <p className="mt-1 text-xs text-stone-600 dark:text-stone-400">
+                  Tap the share button, then "Add to Home Screen" for the full app experience.
+                </p>
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  Note: You'll need to log in again after installing as an app.
+                </p>
+              </>
             ) : (
-              <p className="mt-1 text-xs text-stone-600 dark:text-stone-400">
-                Get quick access, offline support, and a full-screen experience.
-              </p>
+              <>
+                <p className="mt-1 text-xs text-stone-600 dark:text-stone-400">
+                  Get quick access, offline support, and a full-screen experience.
+                </p>
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  Note: You may need to log in again after installation.
+                </p>
+              </>
             )}
 
             {!isIOS && (

@@ -177,14 +177,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }, 300); // 300ms debounce to prevent rapid state changes
     });
 
+    // Detect PWA mode for iOS authentication handling
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
-      
+
+      // In iOS PWA mode, we might not have access to the browser's stored session
+      if (isPWA && isIOS && !session) {
+        console.warn('[AuthContext] iOS PWA detected with no session - user will need to re-authenticate');
+        captureMessage('iOS PWA requires re-authentication due to storage isolation', 'info');
+      }
+
       setSession(session);
       setToken(session?.access_token || null);
       authSessionManager.setSession(session || null);
-      
+
       if (session?.user) {
         const userData = {
           id: session.user.id,
@@ -192,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           full_name: session.user.user_metadata?.full_name
         };
         setUser(userData);
-        
+
         // Set initial Sentry user context
         setSentryUser({
           id: userData.id,
@@ -202,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSentryUser(null);
         setTag('authenticated', 'false');
       }
-      
+
       setLoading(false);
     });
 
