@@ -5,6 +5,8 @@ import './index.css'
 import { initializeSentry } from './lib/sentry'
 import { performanceMonitor } from './utils/performanceMonitor'
 import { initDevelopmentSecurity } from './utils/devSecurity'
+// PWA authentication debug utilities
+import './utils/pwaAuthDebug'
 
 // Initialize Sentry as early as possible
 initializeSentry();

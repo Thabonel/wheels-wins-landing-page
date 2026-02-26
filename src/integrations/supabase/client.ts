@@ -47,6 +47,24 @@ if (SUPABASE_URL) {
   }
 }
 
+// PWA detection utilities
+const isPWAStandalone = (): boolean => {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as any).standalone === true ||
+    ((window.navigator as any).standalone === true)
+  );
+};
+
+const isIOSDevice = (): boolean => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+};
+
+// Detect PWA authentication isolation issue
+const isPWAWithStorageIsolation = (): boolean => {
+  return isPWAStandalone() && isIOSDevice();
+};
+
 // Lazy initialization with retry logic
 let supabaseClient: ReturnType<typeof createClient<Database>> | null = null;
 let initializationAttempts = 0;
@@ -93,20 +111,53 @@ function createSupabaseClient(): ReturnType<typeof createClient<Database>> {
     throw new Error(`Invalid VITE_SUPABASE_URL: "${currentURL}". Please provide a valid Supabase URL.`);
   }
 
+  // PWA storage configuration - handle iOS PWA localStorage isolation
+  const isPWAIsolated = isPWAWithStorageIsolation();
+  let authConfig: any = {
+    persistSession: true,
+    autoRefreshToken: true,
+    storageKey: 'pam-auth-token',
+    // Optimize JWT claims for minimal size
+    detectSessionInUrl: false, // Reduce auth metadata
+    flowType: 'pkce', // Use more efficient flow
+    debug: import.meta.env.MODE === 'development' || isPWAIsolated, // Enable debug logging in dev and PWA
+  };
+
+  // For iOS PWA, use memory-based storage to avoid localStorage isolation issues
+  if (isPWAIsolated) {
+    console.warn('🔍 PWA storage isolation detected - using memory-based auth storage');
+
+    // Custom storage adapter that uses memory instead of localStorage for PWA
+    let memoryStorage: { [key: string]: string } = {};
+
+    authConfig.storage = {
+      getItem: (key: string) => {
+        const value = memoryStorage[key] || null;
+        console.log(`[PWA Storage] Getting ${key}: ${value ? 'FOUND' : 'NOT FOUND'}`);
+        return Promise.resolve(value);
+      },
+      setItem: (key: string, value: string) => {
+        memoryStorage[key] = value;
+        console.log(`[PWA Storage] Setting ${key}: ${value ? 'SET' : 'CLEARED'}`);
+        return Promise.resolve();
+      },
+      removeItem: (key: string) => {
+        delete memoryStorage[key];
+        console.log(`[PWA Storage] Removing ${key}`);
+        return Promise.resolve();
+      },
+    };
+
+    // Force re-authentication in PWA mode since we can't access browser storage
+    authConfig.persistSession = false; // Don't rely on persisted sessions in PWA
+  }
+
   // Create the supabase client optimized for minimal JWT size (SaaS best practice)
   return createClient<Database>(
     currentURL,
     currentKey,
     {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        storageKey: 'pam-auth-token',
-        // Optimize JWT claims for minimal size
-        detectSessionInUrl: false, // Reduce auth metadata
-        flowType: 'pkce', // Use more efficient flow
-        debug: import.meta.env.MODE === 'development', // Enable debug logging in dev
-      },
+      auth: authConfig,
       realtime: {
         params: {
           eventsPerSecond: 10, // Reduce for mobile
@@ -114,7 +165,7 @@ function createSupabaseClient(): ReturnType<typeof createClient<Database>> {
       },
       global: {
         headers: {
-          'X-Client-Info': 'pam-mobile',
+          'X-Client-Info': isPWAIsolated ? 'pam-pwa-ios' : 'pam-mobile',
         },
       }
       // Removed db.schema to allow access to all schemas (public, storage, etc.)

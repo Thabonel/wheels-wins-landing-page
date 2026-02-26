@@ -69,6 +69,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Never cache Supabase authentication requests - they must always hit the network
+  if (url.hostname.includes('supabase.co') && url.pathname.includes('/auth/')) {
+    // Let auth requests bypass service worker completely
+    return;
+  }
+
   // Handle API requests
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(handleApiRequest(request));
