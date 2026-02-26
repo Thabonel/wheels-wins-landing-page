@@ -109,8 +109,8 @@ class Settings(BaseSettings):
 
     # Gemini Model Configuration
     GEMINI_DEFAULT_MODEL: str = Field(
-        default="gemini-1.5-flash",
-        description="Default Gemini model (Flash for optimal speed/cost ratio)"
+        default="gemini-3.1-pro-preview",
+        description="Default Gemini model (3.1 Pro Preview for enhanced capabilities)"
     )
 
     @field_validator("GEMINI_DEFAULT_MODEL", mode="before")
@@ -118,18 +118,22 @@ class Settings(BaseSettings):
     def validate_gemini_model(cls, v):
         """Ensure valid Gemini model selection"""
         if not v:
-            v = "gemini-1.5-flash"  # Default to Flash
+            v = "gemini-3.1-pro-preview"  # Default to latest preview
 
         valid_models = [
-            "gemini-1.5-flash",
-            "gemini-1.5-pro",
+            "gemini-3.1-pro-preview",
+            "gemini-2.5-flash",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash-lite",
+            "gemini-1.5-flash",  # Legacy support
+            "gemini-1.5-pro",    # Legacy support
             "gemini-pro",
             "gemini-pro-vision"
         ]
 
         if v not in valid_models:
-            logger.warning(f"Unknown Gemini model '{v}', using default 'gemini-1.5-flash'")
-            v = "gemini-1.5-flash"
+            logger.warning(f"Unknown Gemini model '{v}', using default 'gemini-3.1-pro-preview'")
+            v = "gemini-3.1-pro-preview"
 
         return v
 

@@ -63,11 +63,12 @@ class SimpleGeminiService:
 
             # Initialize model
             # Try multiple model names in order of preference
-            # Note: Using Gemini 2.5 series (Gemini 1.x retired in 2025)
+            # Note: Switched to Gemini 3.1 Pro Preview (February 2026)
             model_names = [
-                'gemini-2.5-flash',      # Primary: Fast, cost-effective (replaces 1.5-flash)
-                'gemini-2.5-pro',        # Backup: More capable (replaces 1.5-pro)
-                'gemini-2.5-flash-lite'  # Last resort: Lightweight fallback
+                'gemini-3.1-pro-preview',  # Primary: Latest preview model with enhanced capabilities
+                'gemini-2.5-pro',          # Backup: Stable pro model
+                'gemini-2.5-flash',        # Fallback: Fast, cost-effective
+                'gemini-2.5-flash-lite'    # Last resort: Lightweight fallback
             ]
 
             model_initialized = False
