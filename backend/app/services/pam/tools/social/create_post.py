@@ -1,10 +1,26 @@
-"""Create Post Tool for PAM
+"""Social Post Approval System - Draft posts with mandatory user approval
 
-Share travel updates with the community
+All social media posts require explicit user preview and approval before publishing.
+This prevents unwanted AI-generated content from being posted without user consent.
+
+Usage in PAM:
+    # Step 1: Create draft for user preview
+    draft_result = await create_post_draft(
+        user_id=user_id,
+        content="Loving this campsite in Yellowstone!",
+        title="Beautiful Morning",
+        location="Yellowstone National Park"
+    )
+
+    # Step 2: Show preview to user and get approval
+    # Frontend shows draft content, user clicks "Post" or "Cancel"
+
+    # Step 3: Publish only after user approval
+    await approve_and_publish_post(draft_id, user_id)
 
 Example usage:
-- "Post about my trip to Yellowstone"
-- "Share this photo with my followers"
+- "Draft a post about my trip to Yellowstone" → Creates draft, shows preview
+- "Share this photo with my followers" → Creates draft, requires approval
 """
 
 import logging
@@ -27,7 +43,7 @@ from app.services.pam.tools.utils import (
 logger = logging.getLogger(__name__)
 
 
-async def create_post(
+async def create_post_draft(
     user_id: str,
     content: str,
     title: Optional[str] = None,
@@ -37,7 +53,10 @@ async def create_post(
     **kwargs
 ) -> Dict[str, Any]:
     """
-    Create a social post
+    Create a draft social post that requires user approval before publishing.
+
+    This function creates a DRAFT post that is NOT visible to other users until
+    the user explicitly approves and publishes it via approve_and_publish_post().
 
     Args:
         user_id: UUID of the user
@@ -48,7 +67,7 @@ async def create_post(
         tags: Optional list of tags
 
     Returns:
-        Dict with created post details
+        Dict with draft post details for user preview and approval
 
     Raises:
         ValidationError: Invalid input parameters
@@ -74,6 +93,7 @@ async def create_post(
                 context={"field": e.errors()[0]['loc'][0], "error": error_msg}
             )
 
+        # Create as DRAFT - not visible to other users until approved
         post_data = {
             "user_id": validated.user_id,
             "content": validated.content,
@@ -82,18 +102,31 @@ async def create_post(
             "image_url": validated.image_url,
             "tags": validated.tags or [],
             "created_at": datetime.now().isoformat(),
+            "status": "draft",  # CRITICAL: Draft status prevents public visibility
             "likes_count": 0,
-            "comments_count": 0
+            "comments_count": 0,
+            "requires_approval": True,
+            "draft_created_at": datetime.now().isoformat()
         }
 
-        post = await safe_db_insert("posts", post_data, user_id)
+        draft_post = await safe_db_insert("posts", post_data, user_id)
 
-        logger.info(f"Created post {post['id']} for user {validated.user_id}")
+        logger.info(f"Created DRAFT post {draft_post['id']} for user {validated.user_id} - requires approval")
 
+        # Return draft for user preview - NOT a published post
         return {
             "success": True,
-            "post": post,
-            "message": "Post created successfully" +
+            "draft_post": draft_post,
+            "requires_approval": True,
+            "preview": {
+                "title": validated.title,
+                "content": validated.content,
+                "location": validated.location,
+                "tags": validated.tags or []
+            },
+            "message": "⚠️ DRAFT CREATED - Post preview ready for your approval. " +
+                      "This post is NOT yet visible to other users. " +
+                      "Please review and approve to publish" +
                       (f" at {validated.location}" if validated.location else "")
         }
 
@@ -103,11 +136,93 @@ async def create_post(
         raise
     except Exception as e:
         logger.error(
-            f"Unexpected error creating post",
+            f"Unexpected error creating draft post",
             extra={"user_id": user_id},
             exc_info=True
         )
         raise DatabaseError(
-            "Failed to create post",
+            "Failed to create draft post",
             context={"user_id": user_id, "error": str(e)}
+        )
+
+
+async def approve_and_publish_post(
+    draft_id: str,
+    user_id: str,
+    **kwargs
+) -> Dict[str, Any]:
+    """
+    Approve and publish a draft post after user confirmation.
+
+    This function should only be called after the user has reviewed the draft
+    content and explicitly approved it for publication.
+
+    Args:
+        draft_id: UUID of the draft post to publish
+        user_id: UUID of the user (must match draft owner)
+
+    Returns:
+        Dict with published post details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
+    """
+    try:
+        validate_uuid(draft_id, "draft_id")
+        validate_uuid(user_id, "user_id")
+
+        supabase = get_supabase_client()
+
+        # Verify draft exists and belongs to user
+        draft_response = supabase.table("posts").select("*").eq("id", draft_id).eq("user_id", user_id).eq("status", "draft").single().execute()
+
+        if not draft_response.data:
+            raise ValidationError(
+                "Draft post not found or not owned by user",
+                context={"draft_id": draft_id, "user_id": user_id}
+            )
+
+        draft = draft_response.data
+
+        # Update draft to published status
+        published_data = {
+            "status": "published",
+            "requires_approval": False,
+            "published_at": datetime.now().isoformat(),
+            "draft_approved_at": datetime.now().isoformat()
+        }
+
+        published_response = supabase.table("posts").update(published_data).eq("id", draft_id).eq("user_id", user_id).execute()
+
+        if not published_response.data:
+            raise DatabaseError(
+                "Failed to publish draft post",
+                context={"draft_id": draft_id, "user_id": user_id}
+            )
+
+        published_post = published_response.data[0]
+
+        logger.info(f"Published approved post {draft_id} for user {user_id}")
+
+        return {
+            "success": True,
+            "published_post": published_post,
+            "message": f"✅ Post published successfully! Now visible to the community" +
+                      (f" at {draft['location']}" if draft.get('location') else "")
+        }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error publishing post",
+            extra={"draft_id": draft_id, "user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to publish post",
+            context={"draft_id": draft_id, "user_id": user_id, "error": str(e)}
         )
