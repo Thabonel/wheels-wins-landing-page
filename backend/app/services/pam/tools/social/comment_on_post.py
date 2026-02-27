@@ -1,10 +1,25 @@
-"""Comment on Post Tool for PAM
+"""Comment Approval System - Draft comments with mandatory user approval
 
-Engage with community posts
+All comments require explicit user preview and approval before posting.
+This prevents unwanted AI-generated comments from being posted without user consent.
+
+Usage in PAM:
+    # Step 1: Create draft comment for user preview
+    draft_result = await create_comment_draft(
+        user_id=user_id,
+        post_id=post_id,
+        comment="Great photos! Thanks for sharing your experience."
+    )
+
+    # Step 2: Show preview to user and get approval
+    # Frontend shows draft comment, user clicks "Post Comment" or "Cancel"
+
+    # Step 3: Publish only after user approval
+    await approve_and_publish_comment(draft_id, user_id)
 
 Example usage:
-- "Comment on John's post about Yellowstone"
-- "Reply to the post about RV maintenance"
+- "Comment on John's post about Yellowstone" → Creates draft, shows preview
+- "Reply to the post about RV maintenance" → Creates draft, requires approval
 """
 
 import logging
@@ -27,14 +42,17 @@ from app.services.pam.tools.utils import (
 logger = logging.getLogger(__name__)
 
 
-async def comment_on_post(
+async def create_comment_draft(
     user_id: str,
     post_id: str,
     comment: str,
     **kwargs
 ) -> Dict[str, Any]:
     """
-    Add a comment to a post
+    Create a draft comment that requires user approval before posting.
+
+    This function creates a DRAFT comment that is NOT visible to other users until
+    the user explicitly approves and publishes it via approve_and_publish_comment().
 
     Args:
         user_id: UUID of the user
@@ -42,7 +60,7 @@ async def comment_on_post(
         comment: Comment content
 
     Returns:
-        Dict with comment details
+        Dict with draft comment details for user preview and approval
 
     Raises:
         ValidationError: Invalid input parameters
@@ -66,24 +84,35 @@ async def comment_on_post(
                 context={"field": e.errors()[0]['loc'][0], "error": error_msg}
             )
 
+        # Create as DRAFT - not visible to other users until approved
         comment_data = {
             "user_id": validated.user_id,
             "post_id": validated.post_id,
             "comment": validated.comment,
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
+            "status": "draft",  # CRITICAL: Draft status prevents public visibility
+            "requires_approval": True,
+            "draft_created_at": datetime.now().isoformat()
         }
 
-        comment_obj = await safe_db_insert("comments", comment_data, user_id)
+        draft_comment = await safe_db_insert("comments", comment_data, user_id)
 
-        supabase = get_supabase_client()
-        supabase.rpc("increment_post_comments", {"post_id": validated.post_id}).execute()
+        # DO NOT increment post comments count for drafts - only for published comments
 
-        logger.info(f"Added comment to post {validated.post_id} by user {validated.user_id}")
+        logger.info(f"Created DRAFT comment on post {validated.post_id} by user {validated.user_id} - requires approval")
 
+        # Return draft for user preview - NOT a published comment
         return {
             "success": True,
-            "comment": comment_obj,
-            "message": "Comment added successfully"
+            "draft_comment": draft_comment,
+            "requires_approval": True,
+            "preview": {
+                "comment": validated.comment,
+                "post_id": validated.post_id
+            },
+            "message": "⚠️ DRAFT COMMENT CREATED - Comment preview ready for your approval. " +
+                      "This comment is NOT yet visible to other users. " +
+                      "Please review and approve to publish."
         }
 
     except ValidationError:
@@ -92,11 +121,95 @@ async def comment_on_post(
         raise
     except Exception as e:
         logger.error(
-            f"Unexpected error adding comment",
+            f"Unexpected error creating draft comment",
             extra={"user_id": user_id, "post_id": post_id},
             exc_info=True
         )
         raise DatabaseError(
-            "Failed to add comment",
+            "Failed to create draft comment",
             context={"user_id": user_id, "post_id": post_id, "error": str(e)}
+        )
+
+
+async def approve_and_publish_comment(
+    draft_id: str,
+    user_id: str,
+    **kwargs
+) -> Dict[str, Any]:
+    """
+    Approve and publish a draft comment after user confirmation.
+
+    This function should only be called after the user has reviewed the draft
+    comment and explicitly approved it for publication.
+
+    Args:
+        draft_id: UUID of the draft comment to publish
+        user_id: UUID of the user (must match draft owner)
+
+    Returns:
+        Dict with published comment details
+
+    Raises:
+        ValidationError: Invalid input parameters
+        DatabaseError: Database operation failed
+    """
+    try:
+        validate_uuid(draft_id, "draft_id")
+        validate_uuid(user_id, "user_id")
+
+        supabase = get_supabase_client()
+
+        # Verify draft exists and belongs to user
+        draft_response = supabase.table("comments").select("*").eq("id", draft_id).eq("user_id", user_id).eq("status", "draft").single().execute()
+
+        if not draft_response.data:
+            raise ValidationError(
+                "Draft comment not found or not owned by user",
+                context={"draft_id": draft_id, "user_id": user_id}
+            )
+
+        draft = draft_response.data
+
+        # Update draft to published status
+        published_data = {
+            "status": "published",
+            "requires_approval": False,
+            "published_at": datetime.now().isoformat(),
+            "draft_approved_at": datetime.now().isoformat()
+        }
+
+        published_response = supabase.table("comments").update(published_data).eq("id", draft_id).eq("user_id", user_id).execute()
+
+        if not published_response.data:
+            raise DatabaseError(
+                "Failed to publish draft comment",
+                context={"draft_id": draft_id, "user_id": user_id}
+            )
+
+        published_comment = published_response.data[0]
+
+        # NOW increment post comments count (only for published comments)
+        supabase.rpc("increment_post_comments", {"post_id": draft["post_id"]}).execute()
+
+        logger.info(f"Published approved comment {draft_id} on post {draft['post_id']} by user {user_id}")
+
+        return {
+            "success": True,
+            "published_comment": published_comment,
+            "message": "✅ Comment published successfully! Now visible to the community."
+        }
+
+    except ValidationError:
+        raise
+    except DatabaseError:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Unexpected error publishing comment",
+            extra={"draft_id": draft_id, "user_id": user_id},
+            exc_info=True
+        )
+        raise DatabaseError(
+            "Failed to publish comment",
+            context={"draft_id": draft_id, "user_id": user_id, "error": str(e)}
         )
