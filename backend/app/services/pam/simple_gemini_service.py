@@ -241,24 +241,43 @@ Key traits:
                 if personal.get('region'):
                     base_prompt += f"- Region: {personal['region']}\n"
 
-                # Vehicle information - ALWAYS show if available
+                # Vehicle information - Show ANY available vehicle data
                 vehicle = user_profile.get('vehicle_info', {})
                 logger.info(f"🚐 BUILD PROMPT DEBUG: Vehicle info: {vehicle}")
 
-                if vehicle.get('type') and vehicle.get('make_model_year'):
-                    base_prompt += f"- Vehicle: {vehicle['type']} ({vehicle['make_model_year']})\n"
-                    if vehicle.get('fuel_type'):
-                        base_prompt += f"- Fuel type: {vehicle['fuel_type']}\n"
-                    logger.info(f"🚐 BUILD PROMPT DEBUG: Added complete vehicle info to prompt")
+                # Build vehicle description from available data
+                vehicle_parts = []
+                if vehicle.get('type'):
+                    vehicle_parts.append(vehicle['type'])
+                if vehicle.get('make_model_year'):
+                    vehicle_parts.append(f"({vehicle['make_model_year']})")
 
-                    # Add explicit instruction for vehicle queries
+                if vehicle_parts:
+                    base_prompt += f"- Vehicle: {' '.join(vehicle_parts)}\n"
+
+                if vehicle.get('fuel_type'):
+                    base_prompt += f"- Fuel type: {vehicle['fuel_type']}\n"
+
+                if vehicle.get('towing_info'):
+                    base_prompt += f"- Towing: {vehicle['towing_info']}\n"
+
+                if vehicle.get('fuel_efficiency'):
+                    base_prompt += f"- Fuel efficiency: {vehicle['fuel_efficiency']}L/100km\n"
+
+                # If we have any vehicle data, log success
+                if vehicle_parts or vehicle.get('fuel_type'):
+                    logger.info(f"🚐 BUILD PROMPT DEBUG: Added vehicle info to prompt: {vehicle_parts}, fuel: {vehicle.get('fuel_type')}")
+
+                    # Add explicit instruction for vehicle queries with available data
                     if self._is_profile_query(message):
-                        base_prompt += f"\n🚗 IMPORTANT: When asked about their vehicle, tell the user they drive a {vehicle['type']} ({vehicle['make_model_year']}) with {vehicle.get('fuel_type', 'unknown')} fuel. Use this exact information from their profile.\n"
+                        vehicle_desc = ' '.join(vehicle_parts) if vehicle_parts else "your vehicle"
+                        fuel_info = f" with {vehicle.get('fuel_type', 'unknown')} fuel" if vehicle.get('fuel_type') else ""
+                        base_prompt += f"\n🚗 IMPORTANT: When asked about their vehicle, tell the user they drive {vehicle_desc}{fuel_info}. Use this exact information from their profile.\n"
                 else:
-                    logger.warning(f"⚠️ BUILD PROMPT DEBUG: Vehicle data incomplete or missing")
-                    # Only show guidance if vehicle data is truly missing
+                    logger.warning(f"⚠️ BUILD PROMPT DEBUG: No vehicle data found in profile")
+                    # Only show guidance if NO vehicle data exists at all
                     if self._is_profile_query(message):
-                        base_prompt += "\n⚠️ IMPORTANT: User is asking about their vehicle but vehicle information is incomplete in their profile. Guide them to complete their vehicle setup in the profile section.\n"
+                        base_prompt += "\n⚠️ IMPORTANT: User is asking about their vehicle but no vehicle information found in their profile. Guide them to complete their vehicle setup in the profile section.\n"
 
                 # Travel preferences
                 travel = user_profile.get('travel_preferences', {})
@@ -320,7 +339,7 @@ Key traits:
         return base_prompt
 
     def _is_profile_query(self, message: str) -> bool:
-        """Detect if the user is asking about their profile/personal information"""
+        """Detect if the user is asking about their profile/personal information or requests that need profile data"""
         message_lower = message.lower()
 
         # Profile-related keywords that indicate the user wants personal information
@@ -333,7 +352,21 @@ Key traits:
             'my name', 'my region', 'where am i from'
         ]
 
-        return any(keyword in message_lower for keyword in profile_keywords)
+        # Fuel/vehicle-related queries that need profile data
+        fuel_vehicle_keywords = [
+            'gas station', 'fuel station', 'petrol station', 'diesel',
+            'cheaper gas', 'find fuel', 'gas price', 'fuel price',
+            'fill up', 'refuel', 'gas nearby', 'fuel nearby'
+        ]
+
+        # Route/savings queries that need vehicle profile
+        route_savings_keywords = [
+            'optimize route', 'save fuel', 'fuel cost', 'route planning',
+            'driving distance', 'fuel efficiency'
+        ]
+
+        all_keywords = profile_keywords + fuel_vehicle_keywords + route_savings_keywords
+        return any(keyword in message_lower for keyword in all_keywords)
 
     async def _load_user_profile(self, user_id: str, user_jwt: str) -> Optional[Dict[str, Any]]:
         """Load user profile data using the profile tool"""
@@ -348,12 +381,19 @@ Key traits:
             if profile_result and profile_result.get('success'):
                 user_data = profile_result.get('data', {})
                 vehicle_info = user_data.get('vehicle_info', {})
-                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Vehicle info extracted: {vehicle_info}")
-                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Has vehicle type: {bool(vehicle_info.get('type'))}")
-                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Vehicle type value: {vehicle_info.get('type')}")
-                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Make/model: {vehicle_info.get('make_model_year')}")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Profile loaded successfully")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Profile exists: {user_data.get('profile_exists')}")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Vehicle info keys: {list(vehicle_info.keys())}")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Vehicle type: '{vehicle_info.get('type')}'")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Make/model: '{vehicle_info.get('make_model_year')}'")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Fuel type: '{vehicle_info.get('fuel_type')}'")
+                logger.info(f"🚐 SIMPLE GEMINI DEBUG: Towing info: '{vehicle_info.get('towing_info')}'")
+
+                # Also log personal details for debugging
+                personal = user_data.get('personal_details', {})
+                logger.info(f"🔍 SIMPLE GEMINI DEBUG: Personal details: name='{personal.get('full_name')}', region='{personal.get('region')}'")
             else:
-                logger.warning(f"⚠️ SIMPLE GEMINI DEBUG: Profile result not successful or empty")
+                logger.warning(f"⚠️ SIMPLE GEMINI DEBUG: Profile result not successful or empty: {profile_result}")
 
             return profile_result
 
