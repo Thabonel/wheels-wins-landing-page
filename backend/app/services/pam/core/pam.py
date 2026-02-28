@@ -87,9 +87,9 @@ from app.services.pam.tools.trip.seasonal_weather_check import seasonal_weather_
 from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt_with_confidence_with_confidence
 
 # Import social tools
-from app.services.pam.tools.social.create_post import create_post
+from app.services.pam.tools.social.create_post import create_post_draft
 from app.services.pam.tools.social.message_friend import message_friend
-from app.services.pam.tools.social.comment_on_post import comment_on_post
+from app.services.pam.tools.social.comment_on_post import create_comment_draft
 from app.services.pam.tools.social.search_posts import search_posts
 from app.services.pam.tools.social.get_feed import get_feed
 from app.services.pam.tools.social.like_post import like_post
@@ -1842,9 +1842,9 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             "find_longstay_parks": find_longstay_parks,
             "seasonal_weather_check": seasonal_weather_check,
             # Social tools
-            "create_post": create_post,
+            "create_post": create_post_draft,
             "message_friend": message_friend,
-            "comment_on_post": comment_on_post,
+            "comment_on_post": create_comment_draft,
             "search_posts": search_posts,
             "get_feed": get_feed,
             "like_post": like_post,
