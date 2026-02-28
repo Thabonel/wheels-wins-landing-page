@@ -84,7 +84,7 @@ from app.services.pam.tools.trip.find_longstay_parks import find_longstay_parks
 from app.services.pam.tools.trip.seasonal_weather_check import seasonal_weather_check
 
 # Import fuel receipt tools
-from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt_with_confidence_with_confidence
+from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt_with_confidence
 
 # Import social tools
 from app.services.pam.tools.social.create_post import create_post_draft
