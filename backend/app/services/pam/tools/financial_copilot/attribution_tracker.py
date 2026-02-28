@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from app.services.pam.core.intent_classifier import SpendingCategory, RVRelevance
-from app.services.pam.tools.budget.auto_track_savings import auto_record_savings
+from app.services.pam.tools.budget.auto_track_savings import record_potential_savings
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +100,8 @@ class AttributionTracker:
                 community_insights_provided=community_insights_provided
             )
 
-            # Track using existing auto_record_savings infrastructure
-            success = await auto_record_savings(
+            # Track using existing record_potential_savings infrastructure
+            success = await record_potential_savings(
                 user_id=user_id,
                 amount=0.0,  # No monetary value - this is research assistance
                 category="research",
@@ -159,7 +159,7 @@ class AttributionTracker:
             )
 
             # Track context value
-            success = await auto_record_savings(
+            success = await record_potential_savings(
                 user_id=user_id,
                 amount=0.0,
                 category="research",
@@ -209,7 +209,7 @@ class AttributionTracker:
                 f"{influence_description[:100]}..."
             )
 
-            success = await auto_record_savings(
+            success = await record_potential_savings(
                 user_id=user_id,
                 amount=0.0,
                 category="decision_support",
@@ -257,7 +257,7 @@ class AttributionTracker:
                 f"from query: {source_query[:50]}..."
             )
 
-            success = await auto_record_savings(
+            success = await record_potential_savings(
                 user_id=user_id,
                 amount=0.0,
                 category="engagement",

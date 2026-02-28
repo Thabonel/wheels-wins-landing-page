@@ -14,7 +14,7 @@ Date: January 2026
 import logging
 from typing import Any, Dict, Optional
 
-from app.services.pam.tools.budget.auto_track_savings import auto_record_savings
+from app.services.pam.tools.budget.auto_track_savings import record_potential_savings
 from app.services.pam.tools.constants import ShopConstants
 from app.services.pam.tools.exceptions import (
     ValidationError,
@@ -83,30 +83,31 @@ async def compare_prices(
 
         comparison = results.get("comparison", {})
 
-        savings_tracked = False
+        savings_opportunity_id = None
         potential_savings = comparison.get("potential_savings", 0)
 
         if potential_savings >= ShopConstants.MIN_SAVINGS_TO_TRACK:
             cheapest = comparison.get("cheapest", {})
-            savings_tracked = await auto_record_savings(
+            savings_opportunity_id = await record_potential_savings(
                 user_id=user_id,
                 amount=potential_savings,
                 category="shopping",
                 savings_type="price_comparison",
-                description=f"Found {product_name} cheaper at {cheapest.get('store', 'retailer')} - saving ${potential_savings:.2f}",
+                description=f"Found {product_name} cheaper at {cheapest.get('store', 'retailer')} - could save ${potential_savings:.2f}",
                 confidence_score=ShopConstants.PRICE_COMPARISON_CONFIDENCE,
                 baseline_cost=comparison.get("most_expensive", {}).get("price", 0),
                 optimized_cost=cheapest.get("price", 0)
             )
 
-        savings_msg = " Savings tracked!" if savings_tracked else ""
+        savings_msg = " ⚠️ Savings opportunity recorded - verify when you buy!" if savings_opportunity_id else ""
 
         return {
             "success": True,
             "product_name": product_name,
             "country": country,
             "comparison": comparison,
-            "savings_tracked": savings_tracked,
+            "savings_opportunity_id": savings_opportunity_id,
+            "potential_savings_recorded": bool(savings_opportunity_id),
             "message": f"{results.get('message', '')}{savings_msg}"
         }
 
