@@ -84,7 +84,7 @@ from app.services.pam.tools.trip.find_longstay_parks import find_longstay_parks
 from app.services.pam.tools.trip.seasonal_weather_check import seasonal_weather_check
 
 # Import fuel receipt tools
-from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt
+from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt_with_confidence_with_confidence
 
 # Import social tools
 from app.services.pam.tools.social.create_post import create_post
@@ -830,7 +830,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                 }
             },
             {
-                "name": "scan_fuel_receipt",
+                "name": "scan_fuel_receipt_with_confidence",
                 "description": "Scan a fuel receipt image to extract fuel data (total, volume, price, date, station). Use when user uploads or sends a receipt photo.",
                 "input_schema": {
                     "type": "object",
@@ -1836,7 +1836,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             "estimate_travel_time": estimate_travel_time,
             "save_favorite_spot": save_favorite_spot,
             "update_vehicle_fuel_consumption": update_vehicle_fuel_consumption,
-            "scan_fuel_receipt": scan_fuel_receipt,
+            "scan_fuel_receipt_with_confidence": scan_fuel_receipt_with_confidence,
             # Seasonal migration tools
             "suggest_seasonal_route": suggest_seasonal_route,
             "find_longstay_parks": find_longstay_parks,

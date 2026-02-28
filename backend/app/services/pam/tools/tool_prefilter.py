@@ -179,7 +179,7 @@ class ToolPrefilter:
         "estimate_travel_time": "trip",
         "save_favorite_spot": "trip",
         "update_vehicle_fuel_consumption": "trip",
-        "scan_fuel_receipt": "trip",
+        "scan_fuel_receipt_with_confidence": "trip",
 
         # Social tools (10 tools from pam.py)
         "create_post": "social",
