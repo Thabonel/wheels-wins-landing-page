@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from supabase import create_client, Client
 from app.services.external.eia_gas_prices import get_fuel_price_for_region
 from app.services.pam.schemas.trip import FindCheapGasInput
-from app.services.pam.tools.budget.auto_track_savings import auto_record_savings
+from app.services.pam.tools.budget.auto_track_savings import record_potential_savings
 from app.services.pam.tools.exceptions import (
     ValidationError as CustomValidationError,
     DatabaseError,
@@ -219,7 +219,7 @@ async def find_cheap_gas(
         }.get(region, "regional fuel data")
 
         potential_savings = 0.0
-        savings_tracked = False
+        savings_opportunity_id = None
         if cheapest_price and base_price > cheapest_price:
             estimated_gallons = AVERAGE_TANK_SIZE_GALLONS if region == "US" else AVERAGE_TANK_SIZE_LITERS
             price_diff = base_price - cheapest_price
@@ -227,12 +227,12 @@ async def find_cheap_gas(
 
             if potential_savings >= MINIMUM_SAVINGS_THRESHOLD:
                 cheapest_station = sorted_stations[0]["name"] if sorted_stations else "nearby station"
-                savings_tracked = await auto_record_savings(
+                savings_opportunity_id = await record_potential_savings(
                     user_id=validated.user_id,
                     amount=potential_savings,
                     category="fuel",
                     savings_type="fuel_optimization",
-                    description=f"Found cheaper gas at {cheapest_station} near {validated.location} - saving {currency}{potential_savings:.2f} vs regional average",
+                    description=f"Found cheaper gas at {cheapest_station} near {validated.location} - could save {currency}{potential_savings:.2f} vs regional average",
                     confidence_score=0.75,
                     baseline_cost=base_price * estimated_gallons,
                     optimized_cost=cheapest_price * estimated_gallons
@@ -262,7 +262,8 @@ async def find_cheap_gas(
             "cheapest_price": cheapest_price,
             "stations": sorted_stations[:MAX_RESULTS_RETURNED],
             "potential_savings": potential_savings,
-            "savings_tracked": savings_tracked,
+            "savings_opportunity_id": savings_opportunity_id,
+            "potential_savings_recorded": bool(savings_opportunity_id),
             "message": message,
             "note": f"Prices are representative estimates based on {price_source}. For real-time prices, check local fuel price apps."
         }

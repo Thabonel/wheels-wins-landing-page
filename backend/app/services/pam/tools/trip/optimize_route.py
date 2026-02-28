@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, List
 from pydantic import ValidationError
 
 from app.services.pam.schemas.trip import OptimizeRouteInput
-from app.services.pam.tools.budget.auto_track_savings import auto_record_savings
+from app.services.pam.tools.budget.auto_track_savings import record_potential_savings
 from app.services.pam.tools.exceptions import (
     ValidationError as CustomValidationError,
     DatabaseError,
@@ -104,20 +104,20 @@ async def optimize_route(
         logger.info(f"Optimized route from {validated.origin} to {validated.destination} for user {validated.user_id}")
 
         gas_savings = optimized_route["savings"]["gas_cost"]
-        savings_tracked = False
+        savings_opportunity_id = None
         if gas_savings >= MINIMUM_SAVINGS_THRESHOLD:
-            savings_tracked = await auto_record_savings(
+            savings_opportunity_id = await record_potential_savings(
                 user_id=validated.user_id,
                 amount=gas_savings,
                 category="route",
                 savings_type="route_optimization",
-                description=f"Route optimization from {validated.origin} to {validated.destination} - saving ${gas_savings:.2f} in fuel costs",
+                description=f"Route optimization from {validated.origin} to {validated.destination} - could save ${gas_savings:.2f} in fuel costs",
                 confidence_score=SAVINGS_CONFIDENCE_SCORE,
                 baseline_cost=original_route["estimated_gas_cost"],
                 optimized_cost=optimized_route["estimated_gas_cost"]
             )
 
-        savings_msg = " 💰 Savings tracked!" if savings_tracked else ""
+        savings_msg = " ⚠️ Savings opportunity recorded - verify when you take this route!" if savings_opportunity_id else ""
 
         return {
             "success": True,
@@ -126,8 +126,9 @@ async def optimize_route(
             "optimization_type": validated.optimization_type,
             "original_route": original_route,
             "optimized_route": optimized_route,
-            "savings_tracked": savings_tracked,
-            "message": f"Optimized route saves ${gas_savings:.2f} " +
+            "savings_opportunity_id": savings_opportunity_id,
+            "potential_savings_recorded": bool(savings_opportunity_id),
+            "message": f"Optimized route could save ${gas_savings:.2f} " +
                       f"and {optimized_route['savings']['time_hours']:.1f} hours.{savings_msg}"
         }
 
