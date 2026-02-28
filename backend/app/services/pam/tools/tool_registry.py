@@ -5032,17 +5032,17 @@ async def _register_all_tools(registry: ToolRegistry):
 
     # Scan Fuel Receipt
     try:
-        logger.debug("Attempting to register scan_fuel_receipt tool...")
-        from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt
+        logger.debug("Attempting to register scan_fuel_receipt_with_confidence tool...")
+        from app.services.pam.tools.fuel.scan_receipt import scan_fuel_receipt_with_confidence
 
         class ScanFuelReceiptWrapper(BaseTool):
             def __init__(self):
                 super().__init__(
-                    "scan_fuel_receipt",
+                    "scan_fuel_receipt_with_confidence",
                     "Scan a fuel receipt image to extract fuel data (total, volume, price, date, station). Use when user uploads or sends a receipt photo.",
                     capabilities=[ToolCapability.USER_DATA]
                 )
-                self.scan_func = scan_fuel_receipt
+                self.scan_func = scan_fuel_receipt_with_confidence
 
             async def initialize(self):
                 self.is_initialized = True
@@ -5054,7 +5054,7 @@ async def _register_all_tools(registry: ToolRegistry):
         registry.register_tool(
             tool=ScanFuelReceiptWrapper(),
             function_definition={
-                "name": "scan_fuel_receipt",
+                "name": "scan_fuel_receipt_with_confidence",
                 "description": "Scan a fuel receipt image to extract fuel data (total, volume, price, date, station). Use when user uploads or sends a receipt photo.",
                 "parameters": {
                     "type": "object",
@@ -5074,13 +5074,13 @@ async def _register_all_tools(registry: ToolRegistry):
             capability=ToolCapability.USER_DATA,
             priority=2
         )
-        logger.info("scan_fuel_receipt tool registered")
+        logger.info("scan_fuel_receipt_with_confidence tool registered")
         registered_count += 1
     except ImportError as e:
-        logger.warning(f"Could not register scan_fuel_receipt tool: {e}")
+        logger.warning(f"Could not register scan_fuel_receipt_with_confidence tool: {e}")
         failed_count += 1
     except Exception as e:
-        logger.error(f"scan_fuel_receipt tool registration failed: {e}")
+        logger.error(f"scan_fuel_receipt_with_confidence tool registration failed: {e}")
         failed_count += 1
 
     # =============================================================================
