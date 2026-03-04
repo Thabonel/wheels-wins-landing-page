@@ -11,11 +11,11 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
-  PAMVoiceHybridService,
+  PAMVoiceNativeService,
   createVoiceService,
   destroyVoiceService,
   type VoiceStatus
-} from '@/services/pamVoiceHybridService';
+} from '@/services/pamVoiceNativeService';
 import { useAuth } from '@/context/AuthContext';
 
 interface Message {
@@ -36,12 +36,13 @@ export function PAMVoiceHybrid() {
   const [status, setStatus] = useState<VoiceStatus>({
     isConnected: false,
     isListening: false,
-    isSpeaking: false
+    isSpeaking: false,
+    isWaitingForSupervisor: false
   });
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState('');
 
-  const voiceServiceRef = useRef<PAMVoiceHybridService | null>(null);
+  const voiceServiceRef = useRef<PAMVoiceNativeService | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -94,7 +95,7 @@ export function PAMVoiceHybrid() {
           voiceServiceRef.current = null;
           destroyVoiceService();
           setIsActive(false);
-          setStatus({ isConnected: false, isListening: false, isSpeaking: false });
+          setStatus({ isConnected: false, isListening: false, isSpeaking: false, isWaitingForSupervisor: false });
           setCurrentTranscript('');
 
           // Notify that voice should return to wake word mode (not fully stop)
@@ -142,7 +143,7 @@ export function PAMVoiceHybrid() {
         userId: user.uid,
         apiBaseUrl,
         authToken,
-        voice: 'marin', // Natural expressive voice
+        voice: 'en-US-AriaNeural', // Edge TTS: natural, expressive female voice
         onTranscript: (text) => {
           setCurrentTranscript(text);
           addMessage('user', text);
@@ -193,7 +194,7 @@ export function PAMVoiceHybrid() {
     destroyVoiceService();
     setIsActive(false);
     // Hard reset local status to ensure UI reflects stopped state immediately
-    setStatus({ isConnected: false, isListening: false, isSpeaking: false });
+    setStatus({ isConnected: false, isListening: false, isSpeaking: false, isWaitingForSupervisor: false });
     setCurrentTranscript('');
 
     // Notify any other voice components (e.g., search bar mic) to stop
