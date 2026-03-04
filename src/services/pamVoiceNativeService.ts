@@ -1,7 +1,7 @@
 /**
  * PAM Voice Native Service
  *
- * Replaces OpenAI Realtime with free, browser-native voice I/O:
+ * Browser-native voice I/O pipeline - no OpenAI dependency:
  * - STT: Browser SpeechRecognition API (Chrome/Safari/Edge)
  * - TTS: Edge TTS via backend /api/v1/tts/synthesize (free, Microsoft neural voices)
  * - Reasoning: Claude via existing PAM REST chat endpoint
@@ -15,7 +15,7 @@ const LOG_PREFIX = '[VoiceNative]';
 const VOICE_INACTIVITY_TIMEOUT_MS = 30000;
 const GREETING_COUNT = 4;
 
-// ------- Public types (must match pamVoiceHybridService interface) --------
+// ------- Public types --------
 
 export interface VoiceSessionConfig {
   userId: string;
@@ -102,8 +102,7 @@ export class PAMVoiceNativeService {
 
     this.clearInactivityTimer();
     this.stopRecognition();
-    this.stopAudio();
-    this.revokeAudioBlob();
+    this.stopAudio(); // also revokes blob
     this.updateStatus({
       isConnected: false,
       isListening: false,
@@ -172,7 +171,7 @@ export class PAMVoiceNativeService {
         }
       }
 
-      // Interim - just fire onTranscript for live display, don't process
+      // Interim - fire onTranscript for live display only, don't send to PAM
       if (interimText.trim()) {
         this.config.onTranscript?.(interimText);
       }
@@ -217,7 +216,7 @@ export class PAMVoiceNativeService {
   // -------- Transcript -> PAM -> TTS pipeline --------
 
   private async handleFinalTranscript(text: string): Promise<void> {
-    // Stop recognition to prevent echo during TTS playback
+    // Abort recognition to prevent mic picking up TTS playback (echo)
     this.stopRecognition();
 
     this.config.onTranscript?.(text);
@@ -228,6 +227,9 @@ export class PAMVoiceNativeService {
       const pamResponse = await this.callPAM(text);
       const latency = Date.now() - startTime;
 
+      // Guard: session may have been stopped while awaiting PAM
+      if (this.stopped) return;
+
       this.config.onResponse?.(pamResponse.response);
       this.processUIActions(pamResponse.actions || []);
 
@@ -237,7 +239,6 @@ export class PAMVoiceNativeService {
     } catch (err) {
       console.error(LOG_PREFIX, 'Pipeline error:', err);
       this.updateStatus({ isWaitingForSupervisor: false });
-      // Resume listening after error
       if (!this.stopped) {
         setTimeout(() => this.startRecognition(), 300);
       }
@@ -286,6 +287,8 @@ export class PAMVoiceNativeService {
             actions: data.actions || []
           };
         }
+
+        console.warn(LOG_PREFIX, `PAM endpoint ${endpoint} returned ${res.status}`);
       } catch {
         continue;
       }
@@ -327,7 +330,6 @@ export class PAMVoiceNativeService {
       await this.playAudioBuffer(audioBuffer);
     } catch (err) {
       console.error(LOG_PREFIX, 'TTS error:', err);
-      // Resume listening even if TTS fails
       this.updateStatus({ isSpeaking: false });
       if (!this.stopped) {
         setTimeout(() => this.startRecognition(), 300);
@@ -348,11 +350,11 @@ export class PAMVoiceNativeService {
     this.audio = audio;
 
     this.updateStatus({ isSpeaking: true });
-    console.debug(LOG_PREFIX, 'Audio playing');
 
     await new Promise<void>((resolve) => {
       audio.onended = () => {
         console.debug(LOG_PREFIX, 'Audio finished');
+        this.audio = null;
         this.revokeAudioBlob();
         this.updateStatus({ isSpeaking: false });
         if (!this.stopped) {
@@ -363,6 +365,7 @@ export class PAMVoiceNativeService {
       };
       audio.onerror = (e) => {
         console.error(LOG_PREFIX, 'Audio playback error:', e);
+        this.audio = null;
         this.revokeAudioBlob();
         this.updateStatus({ isSpeaking: false });
         if (!this.stopped) {
@@ -372,6 +375,8 @@ export class PAMVoiceNativeService {
       };
       audio.play().catch((err) => {
         console.error(LOG_PREFIX, 'audio.play() failed:', err);
+        this.audio = null;
+        this.revokeAudioBlob();
         this.updateStatus({ isSpeaking: false });
         if (!this.stopped) {
           this.startRecognition();
@@ -408,7 +413,8 @@ export class PAMVoiceNativeService {
     this.updateStatus({ isConnected: true, isSpeaking: true });
 
     await new Promise<void>((resolve) => {
-      audio.onended = () => {
+      const onDone = () => {
+        this.audio = null;
         this.updateStatus({ isSpeaking: false });
         if (!this.stopped) {
           this.startRecognition();
@@ -416,23 +422,10 @@ export class PAMVoiceNativeService {
         }
         resolve();
       };
-      audio.onerror = () => {
-        // Greeting failed silently - just start listening
-        this.updateStatus({ isSpeaking: false });
-        if (!this.stopped) {
-          this.startRecognition();
-          this.resetInactivityTimer();
-        }
-        resolve();
-      };
-      audio.play().catch(() => {
-        this.updateStatus({ isSpeaking: false });
-        if (!this.stopped) {
-          this.startRecognition();
-          this.resetInactivityTimer();
-        }
-        resolve();
-      });
+
+      audio.onended = onDone;
+      audio.onerror = onDone; // greeting failures are silent - just start listening
+      audio.play().catch(onDone);
     });
   }
 

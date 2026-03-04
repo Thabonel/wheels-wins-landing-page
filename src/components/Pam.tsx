@@ -679,7 +679,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       const userLanguage = settings?.display_preferences?.language || 'en';
       const userLocation = settings?.location_preferences?.default_location || locationState.currentLocation;
 
-      // Create PAM Hybrid Voice service (OpenAI voice + Claude reasoning)
+      // Create PAM native voice service (browser STT + Edge TTS + Claude reasoning)
       const service = createVoiceService({
         userId: user.id,
         apiBaseUrl,
@@ -728,8 +728,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         },
         onResponse: (text) => {
           // Add PAM's response as a message
-          // CRITICAL: shouldSpeak: false because OpenAI Realtime handles TTS in hybrid mode
-          // Setting this to true would cause DOUBLE VOICE (both OpenAI and local TTS)
+          // shouldSpeak: false - TTS is handled by PAMVoiceNativeService, not the local TTS pipeline
           const newMessage: PamMessage = {
             id: Date.now().toString(),
             content: text,

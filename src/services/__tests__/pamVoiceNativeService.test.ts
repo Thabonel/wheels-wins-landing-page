@@ -25,7 +25,6 @@ class MockSpeechRecognition {
   stop = vi.fn(() => { this.onend?.(); });
   abort = vi.fn(() => { this.onend?.(); });
 
-  // Helper to simulate a final result
   simulateFinalResult(transcript: string) {
     this.onresult?.({
       resultIndex: 0,
@@ -38,7 +37,6 @@ class MockSpeechRecognition {
     });
   }
 
-  // Helper to simulate an interim result
   simulateInterimResult(transcript: string) {
     this.onresult?.({
       resultIndex: 0,
@@ -58,14 +56,13 @@ class MockSpeechRecognition {
 
 let mockRecognitionInstance: MockSpeechRecognition;
 
-// Simulate HTMLAudioElement - auto-fires onended after play() to unblock async tests
+// Auto-fires onended after play() so async tests don't block
 class MockHTMLAudioElement {
   src = '';
   onended: (() => void) | null = null;
   onerror: ((e: any) => void) | null = null;
 
   play = vi.fn().mockImplementation(() => {
-    // Auto-fire onended after a microtask so async callers can proceed
     Promise.resolve().then(() => this.onended?.());
     return Promise.resolve();
   });
@@ -110,32 +107,24 @@ beforeEach(() => {
   mockRecognitionInstance = new MockSpeechRecognition();
   mockAudioInstance = new MockHTMLAudioElement();
 
-  // Inject mock SpeechRecognition into window
   (window as any).SpeechRecognition = vi.fn(() => mockRecognitionInstance);
   (window as any).webkitSpeechRecognition = undefined;
 
-  // Inject mock Audio
   vi.spyOn(global, 'Audio' as any).mockImplementation(() => mockAudioInstance);
 
-  // Mock fetch
   global.fetch = mockFetch;
   mockFetch.mockReset();
 
-  // Mock URL methods
   URL.createObjectURL = mockCreateObjectURL;
   URL.revokeObjectURL = mockRevokeObjectURL;
 
-  // Mock getUserMedia
   Object.defineProperty(navigator, 'mediaDevices', {
     value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [] }) },
     writable: true,
     configurable: true
   });
 
-  // Reset singleton
   destroyVoiceService();
-
-  // Use real timers by default; fake for timeout tests
   vi.useRealTimers();
 });
 
@@ -165,11 +154,10 @@ describe('PAMVoiceNativeService', () => {
       expect(mockAudioInstance.play).toHaveBeenCalled();
     });
 
-    it('starts SpeechRecognition after greeting', async () => {
+    it('starts SpeechRecognition once greeting finishes', async () => {
       const svc = new PAMVoiceNativeService(buildConfig());
+      // Greeting onended fires automatically via mock during await
       await svc.start();
-      // Trigger greeting end to start recognition
-      mockAudioInstance.onended?.();
       expect(mockRecognitionInstance.start).toHaveBeenCalled();
     });
   });
@@ -187,9 +175,15 @@ describe('PAMVoiceNativeService', () => {
       expect(mockRecognitionInstance.abort).toHaveBeenCalled();
     });
 
-    it('pauses audio on stop', async () => {
+    it('pauses audio if speaking when stop() is called', async () => {
+      // Prevent greeting from ending so audio stays in playing state
+      mockAudioInstance.play = vi.fn().mockReturnValue(new Promise(() => {}));
+
       const svc = new PAMVoiceNativeService(buildConfig());
-      await svc.start();
+      svc.start(); // don't await - blocked on playGreeting
+      // Macro-task flush lets start() run through requestMicPermission and into playGreeting
+      await new Promise(r => setTimeout(r, 0));
+
       await svc.stop();
       expect(mockAudioInstance.pause).toHaveBeenCalled();
     });
@@ -200,9 +194,7 @@ describe('PAMVoiceNativeService', () => {
       const config = buildConfig();
       const svc = new PAMVoiceNativeService(config);
       await svc.start();
-      mockAudioInstance.onended?.(); // finish greeting, start recognition
 
-      // Mock successful PAM response
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
@@ -224,11 +216,9 @@ describe('PAMVoiceNativeService', () => {
       const config = buildConfig();
       const svc = new PAMVoiceNativeService(config);
       await svc.start();
-      mockAudioInstance.onended?.();
 
       mockRecognitionInstance.simulateFinalResult('   ');
 
-      // Wait a tick to ensure no async call was made
       await new Promise(resolve => setTimeout(resolve, 10));
       expect(mockFetch).not.toHaveBeenCalled();
       expect(config.onTranscript).not.toHaveBeenCalled();
@@ -236,10 +226,15 @@ describe('PAMVoiceNativeService', () => {
   });
 
   describe('interrupt()', () => {
-    it('pauses audio and sets isSpeaking=false', async () => {
+    it('pauses audio and sets isSpeaking=false if speaking when interrupt() is called', async () => {
+      // Prevent greeting from ending so audio stays in playing state
+      mockAudioInstance.play = vi.fn().mockReturnValue(new Promise(() => {}));
+
       const config = buildConfig();
       const svc = new PAMVoiceNativeService(config);
-      await svc.start();
+      svc.start(); // don't await - blocked on playGreeting
+      // Macro-task flush lets start() run through requestMicPermission and into playGreeting
+      await new Promise(r => setTimeout(r, 0));
 
       svc.interrupt();
 
@@ -252,12 +247,11 @@ describe('PAMVoiceNativeService', () => {
     it('restarts SpeechRecognition after interrupt', async () => {
       const svc = new PAMVoiceNativeService(buildConfig());
       await svc.start();
-      mockAudioInstance.onended?.(); // greeting ends
 
+      const callsBefore = mockRecognitionInstance.start.mock.calls.length;
       svc.interrupt();
 
-      // Recognition should be restarted (start called at least once for greeting end + once for interrupt)
-      expect(mockRecognitionInstance.start).toHaveBeenCalled();
+      expect(mockRecognitionInstance.start).toHaveBeenCalledTimes(callsBefore + 1);
     });
   });
 
@@ -274,7 +268,7 @@ describe('PAMVoiceNativeService', () => {
       mockRecognitionInstance.simulateFinalResult('Tell me a joke');
 
       await vi.waitFor(() => {
-        // Service calls abort() (not stop()) to immediately silence recognition during TTS
+        // abort() is called to silence mic immediately during TTS
         expect(mockRecognitionInstance.abort).toHaveBeenCalled();
       });
     });
@@ -286,18 +280,35 @@ describe('PAMVoiceNativeService', () => {
       const svc = new PAMVoiceNativeService(config);
       await svc.start();
 
-      // Both PAM endpoints fail
+      // Both PAM endpoints fail with network errors
       mockFetch
         .mockRejectedValueOnce(new Error('Network error'))
         .mockRejectedValueOnce(new Error('Network error'));
 
       mockRecognitionInstance.simulateFinalResult('Hello PAM');
 
-      // Should not throw - service stays alive and resets processing state
       await vi.waitFor(() => {
         expect(config.onStatusChange).toHaveBeenCalledWith(
           expect.objectContaining({ isWaitingForSupervisor: false })
         );
+      });
+    });
+
+    it('falls back to second endpoint when first returns non-ok status', async () => {
+      const config = buildConfig();
+      const svc = new PAMVoiceNativeService(config);
+      await svc.start();
+
+      // First endpoint returns 503, second succeeds
+      mockFetch
+        .mockResolvedValueOnce({ ok: false, status: 503 })
+        .mockResolvedValueOnce({ ok: true, json: async () => makePamResponse('Fallback response') })
+        .mockResolvedValueOnce({ ok: true, arrayBuffer: async () => new ArrayBuffer(100) });
+
+      mockRecognitionInstance.simulateFinalResult('Hello');
+
+      await vi.waitFor(() => {
+        expect(config.onResponse).toHaveBeenCalledWith('Fallback response');
       });
     });
 
@@ -313,7 +324,6 @@ describe('PAMVoiceNativeService', () => {
       const config = buildConfig();
       const svc = new PAMVoiceNativeService(config);
 
-      // Should not throw
       await expect(svc.start()).resolves.not.toThrow();
     });
   });
@@ -325,7 +335,7 @@ describe('PAMVoiceNativeService', () => {
       const svc = new PAMVoiceNativeService(config);
       const stopSpy = vi.spyOn(svc, 'stop');
 
-      await svc.start(); // completes because play() auto-fires onended as microtask
+      await svc.start(); // greeting onended fires via microtask, starts timer
 
       await vi.advanceTimersByTimeAsync(30000);
 
