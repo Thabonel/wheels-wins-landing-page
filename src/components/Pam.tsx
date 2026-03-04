@@ -22,6 +22,7 @@ import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
+import { getPamLocationContext } from "@/utils/pamLocationContext";
 import { pamAgenticService } from "@/services/pamAgenticService";
 import { logger } from '../lib/logger';
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
@@ -93,7 +94,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [voiceActivationMode, setVoiceActivationMode] = useState<'manual' | 'auto' | 'command'>('manual');
   const [realtimeService, setRealtimeService] = useState<PAMVoiceNativeService | null>(null);
   const ttsQueueRef = useRef<TTSQueueManager | null>(null);
-  const { startTracking, stopTracking, getCurrentLocation, ...locationState } = useLocationTracking();
+  const { startTracking, stopTracking, ...locationState } = useLocationTracking();
   const [audioLevel, setAudioLevel] = useState(0);
   const [isShowingAudioLevel, setIsShowingAudioLevel] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
@@ -677,7 +678,27 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
 
       // Prepare user context for PAM
       const userLanguage = settings?.display_preferences?.language || 'en';
-      const userLocation = settings?.location_preferences?.default_location || locationState.currentLocation;
+
+      // Get real-time GPS location for PAM (critical for weather/location queries).
+      // Fast path: localStorage cache (< 5 min) avoids GPS API latency on voice startup.
+      // Falls back to getPamLocationContext() which tries GPS, then IP inference.
+      let userLocation: { latitude?: number; longitude?: number; city?: string; region?: string } | null =
+        settings?.location_preferences?.default_location ?? null;
+      if (!userLocation && user?.id) {
+        const cached = localStorage.getItem('lastKnownLocation');
+        const parsedCache = cached ? JSON.parse(cached) : null;
+        const isRecent = parsedCache && (Date.now() - parsedCache.timestamp < 300_000);
+        if (isRecent && parsedCache.location) {
+          userLocation = {
+            latitude: parsedCache.location.lat,
+            longitude: parsedCache.location.lng,
+            city: parsedCache.location.city,
+            region: parsedCache.location.state
+          };
+        } else {
+          userLocation = await getPamLocationContext(user.id);
+        }
+      }
 
       // Create PAM native voice service (browser STT + Edge TTS + Claude reasoning)
       const service = createVoiceService({
@@ -690,7 +711,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           lat: userLocation.latitude || 0,
           lng: userLocation.longitude || 0,
           city: userLocation.city,
-          region: userLocation.state
+          region: userLocation.region
         } : undefined,
         currentPage: 'pam_chat',
         onTranscript: (text) => {

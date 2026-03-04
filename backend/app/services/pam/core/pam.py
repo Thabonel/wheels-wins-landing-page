@@ -534,8 +534,22 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
 
         context_parts = ["\n**User Context:**"]
 
-        # Add location
-        if self.user_context.get('location'):
+        # Add location - prefer user_location dict (has lat/lng/city) over region string
+        loc = self.user_context.get('user_location') or {}
+        if isinstance(loc, dict) and (loc.get('lat') or loc.get('city')):
+            parts = []
+            if loc.get('city'):
+                parts.append(loc['city'])
+            if loc.get('country'):
+                parts.append(loc['country'])
+            lat = loc.get('lat') or loc.get('latitude')
+            lng = loc.get('lng') or loc.get('longitude')
+            if lat and lng:
+                parts.append(f"({lat:.4f}, {lng:.4f})")
+            context_parts.append(f"- Location: {', '.join(parts)}")
+        elif self.user_context.get('location'):
+            # Fallback: region string from cache (e.g., "Queensland")
+            # This path is preserved so rollback of location fix doesn't break existing behavior
             context_parts.append(f"- Location: {self.user_context['location']}")
 
         # Add preferred units
@@ -559,6 +573,30 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             context_parts.append(f"- User name: {self.user_context['full_name']}")
 
         return "\n".join(context_parts) if len(context_parts) > 1 else ""
+
+    def _merge_request_location(self, context: dict) -> None:
+        """
+        Merge per-request GPS location from REST context into the system prompt.
+        CRITICAL: This is the ONLY place where per-request location enters the system
+        prompt. The system prompt is otherwise built once at __init__ from cached profile
+        data which has no real-time GPS. Do not remove this merge.
+
+        Only rebuilds system_prompt if location actually changed, to avoid unnecessary
+        string concatenation on every message in a session.
+        """
+        req_loc = context.get('user_location') or context.get('location')
+        if not isinstance(req_loc, dict):
+            return
+        if not (req_loc.get('lat') or req_loc.get('city')):
+            return
+        # Only rebuild if location has changed (avoids rebuilding on every message)
+        existing = self.user_context.get('user_location') or {}
+        if (req_loc.get('lat') == existing.get('lat') and
+                req_loc.get('lng') == existing.get('lng') and
+                req_loc.get('city') == existing.get('city')):
+            return
+        self.user_context = {**self.user_context, 'user_location': req_loc}
+        self.system_prompt = self._build_system_prompt()
 
     @staticmethod
     def _build_tools_schema() -> List[Dict[str, Any]]:
@@ -1357,6 +1395,10 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
         Returns:
             PAM's response as string, or async generator if streaming
         """
+        # Inject per-request GPS location into system prompt before calling Claude
+        if context:
+            self._merge_request_location(context)
+
         try:
             # Security check: Two-stage prompt injection detection
             safety_result = await check_message_safety(
