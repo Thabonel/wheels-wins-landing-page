@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,19 +12,11 @@ import {
   ChevronRight,
   Mountain,
   Trees,
-  Waves,
-  RefreshCw,
-  Save,
-  Loader2
+  Waves
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
-import { googleImageService } from '@/services/googleImageService';
-import { getNextPhotoAlternative, PhotoAlternative } from '@/services/photoAlternativesService';
-import { TripTemplateImageService } from '@/services/tripTemplateImageService';
 import TripRatingWidget from './TripRatingWidget';
-import { getMapboxPublicToken } from '@/utils/mapboxConfig';
-import { toast } from 'sonner';
 
 interface TripTemplateCardProps {
   template: TripTemplate;
@@ -49,308 +41,28 @@ export default function TripTemplateCard({
   onUseTemplate,
   isInJourney
 }: TripTemplateCardProps) {
-  // Photo cycling state
-  const [photoIndex, setPhotoIndex] = useState(-1); // -1 means using default image
-  const [currentPhoto, setCurrentPhoto] = useState<PhotoAlternative | null>(null);
-  const [isLoadingPhoto, setIsLoadingPhoto] = useState(false);
-  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
-  const [photoTotal, setPhotoTotal] = useState(0);
-  const [showPhotoControls, setShowPhotoControls] = useState(false);
-
-  // Cycle to next photo alternative
-  const handleRefreshPhoto = useCallback(async () => {
-    setIsLoadingPhoto(true);
-    try {
-      const result = await getNextPhotoAlternative(
-        template.id,
-        template.name,
-        photoIndex,
-        template.region
-      );
-
-      if (result.alternative) {
-        setCurrentPhoto(result.alternative);
-        setPhotoIndex(result.nextIndex);
-        setPhotoTotal(result.total);
-      } else {
-        toast.error('No alternative photos available');
-      }
-    } catch (error) {
-      console.error('Failed to fetch alternative photo:', error);
-      toast.error('Failed to load alternative photo');
-    } finally {
-      setIsLoadingPhoto(false);
-    }
-  }, [template.id, template.name, template.region, photoIndex]);
-
-  // Save current photo to database
-  const handleSavePhoto = useCallback(async () => {
-    if (!currentPhoto) {
-      toast.error('No photo selected to save');
-      return;
-    }
-
-    setIsSavingPhoto(true);
-    try {
-      const success = await TripTemplateImageService.updateTemplateImage(
-        template.id,
-        currentPhoto.url,
-        currentPhoto.thumbnail,
-        currentPhoto.source,
-        currentPhoto.query
-      );
-
-      if (success) {
-        toast.success('Photo saved successfully');
-        setShowPhotoControls(false);
-      } else {
-        toast.error('Failed to save photo');
-      }
-    } catch (error) {
-      console.error('Failed to save photo:', error);
-      toast.error('Failed to save photo');
-    } finally {
-      setIsSavingPhoto(false);
-    }
-  }, [template.id, currentPhoto]);
-
   const difficultyColor = {
     'beginner': 'bg-green-100 text-green-800',
-    'intermediate': 'bg-yellow-100 text-yellow-800', 
+    'intermediate': 'bg-yellow-100 text-yellow-800',
     'advanced': 'bg-red-100 text-red-800'
   };
 
-  // Image fallback chain: Database URL → Google Image Service → Mapbox Map → Placeholder
-  const getTemplateImage = () => {
-    // Priority 1: If template has media_urls array, use the first image
-    if (template.media_urls && template.media_urls.length > 0) {
-      return template.media_urls[0];
-    }
-
-    // Priority 2: If template has an image URL from database, use it
-    if (template.imageUrl || template.image_url) {
-      return template.imageUrl || template.image_url;
-    }
-
-    // Priority 3: If template has thumbnail from database for performance
-    if (template.thumbnailUrl || template.thumbnail_url) {
-      return template.thumbnailUrl || template.thumbnail_url;
-    }
-
-    // Priority 4: Try to get from Google Image Service (sync version)
-    try {
-      const { imageUrl } = googleImageService.getTemplateImageSync(template);
-      if (imageUrl) {
-        console.log(`📸 Using Google Image Service URL for ${template.id}`);
-        return imageUrl;
-      }
-    } catch (error) {
-      console.warn(`Failed to get image from Google Image Service for ${template.id}:`, error);
-    }
-
-    // Priority 5: Generate intelligent route-specific Mapbox map (excellent fallback!)
-    const mapboxToken = getMapboxPublicToken();
-    if (!mapboxToken) {
-      console.warn('No Mapbox token available for map generation');
-      // Return a solid color fallback instead of placeholder service
-      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzBjNGE2ZSIvPjx0ZXh0IHg9IjIwMCIgeT0iMTAwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+QWR2ZW50dXJlIEF3YWl0czwvdGV4dD48L3N2Zz4=';
-    }
-    
-    console.log(`Generating route-specific map for ${template.id}`);
-    // Continue with the intelligent map generation below...
-    
-    // Determine map center based on region and highlights
-    let centerLat = -25.2744; // Default to Australia
-    let centerLon = 133.7751;
-    let zoom = 4;
-    
-    // Region-specific coordinates
-    const regionCoords: Record<string, [number, number, number]> = {
-      'Australia': [-25.2744, 133.7751, 4],
-      'Victoria': [-37.4713, 144.7852, 6],
-      'Queensland': [-20.9176, 142.7028, 5],
-      'New South Wales': [-31.8401, 145.6121, 5],
-      'Tasmania': [-41.4545, 145.9707, 6],
-      'Western Australia': [-27.6728, 121.6283, 5],
-      'United States': [37.0902, -95.7129, 4],
-      'Canada': [56.1304, -106.3468, 3],
-      'New Zealand': [-40.9006, 174.8860, 5],
-      'United Kingdom': [55.3781, -3.4360, 5],
-    };
-    
-    // Location-specific coordinates for highlights
-    const locationCoords: Record<string, [number, number, number]> = {
-      'Great Barrier Reef': [-18.2871, 147.6992, 8],
-      'Uluru': [-25.3444, 131.0369, 10],
-      'Byron Bay': [-28.6434, 153.6122, 11],
-      'Gold Coast': [-28.0167, 153.4000, 10],
-      'Twelve Apostles': [-38.6662, 143.1044, 11],
-      'Sydney': [-33.8688, 151.2093, 10],
-      'Melbourne': [-37.8136, 144.9631, 10],
-    };
-    
-    // Check template name for specific routes first
-    const templateName = template.name.toLowerCase();
-    if (templateName.includes('great ocean road')) {
-      [centerLat, centerLon, zoom] = [-38.6662, 143.1044, 8]; // Twelve Apostles
-    } else if (templateName.includes('big lap') || templateName.includes('around australia')) {
-      [centerLat, centerLon, zoom] = [-25.2744, 133.7751, 3]; // Australia overview
-    } else if (templateName.includes('red centre') || templateName.includes('uluru')) {
-      [centerLat, centerLon, zoom] = [-25.3444, 131.0369, 9]; // Uluru
-    } else if (templateName.includes('pacific coast')) {
-      [centerLat, centerLon, zoom] = [-28.6434, 153.6122, 7]; // Byron Bay
-    } else if (templateName.includes('tasmania') || templateName.includes('tassie')) {
-      [centerLat, centerLon, zoom] = [-41.4545, 145.9707, 7]; // Tasmania center
-    } else {
-      // Check highlights for specific locations
-      if (template.highlights && template.highlights.length > 0) {
-        for (const highlight of template.highlights) {
-          for (const [location, coords] of Object.entries(locationCoords)) {
-            if (highlight.toLowerCase().includes(location.toLowerCase())) {
-              [centerLat, centerLon, zoom] = coords;
-              break;
-            }
-          }
-        }
-      }
-    }
-    
-    // Check region with improved multi-region parsing
-    if (template.region) {
-      const regionString = template.region.toLowerCase();
-      
-      // Check for specific multi-region patterns first
-      if (regionString.includes('victoria') && regionString.includes('south australia')) {
-        // Great Ocean Road area
-        [centerLat, centerLon, zoom] = [-38.4161, 143.1044, 7]; // Near Twelve Apostles
-      } else if (regionString.includes('nsw') && regionString.includes('queensland')) {
-        // Pacific Coast area
-        [centerLat, centerLon, zoom] = [-28.6434, 153.6122, 6]; // Byron Bay area
-      } else if (regionString.includes('northern territory') && regionString.includes('south australia')) {
-        // Red Centre area
-        [centerLat, centerLon, zoom] = [-25.3444, 131.0369, 8]; // Uluru area
-      } else {
-        // Single region matching
-        for (const [region, coords] of Object.entries(regionCoords)) {
-          if (regionString.includes(region.toLowerCase())) {
-            [centerLat, centerLon, zoom] = coords;
-            break;
-          }
-        }
-      }
-    }
-    
-    // Choose map style based on category and template name
-    let mapStyle = 'outdoors-v12'; // Default
-    const category = template.category || '';
-    
-    if (category.includes('coastal') || templateName.includes('ocean') || templateName.includes('pacific coast')) {
-      mapStyle = 'satellite-streets-v12'; // Best for coastal views
-    } else if (category.includes('outback') || templateName.includes('red centre') || templateName.includes('uluru')) {
-      mapStyle = 'satellite-v9'; // Best for desert landscapes
-    } else if (templateName.includes('big lap')) {
-      mapStyle = 'streets-v12'; // Overview style for country-wide routes
-    } else if (category.includes('scenic') || category.includes('mountain')) {
-      mapStyle = 'outdoors-v12'; // Best for scenic routes
-    }
-    
-    // Create marker for the location
-    const marker = `pin-l-star+3b82f6(${centerLon},${centerLat})`;
-    
-    return `https://api.mapbox.com/styles/v1/mapbox/${mapStyle}/static/${marker}/${centerLon},${centerLat},${zoom},0/400x200@2x?access_token=${mapboxToken}`;
-  };
-  
-  const defaultMapUrl = template.route?.mapPreview || getTemplateImage();
-  // Use currentPhoto if user has cycled, otherwise use default
-  const displayImageUrl = currentPhoto?.url || defaultMapUrl;
-
   return (
-    <Card className="hover:shadow-lg transition-all duration-200 overflow-hidden group">
-      {/* Static Map Preview with Photo Controls */}
-      <div
-        className="relative h-48 overflow-hidden"
-        onMouseEnter={() => setShowPhotoControls(true)}
-        onMouseLeave={() => setShowPhotoControls(false)}
-      >
-        <img
-          src={displayImageUrl}
-          alt={`${template.name} route map`}
-          width={400}
-          height={192}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-          decoding="async"
-        />
-
-        {/* Photo Controls - visible on hover */}
-        <div className={cn(
-          "absolute bottom-2 left-2 right-2 flex justify-between items-center transition-opacity duration-200",
-          showPhotoControls ? "opacity-100" : "opacity-0"
-        )}>
-          {/* Refresh Photo Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRefreshPhoto();
-            }}
-            disabled={isLoadingPhoto}
-            className="flex items-center gap-1 px-2 py-1 text-xs bg-white/90 hover:bg-white rounded shadow-sm transition-colors disabled:opacity-50"
-            title="Try different photo"
-          >
-            {isLoadingPhoto ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <RefreshCw className="w-3 h-3" />
-            )}
-            <span>
-              {photoTotal > 0 ? `${photoIndex + 1}/${photoTotal}` : 'Try different'}
-            </span>
-          </button>
-
-          {/* Save Photo Button - only show if user has selected an alternative */}
-          {currentPhoto && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSavePhoto();
-              }}
-              disabled={isSavingPhoto}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded shadow-sm transition-colors disabled:opacity-50"
-              title="Save this photo"
-            >
-              {isSavingPhoto ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Save className="w-3 h-3" />
-              )}
-              <span>Save</span>
-            </button>
-          )}
-        </div>
-
-        {/* Photo source indicator */}
-        {currentPhoto && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[10px] bg-black/50 text-white rounded">
-            {currentPhoto.source}: {currentPhoto.query}
-          </div>
-        )}
-
-        <div className="absolute top-2 right-2">
-          <Badge className={cn(difficultyColor[template.difficulty])}>
-            {template.difficulty}
-          </Badge>
-        </div>
-        <div className="absolute top-2 left-2">
-          <Badge variant="secondary" className="bg-white/90">
-            {categoryIcons[template.category] || categoryIcons.general}
-            <span className="ml-1">{template.category}</span>
-          </Badge>
-        </div>
+    <Card className="hover:shadow-lg transition-all duration-200 overflow-hidden">
+      {/* Category banner - replaces photo */}
+      <div className="flex items-center justify-between px-4 py-3 bg-stone-50 border-b">
+        <Badge variant="secondary" className="flex items-center gap-1">
+          {categoryIcons[template.category] || categoryIcons.general}
+          <span>{template.category}</span>
+        </Badge>
+        <Badge className={cn(difficultyColor[template.difficulty])}>
+          {template.difficulty}
+        </Badge>
       </div>
 
       <CardHeader className="pb-3">
         <CardTitle className="text-lg line-clamp-1">{template.name}</CardTitle>
-        <p className="text-sm text-gray-600 line-clamp-2">
+        <p className="text-sm text-gray-600 line-clamp-3">
           {template.description}
         </p>
       </CardHeader>
