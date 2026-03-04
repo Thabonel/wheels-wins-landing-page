@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Calendar, 
-  Share, 
-  MapPin,
-  Clock
+import {
+  Calendar,
+  Share,
+  MapPin
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,7 +15,6 @@ interface PastTrip {
   dates: { start: string; end: string };
   destinations: string[];
   duration: number;
-  thumbnail: string;
   highlights: string[];
 }
 
@@ -36,16 +34,14 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
       dates: { start: '2024-08-15', end: '2024-08-28' },
       destinations: ['Sydney', 'Melbourne', 'Adelaide', 'Perth'],
       duration: 14,
-      thumbnail: '/placeholder.svg',
       highlights: ['Great Ocean Road', 'Nullarbor Plain', 'Uluru']
     },
     {
-      id: '2', 
+      id: '2',
       name: 'Queensland Explorer',
       dates: { start: '2024-06-10', end: '2024-06-17' },
       destinations: ['Brisbane', 'Gold Coast', 'Cairns'],
       duration: 7,
-      thumbnail: '/placeholder.svg',
       highlights: ['Great Barrier Reef', 'Daintree Rainforest']
     }
   ];
@@ -104,18 +100,12 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
             <div className="grid gap-4 md:grid-cols-2">
               {mockPastTrips.map((trip) => (
                 <Card key={trip.id} className="overflow-hidden border-muted">
-                  <div className="aspect-video bg-muted relative">
-                    <img 
-                      src={trip.thumbnail} 
-                      alt={trip.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-2 right-2">
-                      <Badge variant="secondary" className="text-xs">
-                        <Clock className="w-3 h-3 mr-1" />
-                        {trip.duration} days
-                      </Badge>
-                    </div>
+                  {/* Trip summary - replaces photo */}
+                  <div className="px-3 pt-3 pb-2 bg-stone-50 border-b">
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {trip.duration}-day journey through {trip.destinations.join(', ')}.
+                      {trip.highlights.length > 0 && ` Highlights: ${trip.highlights.join(', ')}.`}
+                    </p>
                   </div>
                   <CardContent className="p-3">
                     <div className="space-y-2">
