@@ -74,7 +74,6 @@ from app.api.v1 import (
     monitoring,
     receipts,
     pam,
-    pam_realtime_hybrid,  # Hybrid: OpenAI voice + Claude reasoning
     # pam_tools removed - functionality handled by main pam router
     auth,
     subscription,
@@ -954,8 +953,6 @@ app.include_router(ocr_router, prefix="/api/v1", tags=["OCR"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
 
-# PAM Voice Hybrid: OpenAI Realtime API (voice I/O) + Claude Sonnet 4.5 (reasoning)
-app.include_router(pam_realtime_hybrid.router, prefix="/api/v1", tags=["PAM Voice Hybrid"])
 # PAM Simple - Fallback REST endpoint (used by frontend when WebSocket unavailable)
 try:
     from app.api.v1 import pam_simple
