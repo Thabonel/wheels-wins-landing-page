@@ -361,7 +361,12 @@ class CacheWarmingService:
                 'language': profile.get('language', 'en'),
                 'full_name': profile.get('personal_details', {}).get('full_name') or profile.get('full_name'),
                 'nickname': profile.get('personal_details', {}).get('nickname') or profile.get('nickname'),
+                # Do NOT store GPS coordinates here. Profile 'region' is the user's home state,
+                # not their current location (they travel in an RV). Real-time GPS is injected
+                # per-request in pam.py chat() via _merge_request_location(). This prevents
+                # "Queensland" appearing as current location when the user is parked in Victoria.
                 'location': profile.get('personal_details', {}).get('region') or profile.get('region'),
+                'user_location': None,  # Explicit null - real-time GPS comes from per-request context
                 # Nested structures that tools expect
                 'vehicle_info': profile.get('vehicle_info', {}),
                 'travel_preferences': profile.get('travel_preferences', {}),
@@ -393,7 +398,12 @@ class CacheWarmingService:
                 'language': profile.get('language', 'en'),
                 'full_name': profile.get('full_name'),
                 'nickname': profile.get('nickname'),
+                # Do NOT store GPS coordinates here. Profile 'region' is the user's home state,
+                # not their current location (they travel in an RV). Real-time GPS is injected
+                # per-request in pam.py chat() via _merge_request_location(). This prevents
+                # "Queensland" appearing as current location when the user is parked in Victoria.
                 'location': profile.get('region'),
+                'user_location': None,  # Explicit null - real-time GPS comes from per-request context
                 'vehicle_info': {
                     'type': profile.get('vehicle_type'),
                     'make_model': profile.get('vehicle_make_model'),
