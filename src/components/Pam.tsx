@@ -17,7 +17,7 @@ import { pamVoiceService } from "@/lib/voiceService";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { vadService, type ConversationState } from "@/deprecated/services/voiceActivityDetection";
 import { audioManager } from "@/utils/audioManager";
-import { PAMVoiceHybridService, createVoiceService } from "@/services/pamVoiceHybridService";
+import { PAMVoiceNativeService, createVoiceService } from "@/services/pamVoiceNativeService";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
@@ -91,7 +91,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [voiceActivationMode, setVoiceActivationMode] = useState<'manual' | 'auto' | 'command'>('manual');
-  const [realtimeService, setRealtimeService] = useState<PAMVoiceHybridService | null>(null);
+  const [realtimeService, setRealtimeService] = useState<PAMVoiceNativeService | null>(null);
   const ttsQueueRef = useRef<TTSQueueManager | null>(null);
   const { startTracking, stopTracking, getCurrentLocation, ...locationState } = useLocationTracking();
   const [audioLevel, setAudioLevel] = useState(0);
@@ -127,7 +127,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const isWakeWordListeningRef = useRef(false);
   const isContinuousModeRef = useRef(false);
   const isListeningRef = useRef(false);
-  const realtimeServiceRef = useRef<PAMVoiceHybridService | null>(null);
+  const realtimeServiceRef = useRef<PAMVoiceNativeService | null>(null);
   const [sessionId, setSessionId] = useState<string>(() => {
     // Generate or restore session ID for conversation continuity
     const saved = localStorage.getItem('pam_session_id');
@@ -684,7 +684,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         userId: user.id,
         apiBaseUrl,
         authToken,
-        voice: 'coral', // Warm, friendly female voice
+        voice: 'en-US-AriaNeural', // Edge TTS: warm, friendly female voice
         language: userLanguage, // User's preferred language
         location: userLocation ? {
           lat: userLocation.latitude || 0,
@@ -735,7 +735,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             content: text,
             sender: "pam",
             timestamp: new Date().toISOString(),
-            shouldSpeak: false, // OpenAI Realtime handles TTS - don't use local TTS
+            shouldSpeak: false, // Edge TTS handled by PAMVoiceNativeService - don't use local TTS
           };
           setMessages((prev) => [...prev, newMessage]);
         },
