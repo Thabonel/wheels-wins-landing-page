@@ -1392,6 +1392,30 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             # Check if this is a voice request (more lenient tool filtering needed)
             is_voice = context.get("is_voice", False) if context else False
 
+            # Build per-request location system block so Claude always sees exact
+            # coordinates. The main system_prompt is cached (ephemeral); this block
+            # is uncached and injected fresh on every request.
+            _ctx = context or {}
+            _loc = _ctx.get("user_location") or {}
+            _lat = _loc.get("lat") or _loc.get("latitude")
+            _lng = _loc.get("lng") or _loc.get("longitude")
+            _city = _loc.get("city", "")
+            _region = _loc.get("region", "")
+            _tz = _ctx.get("timezone", "")
+            if _lat and _lng:
+                if _city and _region:
+                    _loc_text = f"[USER LOCATION: {_city}, {_region} — {float(_lat):.4f}, {float(_lng):.4f}]"
+                elif _city:
+                    _loc_text = f"[USER LOCATION: {_city} — {float(_lat):.4f}, {float(_lng):.4f}]"
+                else:
+                    _loc_text = f"[USER LOCATION: {float(_lat):.4f}, {float(_lng):.4f}]"
+                if _tz:
+                    _loc_text += f" [TIMEZONE: {_tz}]"
+                logger.info(f"📍 Injecting location into Claude prompt: {_loc_text}")
+            else:
+                _loc_text = ""
+                logger.debug("📍 No GPS coordinates in context - location not injected")
+
             # Apply tool prefiltering to reduce token usage by ~87%
             # With error recovery fallback to all tools
             # DIAGNOSTIC: Log tools before filtering
@@ -1599,16 +1623,21 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                     claude_start = time.time()
                     logger.info(f"🧠 [Attempt {attempt + 1}/{max_retries}] Calling Claude API ({current_model}) with {len(tools_to_use)} tools...")
 
+                    # Build system blocks: cached base prompt + optional per-request location
+                    system_blocks = [
+                        {
+                            "type": "text",
+                            "text": self.system_prompt,
+                            "cache_control": {"type": "ephemeral"}
+                        }
+                    ]
+                    if _loc_text:
+                        system_blocks.append({"type": "text", "text": _loc_text})
+
                     response = await self.client.messages.create(
                         model=current_model,
                         max_tokens=2048,
-                        system=[
-                            {
-                                "type": "text",
-                                "text": self.system_prompt,
-                                "cache_control": {"type": "ephemeral"}
-                            }
-                        ],
+                        system=system_blocks,
                         messages=messages,
                         tools=tools_to_use
                     )
