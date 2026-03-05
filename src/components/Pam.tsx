@@ -1295,7 +1295,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                       </div>
                     )}
                   </div>
-                  {msg.ui_actions && msg.ui_actions.length > 0 && (
+                  {msg.sender === "pam" && msg.ui_actions && msg.ui_actions.length > 0 && (
                     <div className="mt-1">
                       {msg.ui_actions.map((action, i) => renderActionCard(action, i))}
                     </div>
@@ -1528,7 +1528,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                             </div>
                           )}
                         </div>
-                        {msg.ui_actions && msg.ui_actions.length > 0 && (
+                        {msg.sender === "pam" && msg.ui_actions && msg.ui_actions.length > 0 && (
                           <div className="mt-1">
                             {msg.ui_actions.map((action, i) => renderActionCard(action, i))}
                           </div>
