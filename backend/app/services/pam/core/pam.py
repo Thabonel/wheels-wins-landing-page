@@ -1457,7 +1457,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             if stream:
                 return self._stream_response(claude_messages, filtered_tools)
             else:
-                return await self._get_response(claude_messages, filtered_tools)
+                return await self._get_response(claude_messages, filtered_tools, location_text=_loc_text)
 
         except Exception as e:
             logger.error(f"Error in PAM chat: {e}", exc_info=True)
@@ -1568,7 +1568,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
 
         return messages
 
-    async def _get_response(self, messages: List[Dict[str, str]], filtered_tools: List[Dict] = None) -> str:
+    async def _get_response(self, messages: List[Dict[str, str]], filtered_tools: List[Dict] = None, location_text: str = "") -> str:
         """
         Get a complete response from Claude with tool support (non-streaming)
 
@@ -1631,8 +1631,8 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                             "cache_control": {"type": "ephemeral"}
                         }
                     ]
-                    if _loc_text:
-                        system_blocks.append({"type": "text", "text": _loc_text})
+                    if location_text:
+                        system_blocks.append({"type": "text", "text": location_text})
 
                     response = await self.client.messages.create(
                         model=current_model,
