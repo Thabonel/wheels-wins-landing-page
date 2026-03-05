@@ -22,6 +22,7 @@ import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { logger } from '../lib/logger';
+import { type UIAction } from "@/types/pamTypes";
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
 import { wakeWordHybridService as wakeWordService } from "@/services/wakeWordHybridService";
 
@@ -54,6 +55,7 @@ interface PamMessage {
   isStreaming?: boolean;  // Indicates if this message is currently being streamed
   tts?: TTSAudio;  // Phase 5A: TTS audio data from backend
   feedback?: 1 | -1;  // Simple feedback: 1 = helpful, -1 = not helpful
+  ui_actions?: UIAction[];
 }
 
 interface PamProps {
@@ -924,7 +926,14 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     }
   };
 
-  const addMessage = (content: string, sender: "user" | "pam", triggeredByUserMessage?: string, shouldSpeak: boolean = false, voicePriority?: 'low' | 'normal' | 'high' | 'urgent'): PamMessage => {
+  const addMessage = (
+    content: string,
+    sender: "user" | "pam",
+    triggeredByUserMessage?: string,
+    shouldSpeak: boolean = false,
+    voicePriority?: 'low' | 'normal' | 'high' | 'urgent',
+    ui_actions?: UIAction[]
+  ): PamMessage => {
     // Generate a unique ID using timestamp + random string to avoid duplicate keys
     const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newMessage: PamMessage = {
@@ -933,7 +942,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       sender,
       timestamp: new Date().toISOString(),
       shouldSpeak,
-      voicePriority
+      voicePriority,
+      ui_actions,
     };
     setMessages(prev => {
       const updatedMessages = [...prev, newMessage];
