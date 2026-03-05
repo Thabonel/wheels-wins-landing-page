@@ -1279,13 +1279,19 @@ class PamService {
 
         // Convert PAM 2.0 response to compatible format (support both 'response' and 'content')
         const content = (pam2Response as any).response || (pam2Response as any).content || (pam2Response as any).message;
+        const uiActions = (pam2Response as any).ui_actions || (pam2Response as any).actions || [];
         const legacyResponse: PamApiResponse = {
           response: content,
           message: content,
           content,
           ui_action: (pam2Response as any).ui_action,
+          ui_actions: uiActions,
           metadata: (pam2Response as any).metadata
         };
+
+        if (uiActions.length > 0) {
+          this.handleUIActions(uiActions);
+        }
 
         console.log(`✅ PAM 2.0 REST response (${latency}ms):`, pam2Response);
         return legacyResponse;
@@ -1336,13 +1342,19 @@ class PamService {
 
         // Convert PAM 1.0 response to compatible format (support 'content')
         const content1 = pam1Response.response || pam1Response.content || pam1Response.message;
+        const uiActions1 = pam1Response.ui_actions || pam1Response.actions || [];
         const legacyResponse: PamApiResponse = {
           response: content1,
           message: content1,
           content: content1,
           ui_action: pam1Response.ui_action,
+          ui_actions: uiActions1,
           metadata: { ...pam1Response.metadata, fallback: true, version: '1.0' }
         };
+
+        if (uiActions1.length > 0) {
+          this.handleUIActions(uiActions1);
+        }
 
         console.log(`✅ PAM 1.0 fallback REST response (${latency}ms):`, pam1Response);
         return legacyResponse;
