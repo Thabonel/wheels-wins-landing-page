@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Send, Bot, User, X } from 'lucide-react';
+import { useAuth } from "@/context/AuthContext";
+import { usePamConnection } from "@/hooks/usePamConnection";
 
 interface AdminPamChatProps {
   isPamChatOpen: boolean;
@@ -33,8 +35,11 @@ const AdminPamChat: React.FC<AdminPamChatProps> = ({
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
+  const { user } = useAuth();
+  const pamConnection = usePamConnection();
+
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || !user?.id) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -44,37 +49,34 @@ const AdminPamChat: React.FC<AdminPamChatProps> = ({
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const sentText = inputMessage;
     setInputMessage('');
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const response = await pamConnection.sendMessage(sentText, {
+        current_page: 'admin_dashboard',
+        input_mode: 'text',
+      });
+
+      const responseText = response.response || response.content || response.message || 'I could not process that request.';
       const pamResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        message: getPamResponse(inputMessage),
+        message: responseText,
         sender: 'pam',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, pamResponse]);
+    } catch {
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        message: 'Sorry, I was unable to connect to PAM right now. Please try again.',
+        sender: 'pam',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1000 + Math.random() * 2000);
-  };
-
-  const getPamResponse = (userInput: string): string => {
-    const input = userInput.toLowerCase();
-    
-    if (input.includes('user') || input.includes('manage users')) {
-      return 'I can help you manage users! You can view user analytics, update user roles, or export user data from the User Management section.';
-    } else if (input.includes('analytics') || input.includes('data')) {
-      return 'The analytics dashboard shows user behavior, system performance, and travel insights. Would you like me to explain any specific metrics?';
-    } else if (input.includes('shop') || input.includes('product')) {
-      return 'For shop management, you can create products, manage inventory, and track orders. The shop system integrates with affiliate programs and digital products.';
-    } else if (input.includes('help') || input.includes('how')) {
-      return 'I can assist with: User Management, Analytics Review, Shop Administration, System Settings, and Content Moderation. What would you like to explore?';
-    } else if (input.includes('problem') || input.includes('issue')) {
-      return 'I can help troubleshoot admin panel issues. Check the System Health in Settings, review error logs, or let me know what specific problem you\'re experiencing.';
-    } else {
-      return 'I understand you\'re asking about admin management. I can help with users, analytics, shop management, and system administration. What specific area interests you?';
     }
   };
 
