@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import pamService, { type ConnectionStatus, type PamApiMessage, type PamApiResponse } from "@/services/pamService";
+import pamService, { type ConnectionStatus, type PamApiResponse } from "@/services/pamService";
+import { type PamApiMessage } from "@/types/pamContext";
 
 interface PamConnectionContextValue {
   status: ConnectionStatus;
