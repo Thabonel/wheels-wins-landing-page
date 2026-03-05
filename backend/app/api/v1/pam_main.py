@@ -2415,10 +2415,10 @@ async def chat_endpoint(
 
             pam_response = {
                 "content": pam_response_text,
-                "actions": ui_actions,  # Use actual ui_actions from PAM
+                "ui_actions": ui_actions,
                 "success": True
             }
-            actions = pam_response.get("actions", [])
+            actions = pam_response.get("ui_actions", [])
 
         # Calculate processing time
         processing_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds
