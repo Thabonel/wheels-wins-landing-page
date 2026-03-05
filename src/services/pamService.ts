@@ -1508,6 +1508,30 @@ class PamService {
     try {
       console.log('🌍 Enhancing PAM message with location context...');
 
+      // If caller already provided user_location with coordinates, respect it.
+      // Pam.tsx builds this from GPS + localStorage cache (which has city/region
+      // from BigDataCloud reverse geocode). Don't overwrite with profile-only data
+      // that has coordinates but no city.
+      const existing = message.context?.user_location;
+      if (existing && (existing.lat || existing.latitude)) {
+        console.log(`📍 Using caller-provided location: ${existing.city || 'no city'}, ${existing.region || existing.country || 'unknown'} (lat: ${existing.lat || existing.latitude})`);
+        const enhancedContext = {
+          ...message.context,
+          environment: this.getEnvironment(),
+          timestamp: Date.now(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          current_date: getTodayForPam()
+        };
+        const cleanedContext = cleanDatesForPam(enhancedContext);
+        return {
+          ...message,
+          context: {
+            user_id: message.user_id,
+            ...cleanedContext
+          }
+        };
+      }
+
       // Get location context for this user
       const locationContext = await getPamLocationContext(message.user_id);
 
