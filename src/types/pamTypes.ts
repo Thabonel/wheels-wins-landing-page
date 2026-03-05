@@ -100,4 +100,16 @@ export interface UIAction {
   entity_id?: string;
   entity_type?: 'calendar_event' | 'expense' | 'trip';
   entity_title?: string;
+  metadata?: {
+    // Calendar
+    start_date?: string;
+    end_date?: string;
+    description?: string;
+    // Expense
+    amount?: number;
+    category?: string;
+    date?: string;
+    // Trip
+    destination?: string;
+  };
 }
