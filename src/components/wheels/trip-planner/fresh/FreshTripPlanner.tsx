@@ -322,6 +322,22 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       geolocate.on('geolocate', (position: GeolocationPosition) => {
         const { latitude, longitude, accuracy } = position.coords;
         console.log('✅ GeolocateControl Success:', { latitude, longitude, accuracy });
+
+        // Bridge map GPS to PAM: write position to lastKnownLocation so PAM chat
+        // always has the user's current location without asking for it separately.
+        try {
+          const existing = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+          localStorage.setItem('lastKnownLocation', JSON.stringify({
+            ...existing,
+            lat: latitude,
+            lng: longitude,
+            accuracy,
+            timestamp: Date.now(),
+          }));
+        } catch (e) {
+          console.warn('Failed to cache GPS location for PAM:', e);
+        }
+
         try {
           newMap.flyTo({ center: [longitude, latitude], zoom: 13, duration: 1200 });
         } catch (e) {

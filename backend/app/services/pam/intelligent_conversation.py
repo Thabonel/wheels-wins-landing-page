@@ -267,8 +267,31 @@ Return ONLY a JSON object with:
                 integrated_context, pam_personality, user_personality, message, context
             )
             
+            # Build location header - inject as explicit fact so Claude never needs to ask.
+            # Context dicts are not always visible to the model; this ensures location
+            # appears verbatim in the prompt text regardless of context engine processing.
+            _loc = context.get('user_location') or {}
+            _lat = _loc.get('lat') or _loc.get('latitude')
+            _lng = _loc.get('lng') or _loc.get('longitude')
+            _city = _loc.get('city', '')
+            _region = _loc.get('region', '')
+            _tz = context.get('timezone', '')
+            if _lat and _lng:
+                if _city and _region:
+                    _location_header = f"[USER LOCATION: {_city}, {_region} — {_lat:.4f}, {_lng:.4f}]"
+                elif _city:
+                    _location_header = f"[USER LOCATION: {_city} — {_lat:.4f}, {_lng:.4f}]"
+                else:
+                    _location_header = f"[USER LOCATION: {_lat:.4f}, {_lng:.4f}]"
+                if _tz:
+                    _location_header += f" [TIMEZONE: {_tz}]"
+            elif _tz:
+                _location_header = f"[USER TIMEZONE: {_tz} — no GPS coordinates available]"
+            else:
+                _location_header = ""
+
             # Build enhanced conversation prompt using integrated context
-            conversation_prompt = f"""Current message: "{message}"
+            conversation_prompt = f"""{_location_header + chr(10) if _location_header else ""}Current message: "{message}"
 
 {integrated_context.core_context}
 

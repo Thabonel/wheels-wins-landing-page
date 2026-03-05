@@ -1055,7 +1055,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Route through pamService (circuit breaker, offline queue, session tracking)
       logger.info('💬 Sending message via pamService');
 
-      // Read city/region from location cache to supplement GPS coords
+      // Read city/region from location cache - structure is { lat, lng, city, state, ... }
       const cachedLoc = (() => {
         try {
           const raw = localStorage.getItem('lastKnownLocation');
@@ -1063,17 +1063,31 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         } catch { return null; }
       })();
 
+      // Build user_location from best available source - always send if we have anything,
+      // not only for keyword-detected location queries. This ensures PAM always knows
+      // where the user is without needing to ask.
+      const userLocationForPam = locationObj
+        ? {
+            lat: locationObj.latitude,
+            lng: locationObj.longitude,
+            city: cachedLoc?.city ?? userContext?.city,        // fix: was cachedLoc?.location?.city
+            region: cachedLoc?.state ?? userContext?.region,   // fix: was cachedLoc?.location?.state
+          }
+        : cachedLoc?.lat
+        ? {
+            lat: cachedLoc.lat,
+            lng: cachedLoc.lng,
+            city: cachedLoc?.city ?? userContext?.city,
+            region: cachedLoc?.state ?? userContext?.region,
+          }
+        : undefined;
+
       const pamResponse = await pamConnection.sendMessage(message, {
         user_id: user.id,
         current_page: 'pam_chat',
         input_mode: conversationMode === 'voice' ? 'voice' : 'text',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        user_location: locationObj ? {
-          lat: locationObj.latitude,
-          lng: locationObj.longitude,
-          city: cachedLoc?.location?.city ?? userContext?.city,
-          region: cachedLoc?.location?.state ?? userContext?.region,
-        } : undefined,
+        user_location: userLocationForPam,
       });
 
       if (pamResponse.error) {
