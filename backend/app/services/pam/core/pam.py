@@ -258,7 +258,10 @@ class PAM:
         from zoneinfo import ZoneInfo
 
         # Check if timezone is in user context
-        tz_str = self.user_context.get('timezone')
+        tz_str = (
+            self.user_context.get('timezone') or
+            (self.user_context.get('user_location') or {}).get('timezone', '')
+        )
         if tz_str:
             try:
                 user_tz = ZoneInfo(tz_str)
@@ -425,12 +428,15 @@ ALWAYS prefer tool results over generic answers.
 When in doubt, USE A TOOL - real data is always better than guessing.
 
 **Examples of CORRECT calendar tool usage:**
+IMPORTANT: Use LOCAL TIME without Z suffix for calendar event dates.
+The backend automatically applies the user's timezone. Never use Z or +00:00.
+
 - User: "Add a doctor appointment for next Tuesday at 2pm"
-  YOU: Call create_calendar_event(title="Doctor Appointment", start_date="2025-01-07T14:00:00Z", ...)
+  YOU: Call create_calendar_event(title="Doctor Appointment", start_date="2025-01-07T14:00:00", ...)
   THEN respond: "I've added your doctor appointment for Tuesday at 2pm"
 
 - User: "Remind me about oil change next month"
-  YOU: Call create_calendar_event(title="Oil Change Reminder", start_date="2025-02-15T10:00:00Z", event_type="maintenance")
+  YOU: Call create_calendar_event(title="Oil Change Reminder", start_date="2025-02-15T10:00:00", event_type="maintenance")
   THEN respond: "I've set a reminder for oil change next month"
 
 WRONG - DO NOT DO THIS:
