@@ -102,7 +102,7 @@ class CreateCalendarEventInput(BaseToolInput):
                 raise ValueError("Date must be in ISO format (e.g., '2025-01-15T10:00:00Z')")
         return v
 
-    @validator("reminder_minutes")
+    @validator("reminder_minutes", pre=True)
     def validate_reminders(cls, v):
         """Validate reminder minutes array"""
         if v is not None:
