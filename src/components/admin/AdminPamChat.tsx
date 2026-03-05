@@ -55,6 +55,7 @@ const AdminPamChat: React.FC<AdminPamChatProps> = ({
 
     try {
       const response = await pamConnection.sendMessage(sentText, {
+        user_id: user.id,
         current_page: 'admin_dashboard',
         input_mode: 'text',
       });
@@ -167,7 +168,7 @@ const AdminPamChat: React.FC<AdminPamChatProps> = ({
             <Input
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               placeholder="Ask PAM about admin tasks..."
               className="flex-1"
             />
