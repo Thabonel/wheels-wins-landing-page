@@ -1047,6 +1047,38 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       }
 
+      // Silent GPS fetch for every message when permission is already granted.
+      // Browser returns cached GPS instantly (maximumAge: 60s) with no modal.
+      // This makes PAM location-aware for ALL messages, not just keyword queries.
+      if (!locationObj) {
+        try {
+          const perm = await navigator.permissions?.query({ name: 'geolocation' as PermissionName });
+          if (perm?.state === 'granted') {
+            const gpsPos = await new Promise<GeolocationPosition | null>((resolve) => {
+              navigator.geolocation.getCurrentPosition(
+                resolve,
+                () => resolve(null),
+                { timeout: 3000, maximumAge: 60000 }
+              );
+            });
+            if (gpsPos) {
+              locationObj = { latitude: gpsPos.coords.latitude, longitude: gpsPos.coords.longitude };
+              // Update cache so subsequent reads have fresh coords
+              try {
+                const existing = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+                localStorage.setItem('lastKnownLocation', JSON.stringify({
+                  ...existing,
+                  lat: gpsPos.coords.latitude,
+                  lng: gpsPos.coords.longitude,
+                  accuracy: gpsPos.coords.accuracy,
+                  timestamp: Date.now(),
+                }));
+              } catch { /* ignore storage errors */ }
+            }
+          }
+        } catch { /* permissions API not supported - skip */ }
+      }
+
       // Ensure user is authenticated for backend API
       if (!user || !session?.access_token) {
         throw new Error('User authentication required');
