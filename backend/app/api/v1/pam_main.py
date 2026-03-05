@@ -2382,7 +2382,7 @@ async def chat_endpoint(
         )
 
         # 🚀 NEW: Use PAM core brain with 40 working tools (replaced PersonalizedPamAgent)
-        pam_response = {"content": None, "actions": []}
+        pam_response = {"content": None, "ui_actions": []}
         if not used_ai_router:
             logger.info(f"🧠 Using PAM Core Brain (40 tools) - Phase 2 Unification Complete")
 
