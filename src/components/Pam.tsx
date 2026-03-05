@@ -19,6 +19,9 @@ import { audioManager } from "@/utils/audioManager";
 import { PAMVoiceHybridService, createVoiceService } from "@/services/pamVoiceHybridService";
 import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import TTSControls from "@/components/pam/TTSControls";
+import { CalendarEventCard } from "@/components/pam/CalendarEventCard";
+import { ExpenseLoggedCard } from "@/components/pam/ExpenseLoggedCard";
+import { TripPlannedCard } from "@/components/pam/TripPlannedCard";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { logger } from '../lib/logger';
@@ -1119,6 +1122,19 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     return `Hi! I'm PAM, your travel companion. I see you're in ${location} with your ${vehicle}. Ready for an adventure?`;
   };
 
+  const renderActionCard = (action: UIAction, index: number) => {
+    switch (action.type) {
+      case 'reload_calendar':
+        return <CalendarEventCard key={index} action={action} />;
+      case 'reload_expenses':
+        return <ExpenseLoggedCard key={index} action={action} />;
+      case 'reload_trips':
+        return <TripPlannedCard key={index} action={action} />;
+      default:
+        return null;
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -1279,6 +1295,11 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                       </div>
                     )}
                   </div>
+                  {msg.ui_actions && msg.ui_actions.length > 0 && (
+                    <div className="mt-1">
+                      {msg.ui_actions.map((action, i) => renderActionCard(action, i))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -1507,6 +1528,11 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                             </div>
                           )}
                         </div>
+                        {msg.ui_actions && msg.ui_actions.length > 0 && (
+                          <div className="mt-1">
+                            {msg.ui_actions.map((action, i) => renderActionCard(action, i))}
+                          </div>
+                        )}
                       </div>
                       {/* Phase 5A: TTS Controls for PAM messages */}
                       {msg.sender === "pam" && msg.tts && (
