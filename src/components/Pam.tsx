@@ -7,8 +7,7 @@ const pamEnabled = true;
 // Regular imports
 import { X, Send, Mic, MicOff, VolumeX, MapPin, Calendar, DollarSign, Volume2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-// Claude WebSocket PAM REMOVED - OpenAI Realtime only
-// import { usePamConnection } from "@/hooks/usePamConnection";
+import { usePamConnection } from "@/hooks/usePamConnection";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { supabase } from "@/integrations/supabase/client";
 import { pamCalendarService } from "@/services/pamCalendarService";
@@ -68,6 +67,7 @@ interface PamProps {
 const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
   const { user, session } = useAuth();
   const { settings, updateSettings, loading } = useUserSettings();
+  const pamConnection = usePamConnection();
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [shouldAutoSend, setShouldAutoSend] = useState(false);
@@ -1096,41 +1096,36 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         throw new Error('User authentication required');
       }
 
-      // SIMPLE REST API CHAT (production-ready)
-      logger.info('💬 Sending message via simple REST API');
+      // Route through pamService (circuit breaker, offline queue, session tracking)
+      logger.info('💬 Sending message via pamService');
 
-      // Call production PAM chat endpoint - environment-aware detection
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ||
-        (window.location.hostname === 'wheelsandwins.com'
-          ? 'https://pam-backend.onrender.com'  // Production
-          : 'https://wheels-wins-backend-staging.onrender.com');  // Staging
-      const response = await fetch(`${apiBaseUrl}/api/v1/pam/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          message,
-          user_id: user.id,
-          context: {
-            region: userContext?.region,
-            current_page: 'pam_chat',
-            conversation_mode: conversationMode, // "voice" or "text" - controls TTS
-            is_voice: conversationMode === 'voice', // CRITICAL: Tell backend to use all tools for voice
-            location: locationObj || undefined,
-            userLocation: locationObj || undefined,
-            conversation_history: conversationHistory.slice(-3),
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone // User's browser timezone (e.g., "Australia/Sydney")
-          }
-        })
+      // Read city/region from location cache to supplement GPS coords
+      const cachedLoc = (() => {
+        try {
+          const raw = localStorage.getItem('lastKnownLocation');
+          return raw ? JSON.parse(raw) : null;
+        } catch { return null; }
+      })();
+
+      const pamResponse = await pamConnection.sendMessage(message, {
+        user_id: user.id,
+        current_page: 'pam_chat',
+        input_mode: conversationMode === 'voice' ? 'voice' : 'text',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        user_location: locationObj ? {
+          lat: locationObj.latitude,
+          lng: locationObj.longitude,
+          city: cachedLoc?.location?.city ?? userContext?.city,
+          region: cachedLoc?.location?.state ?? userContext?.region,
+        } : (cachedLoc?.location?.city ? {
+          city: cachedLoc.location.city,
+          region: cachedLoc.location.state,
+        } : undefined),
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      if (pamResponse.error) {
+        throw new Error(pamResponse.error);
       }
-
-      const pamResponse = await response.json();
 
       // Remove thinking indicator and add response
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
