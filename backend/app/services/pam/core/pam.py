@@ -2054,8 +2054,8 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         "entity_type": "calendar_event",
                         "entity_title": event.get("title"),
                         "metadata": {
-                            "start_time": event.get("start_time"),
-                            "end_time": event.get("end_time"),
+                            "start_date": event.get("start_date"),
+                            "end_date": event.get("end_date"),
                             "description": event.get("description"),
                         }
                     }
@@ -2082,15 +2082,16 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                 # Trip planned
                 if result_data.get("success") and "trip" in result_data:
                     trip = result_data.get("trip", {})
+                    trip_meta = trip.get("metadata", {}) if isinstance(trip.get("metadata"), dict) else {}
                     actions.append({
                         "type": "reload_trips",
                         "entity_id": trip.get("id"),
                         "entity_type": "trip",
-                        "entity_title": trip.get("destination"),
+                        "entity_title": trip.get("title"),
                         "metadata": {
                             "start_date": trip.get("start_date"),
                             "end_date": trip.get("end_date"),
-                            "destination": trip.get("destination"),
+                            "destination": trip_meta.get("destination"),
                         }
                     })
 
