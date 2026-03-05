@@ -338,6 +338,22 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
           console.warn('Failed to cache GPS location for PAM:', e);
         }
 
+        // Enrich cache with city/state via reverse geocode (background, no API key needed)
+        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
+          .then(r => r.json())
+          .then(geo => {
+            try {
+              const cached = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+              localStorage.setItem('lastKnownLocation', JSON.stringify({
+                ...cached,
+                city: geo.city || geo.locality || cached.city,
+                state: geo.principalSubdivision || cached.state,
+                country: geo.countryName || cached.country,
+              }));
+            } catch { /* ignore */ }
+          })
+          .catch(() => { /* reverse geocode optional - ignore failures */ });
+
         try {
           newMap.flyTo({ center: [longitude, latitude], zoom: 13, duration: 1200 });
         } catch (e) {
