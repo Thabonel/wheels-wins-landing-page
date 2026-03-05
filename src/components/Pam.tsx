@@ -1074,6 +1074,23 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                   timestamp: Date.now(),
                 }));
               } catch { /* ignore storage errors */ }
+              // Enrich cache with city/state in background (free, no API key)
+              const _lat = gpsPos.coords.latitude;
+              const _lng = gpsPos.coords.longitude;
+              fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${_lat}&longitude=${_lng}&localityLanguage=en`)
+                .then(r => r.json())
+                .then(geo => {
+                  try {
+                    const cached = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+                    localStorage.setItem('lastKnownLocation', JSON.stringify({
+                      ...cached,
+                      city: geo.city || geo.locality || cached.city,
+                      state: geo.principalSubdivision || cached.state,
+                      country: geo.countryName || cached.country,
+                    }));
+                  } catch { /* ignore */ }
+                })
+                .catch(() => { /* reverse geocode optional - ignore */ });
             }
           }
         } catch { /* permissions API not supported - skip */ }

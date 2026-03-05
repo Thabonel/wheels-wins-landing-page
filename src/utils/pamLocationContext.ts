@@ -186,21 +186,20 @@ function getCachedLocation(): Partial<LocationContext> | null {
     if (!cached) return null;
 
     const data = JSON.parse(cached);
-    if (!data.location) return null;
+    if (!data.lat) return null;
 
-    const { location } = data;
-    const age = Date.now() - data.timestamp;
+    const age = Date.now() - (data.timestamp || 0);
 
     // Use cached location if less than 1 hour old
     if (age < 60 * 60 * 1000) {
       return {
-        latitude: location.lat,
-        longitude: location.lng,
-        city: location.city,
-        region: location.state,
-        country: location.country,
-        accuracy: location.accuracy,
-        timestamp: location.timestamp
+        latitude: data.lat,
+        longitude: data.lng,
+        city: data.city,
+        region: data.state,
+        country: data.country,
+        accuracy: data.accuracy,
+        timestamp: data.timestamp
       };
     }
 
