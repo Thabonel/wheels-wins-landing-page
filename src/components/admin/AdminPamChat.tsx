@@ -39,10 +39,10 @@ const AdminPamChat: React.FC<AdminPamChatProps> = ({
   const pamConnection = usePamConnection();
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !user?.id) return;
+    if (!inputMessage.trim() || !user?.id || isTyping) return;
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       message: inputMessage,
       sender: 'user',
       timestamp: new Date()
@@ -60,9 +60,12 @@ const AdminPamChat: React.FC<AdminPamChatProps> = ({
         input_mode: 'text',
       });
 
-      const responseText = response.response || response.content || response.message || 'I could not process that request.';
+      const responseText = response.error
+        ? (response.message || 'PAM encountered an error. Please try again.')
+        : (response.response || response.content || response.message || 'I could not process that request.');
+
       const pamResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         message: responseText,
         sender: 'pam',
         timestamp: new Date()
@@ -70,7 +73,7 @@ const AdminPamChat: React.FC<AdminPamChatProps> = ({
       setMessages(prev => [...prev, pamResponse]);
     } catch {
       const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         message: 'Sorry, I was unable to connect to PAM right now. Please try again.',
         sender: 'pam',
         timestamp: new Date()
