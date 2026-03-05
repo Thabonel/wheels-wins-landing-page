@@ -2052,7 +2052,12 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         "type": "reload_calendar",
                         "entity_id": event.get("id"),
                         "entity_type": "calendar_event",
-                        "entity_title": event.get("title")
+                        "entity_title": event.get("title"),
+                        "metadata": {
+                            "start_time": event.get("start_time"),
+                            "end_time": event.get("end_time"),
+                            "description": event.get("description"),
+                        }
                     }
                     actions.append(action)
                     # DIAGNOSTIC: Log calendar tool result and extracted UI action
@@ -2066,7 +2071,12 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         "type": "reload_expenses",
                         "entity_id": expense.get("id"),
                         "entity_type": "expense",
-                        "entity_title": expense.get("description")
+                        "entity_title": expense.get("description"),
+                        "metadata": {
+                            "amount": expense.get("amount"),
+                            "category": expense.get("category"),
+                            "date": expense.get("date"),
+                        }
                     })
 
                 # Trip planned
@@ -2076,7 +2086,12 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         "type": "reload_trips",
                         "entity_id": trip.get("id"),
                         "entity_type": "trip",
-                        "entity_title": trip.get("destination")
+                        "entity_title": trip.get("destination"),
+                        "metadata": {
+                            "start_date": trip.get("start_date"),
+                            "end_date": trip.get("end_date"),
+                            "destination": trip.get("destination"),
+                        }
                     })
 
             except Exception as e:
