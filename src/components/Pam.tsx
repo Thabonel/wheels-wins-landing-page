@@ -21,7 +21,6 @@ import { TTSQueueManager } from "@/utils/ttsQueueManager";
 import TTSControls from "@/components/pam/TTSControls";
 import { locationService } from "@/services/locationService";
 import { useLocationTracking } from "@/hooks/useLocationTracking";
-import { pamAgenticService } from "@/services/pamAgenticService";
 import { logger } from '../lib/logger';
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
 import { wakeWordHybridService as wakeWordService } from "@/services/wakeWordHybridService";
@@ -973,17 +972,6 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
     });
     
     return newMessage;
-  };
-
-  // Determine if message needs agentic planning
-  const needsAgenticPlanning = (message: string): boolean => {
-    const planningKeywords = [
-      'plan', 'autonomously', 'complex', 'multi-step', 'analyze',
-      'strategy', 'comprehensive', 'detailed', 'coordinate', 'optimize',
-      'thinking process', 'reasoning', 'tools', 'execute'
-    ];
-    const lowercaseMsg = message.toLowerCase();
-    return planningKeywords.some(keyword => lowercaseMsg.includes(keyword));
   };
 
   const handleSendMessage = async () => {
