@@ -1080,17 +1080,8 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       // Remove thinking indicator and add response
       setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
       const responseContent = pamResponse.content || pamResponse.response || pamResponse.message || "I encountered an issue processing your request.";
-      addMessage(responseContent, "pam", message);
-
-      // Handle calendar events
-      const calendarKeywords = ['calendar', 'appointment', 'event', 'meeting', 'schedule', 'booked', 'added to your calendar', 'created event'];
-      const isCalendarAction = calendarKeywords.some(keyword =>
-        responseContent.toLowerCase().includes(keyword) || message.toLowerCase().includes(keyword)
-      );
-      if (isCalendarAction) {
-        logger.debug('📅 Calendar action detected, dispatching reload event');
-        window.dispatchEvent(new CustomEvent('reload-calendar'));
-      }
+      const actions = pamResponse.ui_actions || [];
+      addMessage(responseContent, "pam", message, false, undefined, actions.length > 0 ? actions : undefined);
 
       // Text-to-speech only in voice conversation mode (not for typed messages)
       // CRITICAL: Skip local TTS if hybrid realtime service is active (it handles TTS via OpenAI)
