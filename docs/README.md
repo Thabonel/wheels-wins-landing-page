@@ -4,6 +4,12 @@
 
 This documentation reflects the current state of the Wheels & Wins codebase as of February 2026.
 
+## New here? Start with this:
+
+**[FREELANCER_ONBOARDING.md](./FREELANCER_ONBOARDING.md)** - Single-doc entry point covering rules, setup, stack, workflow, and what to read first. ~80 min total reading time.
+
+---
+
 ## 📚 Core Documentation
 
 ### Essential Reference Files (Always Read First)
@@ -52,9 +58,9 @@ This documentation reflects the current state of the Wheels & Wins codebase as o
 ## 💡 Quick Start
 
 For development setup and deployment instructions, see:
-- [CLAUDE.md](../CLAUDE.md) - Complete development guidelines
+- [FREELANCER_ONBOARDING.md](./FREELANCER_ONBOARDING.md) - Start here if you're new
+- [CLAUDE.md](../CLAUDE.md) - Complete development guidelines and rules
 - [features/README.md](./features/README.md) - Feature overview
-- [pam-rebuild-2025/PAM_FINAL_PLAN.md](./pam-rebuild-2025/PAM_FINAL_PLAN.md) - PAM implementation plan
 
 ---
 
