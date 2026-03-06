@@ -1407,9 +1407,13 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             _lng = _loc.get("lng") or _loc.get("longitude")
             _city = _loc.get("city", "")
             _region = _loc.get("region", "")
+            _address = _loc.get("address", "")
             _tz = _ctx.get("timezone", "")
             if _lat and _lng:
-                if _city and _region:
+                # Use address if available, otherwise fallback to city/region
+                if _address:
+                    _loc_text = f"[USER LOCATION: {_address} — {float(_lat):.4f}, {float(_lng):.4f}]"
+                elif _city and _region:
                     _loc_text = f"[USER LOCATION: {_city}, {_region} — {float(_lat):.4f}, {float(_lng):.4f}]"
                 elif _city:
                     _loc_text = f"[USER LOCATION: {_city} — {float(_lat):.4f}, {float(_lng):.4f}]"

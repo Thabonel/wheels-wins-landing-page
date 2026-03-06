@@ -27,6 +27,7 @@ import { useLocationTracking } from "@/hooks/useLocationTracking";
 import { logger } from '../lib/logger';
 import { type UIAction } from "@/types/pamTypes";
 import { formatPamMessage, extractTravelSummary } from "@/utils/messageFormatter";
+import { getMapboxPublicToken } from '@/utils/mapboxConfig';
 import { wakeWordHybridService as wakeWordService } from "@/services/wakeWordHybridService";
 
 // Using Backend PersonalizedPamAgent API for proper authentication and tool execution
@@ -1078,20 +1079,72 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               try { return !!(JSON.parse(localStorage.getItem('lastKnownLocation') || '{}')?.city); }
               catch { return false; }
             })();
-            const _geocodePromise = fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${gpsPos.coords.latitude}&longitude=${gpsPos.coords.longitude}&localityLanguage=en`)
-              .then(r => r.json())
-              .then(geo => {
+
+            const _geocodePromise = (async () => {
+              const token = getMapboxPublicToken();
+              if (token) {
                 try {
-                  const cached = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
-                  localStorage.setItem('lastKnownLocation', JSON.stringify({
-                    ...cached,
-                    city: geo.locality || geo.city || cached.city,
-                    state: geo.principalSubdivision || cached.state,
-                    country: geo.countryName || cached.country,
-                  }));
-                } catch { /* ignore */ }
-              })
-              .catch(() => { /* reverse geocode optional - ignore */ });
+                  const reverseResponse = await fetch(
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${gpsPos.coords.longitude},${gpsPos.coords.latitude}.json?access_token=${token}&types=address,place,locality,neighborhood&limit=1`
+                  );
+                  const reverseData = await reverseResponse.json();
+
+                  if (reverseData.features?.[0]) {
+                    const feature = reverseData.features[0];
+                    const context = feature.context || [];
+
+                    // Extract location components from context
+                    const locality = context.find(c => c.id.startsWith('locality.'))?.text;
+                    const neighborhood = context.find(c => c.id.startsWith('neighborhood.'))?.text;
+                    const region = context.find(c => c.id.startsWith('region.'))?.text;
+                    const country = context.find(c => c.id.startsWith('country.'))?.text;
+
+                    try {
+                      const cached = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+                      localStorage.setItem('lastKnownLocation', JSON.stringify({
+                        ...cached,
+                        city: locality || neighborhood || cached.city,
+                        state: region || cached.state,
+                        country: country || cached.country,
+                        address: feature.place_name || cached.address,
+                      }));
+                    } catch { /* ignore */ }
+                  }
+                } catch (error) {
+                  console.warn('Mapbox reverse geocode failed:', error);
+                  // BigDataCloud fallback
+                  try {
+                    const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${gpsPos.coords.latitude}&longitude=${gpsPos.coords.longitude}&localityLanguage=en`);
+                    const geo = await response.json();
+                    try {
+                      const cached = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+                      localStorage.setItem('lastKnownLocation', JSON.stringify({
+                        ...cached,
+                        city: geo.locality || geo.city || cached.city,
+                        state: geo.principalSubdivision || cached.state,
+                        country: geo.countryName || cached.country,
+                      }));
+                    } catch { /* ignore */ }
+                  } catch { /* reverse geocode optional - ignore */ }
+                }
+              } else {
+                // BigDataCloud fallback when no Mapbox token
+                try {
+                  const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${gpsPos.coords.latitude}&longitude=${gpsPos.coords.longitude}&localityLanguage=en`);
+                  const geo = await response.json();
+                  try {
+                    const cached = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+                    localStorage.setItem('lastKnownLocation', JSON.stringify({
+                      ...cached,
+                      city: geo.locality || geo.city || cached.city,
+                      state: geo.principalSubdivision || cached.state,
+                      country: geo.countryName || cached.country,
+                    }));
+                  } catch { /* ignore */ }
+                } catch { /* reverse geocode optional - ignore */ }
+              }
+            })();
+
             if (!_hasCachedCity) {
               await _geocodePromise;
             }
@@ -1124,6 +1177,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             lng: locationObj.longitude,
             city: cachedLoc?.city ?? userContext?.city,        // fix: was cachedLoc?.location?.city
             region: cachedLoc?.state ?? userContext?.region,   // fix: was cachedLoc?.location?.state
+            address: cachedLoc?.address
           }
         : cachedLoc?.lat
         ? {
@@ -1131,6 +1185,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
             lng: cachedLoc.lng,
             city: cachedLoc?.city ?? userContext?.city,
             region: cachedLoc?.state ?? userContext?.region,
+            address: cachedLoc?.address
           }
         : undefined;
 
