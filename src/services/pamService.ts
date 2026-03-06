@@ -321,12 +321,13 @@ class PamService {
           this.currentToken = data.session.access_token;
           this.tokenExpiresAt = data.session.expires_at || null;
 
-          // Reconnect with new token
+          // Reconnect with new token - capture userId before disconnect() nullifies it
           if (this.currentUserId) {
+            const userId = this.currentUserId;
             logger.info('🔄 Reconnecting with refreshed token');
             await this.disconnect();
             await this.connect(
-              this.currentUserId,
+              userId,
               data.session.access_token,
               data.session.expires_at
             );
