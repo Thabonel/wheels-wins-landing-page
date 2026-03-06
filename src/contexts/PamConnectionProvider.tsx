@@ -28,7 +28,7 @@ export function PamConnectionProvider({ children }: { children: React.ReactNode 
     if (!user?.id || !session?.access_token) return false;
     const expiresAt = session.expires_at ?? undefined;
     return pamService.connect(user.id, session.access_token, expiresAt);
-  }, [user?.id, session?.access_token, session?.expires_at]);
+  }, [user?.id, session]);
 
   const disconnect = useCallback(() => {
     pamService.disconnect();
@@ -42,7 +42,7 @@ export function PamConnectionProvider({ children }: { children: React.ReactNode 
     return () => {
       pamService.disconnect();
     };
-  }, [user?.id, session?.access_token]);
+  }, [user?.id]);
 
   const sendMessage = useCallback(
     async (message: string, context?: PamApiMessage["context"]) => {
