@@ -23,7 +23,7 @@ Wheels & Wins is a comprehensive travel planning and RV community platform that 
 ### 🤖 **PAM AI Assistant**
 - **Voice-Enabled Chat**: Natural conversation with TTS/STT capabilities
 - **Contextual Intelligence**: Trip-aware recommendations and proactive suggestions
-- **Multi-Engine TTS**: Edge TTS, Coqui TTS, and system TTS fallbacks
+- **Multi-Engine TTS**: Edge TTS (primary), ElevenLabs, pyttsx3, and gtts fallbacks
 - **Smart Suggestions**: Campgrounds, attractions, route optimization, and cost estimates
 
 ### 💰 **Financial Management**
@@ -61,10 +61,11 @@ Wheels & Wins is a comprehensive travel planning and RV community platform that 
 - **Celery** - Background task processing
 
 ### AI & Voice
-- **OpenAI GPT** - PAM conversation intelligence
-- **Edge TTS** - Microsoft's cloud text-to-speech
+- **Claude Sonnet 4.5** - Primary PAM conversation intelligence
+- **GPT-5.1 Instant** - Fallback AI model for simpler queries
+- **Edge TTS** - Microsoft's cloud text-to-speech (primary)
 - **Web Speech API** - Browser-native speech recognition
-- **Multiple TTS Engines** - Fallback chain for reliability
+- **Multiple TTS Engines** - ElevenLabs, pyttsx3, gtts fallback chain
 
 ### Infrastructure
 - **Netlify** - Frontend hosting with automatic deployments
@@ -109,7 +110,7 @@ VITE_MAPBOX_TOKEN=your_mapbox_token
 # Backend environment variables in backend/.env:
 DATABASE_URL=your_postgresql_url
 REDIS_URL=your_redis_url
-OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_anthropic_key
 ```
 
 ### 3. Start Development Servers
@@ -212,8 +213,11 @@ npm run e2e:ci        # End-to-end tests
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# Mapbox Configuration  
+# Mapbox Configuration
 VITE_MAPBOX_TOKEN=pk.your_mapbox_public_token
+
+# AI Services (frontend)
+VITE_GEMINI_API_KEY=your_gemini_api_key
 
 # Optional APIs
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_key
@@ -231,12 +235,16 @@ REDIS_URL=redis://localhost:6379
 SESSION_SECRET=your_session_secret
 
 # AI Services
-OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_key        # PRIMARY - Claude Sonnet 4.5
+GEMINI_API_KEY=your_gemini_api_key          # FALLBACK (legacy)
 
 # TTS Configuration
 TTS_ENABLED=true
 TTS_PRIMARY_ENGINE=edge
 TTS_VOICE_DEFAULT=en-US-AriaNeural
+
+# CORS
+CORS_ALLOWED_ORIGINS=https://wheelsandwins.com,https://wheels-wins-staging.netlify.app,http://localhost:8080
 
 # External APIs
 MAPBOX_SECRET_TOKEN=sk.your_mapbox_secret_token
@@ -303,15 +311,20 @@ docker run -p 10000:10000 wheels-wins-backend
 
 ## 🤝 Contributing
 
-Review the repository conventions in [AGENTS.md](AGENTS.md) before starting new work, and use [CODEX.md](CODEX.md) when operating the Codex CLI.
+Review the repository conventions in [AGENTS.md](AGENTS.md) before starting new work.
 
 ### Development Workflow
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
-3. **Test** your changes: `npm run quality:check:full`
-4. **Commit** with conventional commits: `git commit -m 'feat: add amazing feature'`
-5. **Push** to your branch: `git push origin feature/amazing-feature`
-6. **Create** a Pull Request
+
+**This repo uses a staging-first, owner-approved deployment process. Never push directly to `main`.**
+
+1. **Create** a feature branch off `staging`: `git checkout -b feature/amazing-feature`
+2. **Test** your changes: `npm run quality:check:full`
+3. **Commit** with conventional commits: `git commit -m 'feat: add amazing feature'`
+4. **Open a PR** into the `staging` branch
+5. **Owner tests** on [wheels-wins-staging.netlify.app](https://wheels-wins-staging.netlify.app)
+6. After owner approval, the staging branch is merged into `main` (production)
+
+See [docs/FREELANCER_ONBOARDING.md](docs/FREELANCER_ONBOARDING.md) for the full branching and deployment rules.
 
 ### Code Standards
 - **TypeScript**: Strict mode with comprehensive typing
@@ -343,4 +356,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ for the RV and travel community**# Cache bust Mon  4 Aug 2025 21:13:18 AEST
+**Built with love for the RV and travel community**
