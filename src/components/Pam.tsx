@@ -1074,10 +1074,16 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                   timestamp: Date.now(),
                 }));
               } catch { /* ignore storage errors */ }
-              // Enrich cache with city/state in background (free, no API key)
+              // Enrich cache with city/state via reverse geocode.
+              // Await it when no city is cached yet so this message gets city data.
+              // When city already cached, fire in background to refresh without blocking.
               const _lat = gpsPos.coords.latitude;
               const _lng = gpsPos.coords.longitude;
-              fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${_lat}&longitude=${_lng}&localityLanguage=en`)
+              const _hasCachedCity = (() => {
+                try { return !!(JSON.parse(localStorage.getItem('lastKnownLocation') || '{}')?.city); }
+                catch { return false; }
+              })();
+              const _geocodePromise = fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${_lat}&longitude=${_lng}&localityLanguage=en`)
                 .then(r => r.json())
                 .then(geo => {
                   try {
@@ -1091,6 +1097,9 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                   } catch { /* ignore */ }
                 })
                 .catch(() => { /* reverse geocode optional - ignore */ });
+              if (!_hasCachedCity) {
+                await _geocodePromise;
+              }
             }
           }
         } catch { /* permissions API not supported - skip */ }
