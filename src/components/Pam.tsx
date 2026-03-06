@@ -1048,62 +1048,56 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       }
 
       // Silent GPS fetch for every message when permission is already granted.
-      // Browser returns cached GPS instantly (maximumAge: 60s) with no modal.
-      // This makes PAM location-aware for ALL messages, not just keyword queries.
-      if (!locationObj) {
-        try {
-          const perm = await navigator.permissions?.query({ name: 'geolocation' as PermissionName });
-          if (perm?.state === 'granted') {
-            const gpsPos = await new Promise<GeolocationPosition | null>((resolve) => {
-              navigator.geolocation.getCurrentPosition(
-                resolve,
-                () => resolve(null),
-                { timeout: 3000, maximumAge: 60000 }
-              );
-            });
-            if (gpsPos) {
-              locationObj = { latitude: gpsPos.coords.latitude, longitude: gpsPos.coords.longitude };
-              // Update cache so subsequent reads have fresh coords
-              try {
-                const existing = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
-                localStorage.setItem('lastKnownLocation', JSON.stringify({
-                  ...existing,
-                  lat: gpsPos.coords.latitude,
-                  lng: gpsPos.coords.longitude,
-                  accuracy: gpsPos.coords.accuracy,
-                  timestamp: Date.now(),
-                }));
-              } catch { /* ignore storage errors */ }
-              // Enrich cache with city/state via reverse geocode.
-              // Await it when no city is cached yet so this message gets city data.
-              // When city already cached, fire in background to refresh without blocking.
-              const _lat = gpsPos.coords.latitude;
-              const _lng = gpsPos.coords.longitude;
-              const _hasCachedCity = (() => {
-                try { return !!(JSON.parse(localStorage.getItem('lastKnownLocation') || '{}')?.city); }
-                catch { return false; }
-              })();
-              const _geocodePromise = fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${_lat}&longitude=${_lng}&localityLanguage=en`)
-                .then(r => r.json())
-                .then(geo => {
-                  try {
-                    const cached = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
-                    localStorage.setItem('lastKnownLocation', JSON.stringify({
-                      ...cached,
-                      city: geo.city || geo.locality || cached.city,
-                      state: geo.principalSubdivision || cached.state,
-                      country: geo.countryName || cached.country,
-                    }));
-                  } catch { /* ignore */ }
-                })
-                .catch(() => { /* reverse geocode optional - ignore */ });
-              if (!_hasCachedCity) {
-                await _geocodePromise;
-              }
+      // Always run even if locationObj was set from userContext string - device GPS is
+      // more precise and fresh than stored profile coords. maximumAge:60s means instant return.
+      try {
+        const perm = await navigator.permissions?.query({ name: 'geolocation' as PermissionName });
+        if (perm?.state === 'granted') {
+          const gpsPos = await new Promise<GeolocationPosition | null>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              resolve,
+              () => resolve(null),
+              { timeout: 3000, maximumAge: 60000 }
+            );
+          });
+          if (gpsPos) {
+            locationObj = { latitude: gpsPos.coords.latitude, longitude: gpsPos.coords.longitude };
+            try {
+              const existing = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+              localStorage.setItem('lastKnownLocation', JSON.stringify({
+                ...existing,
+                lat: gpsPos.coords.latitude,
+                lng: gpsPos.coords.longitude,
+                accuracy: gpsPos.coords.accuracy,
+                timestamp: Date.now(),
+              }));
+            } catch { /* ignore storage errors */ }
+            // Await reverse geocode only when no city is cached yet - ensures this message
+            // gets city data. When already cached, run in background without blocking.
+            const _hasCachedCity = (() => {
+              try { return !!(JSON.parse(localStorage.getItem('lastKnownLocation') || '{}')?.city); }
+              catch { return false; }
+            })();
+            const _geocodePromise = fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${gpsPos.coords.latitude}&longitude=${gpsPos.coords.longitude}&localityLanguage=en`)
+              .then(r => r.json())
+              .then(geo => {
+                try {
+                  const cached = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+                  localStorage.setItem('lastKnownLocation', JSON.stringify({
+                    ...cached,
+                    city: geo.city || geo.locality || cached.city,
+                    state: geo.principalSubdivision || cached.state,
+                    country: geo.countryName || cached.country,
+                  }));
+                } catch { /* ignore */ }
+              })
+              .catch(() => { /* reverse geocode optional - ignore */ });
+            if (!_hasCachedCity) {
+              await _geocodePromise;
             }
           }
-        } catch { /* permissions API not supported - skip */ }
-      }
+        }
+      } catch { /* permissions API not supported - skip */ }
 
       // Ensure user is authenticated for backend API
       if (!user || !session?.access_token) {
