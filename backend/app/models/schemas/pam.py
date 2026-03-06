@@ -85,9 +85,20 @@ def validate_context_dict(context: Dict[str, Any]) -> Dict[str, Any]:
             value = sanitize_text(value)
         elif isinstance(value, (int, float, bool)):
             pass  # Allow primitive types as-is
-        elif isinstance(value, (list, dict)):
-            # Recursively validate nested structures (limited depth)
-            continue  # Skip complex nested structures for security
+        elif isinstance(value, dict):
+            # Allow one level of nested dict (e.g. user_location: {lat, lng, city, region})
+            nested = {}
+            for nk, nv in value.items():
+                if isinstance(nk, str) and len(nk) <= 100 and re.match(r'^[a-zA-Z0-9_.-]+$', nk):
+                    if isinstance(nv, str):
+                        nested[nk] = sanitize_text(nv[:MAX_CONTEXT_VALUE_LENGTH])
+                    elif isinstance(nv, (int, float, bool)):
+                        nested[nk] = nv
+            if nested:
+                sanitized_context[key] = nested
+            continue
+        elif isinstance(value, list):
+            continue  # Skip lists for security
         else:
             continue  # Skip unknown types
             
