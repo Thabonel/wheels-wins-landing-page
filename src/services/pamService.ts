@@ -321,16 +321,11 @@ class PamService {
           this.currentToken = data.session.access_token;
           this.tokenExpiresAt = data.session.expires_at || null;
 
-          // Reconnect with new token - capture userId before disconnect() nullifies it
-          if (this.currentUserId) {
-            const userId = this.currentUserId;
-            logger.info('🔄 Reconnecting with refreshed token');
-            await this.disconnect();
-            await this.connect(
-              userId,
-              data.session.access_token,
-              data.session.expires_at
-            );
+          // No reconnect needed - WebSocket stays alive with existing connection
+          if (data.session) {
+            logger.info('Token refreshed successfully');
+            this.currentToken = data.session.access_token;
+            this.tokenExpiresAt = data.session.expires_at || null;
           }
 
           // Schedule next refresh
@@ -899,7 +894,10 @@ class PamService {
       try {
         // Close existing connection if any
         if (this.websocket) {
+          this.websocket.onclose = null;
+          this.websocket.onerror = null;
           this.websocket.close();
+          this.websocket = null;
         }
 
         // Get WebSocket endpoints
