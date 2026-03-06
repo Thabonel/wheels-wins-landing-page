@@ -1085,7 +1085,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
                   const cached = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
                   localStorage.setItem('lastKnownLocation', JSON.stringify({
                     ...cached,
-                    city: geo.city || geo.locality || cached.city,
+                    city: geo.locality || geo.city || cached.city,
                     state: geo.principalSubdivision || cached.state,
                     country: geo.countryName || cached.country,
                   }));
