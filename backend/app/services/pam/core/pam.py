@@ -1228,7 +1228,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         "start_date": {"type": "string", "description": "Start date and time in ISO format (YYYY-MM-DDTHH:MM:SS)"},
                         "end_date": {"type": "string", "description": "End date and time in ISO format (optional)"},
                         "description": {"type": "string", "description": "Event description or notes (optional)"},
-                        "event_type": {"type": "string", "description": "Type of event: personal, work, travel, maintenance, etc."},
+                        "event_type": {"type": "string", "enum": ["personal", "reminder", "trip", "booking", "maintenance", "inspection"], "description": "Type of event (default: reminder)"},
                         "all_day": {"type": "boolean", "description": "Whether this is an all-day event"},
                         "location_name": {"type": "string", "description": "Location of the event (optional)"},
                         "reminder_minutes": {"type": "integer", "description": "Minutes before event to send reminder (optional)"}
@@ -1247,7 +1247,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         "start_date": {"type": "string", "description": "New start date and time in ISO format (optional)"},
                         "end_date": {"type": "string", "description": "New end date and time in ISO format (optional)"},
                         "description": {"type": "string", "description": "New event description (optional)"},
-                        "event_type": {"type": "string", "description": "New event type (optional)"},
+                        "event_type": {"type": "string", "enum": ["personal", "reminder", "trip", "booking", "maintenance", "inspection"], "description": "New event type (optional)"},
                         "all_day": {"type": "boolean", "description": "Whether this is an all-day event (optional)"},
                         "location_name": {"type": "string", "description": "New location (optional)"},
                         "reminder_minutes": {"type": "integer", "description": "New reminder time in minutes (optional)"}
@@ -1282,8 +1282,8 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         },
                         "event_type": {
                             "type": "string",
-                            "description": "Filter by event type: reminder, trip, booking, maintenance, inspection, meeting, personal, birthday, holiday (optional)",
-                            "enum": ["reminder", "trip", "booking", "maintenance", "inspection", "meeting", "personal", "birthday", "holiday"]
+                            "description": "Filter by event type: personal, reminder, trip, booking, maintenance, inspection (optional)",
+                            "enum": ["personal", "reminder", "trip", "booking", "maintenance", "inspection"]
                         },
                         "include_past": {
                             "type": "boolean",
