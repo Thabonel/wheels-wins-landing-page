@@ -102,6 +102,8 @@ from app.services.pam.tools.social.create_event import create_event
 from app.services.pam.tools.shop.search_products import search_products
 from app.services.pam.tools.shop.get_product_details import get_product_details
 from app.services.pam.tools.shop.recommend_products import recommend_products
+from app.services.pam.tools.search.web_search import web_search
+
 
 # Import profile tools
 from app.services.pam.tools.profile.update_profile import update_profile
@@ -1343,6 +1345,20 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         "limit": {"type": "integer", "description": "Maximum number of recommendations (default: 10)"}
                     }
                 }
+            },
+            {
+                "name": "web_search",
+                "description": "Search the web for real-time information, prices, deals, or anything else. PREFERRED tool for current Australian fuel/petrol/diesel prices - search for 'diesel prices near [suburb]' or '[fuel type] prices [city] FuelCheck'. Also great for product prices, local services, news, and how-to guides. Always try this tool first for questions about current prices or real-time data.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "The search query"},
+                        "search_type": {"type": "string", "description": "Optional: product, local, news, how-to", "enum": ["product", "local", "news", "how-to"]},
+                        "num_results": {"type": "integer", "description": "Results to return (1-20)", "default": 10},
+                        "location": {"type": "string", "description": "Location context for local searches"}
+                    },
+                    "required": ["query"]
+                }
             }
         ]
 
@@ -1911,6 +1927,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             "search_products": search_products,
             "get_product_details": get_product_details,
             "recommend_products": recommend_products,
+            "web_search": web_search,
             # Medical tools
             "get_medical_records": get_medical_records,
             "search_medical_records": search_medical_records,
