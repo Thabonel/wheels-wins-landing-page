@@ -33,12 +33,13 @@ AVERAGE_TANK_SIZE_LITERS = 95.0
 MINIMUM_SAVINGS_THRESHOLD = 2.0
 
 
-async def _detect_user_region(user_id: str) -> str:
+async def _detect_user_region(user_id: str, location: str = "") -> str:
     """
     Detect user's region from their settings
 
     Args:
         user_id: User's UUID
+        location: Optional location string for fallback detection
 
     Returns:
         Region code (US, CA, AU, UK, NZ, EU)
@@ -73,6 +74,18 @@ async def _detect_user_region(user_id: str) -> str:
                 return "EU"
             else:
                 return "US"
+
+
+        # Fallback: detect region from location string
+        location_lower = location.lower()
+        if any(kw in location_lower for kw in ["australia", "new south wales", "nsw", "victoria", "queensland", "tasmania", "western australia"]):
+            return "AU"
+        elif any(kw in location_lower for kw in ["canada", "ontario", "quebec", "british columbia", "alberta"]):
+            return "CA"
+        elif any(kw in location_lower for kw in ["united kingdom", "england", "scotland", "wales"]):
+            return "UK"
+        elif any(kw in location_lower for kw in ["new zealand", "auckland", "wellington"]):
+            return "NZ"
 
         return "US"
 
@@ -137,7 +150,7 @@ async def find_cheap_gas(
                 context={"validation_errors": e.errors()}
             )
 
-        region = await _detect_user_region(validated.user_id)
+        region = await _detect_user_region(validated.user_id, validated.location)
         fuel_price_data = await get_fuel_price_for_region(region, validated.fuel_type)
 
         base_price = fuel_price_data["price"]
