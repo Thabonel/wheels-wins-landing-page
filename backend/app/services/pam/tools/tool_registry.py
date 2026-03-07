@@ -5444,7 +5444,7 @@ async def _register_all_tools(registry: ToolRegistry):
         def __init__(self):
             super().__init__(
                 "web_search",
-                "Search the web for products, deals, or information worldwide using Google, Bing, or DuckDuckGo. Use for finding anything anywhere in the world.",
+                "Search the web for products, deals, or information worldwide using Google, Bing, or DuckDuckGo. Use for finding anything anywhere in the world. PREFERRED tool for real-time fuel/petrol/diesel prices - search FuelCheck, PetrolSpy, or 7-Eleven Fuel for live Australian station prices with actual cents-per-litre data.",
                 capabilities=[ToolCapability.SHOP]
             )
             try:
