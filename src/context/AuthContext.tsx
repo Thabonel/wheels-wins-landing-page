@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import { recordLogin, endSession } from '@/lib/authLogging';
 import { setUser as setSentryUser, setTag, captureMessage } from '@/lib/sentry';
 import { AuthErrorHandler, AuthError, AuthErrorType } from '@/utils/authErrorHandler';
@@ -12,12 +12,6 @@ interface User {
   full_name?: string;
 }
 
-interface AuthError {
-  type: 'invalid_credentials' | 'network_error' | 'session_expired' | 'email_not_confirmed' | 'rate_limited' | 'unknown';
-  message: string;
-  canRetry: boolean;
-  suggestedAction?: string;
-}
 
 interface AuthContextType {
   user: User | null;
@@ -61,10 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
 
         if (timeUntilExpiry < 300) { // 5 minutes
-          console.log('[AuthContext] Session expiring soon, refreshing...');
-          const success = await refreshSession();
           if (!success) {
-            console.warn('[AuthContext] Session refresh failed, user may need to re-authenticate');
           }
         }
       }
@@ -102,8 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authStateDebounceRef.current = setTimeout(async () => {
         if (!mounted) return;
 
-        console.log('[AuthContext] Processing auth state after debounce:', event);
-
         try {
           if (event === 'SIGNED_IN' && session?.user) {
             // Use setTimeout to defer Supabase calls and prevent deadlocks
@@ -111,7 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               try {
                 await recordLogin(session.user.id, session);
               } catch (error) {
-                console.error('[AuthContext] Error recording login:', error);
               }
             }, 0);
           }
@@ -121,7 +109,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               try {
                 await endSession(session.access_token);
               } catch (error) {
-                console.error('[AuthContext] Error ending session:', error);
               }
             }, 0);
           }
@@ -132,8 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setToken(session?.access_token || null);
           authSessionManager.setSession(session || null);
           
-          console.log('[AuthContext] Session updated:', {
-            hadSession: !!previousSession,
             hasSession: !!session,
             event
           });
@@ -225,61 +210,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Utility function to create user-friendly error messages
+  // Utility function to create user-friendly error messages
   const createAuthError = (error: any): AuthError => {
-    if (!error) return { type: 'unknown', message: 'An unknown error occurred', canRetry: true };
+    if (!error) return {
+      type: AuthErrorType.UNKNOWN,
+      message: 'An unknown error occurred',
+      canRetry: true,
+      suggestedAction: 'retry'
+    };
 
     const errorMessage = error.message?.toLowerCase() || '';
 
     if (errorMessage.includes('invalid login credentials') || errorMessage.includes('invalid email or password')) {
       return {
-        type: 'invalid_credentials',
+        type: AuthErrorType.UNAUTHORIZED,
         message: 'Invalid email or password. Please check your credentials and try again.',
         canRetry: true,
-        suggestedAction: 'Double-check your email and password'
+        suggestedAction: 'login',
+        originalError: error
       };
     }
 
     if (errorMessage.includes('email not confirmed')) {
       return {
-        type: 'email_not_confirmed',
+        type: AuthErrorType.UNAUTHORIZED,
         message: 'Please check your email and click the confirmation link to verify your account.',
         canRetry: false,
-        suggestedAction: 'Check your email for verification link'
+        suggestedAction: 'none',
+        originalError: error
       };
     }
 
     if (errorMessage.includes('too many requests') || errorMessage.includes('rate limit')) {
       return {
-        type: 'rate_limited',
+        type: AuthErrorType.NETWORK_ERROR,
         message: 'Too many login attempts. Please wait a few minutes and try again.',
         canRetry: true,
-        suggestedAction: 'Wait 5-10 minutes before trying again'
+        suggestedAction: 'retry',
+        originalError: error
       };
     }
 
     if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
       return {
-        type: 'network_error',
+        type: AuthErrorType.NETWORK_ERROR,
         message: 'Network connection issue. Please check your internet connection and try again.',
         canRetry: true,
-        suggestedAction: 'Check your internet connection'
+        suggestedAction: 'retry',
+        originalError: error
       };
     }
 
     if (errorMessage.includes('session') || errorMessage.includes('expired')) {
       return {
-        type: 'session_expired',
+        type: AuthErrorType.SESSION_MISSING,
         message: 'Your session has expired. Please log in again.',
         canRetry: false,
-        suggestedAction: 'Log in again'
+        suggestedAction: 'login',
+        originalError: error
       };
     }
 
     return {
-      type: 'unknown',
+      type: AuthErrorType.UNKNOWN,
       message: error.message || 'An unexpected error occurred. Please try again.',
       canRetry: true,
-      suggestedAction: 'Try again or contact support if the problem persists'
+      suggestedAction: 'retry',
+      originalError: error
     };
   };
 
@@ -421,10 +418,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = signOut;
-  // Prevent flash during initial auth load
-  if (loading) {
-    return null; // or a loading spinner component
-  }
 
 
   return (
