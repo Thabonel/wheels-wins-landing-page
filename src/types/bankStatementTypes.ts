@@ -103,8 +103,6 @@ export const validateTransactionArray = (transactions: any[]): BankTransaction[]
   }
   
   if (validTransactions.length > 0) {
-    console.table(validTransactions.slice(0, 3)); // Show first 3 in table format
-  }
   
   return validTransactions;
 };
