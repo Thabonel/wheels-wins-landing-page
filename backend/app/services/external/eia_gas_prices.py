@@ -23,12 +23,14 @@ logger = logging.getLogger(__name__)
 
 # API Configuration
 EIA_API_BASE_URL = "https://api.eia.gov/v2"
-NSW_FUEL_API_BASE_URL = "https://api.nsw.gov.au/v1/FuelPriceCheck"
+NSW_FUEL_API_BASE_URL = "https://api.onegov.nsw.gov.au/FuelPriceCheck/v2"
+NSW_FUEL_TOKEN_URL = "https://api.onegov.nsw.gov.au/oauth/client_credential/accesstoken?grant_type=client_credentials"
 GLOBAL_PETROL_PRICES_URL = "https://www.globalpetrolprices.com/api"
 
 # API Keys (set in environment variables)
 EIA_API_KEY = os.getenv("EIA_API_KEY")  # USA
 NSW_API_KEY = os.getenv("NSW_FUEL_API_KEY")  # Australia
+NSW_API_SECRET = os.getenv("NSW_FUEL_API_SECRET")
 GLOBAL_PETROL_API_KEY = os.getenv("GLOBAL_PETROL_API_KEY")  # Worldwide fallback
 
 # Series IDs for gasoline prices
@@ -42,6 +44,11 @@ EIA_SERIES_IDS = {
 _gas_price_cache: Dict[str, Any] = {}
 _cache_expiry: Optional[datetime] = None
 CACHE_DURATION_HOURS = 24  # Cache prices for 24 hours
+
+# NSW OAuth token cache
+_nsw_oauth_token: Optional[str] = None
+_nsw_token_expiry: Optional[datetime] = None
+NSW_TOKEN_CACHE_HOURS = 11
 
 
 async def get_national_gas_price(fuel_type: str = "regular") -> float:
@@ -116,12 +123,52 @@ async def get_national_gas_price(fuel_type: str = "regular") -> float:
         return _get_fallback_price(fuel_type)
 
 
+async def _get_nsw_oauth_token() -> Optional[str]:
+    """Get OAuth Bearer token for NSW FuelCheck API using client_credentials flow."""
+    global _nsw_oauth_token, _nsw_token_expiry
+
+    if not NSW_API_KEY or not NSW_API_SECRET:
+        logger.warning("NSW_FUEL_API_KEY or NSW_FUEL_API_SECRET not configured")
+        return None
+
+    now = datetime.now()
+    if _nsw_oauth_token and _nsw_token_expiry and now < _nsw_token_expiry:
+        return _nsw_oauth_token
+
+    try:
+        import base64
+        credentials = base64.b64encode(f"{NSW_API_KEY}:{NSW_API_SECRET}".encode()).decode()
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                NSW_FUEL_TOKEN_URL,
+                headers={
+                    "Authorization": f"Basic {credentials}",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                }
+            )
+            response.raise_for_status()
+            token_data = response.json()
+
+        _nsw_oauth_token = token_data.get("access_token")
+        expires_in = int(token_data.get("expires_in", 43200))
+        _nsw_token_expiry = now + timedelta(seconds=min(expires_in, NSW_TOKEN_CACHE_HOURS * 3600))
+
+        logger.info(f"NSW OAuth token obtained, expires in {expires_in}s")
+        return _nsw_oauth_token
+
+    except Exception as e:
+        logger.error(f"Failed to get NSW OAuth token: {e}")
+        _nsw_oauth_token = None
+        _nsw_token_expiry = None
+        return None
+
+
 async def get_australia_fuel_price(fuel_type: str = "regular") -> float:
     """
-    Get current fuel price for Australia (Sydney average)
-
-    Uses NSW Government Fuel API for real-time prices in NSW/Sydney area.
-    Falls back to GlobalPetrolPrices if NSW API unavailable.
+    Get current fuel price for Australia using NSW FuelCheck API.
+    Returns average price across all NSW stations for the fuel type.
+    Falls back to hardcoded estimate if API unavailable.
 
     Args:
         fuel_type: Type of fuel (regular, diesel, premium)
@@ -129,46 +176,68 @@ async def get_australia_fuel_price(fuel_type: str = "regular") -> float:
     Returns:
         Price per liter in AUD
     """
+    global _gas_price_cache, _cache_expiry
+
+    cache_key = f"AU_{fuel_type}"
+
     try:
-        if not NSW_API_KEY:
-            logger.warning("NSW_API_KEY not configured, using fallback")
+        now = datetime.now()
+        if _cache_expiry and now < _cache_expiry and cache_key in _gas_price_cache:
+            cached = _gas_price_cache[cache_key]
+            logger.info(f"Returning cached AU {fuel_type} price: ${cached:.2f}/L")
+            return cached
+
+        token = await _get_nsw_oauth_token()
+        if not token:
             return _get_fallback_price_regional("AU", fuel_type)
 
-        # NSW API returns prices per liter for Sydney metro area
-        # Fuel types: E10, U91, U95, U98, DL, LPG
         fuel_type_map = {
-            "regular": "U91",  # Unleaded 91
-            "premium": "U95",  # Unleaded 95
-            "diesel": "DL"     # Diesel
+            "regular": "U91",
+            "premium": "U95",
+            "diesel": "DL"
         }
+        nsw_fuel_code = fuel_type_map.get(fuel_type, "U91")
 
-        nsw_fuel_type = fuel_type_map.get(fuel_type, "U91")
-
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        import uuid
+        async with httpx.AsyncClient(timeout=15.0) as client:
             headers = {
-                "Authorization": f"Bearer {NSW_API_KEY}",
-                "Accept": "application/json"
+                "Authorization": f"Bearer {token}",
+                "apikey": NSW_API_KEY,
+                "transactionid": str(uuid.uuid4()),
+                "requesttimestamp": datetime.utcnow().strftime("%d/%m/%Y %I:%M:%S %p"),
+                "Accept": "application/json",
+                "Content-Type": "application/json"
             }
             response = await client.get(
-                f"{NSW_FUEL_API_BASE_URL}/price/",
+                f"{NSW_FUEL_API_BASE_URL}/fuel/prices",
                 headers=headers
             )
             response.raise_for_status()
             data = response.json()
 
-        # Extract average price for the fuel type
         if "prices" in data:
-            prices = [p["price"] for p in data["prices"] if p["fueltype"] == nsw_fuel_type]
+            prices = [
+                p["price"] for p in data["prices"]
+                if p.get("fueltype") == nsw_fuel_code and p.get("price")
+            ]
             if prices:
-                avg_price = sum(prices) / len(prices) / 100  # Convert cents to dollars
-                logger.info(f"Fetched Australia {fuel_type} price: ${avg_price:.2f}/L")
+                avg_price = sum(prices) / len(prices) / 100
+                logger.info(
+                    f"NSW FuelCheck: {fuel_type} ({nsw_fuel_code}) "
+                    f"avg ${avg_price:.2f}/L from {len(prices)} stations"
+                )
+                _gas_price_cache[cache_key] = avg_price
+                _cache_expiry = now + timedelta(hours=CACHE_DURATION_HOURS)
                 return avg_price
 
-        logger.warning("NSW API returned no data, using fallback")
+        logger.warning("NSW FuelCheck returned no matching prices, using fallback")
         return _get_fallback_price_regional("AU", fuel_type)
 
+    except httpx.HTTPStatusError as e:
+        logger.error(f"NSW FuelCheck HTTP {e.response.status_code}: {e}")
+        return _get_fallback_price_regional("AU", fuel_type)
     except Exception as e:
-        logger.error(f"Error fetching Australia fuel prices: {e}")
+        logger.error(f"Error fetching NSW fuel prices: {e}", exc_info=True)
         return _get_fallback_price_regional("AU", fuel_type)
 
 
