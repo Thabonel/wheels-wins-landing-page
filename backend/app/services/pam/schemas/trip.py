@@ -10,7 +10,6 @@ from enum import Enum
 from decimal import Decimal
 
 from app.services.pam.schemas.base import BaseToolInput, LocationInput, AmountInput, DateInput
-from app.services.pam.schemas.profile import FuelType
 
 VALID_MONTHS = [
     "january", "february", "march", "april", "may", "june",
@@ -141,7 +140,7 @@ class FindCheapGasInput(BaseToolInput):
 
     location: str = Field(..., min_length=1, max_length=500, description="Location to search near")
     radius_miles: int = Field(25, gt=0, le=100, description="Search radius in miles")
-    fuel_type: FuelType = Field(FuelType.GASOLINE, description="Fuel type")
+    fuel_type: str = Field("regular", description="Fuel type: regular, diesel, or premium")
 
 
 class OptimizeRouteInput(BaseToolInput):
