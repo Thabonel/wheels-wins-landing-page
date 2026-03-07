@@ -49,17 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const refreshInterval = setInterval(async () => {
       if (session && user) {
-        // Check if session expires in the next 5 minutes
         const expiresAt = session.expires_at;
         const now = Math.floor(Date.now() / 1000);
         const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
 
-        if (timeUntilExpiry < 300) { // 5 minutes
-          if (!success) {
-          }
+        if (timeUntilExpiry < 300) {
+          await refreshSession();
         }
       }
-    }, 60000); // Check every minute
+    }, 60000);
 
     return () => clearInterval(refreshInterval);
   }, [session, user]);
@@ -72,14 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription }
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
-
-        event,
-        email: session?.user?.email,
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        timestamp: new Date().toISOString(),
-        lastEvent: lastAuthEventRef.current
-      });
 
       // Debounce rapid auth state changes
       if (authStateDebounceRef.current) {
@@ -114,16 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           // Only synchronous state updates here
-          const previousSession = session;
           setSession(session);
           setToken(session?.access_token || null);
           authSessionManager.setSession(session || null);
-          
-            hasSession: !!session,
-            event
-          });
-        
-        if (session?.user) {
+
+          if (session?.user) {
           const userData = {
             id: session.user.id,
             email: session.user.email || '',
@@ -209,7 +194,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Utility function to create user-friendly error messages
   // Utility function to create user-friendly error messages
   const createAuthError = (error: any): AuthError => {
     if (!error) return {
