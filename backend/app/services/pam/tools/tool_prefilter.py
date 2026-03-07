@@ -268,7 +268,7 @@ class ToolPrefilter:
         user_message: str,
         all_tools: List[Dict],
         context: Optional[Dict] = None,
-        max_tools: int = 15
+        max_tools: int = 16
     ) -> List[Dict]:
         """
         Filter tools based on relevance to reduce token usage
@@ -364,7 +364,7 @@ class ToolPrefilter:
         self.last_filter_stats = self.get_filtering_stats(all_tools, filtered_tools)
 
         # DIAGNOSTIC: Log final result
-        logger.info(f"🔍 PREFILTER: Returning {len(filtered_tools)} tools (increased from 10 to 15 limit)")
+        logger.info(f"🔍 PREFILTER: Returning {len(filtered_tools)} tools (increased from 10 to 16 limit)")
         filtered_tool_names = [t.get('name', t.get('function', {}).get('name', 'UNKNOWN')) for t in filtered_tools]
         logger.info(f"🔍 PREFILTER: Tool names: {filtered_tool_names}")
 
