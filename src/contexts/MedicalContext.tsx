@@ -95,7 +95,6 @@ export const MedicalProvider: React.FC<MedicalProviderProps> = ({ children }) =>
 
         if (is406or404) {
           // Not an error - just no emergency info configured yet
-          console.log('⚠️ No emergency info configured (406/404) - showing empty state');
           setEmergencyInfo(null);
           return;
         }

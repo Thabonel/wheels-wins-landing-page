@@ -53,7 +53,6 @@ export interface ReviewStageProps {
 
 // Validation functions
 export const isValidBankTransaction = (obj: any): obj is BankTransaction => {
-  console.log('🔍 VALIDATING TRANSACTION:', obj);
   
   const checks = {
     isObject: typeof obj === 'object' && obj !== null,
@@ -69,25 +68,19 @@ export const isValidBankTransaction = (obj: any): obj is BankTransaction => {
     hasRedactedFields: Array.isArray(obj.redactedFields)
   };
   
-  console.log('📊 Validation checks:', checks);
   
   const isValid = Object.values(checks).every(check => check === true);
-  console.log(isValid ? '✅ Transaction VALID' : '❌ Transaction INVALID');
   
   if (!isValid) {
     const failedChecks = Object.entries(checks)
       .filter(([key, value]) => !value)
       .map(([key]) => key);
-    console.log('❌ Failed checks:', failedChecks);
   }
   
   return isValid;
 };
 
 export const validateTransactionArray = (transactions: any[]): BankTransaction[] => {
-  console.log('🔍 STARTING TRANSACTION ARRAY VALIDATION');
-  console.log('📊 Input array length:', transactions.length);
-  console.log('📊 Input array:', transactions);
   
   if (!Array.isArray(transactions)) {
     throw new Error('Expected array of transactions');
@@ -97,27 +90,19 @@ export const validateTransactionArray = (transactions: any[]): BankTransaction[]
   const invalidTransactions: any[] = [];
   
   transactions.forEach((transaction, index) => {
-    console.log(`\n🔍 VALIDATING TRANSACTION ${index + 1}/${transactions.length}:`);
     
     if (isValidBankTransaction(transaction)) {
       validTransactions.push(transaction);
-      console.log('✅ Added to valid transactions');
     } else {
       invalidTransactions.push({ index, transaction });
-      console.log('❌ Added to invalid transactions');
     }
   });
   
-  console.log('\n📊 VALIDATION SUMMARY:');
-  console.log('✅ Valid transactions:', validTransactions.length);
-  console.log('❌ Invalid transactions:', invalidTransactions.length);
   
   if (invalidTransactions.length > 0) {
-    console.log('❌ Invalid transaction details:', invalidTransactions);
   }
   
   if (validTransactions.length > 0) {
-    console.log('✅ Sample valid transaction:', validTransactions[0]);
     console.table(validTransactions.slice(0, 3)); // Show first 3 in table format
   }
   
@@ -126,7 +111,6 @@ export const validateTransactionArray = (transactions: any[]): BankTransaction[]
 
 // Type guards for debugging
 export const debugTransactionData = (transaction: any, label: string): void => {
-  console.log(`[DEBUG] ${label}:`, {
     transaction,
     id: typeof transaction?.id,
     date: transaction?.date instanceof Date ? 'Date' : typeof transaction?.date,

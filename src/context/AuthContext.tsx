@@ -82,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      console.log('[AuthContext] Auth state change:', {
         event,
         email: session?.user?.email,
         hasSession: !!session,
@@ -422,6 +421,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = signOut;
+  // Prevent flash during initial auth load
+  if (loading) {
+    return null; // or a loading spinner component
+  }
+
 
   return (
     <AuthContext.Provider

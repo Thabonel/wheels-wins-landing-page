@@ -1071,8 +1071,8 @@ class PamService {
     const coldStartTimer = setTimeout(() => {
       if (!coldStartWarningShown) {
         coldStartWarningShown = true;
-        console.warn('⏰ PAM is taking longer than usual - backend may be waking up from idle (Render cold start)');
-        // Emit event for UI to show "Waking up PAM..." message
+        console.warn('⏰ PAM is taking a moment to respond - hang tight!');
+        // Emit event for UI to show "Getting PAM ready..." message
         this.updateStatus({
           lastError: 'cold_start_detected',
           healthScore: this.status.healthScore

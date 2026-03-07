@@ -84,7 +84,6 @@ export const RegionProvider = ({ children }: { children: React.ReactNode }) => {
             const validRegions: Region[] = ['Australia', 'New Zealand', 'United States', 'Canada', 'United Kingdom', 'Rest of the World'];
             const profileRegion = profile.region as string;
             if (validRegions.includes(profileRegion as Region)) {
-              console.log(`Using profile region: ${profileRegion}`);
               setRegion(profileRegion as Region);
               cacheDetectedRegion(profileRegion as Region);
               setIsDetecting(false);
