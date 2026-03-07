@@ -100,15 +100,15 @@ export const validateTransactionArray = (transactions: any[]): BankTransaction[]
   
   
   if (invalidTransactions.length > 0) {
+    // Could log invalid transactions here if needed
   }
-  
-  if (validTransactions.length > 0) {
   
   return validTransactions;
 };
 
 // Type guards for debugging
 export const debugTransactionData = (transaction: any, label: string): void => {
+  console.log(`[DEBUG] ${label}:`, {
     transaction,
     id: typeof transaction?.id,
     date: transaction?.date instanceof Date ? 'Date' : typeof transaction?.date,
