@@ -10,6 +10,7 @@ from enum import Enum
 from decimal import Decimal
 
 from app.services.pam.schemas.base import BaseToolInput, LocationInput, AmountInput, DateInput
+from app.services.pam.schemas.profile import FuelType
 
 VALID_MONTHS = [
     "january", "february", "march", "april", "may", "june",
@@ -138,19 +139,9 @@ class CalculateGasCostInput(BaseToolInput):
 class FindCheapGasInput(BaseToolInput):
     """Validation for find_cheap_gas tool"""
 
-    latitude: float = Field(..., ge=-90, le=90, description="Latitude")
-    longitude: float = Field(..., ge=-180, le=180, description="Longitude")
-    radius_miles: int = Field(10, gt=0, le=50, description="Search radius (max 50 miles)")
-    fuel_type: str = Field("regular", description="Fuel type (regular, diesel, premium)")
-
-    @validator("fuel_type")
-    def validate_fuel_type(cls, v):
-        """Ensure valid fuel type"""
-        valid_types = ["regular", "diesel", "premium", "e85"]
-        v = v.lower().strip()
-        if v not in valid_types:
-            return "regular"
-        return v
+    location: str = Field(..., min_length=1, max_length=500, description="Location to search near")
+    radius_miles: int = Field(25, gt=0, le=100, description="Search radius in miles")
+    fuel_type: FuelType = Field(FuelType.GASOLINE, description="Fuel type")
 
 
 class OptimizeRouteInput(BaseToolInput):
