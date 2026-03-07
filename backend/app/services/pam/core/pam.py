@@ -744,7 +744,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             },
             {
                 "name": "find_cheap_gas",
-                "description": "Find cheapest gas stations near a location. Use when user wants to find cheap gas.",
+                "description": "Find fuel prices near a location. NOTE: For real-time, accurate fuel prices, PREFER using the web_search tool instead - search for 'cheapest [fuel_type] prices near [location]' on FuelCheck or PetrolSpy. This tool only provides estimates based on regional averages, not real station prices. Only use this tool as a fallback if web_search fails.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
