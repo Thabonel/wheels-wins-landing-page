@@ -187,7 +187,7 @@ class DuckDuckGoSearch(WebSearchEngine):
         self, 
         query: str, 
         num_results: int = 10,
-        region: str = 'us-en'
+        region: str = 'au-en'
     ) -> List[Dict[str, Any]]:
         """Search using DuckDuckGo HTML interface"""
         
@@ -382,7 +382,7 @@ class WebSearchService:
         engines: Optional[List[str]] = None,
         aggregate: bool = True,
         use_cache: bool = True,
-        ttl: int = 3600,
+        ttl: int = 300,
     ) -> Dict[str, Any]:
         """
         Perform web search across multiple engines
@@ -491,7 +491,7 @@ class WebSearchService:
         context: Dict[str, Any],
         num_results: int = 10,
         use_cache: bool = True,
-        ttl: int = 3600,
+        ttl: int = 300,
     ) -> Dict[str, Any]:
         """
         Perform context-aware search
@@ -564,7 +564,7 @@ class WebSearchService:
         search_type: str,
         query: str,
         use_cache: bool = True,
-        ttl: int = 3600,
+        ttl: int = 300,
         **kwargs
     ) -> Dict[str, Any]:
         """
