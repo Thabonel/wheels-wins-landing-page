@@ -62,7 +62,7 @@ serve(async (req) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'gpt-4o-realtime-preview-2024-10-01',
+          model: 'gpt-realtime-1.5',
           voice: 'alloy'
         })
       })
@@ -72,7 +72,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           session_token: session.client_secret.value,
-          model: 'gpt-4o-realtime-preview-2024-10-01'
+          model: 'gpt-realtime-1.5'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

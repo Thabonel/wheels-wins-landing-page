@@ -272,7 +272,7 @@ When users ask you to do something (add expense, plan trip, etc), USE THE TOOLS 
     logger.info('[PAMVoice] Creating Realtime session with GPT-realtime model');
 
     // Create WebSocket connection to OpenAI Realtime API
-    const model = 'gpt-4o-realtime-preview-2024-12-17';
+    const model = 'gpt-realtime-1.5';
     const wsUrl = `wss://api.openai.com/v1/realtime?model=${model}`;
 
     this.realtimeSession = new WebSocket(wsUrl, {

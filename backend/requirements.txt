@@ -16,7 +16,7 @@ opentelemetry-instrumentation-fastapi>=0.41b0
 
 # AI Providers (Hybrid PAM System)
 google-generativeai>=0.8.0  # Legacy AI provider - Gemini Flash
-openai>=1.54.0  # GPT-4o-mini + Realtime API support (gpt-4o-realtime-preview-2024-10-01)
+openai>=1.54.0  # GPT-4o-mini + Realtime API support (gpt-realtime-1.5)
 anthropic>=0.45.0  # Claude Sonnet 4 + PDF document support (>=0.41 required for DocumentBlockParam)
 
 # OCR Service Dependencies

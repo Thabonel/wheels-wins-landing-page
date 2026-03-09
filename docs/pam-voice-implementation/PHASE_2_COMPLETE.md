@@ -2,7 +2,7 @@
 
 **Date**: January 23, 2025
 **Status**: ✅ Implementation Complete - Ready for Testing
-**Model**: gpt-4o-realtime-preview-2024-12-17 (OpenAI Realtime API)
+**Model**: gpt-realtime-1.5 (OpenAI Realtime API)
 
 ---
 
@@ -68,7 +68,7 @@ class AudioPlayer {
 
 ### 2. WebSocket Connection to OpenAI Realtime API
 
-**Endpoint**: `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`
+**Endpoint**: `wss://api.openai.com/v1/realtime?model=gpt-realtime-1.5`
 
 **Authentication**: Bearer token in WebSocket headers
 ```typescript

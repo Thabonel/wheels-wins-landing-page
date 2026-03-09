@@ -399,7 +399,7 @@ class VoiceModelConfig:
     - Browser Web Speech API only used for wake word detection
 
     What CAN be configured:
-    - Model ID (changes monthly, e.g., gpt-4o-realtime-preview-2024-12-17)
+    - Model ID (upgraded to gpt-realtime-1.5 with improved instruction following and tool calling)
     - Voice preference (alloy, echo, fable, onyx, nova, shimmer, marin, cedar)
     """
     name: str
@@ -413,23 +413,23 @@ class VoiceModelConfig:
 
 # Voice model registry - OpenAI Realtime API configurations
 VOICE_MODEL_REGISTRY: Dict[str, VoiceModelConfig] = {
-    "gpt-4o-realtime-2024-12": VoiceModelConfig(
-        name="GPT-4o Realtime (Dec 2024)",
+    "gpt-realtime-1.5": VoiceModelConfig(
+        name="GPT Realtime 1.5",
         provider="openai",
-        model_id="gpt-4o-realtime-preview-2024-12-17",
+        model_id="gpt-realtime-1.5",
         voices=["alloy", "echo", "fable", "onyx", "nova", "shimmer", "marin", "cedar"],
         cost_per_minute=0.24,
-        description="OpenAI Realtime API - speech-to-speech with function calling",
-        version_note="⚠️ Current production model (Dec 2024)"
+        description="OpenAI Realtime API - speech-to-speech with improved instruction following and tool calling",
+        version_note="✅ Latest stable model (March 2026) - improved multilingual accuracy"
     ),
-    "gpt-4o-realtime-latest": VoiceModelConfig(
-        name="GPT-4o Realtime (Latest)",
+    "gpt-realtime-latest": VoiceModelConfig(
+        name="GPT Realtime (Latest)",
         provider="openai",
-        model_id=os.getenv("OPENAI_REALTIME_MODEL", "gpt-4o-realtime-preview-2024-12-17"),
+        model_id=os.getenv("OPENAI_REALTIME_MODEL", "gpt-realtime-1.5"),
         voices=["alloy", "echo", "fable", "onyx", "nova", "shimmer", "marin", "cedar"],
         cost_per_minute=0.24,
         description="OpenAI Realtime API - uses OPENAI_REALTIME_MODEL env var",
-        version_note="⚠️ Model ID changes monthly! Set via OPENAI_REALTIME_MODEL env var"
+        version_note="✅ Default to gpt-realtime-1.5, override via OPENAI_REALTIME_MODEL env var"
     ),
 }
 
@@ -457,7 +457,7 @@ class VoiceModelConfigManager:
         if not self.enabled:
             logger.info("Voice model config disabled (ENABLE_VOICE_MODEL_CONFIG=false)")
             # Set defaults even when disabled
-            self.model_id = "gpt-4o-realtime-preview-2024-12-17"
+            self.model_id = "gpt-realtime-1.5"
             self.voice = "marin"
             return
 
@@ -473,7 +473,7 @@ class VoiceModelConfigManager:
             self.model_id = config.model_id
         else:
             # Fallback to default
-            self.model_id = os.getenv("OPENAI_REALTIME_MODEL", "gpt-4o-realtime-preview-2024-12-17")
+            self.model_id = os.getenv("OPENAI_REALTIME_MODEL", "gpt-realtime-1.5")
 
         # Voice preference (alloy, echo, fable, onyx, nova, shimmer, marin, cedar)
         self.voice = os.getenv("OPENAI_VOICE", "marin")
@@ -484,7 +484,7 @@ class VoiceModelConfigManager:
         """Get OpenAI Realtime API model configuration"""
         if not self.enabled:
             # Return default config when disabled
-            return VOICE_MODEL_REGISTRY["gpt-4o-realtime-2024-12"]
+            return VOICE_MODEL_REGISTRY["gpt-realtime-1.5"]
 
         # Find config matching current model_id
         for config in VOICE_MODEL_REGISTRY.values():
@@ -492,7 +492,7 @@ class VoiceModelConfigManager:
                 return config
 
         # Fallback to latest
-        return VOICE_MODEL_REGISTRY["gpt-4o-realtime-latest"]
+        return VOICE_MODEL_REGISTRY["gpt-realtime-latest"]
 
     def get_model_id(self) -> str:
         """Get current OpenAI Realtime model ID"""

@@ -123,7 +123,7 @@ async def create_hybrid_voice_session(
                         "Content-Type": "application/json"
                     },
                     json={
-                        "model": "gpt-4o-realtime-preview",
+                        "model": "gpt-realtime-1.5",
                         "voice": request.voice,
                         "modalities": ["text", "audio"],
                         "instructions": _get_chat_supervisor_instructions(
@@ -220,7 +220,7 @@ async def create_hybrid_voice_session(
             session_token=session_token,
             expires_at=expires_at,
             ws_url="wss://api.openai.com/v1/realtime",
-            model="gpt-4o-realtime-preview",
+            model="gpt-realtime-1.5",
             voice=request.voice
         )
 
