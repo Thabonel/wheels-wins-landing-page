@@ -94,11 +94,6 @@ const PamSpotlight = () => {
                   muted
                   playsInline
                   preload="metadata"
-                  onError={(e) => {
-                    console.log('Video load error, attempting reload');
-                    const video = e.target as HTMLVideoElement;
-                    video.src = `/images/Pam.mp4?v=${Date.now()}`;
-                  }}
                   className="w-full h-auto object-cover aspect-square"
                 />
                 {/* Subtle gradient overlay */}
