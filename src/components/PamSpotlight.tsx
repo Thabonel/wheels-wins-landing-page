@@ -1,9 +1,15 @@
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 import { motion, useInView } from "framer-motion";
+import ProfessionalVideo, { VideoState } from "./ui/ProfessionalVideo";
 
 const PamSpotlight = () => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { once: true, amount: 0.2 });
+
+  // Handle video state changes
+  const handleVideoStateChange = useCallback((state: VideoState) => {
+    console.log(`Pam video state: ${state}`);
+  }, []);
 
   const features = [
     "Route Planning",
@@ -87,14 +93,26 @@ const PamSpotlight = () => {
 
               {/* Video container with organic border */}
               <div className="relative rounded-[2rem] overflow-hidden shadow-warm-lg border-4 border-card">
-                <video
-                  src="/images/Pam.mp4?v=20260311"
+                <ProfessionalVideo
+                  sources={[
+                    { src: "/images/Pam.webm?v=20260311", type: "video/webm" },
+                    { src: "/images/Pam.mp4?v=20260311", type: "video/mp4" }
+                  ]}
+                  poster="/images/Pam-poster.jpg"
+                  responsivePosters={[
+                    { src: "/images/Pam-poster.webp", type: "image/webp" },
+                    { src: "/images/Pam-poster-400w.webp", type: "image/webp", media: "(max-width: 640px)" },
+                    { src: "/images/Pam-poster-400w.jpg", type: "image/jpeg", media: "(max-width: 640px)" },
+                    { src: "/images/Pam-poster.jpg", type: "image/jpeg" }
+                  ]}
                   autoPlay
                   loop
                   muted
                   playsInline
-                  preload="metadata"
-                  className="w-full h-auto object-cover aspect-square"
+                  className="aspect-square"
+                  onStateChange={handleVideoStateChange}
+                  fallbackPoster="/images/Pam-poster.jpg"
+                  enableRuntimePosterGeneration={true}
                 />
                 {/* Subtle gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent pointer-events-none" />
