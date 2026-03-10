@@ -88,11 +88,17 @@ const PamSpotlight = () => {
               {/* Video container with organic border */}
               <div className="relative rounded-[2rem] overflow-hidden shadow-warm-lg border-4 border-card">
                 <video
-                  src="/images/Pam.mp4"
+                  src="/images/Pam.mp4?v=20260311"
                   autoPlay
                   loop
                   muted
                   playsInline
+                  preload="metadata"
+                  onError={(e) => {
+                    console.log('Video load error, attempting reload');
+                    const video = e.target as HTMLVideoElement;
+                    video.src = `/images/Pam.mp4?v=${Date.now()}`;
+                  }}
                   className="w-full h-auto object-cover aspect-square"
                 />
                 {/* Subtle gradient overlay */}
