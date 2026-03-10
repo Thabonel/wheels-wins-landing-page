@@ -108,7 +108,13 @@ const ProfessionalVideo = ({
 
   const handleError = useCallback((error: React.SyntheticEvent<HTMLVideoElement>) => {
     console.error('Video error:', error);
-    updateState('error');
+
+    // Give browser time to try fallback sources before declaring error
+    // Browser handles source fallback automatically, so this should only fire
+    // after all sources have been attempted
+    setTimeout(() => {
+      updateState('error');
+    }, 100);
   }, [updateState]);
 
   const handlePause = useCallback(() => {
@@ -132,6 +138,10 @@ const ProfessionalVideo = ({
   // Determine which poster to show
   const currentPoster = poster || runtimePoster || fallbackPoster;
   const showPoster = !showVideo && state !== 'playing';
+
+  // Only show error overlay when no poster fallback is available
+  const hasAnyPoster = currentPoster || (responsivePosters && responsivePosters.length > 0);
+  const showErrorOverlay = state === 'error' && !hasAnyPoster;
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
@@ -220,8 +230,8 @@ const ProfessionalVideo = ({
         </div>
       )}
 
-      {/* Error state */}
-      {state === 'error' && (
+      {/* Error state - only show when no poster fallback is available */}
+      {showErrorOverlay && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
           <div className="text-center text-muted-foreground">
             <div className="text-2xl mb-2">⚠️</div>
