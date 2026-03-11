@@ -294,37 +294,69 @@ export const handleEventSubmit = async (
     };
 
     if (eventToUpdate.id) {
-      // Update existing database record
-      const client = getSupabaseClient();
-      const { error } = await client
-        .from("calendar_events")
-        .update(payload)
-        .eq("id", eventToUpdate.id)
-        .eq("user_id", user.id);
+      // Update existing database record using retry logic
+      try {
+        await executeWithRetry(async () => {
+          const client = getSupabaseClient();
+          const response = await client
+            .from("calendar_events")
+            .update(payload)
+            .eq("id", eventToUpdate.id)
+            .eq("user_id", user.id);
 
-      if (error) {
-        console.error("Database update error:", error);
-        toast.error("Failed to save event changes.");
-      } else {
+          const result = handleSupabaseResponse(response, 'Calendar Event Update', true);
+
+          if (!result.success && result.shouldRetry) {
+            throw new Error('Retryable error occurred');
+          }
+
+          if (!result.success) {
+            throw new Error(`Update failed: ${response.error?.message}`);
+          }
+
+          return result;
+        }, 'Update Calendar Event', 2);
+
+        // If we get here, the operation succeeded
+        console.log('✅ Event updated successfully');
         toast.success("Event changes saved.");
         // Reload events from database to ensure consistency
         if (reloadEvents) await reloadEvents();
+      } catch (error) {
+        console.error('❌ Failed to update event after retries:', error);
+        toast.error("Failed to save event changes.");
       }
     } else {
-      // This is a local-only event, create it in the database
-      const client = getSupabaseClient();
-      const { data: dbNewEvent, error } = await client
-        .from("calendar_events")
-        .insert([{ ...payload, user_id: user.id }])
-        .select()
-        .single();
+      // This is a local-only event, create it in the database using retry logic
+      try {
+        await executeWithRetry(async () => {
+          const client = getSupabaseClient();
+          const response = await client
+            .from("calendar_events")
+            .insert([{ ...payload, user_id: user.id }])
+            .select()
+            .single();
 
-      if (error) {
-        console.error("Database insert error:", error);
-        toast.error("Failed to save event.");
-      } else {
+          const result = handleSupabaseResponse(response, 'Calendar Event Insert', true);
+
+          if (!result.success && result.shouldRetry) {
+            throw new Error('Retryable error occurred');
+          }
+
+          if (!result.success) {
+            throw new Error(`Insert failed: ${response.error?.message}`);
+          }
+
+          return result;
+        }, 'Insert Calendar Event', 2);
+
+        // If we get here, the operation succeeded
+        console.log('✅ Local event saved to database successfully');
         toast.success("Event saved.");
         if (reloadEvents) await reloadEvents();
+      } catch (error) {
+        console.error('❌ Failed to save local event to database after retries:', error);
+        toast.error("Failed to save event.");
       }
     }
   } else {
@@ -376,27 +408,45 @@ export const handleEventSubmit = async (
       user_id: user.id,
     };
 
-    const client = getSupabaseClient();
-    const { data: insertedEvent, error } = await client
-      .from("calendar_events")
-      .insert([payload])
-      .select()
-      .single();
+    // Use retry logic for the insert operation
+    try {
+      const result = await executeWithRetry(async () => {
+        const client = getSupabaseClient();
+        const response = await client
+          .from("calendar_events")
+          .insert([payload])
+          .select()
+          .single();
 
-    if (error) {
-      console.error("Database insert error:", error);
-      toast.error(`Failed to save event: ${error.message}`);
-      // Remove the temporary event on failure
-      setEvents((prev) => prev.filter(e => e.id !== tempId));
-    } else {
+        const handledResult = handleSupabaseResponse(response, 'Calendar Event Create', true);
+
+        if (!handledResult.success && handledResult.shouldRetry) {
+          throw new Error('Retryable error occurred');
+        }
+
+        if (!handledResult.success) {
+          throw new Error(`Create failed: ${response.error?.message}`);
+        }
+
+        return response.data;
+      }, 'Create Calendar Event', 2);
+
+      // If we get here, the operation succeeded
+      console.log('✅ Event created successfully');
       toast.success("Event saved successfully!");
+
       // Replace temporary event with the saved one from database
-      const savedEvent = convertDbEventToLocal(insertedEvent);
+      const savedEvent = convertDbEventToLocal(result);
       setEvents((prev) => {
         const filteredEvents = prev.filter(e => e.id !== tempId);
         return [...filteredEvents, savedEvent];
       });
       if (reloadEvents) await reloadEvents();
+    } catch (error) {
+      console.error('❌ Failed to create event after retries:', error);
+      toast.error(`Failed to save event: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Remove the temporary event on failure
+      setEvents((prev) => prev.filter(e => e.id !== tempId));
     }
   }
 
