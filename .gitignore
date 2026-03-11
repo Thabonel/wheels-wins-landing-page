@@ -137,6 +137,37 @@ e2e/reports/*.json
 # Beads Issue Tracker (local only)
 .beads/*.db
 .beads/*.db-journal
+
+# Temporary files and test artifacts
+*.tmp
+temp_*.ts
+temp_*.txt
+*_PROMPT.md
+*_FIX_*.md
+*_TESTING_GUIDE.md
+CALENDAR_AUTH_*.md
+PAM_ARCHITECTURE_*.md
+PAM_LOCATION_*.md
+PAM_RECONNECTION_*.md
+PWA_AUTH_*.md
+
+# Test directories and files
+tests/pam/
+pam-mcp-connector/
+test-pam-mcp.js
+pam-mcp-server.js
+scripts/add_camping_knowledge.py
+scripts/debug_receipt_api.py
+scripts/test_receipt_with_auth.js
+
+# Generated images and assets (keep in repo but ignore in searches)
+gear-page-full.png
+
+# Additional MCP and Playwright artifacts
+.playwright-mcp/
+backend/app/api/v1/pam_mcp.py
+backend/app/models/schemas/mcp.py
+backend/app/services/pam/mcp/
 .beads/*.db-wal
 .beads/*.db-shm
 .beads/*.jsonl
