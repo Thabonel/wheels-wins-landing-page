@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Calendar, 
-  Share, 
+import {
+  Calendar,
+  Share,
   MapPin,
-  Clock
+  Clock,
+  Camera,
+  Upload,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +21,8 @@ interface PastTrip {
   duration: number;
   thumbnail: string;
   highlights: string[];
+  description?: string;
+  uploadedPhoto?: string;
 }
 
 interface PastTripsSectionProps {
@@ -27,6 +32,8 @@ interface PastTripsSectionProps {
 export default function PastTripsSection({ className }: PastTripsSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [tripPhotos, setTripPhotos] = useState<Record<string, string>>({});
+  const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
   
   // Mock past trips data - in real app this would come from database
   const mockPastTrips: PastTrip[] = [
@@ -37,16 +44,18 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
       destinations: ['Sydney', 'Melbourne', 'Adelaide', 'Perth'],
       duration: 14,
       thumbnail: '/placeholder.svg',
-      highlights: ['Great Ocean Road', 'Nullarbor Plain', 'Uluru']
+      highlights: ['Great Ocean Road', 'Nullarbor Plain', 'Uluru'],
+      description: 'Epic 14-day journey across Australia from the bustling harbor city of Sydney to the pristine beaches of Perth. Witnessed stunning coastal drives, vast desert landscapes, and iconic landmarks including the majestic Uluru at sunset.'
     },
     {
-      id: '2', 
+      id: '2',
       name: 'Queensland Explorer',
       dates: { start: '2024-06-10', end: '2024-06-17' },
       destinations: ['Brisbane', 'Gold Coast', 'Cairns'],
       duration: 7,
       thumbnail: '/placeholder.svg',
-      highlights: ['Great Barrier Reef', 'Daintree Rainforest']
+      highlights: ['Great Barrier Reef', 'Daintree Rainforest'],
+      description: 'Tropical paradise adventure through Queensland\'s most beautiful destinations. Snorkeled in the crystal-clear waters of the Great Barrier Reef and explored the ancient Daintree Rainforest with its incredible biodiversity.'
     }
   ];
 
@@ -58,7 +67,7 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
         text: `Just completed an amazing ${trip.duration}-day journey through ${trip.destinations.join(', ')}. Highlights included ${trip.highlights.join(', ')}.`,
         url: `${window.location.origin}/trip/${trip.id}`
       };
-      
+
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
@@ -70,6 +79,39 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePhotoUpload = async (tripId: string, file: File) => {
+    setUploadingPhoto(tripId);
+    try {
+      // Create a data URL for immediate preview
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      // Update the tripPhotos state
+      setTripPhotos(prev => ({
+        ...prev,
+        [tripId]: dataUrl
+      }));
+
+      // In a real app, you would upload to your backend/storage here
+      // await uploadTripPhoto(tripId, file);
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+    } finally {
+      setUploadingPhoto(null);
+    }
+  };
+
+  const handleRemovePhoto = (tripId: string) => {
+    setTripPhotos(prev => {
+      const updated = { ...prev };
+      delete updated[tripId];
+      return updated;
+    });
   };
 
   return (
@@ -105,11 +147,61 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
               {mockPastTrips.map((trip) => (
                 <Card key={trip.id} className="overflow-hidden border-muted">
                   <div className="aspect-video bg-muted relative">
-                    <img 
-                      src={trip.thumbnail} 
-                      alt={trip.name}
-                      className="w-full h-full object-cover"
-                    />
+                    {tripPhotos[trip.id] ? (
+                      // Show uploaded photo
+                      <>
+                        <img
+                          src={tripPhotos[trip.id]}
+                          alt={trip.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          onClick={() => handleRemovePhoto(trip.id)}
+                          className="absolute top-2 left-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                          title="Remove photo"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </>
+                    ) : (
+                      // Show description with upload button
+                      <div className="w-full h-full flex flex-col justify-center items-center p-4 bg-gradient-to-br from-muted to-muted/80">
+                        <p className="text-sm text-center text-muted-foreground mb-4 line-clamp-4">
+                          {trip.description}
+                        </p>
+                        <div className="flex flex-col items-center gap-2">
+                          <label
+                            htmlFor={`photo-upload-${trip.id}`}
+                            className={cn(
+                              "flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg cursor-pointer hover:bg-primary/90 transition-colors",
+                              uploadingPhoto === trip.id && "opacity-50 cursor-not-allowed"
+                            )}
+                          >
+                            {uploadingPhoto === trip.id ? (
+                              <Upload className="w-4 h-4 animate-pulse" />
+                            ) : (
+                              <Camera className="w-4 h-4" />
+                            )}
+                            <span className="text-sm font-medium">
+                              {uploadingPhoto === trip.id ? 'Uploading...' : 'Add your photo'}
+                            </span>
+                          </label>
+                          <input
+                            id={`photo-upload-${trip.id}`}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingPhoto === trip.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                handlePhotoUpload(trip.id, file);
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     <div className="absolute top-2 right-2">
                       <Badge variant="secondary" className="text-xs">
                         <Clock className="w-3 h-3 mr-1" />

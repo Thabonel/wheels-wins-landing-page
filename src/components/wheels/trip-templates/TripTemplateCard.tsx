@@ -15,7 +15,10 @@ import {
   Waves,
   RefreshCw,
   Save,
-  Loader2
+  Loader2,
+  Camera,
+  Upload,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
@@ -56,6 +59,11 @@ export default function TripTemplateCard({
   const [isSavingPhoto, setIsSavingPhoto] = useState(false);
   const [photoTotal, setPhotoTotal] = useState(0);
   const [showPhotoControls, setShowPhotoControls] = useState(false);
+
+  // User upload state
+  const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showDescription, setShowDescription] = useState(true); // Show description by default
 
   // Cycle to next photo alternative
   const handleRefreshPhoto = useCallback(async () => {
@@ -113,6 +121,38 @@ export default function TripTemplateCard({
       setIsSavingPhoto(false);
     }
   }, [template.id, currentPhoto]);
+
+  // Handle user photo upload
+  const handlePhotoUpload = useCallback(async (file: File) => {
+    setIsUploadingPhoto(true);
+    try {
+      // Create a data URL for immediate preview
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      setUploadedPhoto(dataUrl);
+      setShowDescription(false);
+
+      // In a real app, you would upload to your backend/storage here
+      // await uploadTemplatePhoto(template.id, file);
+
+      toast.success('Photo uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast.error('Failed to upload photo');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  }, []);
+
+  // Remove uploaded photo and show description again
+  const handleRemoveUploadedPhoto = useCallback(() => {
+    setUploadedPhoto(null);
+    setShowDescription(true);
+  }, []);
 
   const difficultyColor = {
     'beginner': 'bg-green-100 text-green-800',
@@ -261,8 +301,12 @@ export default function TripTemplateCard({
   };
   
   const defaultMapUrl = template.route?.mapPreview || getTemplateImage();
-  // Use currentPhoto if user has cycled, otherwise use default
-  const displayImageUrl = currentPhoto?.url || defaultMapUrl;
+
+  // Image priority: uploaded photo > current cycled photo > default
+  const displayImageUrl = uploadedPhoto || currentPhoto?.url || defaultMapUrl;
+
+  // Show description view if user hasn't uploaded a photo and no cycling has occurred
+  const shouldShowDescription = showDescription && !uploadedPhoto && !currentPhoto;
 
   return (
     <Card className="hover:shadow-lg transition-all duration-200 overflow-hidden group">
@@ -272,15 +316,72 @@ export default function TripTemplateCard({
         onMouseEnter={() => setShowPhotoControls(true)}
         onMouseLeave={() => setShowPhotoControls(false)}
       >
-        <img
-          src={displayImageUrl}
-          alt={`${template.name} route map`}
-          width={400}
-          height={192}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-          decoding="async"
-        />
+        {shouldShowDescription ? (
+          // Show description with upload button
+          <div className="w-full h-full flex flex-col justify-center items-center p-4 bg-gradient-to-br from-primary/10 to-accent/10">
+            <p className="text-sm text-center text-muted-foreground mb-4 line-clamp-4">
+              {template.description}
+            </p>
+            <div className="flex flex-col items-center gap-2">
+              <label
+                htmlFor={`template-photo-upload-${template.id}`}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg cursor-pointer hover:bg-primary/90 transition-colors",
+                  isUploadingPhoto && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isUploadingPhoto ? (
+                  <Upload className="w-4 h-4 animate-pulse" />
+                ) : (
+                  <Camera className="w-4 h-4" />
+                )}
+                <span className="text-sm font-medium">
+                  {isUploadingPhoto ? 'Uploading...' : 'Add your photo'}
+                </span>
+              </label>
+              <input
+                id={`template-photo-upload-${template.id}`}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={isUploadingPhoto}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handlePhotoUpload(file);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          // Show image (uploaded, cycled, or default)
+          <>
+            <img
+              src={displayImageUrl}
+              alt={`${template.name} route map`}
+              width={400}
+              height={192}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+              decoding="async"
+            />
+
+            {/* Remove uploaded photo button - only show if user uploaded a photo */}
+            {uploadedPhoto && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveUploadedPhoto();
+                }}
+                className="absolute top-2 left-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                title="Remove uploaded photo"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </>
+        )}
 
         {/* Photo Controls - visible on hover */}
         <div className={cn(
