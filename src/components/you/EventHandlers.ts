@@ -395,29 +395,40 @@ export const handleEventDelete = async (
   setEditingEventId: (id: string | null) => void
 ) => {
   try {
-    // Delete the event from the database
+    // Get authenticated user (required for RLS)
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('User not authenticated:', userError);
+      toast.error("Not signed in – cannot delete event.");
+      return;
+    }
+
+    // Delete the event from the database with user_id constraint (for RLS)
     const { error } = await supabase
       .from('calendar_events')
       .delete()
-      .eq('id', eventId);
+      .eq('id', eventId)
+      .eq('user_id', user.id);  // Critical: user_id constraint for RLS
 
     if (error) {
       console.error('Error deleting event:', error);
-      throw error;
+      toast.error(`Failed to delete event: ${error.message}`);
+      return;
     }
 
     // Remove the event from local state
-    setEvents((prevEvents: CalendarEvent[]) => 
+    setEvents((prevEvents: CalendarEvent[]) =>
       prevEvents.filter(event => event.id !== eventId)
     );
 
     // Close the modal and clear editing state
     setIsEventModalOpen(false);
     setEditingEventId(null);
-    
+
     console.log('Event deleted successfully');
+    toast.success("Event deleted successfully!");
   } catch (error) {
     console.error('Failed to delete event:', error);
-    // You could add a toast notification here for better UX
+    toast.error("Failed to delete event. Please try again.");
   }
 };
