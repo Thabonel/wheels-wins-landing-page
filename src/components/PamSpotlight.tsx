@@ -1,15 +1,10 @@
-import { useRef, useCallback } from "react";
+import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import ProfessionalVideo, { VideoState } from "./ui/ProfessionalVideo";
 
 const PamSpotlight = () => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { once: true, amount: 0.2 });
 
-  // Handle video state changes
-  const handleVideoStateChange = useCallback((state: VideoState) => {
-    console.log(`Pam video state: ${state}`);
-  }, []);
 
   const features = [
     "Route Planning",
@@ -91,30 +86,15 @@ const PamSpotlight = () => {
                 />
               </svg>
 
-              {/* Video container with organic border */}
+              {/* Animation container with organic border - following Hero pattern */}
               <div className="relative rounded-[2rem] overflow-hidden shadow-warm-lg border-4 border-card">
-                <ProfessionalVideo
-                  sources={[
-                    { src: "/images/Pam.webm?v=20260311", type: "video/webm" },
-                    { src: "/images/Pam.mp4?v=20260311", type: "video/mp4" }
-                  ]}
-                  poster="/images/Pam-poster.jpg"
-                  responsivePosters={[
-                    { src: "/images/Pam-poster.webp", type: "image/webp" },
-                    { src: "/images/Pam-poster-400w.webp", type: "image/webp", media: "(max-width: 640px)" },
-                    { src: "/images/Pam-poster-400w.jpg", type: "image/jpeg", media: "(max-width: 640px)" },
-                    { src: "/images/Pam-poster.jpg", type: "image/jpeg" }
-                  ]}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="aspect-square"
-                  onStateChange={handleVideoStateChange}
-                  fallbackPoster="/images/Pam-poster.jpg"
-                  enableRuntimePosterGeneration={true}
+                <img
+                  src="/Pam-animation.gif"
+                  alt="Pam AI assistant animation"
+                  className="w-full h-auto object-cover aspect-square"
+                  loading="lazy"
                 />
-                {/* Subtle gradient overlay */}
+                {/* Keep existing gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent pointer-events-none" />
               </div>
             </div>
