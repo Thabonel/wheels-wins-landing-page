@@ -416,11 +416,13 @@ export const handleEventDelete = async (
     });
 
     // Delete the event from the database with user_id constraint (for RLS)
-    const { error } = await supabase
+    const { error, data } = await supabase
       .from('calendar_events')
       .delete()
       .eq('id', eventId)
       .eq('user_id', user.id);  // Critical: user_id constraint for RLS
+
+    console.log('🔍 DEBUG - Delete response:', { error, data, errorType: typeof error });
 
     if (error) {
       console.error('Error deleting event:', error);
