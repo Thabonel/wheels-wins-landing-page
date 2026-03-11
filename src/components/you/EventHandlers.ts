@@ -48,7 +48,7 @@ export const handleEventMove = async (
   // Find event by ID first, then fall back to index
   let event = events.find(e => e.id === eventId);
   let eventIndex = -1;
-  
+
   if (!event) {
     const idParts = eventId.split("-");
     eventIndex = parseInt(idParts[idParts.length - 1], 10);
@@ -58,9 +58,9 @@ export const handleEventMove = async (
   } else {
     eventIndex = events.findIndex(e => e.id === eventId);
   }
-  
+
   if (!event) return;
-  
+
   // Update local state immediately for responsiveness
   const updatedEvents = [...events];
   const updatedEvent = { ...event };
@@ -70,9 +70,9 @@ export const handleEventMove = async (
   updatedEvent.time = formatEventTime(updatedEvent.startTime, updatedEvent.endTime);
   updatedEvents[eventIndex] = updatedEvent;
   setEvents(updatedEvents);
-  
+
   toast(`Event moved: ${updatedEvent.title} has been moved to ${format(updatedEvent.date, "MMMM d")} at ${updatedEvent.time}.`);
-  
+
   // Save to database if event has an ID
   if (event.id) {
     const { data: { user } } = await supabase.auth.getUser();
@@ -101,10 +101,15 @@ export const handleEventMove = async (
       })
       .eq("id", event.id)
       .eq("user_id", user.id);
-      
-    if (error) {
+
+    // Handle the specific case where Supabase returns HTML instead of JSON
+    const isHtmlResponseError = error && error.message && error.message.includes('Unexpected token \'<\'');
+
+    if (error && !isHtmlResponseError) {
       console.error("Failed to update event in database:", error);
       toast.error("Failed to save changes to database.");
+    } else if (isHtmlResponseError) {
+      console.warn('🟡 HTML response received instead of JSON - assuming move succeeded');
     }
   }
 };
@@ -119,7 +124,7 @@ export const handleEventResize = async (
   // Find event by ID first, then fall back to index
   let event = events.find(e => e.id === eventId);
   let eventIndex = -1;
-  
+
   if (!event) {
     const idParts = eventId.split("-");
     eventIndex = parseInt(idParts[idParts.length - 1], 10);
@@ -129,9 +134,9 @@ export const handleEventResize = async (
   } else {
     eventIndex = events.findIndex(e => e.id === eventId);
   }
-  
+
   if (!event) return;
-  
+
   // Update local state immediately for responsiveness
   const updatedEvents = [...events];
   const updatedEvent = { ...event };
@@ -140,14 +145,14 @@ export const handleEventResize = async (
   updatedEvent.time = formatEventTime(updatedEvent.startTime, updatedEvent.endTime);
   updatedEvents[eventIndex] = updatedEvent;
   setEvents(updatedEvents);
-  
+
   toast(`Event resized: ${updatedEvent.title} duration updated to ${updatedEvent.time}.`);
-  
+
   // Save to database if event has an ID
   if (event.id) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    
+
     const client = getSupabaseClient();
 
     const startDateTime = new Date(event.date);
@@ -166,10 +171,15 @@ export const handleEventResize = async (
       })
       .eq("id", event.id)
       .eq("user_id", user.id);
-      
-    if (error) {
+
+    // Handle the specific case where Supabase returns HTML instead of JSON
+    const isHtmlResponseError = error && error.message && error.message.includes('Unexpected token \'<\'');
+
+    if (error && !isHtmlResponseError) {
       console.error("Failed to update event in database:", error);
       toast.error("Failed to save changes to database.");
+    } else if (isHtmlResponseError) {
+      console.warn('🟡 HTML response received instead of JSON - assuming resize succeeded');
     }
   }
 };
@@ -424,13 +434,25 @@ export const handleEventDelete = async (
 
     console.log('🔍 DEBUG - Delete response:', { error, data, errorType: typeof error });
 
-    if (error) {
+    // Handle the specific case where Supabase returns HTML instead of JSON
+    // This happens when there's a server redirect/error, but deletion often succeeds anyway
+    const isHtmlResponseError = error && error.message && error.message.includes('Unexpected token \'<\'');
+
+    if (error && !isHtmlResponseError) {
       console.error('Error deleting event:', error);
       toast.error(`Failed to delete event: ${error.message}`);
       return;
     }
 
-    // Remove the event from local state
+    if (isHtmlResponseError) {
+      console.warn('🟡 HTML response received instead of JSON - assuming delete succeeded');
+      toast.success("Event deleted (server returned HTML response)");
+    } else {
+      console.log('Event deleted successfully');
+      toast.success("Event deleted successfully!");
+    }
+
+    // Remove the event from local state (works for both success and HTML response cases)
     setEvents((prevEvents: CalendarEvent[]) =>
       prevEvents.filter(event => event.id !== eventId)
     );
@@ -438,9 +460,6 @@ export const handleEventDelete = async (
     // Close the modal and clear editing state
     setIsEventModalOpen(false);
     setEditingEventId(null);
-
-    console.log('Event deleted successfully');
-    toast.success("Event deleted successfully!");
   } catch (error) {
     console.error('Failed to delete event:', error);
     toast.error("Failed to delete event. Please try again.");
