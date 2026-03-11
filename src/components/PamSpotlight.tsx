@@ -86,13 +86,25 @@ const PamSpotlight = () => {
                 />
               </svg>
 
-              {/* Animation container with organic border - following Hero pattern */}
+              {/* Animation container with organic border - smooth loading transition */}
               <div className="relative rounded-[2rem] overflow-hidden shadow-warm-lg border-4 border-card">
+                {/* First frame as immediate background to prevent loading pop */}
+                <img
+                  src="/Pam-first-frame.jpg"
+                  alt="Pam AI assistant"
+                  className="w-full h-auto object-cover aspect-square"
+                  fetchPriority="high"
+                />
+                {/* Animated GIF loads on top for smooth transition */}
                 <img
                   src="/Pam-animation.gif"
                   alt="Pam AI assistant animation"
-                  className="w-full h-auto object-cover aspect-square"
+                  className="absolute inset-0 w-full h-full object-cover aspect-square opacity-0 transition-opacity duration-500"
                   loading="lazy"
+                  onLoad={(e) => {
+                    // Fade in animation when GIF loads
+                    (e.target as HTMLImageElement).style.opacity = '1';
+                  }}
                 />
                 {/* Keep existing gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent pointer-events-none" />
