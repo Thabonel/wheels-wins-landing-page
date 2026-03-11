@@ -71,6 +71,9 @@ const EventForm: React.FC<EventFormProps> = ({
     },
   });
 
+  // Watch for start time changes and auto-update end time
+  const startTime = form.watch('startTime');
+
   useEffect(() => {
     form.reset({
       title: defaultTitle,
@@ -80,6 +83,14 @@ const EventForm: React.FC<EventFormProps> = ({
       endTime: getDefaultEndTime(),
     });
   }, [defaultTitle, defaultType, defaultDate, defaultHour, defaultStartTime, defaultEndTime]);
+
+  // Auto-update end time when start time changes
+  useEffect(() => {
+    if (startTime) {
+      const newEndTime = addOneHour(startTime);
+      form.setValue('endTime', newEndTime, { shouldValidate: false });
+    }
+  }, [startTime, form]);
 
   const handleSubmit = form.handleSubmit((data) => onSubmit(data));
 
@@ -151,20 +162,7 @@ const EventForm: React.FC<EventFormProps> = ({
               <FormItem>
                 <FormLabel>Start Time</FormLabel>
                 <FormControl>
-                  <Input
-                    type="time"
-                    value={field.value}
-                    onChange={(e) => {
-                      const newStartTime = e.target.value;
-                      field.onChange(newStartTime);
-
-                      // Automatically update end time to be 1 hour after start time
-                      if (newStartTime) {
-                        const newEndTime = addOneHour(newStartTime);
-                        form.setValue('endTime', newEndTime);
-                      }
-                    }}
-                  />
+                  <Input type="time" {...field} />
                 </FormControl>
               </FormItem>
             )}
