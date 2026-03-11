@@ -116,6 +116,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
   const directionsRef = useRef<MapboxDirections | null>(null);
   const pendingTemplateRef = useRef<any>(null);
+  const permissionResultRef = useRef<PermissionStatus | null>(null);
 
   // Hooks
   const { user } = useAuth();
@@ -277,6 +278,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         navigator.permissions
           .query({ name: 'geolocation' as PermissionName })
           .then(result => {
+            permissionResultRef.current = result;
+
             console.log('📍 Geolocation Permission State:', result.state);
             // If user hasn't decided yet or already granted, attempt a one-time trigger to show prompt/center map
             if (result.state === 'prompt' || result.state === 'granted') {
@@ -289,13 +292,17 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
               // Provide gentle guidance if denied
               toast.info('Location is blocked in your browser for this site. Enable it to use "My Location".', { duration: 5000 });
             }
-            // React to permission changes without reload
-            (result as any).onchange = () => {
+
+            const handlePermissionChange = () => {
               console.log('📍 Geolocation Permission changed to:', result.state);
               if (result.state === 'granted') {
-                try { geolocate.trigger(); } catch {}
+                try {
+                  geolocate.trigger();
+                } catch {}
               }
             };
+
+            result.onchange = handlePermissionChange;
           })
           .catch(err => {
             console.log('📍 Permissions API not supported:', err);
@@ -534,6 +541,10 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     
     // Cleanup
     return () => {
+      if (permissionResultRef.current) {
+        permissionResultRef.current.onchange = null;
+        permissionResultRef.current = null;
+      }
       if (directionsRef.current && mapRef.current) {
         mapRef.current.removeControl(directionsRef.current);
         directionsRef.current = null;
