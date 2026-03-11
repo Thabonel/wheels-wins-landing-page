@@ -8,7 +8,7 @@ import { PAMProvider } from "@/components/wheels/trip-planner/PAMContext";
 import { TripPlannerErrorBoundary } from "@/components/common/TripPlannerErrorBoundary";
 import { PAMErrorBoundary } from "@/components/common/PAMErrorBoundary";
 import { PamHelpButton } from "@/components/pam/PamHelpButton";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 
 // Lazy load heavy components to reduce initial bundle size
 // Using FreshTripPlanner - the advanced fullscreen trip planner
@@ -49,6 +49,7 @@ const Wheels = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("trip-planner");
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   
   // Handle URL parameters for tab navigation
   useEffect(() => {
@@ -64,13 +65,22 @@ const Wheels = () => {
         'rv-storage': 'rv-storage',
         'caravan-safety': 'caravan-safety'
       };
-      
+
       const mappedTab = tabMapping[tabParam];
       if (mappedTab) {
         setActiveTab(mappedTab);
       }
     }
   }, [searchParams]);
+
+  // Handle tab changes with special navigation for Wisdom
+  const handleTabChange = (tabId: string) => {
+    if (tabId === 'wisdom') {
+      navigate('/knowledge');
+    } else {
+      setActiveTab(tabId);
+    }
+  };
   
   const tabs = [
     {
@@ -137,13 +147,13 @@ const Wheels = () => {
               />
             </div>
             
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className="w-full justify-start mb-6 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-hide">
                 {isMobile ? (
                   <div className="w-full p-2">
                     <select
                       value={activeTab}
-                      onChange={e => setActiveTab(e.target.value)}
+                      onChange={e => handleTabChange(e.target.value)}
                       className="w-full bg-white border border-gray-200 rounded-md py-2 px-3 text-sm"
                     >
                       {tabs.map(tab => (
@@ -243,20 +253,6 @@ const Wheels = () => {
                   </Suspense>
                 </TabTransition>
 
-                <TabTransition activeTab={activeTab} tabId="wisdom" className="mt-0">
-                  <div className="p-8 text-center">
-                    <h2 className="text-2xl font-bold mb-4">Community Wisdom</h2>
-                    <p className="text-gray-600 mb-6">
-                      Access guides, tips, and resources contributed by the overlanding community.
-                    </p>
-                    <a
-                      href="/knowledge"
-                      className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Browse Wisdom Library
-                    </a>
-                  </div>
-                </TabTransition>
               </div>
             </Tabs>
           </div>
