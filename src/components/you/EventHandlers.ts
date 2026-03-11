@@ -3,6 +3,7 @@ import { CalendarEvent } from "./types";
 import { formatEventTime } from "./EventFormatter";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { executeWithRetry, handleSupabaseResponse } from "@/utils/supabaseErrorHandler";
 
 // Helper function to check if user is admin
 const isUserAdmin = async (): Promise<boolean> => {
@@ -419,40 +420,38 @@ export const handleEventDelete = async (
       return;
     }
 
-    console.log('🔍 DEBUG - Delete attempt:', {
+    console.log('🔍 Delete attempt:', {
       eventId,
       userId: user.id,
       userEmail: user.email
     });
 
-    // Delete the event from the database with user_id constraint (for RLS)
-    const { error, data } = await supabase
-      .from('calendar_events')
-      .delete()
-      .eq('id', eventId)
-      .eq('user_id', user.id);  // Critical: user_id constraint for RLS
+    // Use retry logic for the delete operation
+    await executeWithRetry(async () => {
+      const response = await supabase
+        .from('calendar_events')
+        .delete()
+        .eq('id', eventId)
+        .eq('user_id', user.id);
 
-    console.log('🔍 DEBUG - Delete response:', { error, data, errorType: typeof error });
+      const result = handleSupabaseResponse(response, 'Calendar Event Delete', true);
 
-    // Handle the specific case where Supabase returns HTML instead of JSON
-    // This happens when there's a server redirect/error, but deletion often succeeds anyway
-    const isHtmlResponseError = error && error.message && error.message.includes('Unexpected token \'<\'');
+      if (!result.success && result.shouldRetry) {
+        throw new Error('Retryable error occurred');
+      }
 
-    if (error && !isHtmlResponseError) {
-      console.error('Error deleting event:', error);
-      toast.error(`Failed to delete event: ${error.message}`);
-      return;
-    }
+      if (!result.success) {
+        throw new Error(`Delete failed: ${response.error?.message}`);
+      }
 
-    if (isHtmlResponseError) {
-      console.warn('🟡 HTML response received instead of JSON - assuming delete succeeded');
-      toast.success("Event deleted (server returned HTML response)");
-    } else {
-      console.log('Event deleted successfully');
-      toast.success("Event deleted successfully!");
-    }
+      return result;
+    }, 'Delete Calendar Event', 2);
 
-    // Remove the event from local state (works for both success and HTML response cases)
+    // If we get here, the operation succeeded
+    console.log('✅ Event deleted successfully');
+    toast.success("Event deleted successfully!");
+
+    // Remove the event from local state
     setEvents((prevEvents: CalendarEvent[]) =>
       prevEvents.filter(event => event.id !== eventId)
     );
@@ -461,7 +460,7 @@ export const handleEventDelete = async (
     setIsEventModalOpen(false);
     setEditingEventId(null);
   } catch (error) {
-    console.error('Failed to delete event:', error);
+    console.error('❌ Failed to delete event after retries:', error);
     toast.error("Failed to delete event. Please try again.");
   }
 };
