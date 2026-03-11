@@ -105,7 +105,16 @@ class MicroWakeWordService {
       }
       if (!tflite) {
         logger.info('[MicroWakeWord] Loading TFLite runtime...');
-        tflite = await import('@tensorflow/tfjs-tflite');
+        try {
+          // Try dynamic import with fallback for module resolution issues
+          tflite = await import('@tensorflow/tfjs-tflite');
+        } catch (moduleError) {
+          logger.warn('[MicroWakeWord] TFLite module import failed, trying alternative approach');
+          // Try alternative import method for alpha packages
+          tflite = await import('@tensorflow/tfjs-tflite/dist/tf-tflite.min.js').catch(() => {
+            throw new Error(`TFLite module not available: ${moduleError.message}`);
+          });
+        }
       }
 
       // Load TFLite model directly using the official runtime

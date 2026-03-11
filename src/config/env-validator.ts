@@ -61,11 +61,15 @@ export function validateEnvironment(): ValidationResult {
     }
   }
 
-  // Check optional variables
+  // Check optional variables (only warn in production or if features require them)
   for (const envVar of optionalEnvVars) {
     const value = import.meta.env[envVar];
     if (!value) {
-      result.warnings.push(`Optional environment variable not set: ${envVar}`);
+      // Only warn about missing optional variables in production
+      // In development, these are truly optional
+      if (import.meta.env.PROD) {
+        result.warnings.push(`Optional environment variable not set: ${envVar}`);
+      }
     } else {
       result.config[envVar as keyof EnvironmentConfig] = value;
     }
