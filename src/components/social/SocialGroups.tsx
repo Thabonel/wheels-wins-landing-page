@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { PlusCircle, Users, Sparkles, Search } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { useAuth } from "@/context/AuthContext";
@@ -276,72 +276,34 @@ export default function SocialGroups() {
       ) : (
         <>
           {/* Pam's recommendations */}
-          {recommendedGroups.length > 0 && (
-            <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-6 rounded-xl border border-purple-100 shadow-sm mb-8">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
-                  <Sparkles size={16} className="text-white" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">Pam's Group Suggestions</h2>
-              </div>
-              <p className="text-gray-700 mb-6">
-                Based on your travel preferences and interests, you might enjoy connecting with these communities:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {recommendedGroups.map((group) => (
-                  <Card key={group.id} className="border border-purple-200 hover:border-purple-300 transition-colors bg-white/70 backdrop-blur-sm">
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 mb-1 truncate">{group.name}</h4>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <Users size={14} />
-                            <span>{group.members === 1 ? '1 member' : `${group.members} members`}</span>
-                          </div>
-                          {group.activityLevel && (
-                            <span className="text-green-600 font-medium capitalize">{group.activityLevel}</span>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="ml-3 border-purple-200 text-purple-700 hover:bg-purple-50"
-                        onClick={() => handleJoinGroup(group.id.toString())}
-                      >
-                        <PlusCircle size={14} className="mr-1.5" />
-                        Join
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+          <div className="bg-purple-50 p-6 rounded-lg mb-6">
+            <h2 className="text-xl font-bold mb-4">Pam's Group Suggestions</h2>
+            <p className="text-gray-700 mb-4">
+              Based on your profile and current location, you might enjoy these groups:
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {recommendedGroups.map((group) => (
+                <Card key={group.id} className="border border-purple-200">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold">{group.name}</h4>
+                      <p className="text-sm text-gray-600">{group.members} members</p>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleJoinGroup(group.id.toString())}>
+                      <PlusCircle size={16} className="mr-1" /> Join
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          )}
+          </div>
           
           {/* All Groups */}
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-1">Browse All Groups</h3>
-                <p className="text-gray-600">
-                  {groups.length === 0 ? 'No groups yet' : `${groups.length} ${groups.length === 1 ? 'community' : 'communities'} to explore`}
-                </p>
-              </div>
-              {groups.length > 0 && (
-                <div className="hidden md:flex items-center gap-2 text-sm text-gray-500">
-                  <Search size={16} />
-                  <span>Click any card to explore</span>
-                </div>
-              )}
-            </div>
-
+            <h3 className="text-xl font-semibold mb-6">Browse All Groups</h3>
             {isLoading ? (
-              <div className="text-center py-16">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading amazing communities...</p>
-              </div>
-            ) : groups.length > 0 ? (
+              <div className="text-center py-8">Loading groups...</div>
+            ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {groups.map((group) => (
                   <GroupCard
@@ -353,51 +315,21 @@ export default function SocialGroups() {
                   />
                 ))}
               </div>
-            ) : (
-              <Card className="border-dashed border-2 border-gray-300 py-16">
-                <CardContent className="text-center">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center mx-auto mb-4">
-                    <Users size={32} className="text-white" />
-                  </div>
-                  <h4 className="text-xl font-semibold text-gray-900 mb-2">No Communities Yet</h4>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Be a pioneer! Create the first community and bring travelers together to share amazing adventures.
-                  </p>
-                  <Button
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                  >
-                    <PlusCircle size={18} className="mr-2" />
-                    Create First Community
-                  </Button>
-                </CardContent>
-              </Card>
             )}
           </div>
           
-          {/* Create Group Banner - Only show if there are existing groups */}
-          {groups.length > 0 && (
-            <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-200/30 to-amber-200/30 rounded-full -mr-16 -mt-16"></div>
-              <div className="absolute bottom-0 left-0 w-20 h-20 bg-gradient-to-tr from-orange-200/20 to-amber-200/20 rounded-full -ml-10 -mb-10"></div>
-              <CardContent className="p-6 text-center relative z-10">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center mx-auto mb-4">
-                  <PlusCircle size={24} className="text-white" />
-                </div>
-                <h4 className="text-xl font-bold text-gray-900 mb-2">Start Your Own Community</h4>
-                <p className="text-gray-700 mb-6 max-w-md mx-auto">
-                  Have a unique perspective or special interest? Create a community where fellow travelers can connect and share experiences around what matters most to you.
-                </p>
-                <Button
-                  onClick={() => setShowCreateModal(true)}
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-medium"
-                >
-                  <PlusCircle size={16} className="mr-2" />
-                  Create Community
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          {/* Create Group Banner */}
+          <Card className="bg-gray-50 border-dashed border-2 border-gray-300 p-6 text-center">
+            <CardContent>
+              <h4 className="text-lg font-semibold">Start your own group</h4>
+              <p className="text-gray-700 mb-4">
+                Have a shared interest or location? Create a group for like-minded travelers!
+              </p>
+              <Button onClick={() => setShowCreateModal(true)}>
+                <PlusCircle size={18} className="mr-2" /> Create Group
+              </Button>
+            </CardContent>
+          </Card>
         </>
       )}
       
