@@ -3,6 +3,7 @@ import React from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/common/AnimatedDialog";
@@ -43,6 +44,9 @@ const EventModal: React.FC<EventModalProps> = ({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Event" : "Create New Event"}</DialogTitle>
+          <DialogDescription>
+            {isEditing ? "Modify event details and save your changes." : "Fill out the form to create a new calendar event."}
+          </DialogDescription>
         </DialogHeader>
         <EventForm 
           defaultDate={defaultDate}
