@@ -49,6 +49,13 @@ const EventForm: React.FC<EventFormProps> = ({
   const formatTimeToString = (hour: number, minute: number = 0) =>
     `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 
+  // Helper function to add 1 hour to a time string
+  const addOneHour = (timeString: string): string => {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const newHour = (hours + 1) % 24; // Handle 23:xx -> 00:xx wrap-around
+    return formatTimeToString(newHour, minutes);
+  };
+
   const getDefaultStartTime = () =>
     defaultStartTime || formatTimeToString(defaultHour);
   const getDefaultEndTime = () =>
@@ -144,7 +151,20 @@ const EventForm: React.FC<EventFormProps> = ({
               <FormItem>
                 <FormLabel>Start Time</FormLabel>
                 <FormControl>
-                  <Input type="time" {...field} />
+                  <Input
+                    type="time"
+                    value={field.value}
+                    onChange={(e) => {
+                      const newStartTime = e.target.value;
+                      field.onChange(newStartTime);
+
+                      // Automatically update end time to be 1 hour after start time
+                      if (newStartTime) {
+                        const newEndTime = addOneHour(newStartTime);
+                        form.setValue('endTime', newEndTime);
+                      }
+                    }}
+                  />
                 </FormControl>
               </FormItem>
             )}
