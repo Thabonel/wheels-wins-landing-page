@@ -77,7 +77,13 @@ export const handleEventMove = async (
   if (event.id) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    
+
+    console.log('🔍 DEBUG - Move attempt:', {
+      eventId: event.id,
+      userId: user.id,
+      userEmail: user.email
+    });
+
     const client = getSupabaseClient();
     const startDateTime = new Date(updatedEvent.date);
     const [startHour, startMinute] = updatedEvent.startTime.split(":").map(Number);
@@ -402,6 +408,12 @@ export const handleEventDelete = async (
       toast.error("Not signed in – cannot delete event.");
       return;
     }
+
+    console.log('🔍 DEBUG - Delete attempt:', {
+      eventId,
+      userId: user.id,
+      userEmail: user.email
+    });
 
     // Delete the event from the database with user_id constraint (for RLS)
     const { error } = await supabase
