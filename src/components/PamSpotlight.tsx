@@ -73,20 +73,7 @@ const PamSpotlight = () => {
             animate={isInView ? "visible" : "hidden"}
           >
             <div className="relative">
-              {/* Decorative blob shape behind image */}
-              <svg
-                className="absolute -inset-4 w-[calc(100%+2rem)] h-[calc(100%+2rem)] text-secondary/20"
-                viewBox="0 0 200 200"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  fill="currentColor"
-                  d="M47.1,-57.2C59.5,-47.3,67.1,-31.3,70.2,-14.4C73.3,2.6,71.9,20.4,63.8,34.3C55.7,48.2,40.9,58.1,24.6,64.1C8.3,70.1,-9.5,72.1,-26.3,68.1C-43.1,64.1,-58.9,54,-67.3,39.7C-75.7,25.4,-76.7,6.9,-72.3,-9.3C-67.9,-25.5,-58.1,-39.4,-45.1,-49.2C-32.1,-59,-16,-64.7,0.8,-65.7C17.7,-66.7,35.4,-62.9,47.1,-57.2Z"
-                  transform="translate(100 100)"
-                />
-              </svg>
-
-              {/* Animation container with organic border - smooth loading transition */}
+              {/* Animation container with organic border - Pam shows immediately */}
               <div className="relative rounded-[2rem] overflow-hidden shadow-warm-lg border-4 border-card">
                 {/* First frame as immediate background to prevent loading pop */}
                 <img
