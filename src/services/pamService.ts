@@ -112,14 +112,14 @@ export const PAM_CONFIG = {
     }
   },
 
-  // Connection settings
-  RECONNECT_ATTEMPTS: 5,
-  RECONNECT_DELAY: 2000,
-  HEALTH_CHECK_INTERVAL: 60000,
+  // Connection settings (optimized for staging server instability)
+  RECONNECT_ATTEMPTS: 10,    // Increased from 5 to handle staging server issues
+  RECONNECT_DELAY: 1000,     // Reduced from 2000ms for faster recovery
+  HEALTH_CHECK_INTERVAL: 30000, // More frequent health checks (30s vs 60s)
 
-  // Ping/Pong keepalive settings (optimized for reliability)
-  PING_INTERVAL: 20000,     // Send ping every 20 seconds
-  PONG_TIMEOUT: 10000,      // Wait 10 seconds for pong response
+  // Ping/Pong keepalive settings (optimized for unreliable staging)
+  PING_INTERVAL: 15000,      // More frequent pings (15s vs 20s)
+  PONG_TIMEOUT: 8000,        // Shorter timeout for faster detection (8s vs 10s)
   CONNECTION_TIMEOUT: 15000,
 
   // WebSocket message timeout (30s - allow time for cold starts and processing)
@@ -175,6 +175,7 @@ class PamService {
     this.initializeMessageQueue();
 
     this.startHealthChecking();
+    this.setupNetworkEventListeners();
   }
 
   /**
@@ -341,18 +342,33 @@ class PamService {
   }
 
   private scheduleRetry(): void {
-    const delay = PAM_CONFIG.RECONNECT_DELAY * Math.pow(2, this.status.retryCount);
-    logger.info(`🔄 Retrying PAM 2.0 WebSocket connection in ${delay}ms (attempt ${this.status.retryCount + 1}/${PAM_CONFIG.RECONNECT_ATTEMPTS})`);
+    const baseDelay = PAM_CONFIG.RECONNECT_DELAY * Math.pow(2, this.status.retryCount);
+    // Add jitter (±25%) to prevent thundering herd
+    const jitter = (Math.random() - 0.5) * 0.5 * baseDelay;
+    const delay = Math.max(1000, baseDelay + jitter); // Minimum 1s delay
+    logger.info(`🔄 Retrying PAM 2.0 WebSocket connection in ${Math.round(delay)}ms (attempt ${this.status.retryCount + 1}/${PAM_CONFIG.RECONNECT_ATTEMPTS})`);
 
     this.retryTimeout = setTimeout(async () => {
       this.updateStatus({ retryCount: this.status.retryCount + 1 });
+
+      // Check network connectivity before attempting reconnection
+      if (!navigator.onLine) {
+        logger.warn('🌐 Network offline - skipping reconnection attempt');
+        this.scheduleRetry(); // Try again later when network comes back
+        return;
+      }
 
       // Reconnect WebSocket if we have stored credentials
       if (this.currentUserId) {
         try {
           await this.connectWebSocket(this.currentUserId, this.currentToken || undefined);
+          logger.info('✅ WebSocket reconnection successful');
         } catch (error) {
           console.error('❌ WebSocket retry failed:', error);
+          // Continue retrying if we haven't exceeded attempts
+          if (this.status.retryCount < PAM_CONFIG.RECONNECT_ATTEMPTS) {
+            this.scheduleRetry();
+          }
         }
       }
     }, delay);
@@ -1658,6 +1674,44 @@ class PamService {
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = undefined;
     }
+  }
+
+  /**
+   * Set up network event listeners for better connection management
+   */
+  private setupNetworkEventListeners(): void {
+    // Handle network connectivity changes
+    window.addEventListener('online', () => {
+      logger.info('🌐 Network connection restored - attempting WebSocket reconnection');
+
+      // Reset retry count since network is back
+      this.updateStatus({ retryCount: 0 });
+
+      // Attempt immediate reconnection if we have credentials and aren't already connected
+      if (this.currentUserId && !this.status.isConnected && !this.status.isConnecting) {
+        this.connectWebSocket(this.currentUserId, this.currentToken || undefined)
+          .catch(error => {
+            logger.warn('❌ Auto-reconnection failed after network restoration:', error);
+          });
+      }
+    });
+
+    window.addEventListener('offline', () => {
+      logger.warn('🌐 Network connection lost - WebSocket will attempt reconnection when online');
+      this.updateStatus({
+        isConnected: false,
+        lastError: 'Network connection lost'
+      });
+    });
+
+    // Handle page visibility changes (browser tab focus)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.currentUserId && !this.status.isConnected) {
+        // Page became visible and we're not connected - check connection
+        logger.debug('👁️ Page visible - checking WebSocket connection');
+        this.testConnection();
+      }
+    });
   }
 
   // =====================================================
