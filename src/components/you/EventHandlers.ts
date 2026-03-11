@@ -435,13 +435,21 @@ export const handleEventSubmit = async (
       console.log('✅ Event created successfully');
       toast.success("Event saved successfully!");
 
-      // Replace temporary event with the saved one from database
-      const savedEvent = convertDbEventToLocal(result);
-      setEvents((prev) => {
-        const filteredEvents = prev.filter(e => e.id !== tempId);
-        return [...filteredEvents, savedEvent];
-      });
-      if (reloadEvents) await reloadEvents();
+      // Handle HTML response case (result is null but operation likely succeeded)
+      if (result === null) {
+        console.log('🟡 HTML response - reloading events from database to get created event');
+        // Remove temporary event and reload from database
+        setEvents((prev) => prev.filter(e => e.id !== tempId));
+        if (reloadEvents) await reloadEvents();
+      } else {
+        // Normal JSON response - process the returned event data
+        const savedEvent = convertDbEventToLocal(result);
+        setEvents((prev) => {
+          const filteredEvents = prev.filter(e => e.id !== tempId);
+          return [...filteredEvents, savedEvent];
+        });
+        if (reloadEvents) await reloadEvents();
+      }
     } catch (error) {
       console.error('❌ Failed to create event after retries:', error);
       toast.error(`Failed to save event: ${error instanceof Error ? error.message : 'Unknown error'}`);
