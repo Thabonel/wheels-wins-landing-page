@@ -13,9 +13,9 @@ export const ALLOWED_FILE_TYPES = {
 };
 
 export const FILE_SIZE_LIMITS = {
-  avatar: 5 * 1024 * 1024,       // 5MB - matches Supabase bucket limit
+  avatar: 10 * 1024 * 1024,      // 10MB initial (will compress to ~2MB)
   compressed: 2 * 1024 * 1024,   // 2MB after compression
-  vehicle: 5 * 1024 * 1024,      // 5MB for vehicle photos (bucket limit)
+  vehicle: 10 * 1024 * 1024,     // 10MB initial (will compress to ~2MB)
   document: 50 * 1024 * 1024     // 50MB for PDFs
 };
 

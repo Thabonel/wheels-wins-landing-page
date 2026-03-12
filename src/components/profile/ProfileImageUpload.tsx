@@ -266,7 +266,7 @@ export const ProfileImageUpload = ({
               </div>
             ) : (
               <div className="text-muted-foreground">
-                Max 5MB • JPEG, PNG, GIF, WebP, HEIC
+                Max 10MB • JPEG, PNG, GIF, WebP, HEIC • Auto-compressed
               </div>
             )}
           </div>
