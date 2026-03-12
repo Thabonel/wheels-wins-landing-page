@@ -90,8 +90,15 @@ export async function uploadFile(
 
   } catch (error) {
     console.error('Upload error:', error);
+    console.error('Error details:', {
+      type: type,
+      fileName: file.name,
+      fileSize: file.size,
+      errorType: typeof error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    });
     const errorMessage = error instanceof Error ? error.message : 'Upload failed';
-    if (showToast) toast.error(errorMessage);
+    if (showToast) toast.error(`Upload failed: ${errorMessage}`);
     return { url: null, error: errorMessage };
   }
 }
@@ -108,7 +115,7 @@ async function uploadToSupabase(
     // Use the avatars bucket which has been properly initialized
     const bucket = 'avatars';
     
-    console.log('Uploading to Supabase:', { bucket, filePath, fileSize: file.size });
+    console.log('Uploading to Supabase:', { bucket, filePath, fileSize: file.size, fileName: file.name, fileType: file.type });
 
     // Upload file with proper error handling
     const { data, error } = await supabase.storage
