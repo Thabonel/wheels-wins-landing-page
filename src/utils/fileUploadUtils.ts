@@ -25,7 +25,7 @@ export interface LocalPhotoStorage {
  */
 export async function uploadFile(
   file: File,
-  type: 'profile' | 'vehicle' = 'profile',
+  type: 'profile' | 'vehicle' | 'group' = 'profile',
   showToast = true
 ): Promise<UploadResult> {
   try {
@@ -102,7 +102,7 @@ export async function uploadFile(
 async function uploadToSupabase(
   file: File,
   filePath: string,
-  type: 'profile' | 'vehicle'
+  type: 'profile' | 'vehicle' | 'group'
 ): Promise<UploadResult> {
   try {
     // Use the avatars bucket which has been properly initialized
@@ -157,7 +157,7 @@ async function uploadToSupabase(
  */
 async function storeLocally(
   file: File,
-  type: 'profile' | 'vehicle',
+  type: 'profile' | 'vehicle' | 'group',
   userId: string
 ): Promise<UploadResult> {
   try {
@@ -210,7 +210,7 @@ function fileToBase64(file: File): Promise<string> {
  * Get locally stored photo
  */
 export function getLocalPhoto(
-  type: 'profile' | 'vehicle',
+  type: 'profile' | 'vehicle' | 'group',
   userId: string
 ): LocalPhotoStorage | null {
   try {
@@ -230,7 +230,7 @@ export function getLocalPhoto(
  * Remove locally stored photo
  */
 export function removeLocalPhoto(
-  type: 'profile' | 'vehicle',
+  type: 'profile' | 'vehicle' | 'group',
   userId: string
 ): void {
   const storageKey = `photo_${type}_${userId}`;
@@ -241,7 +241,7 @@ export function removeLocalPhoto(
  * Sync local photos to remote storage
  */
 export async function syncLocalPhotos(userId: string): Promise<void> {
-  const types: Array<'profile' | 'vehicle'> = ['profile', 'vehicle'];
+  const types: Array<'profile' | 'vehicle' | 'group'> = ['profile', 'vehicle', 'group'];
   
   for (const type of types) {
     const localPhoto = getLocalPhoto(type, userId);
@@ -327,11 +327,14 @@ async function base64ToFile(
  */
 async function updateProfilePhotoUrl(
   url: string,
-  type: 'profile' | 'vehicle'
+  type: 'profile' | 'vehicle' | 'group'
 ): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Group images don't update the profiles table
+    if (type === 'group') return;
 
     const field = type === 'profile' ? 'profile_image_url' : 'vehicle_image_url';
     
@@ -372,7 +375,7 @@ export async function verifyImageExists(url: string): Promise<boolean> {
  */
 export async function uploadWithRetry(
   file: File,
-  type: 'profile' | 'vehicle' = 'profile',
+  type: 'profile' | 'vehicle' | 'group' = 'profile',
   maxRetries = 3
 ): Promise<UploadResult> {
   for (let i = 0; i < maxRetries; i++) {

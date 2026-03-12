@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { getPublicAssetUrl } from "@/utils/publicAssets";
 import { useAuth } from "@/context/AuthContext";
 import { SocialGroup, SocialPost } from "./types";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
@@ -78,7 +77,7 @@ export default function SocialGroups() {
           id: group.id,
           name: group.name,
           description: group.description || '',
-          cover: group.avatar_url || getPublicAssetUrl('placeholder.svg'),
+          cover: group.avatar_url || '/placeholder.svg',
           members: group.member_count || 0,
           location: 'Unknown',
           activityLevel: 'active' as 'active' | 'new' | 'quiet',

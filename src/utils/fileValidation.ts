@@ -126,7 +126,7 @@ export function sanitizeFileName(fileName: string): string {
 export function generateSecureFilePath(
   userId: string,
   fileName: string,
-  type: 'profile' | 'vehicle' = 'profile'
+  type: 'profile' | 'vehicle' | 'group' = 'profile'
 ): string {
   const timestamp = Date.now();
   const sanitized = sanitizeFileName(fileName);
