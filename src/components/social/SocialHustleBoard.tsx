@@ -191,6 +191,18 @@ export default function SocialHustleBoard() {
                     ${idea.avg_earnings.toLocaleString()}/month
                   </div>
                 </div>
+
+                <div className="flex items-center text-sm text-muted-foreground mt-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleLike(idea.id)}
+                    className={`p-0 h-auto text-sm ${likedIdeas.has(idea.id) ? "text-red-500" : "text-muted-foreground"} hover:text-red-500`}
+                  >
+                    <Heart size={14} className={likedIdeas.has(idea.id) ? "fill-current mr-1" : "mr-1"} />
+                    <span>{idea.likes} {idea.likes === 1 ? 'like' : 'likes'}</span>
+                  </Button>
+                </div>
               </CardHeader>
 
               <CardContent className="pt-0">
@@ -207,20 +219,23 @@ export default function SocialHustleBoard() {
                       </Badge>}
                   </div>}
 
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleLike(idea.id)} className={likedIdeas.has(idea.id) ? "text-red-500" : ""}>
-                      <Heart size={16} className={likedIdeas.has(idea.id) ? "fill-current" : ""} />
-                      <span className="ml-1">{idea.likes}</span>
-                    </Button>
-                    
-                    <Button size="sm" variant="outline" onClick={() => handleLearnMore(idea)}>
-                      <ExternalLink size={14} className="mr-1" />
-                      Learn More
-                    </Button>
-                  </div>
-                  
-                  <Button size="sm" variant="default" onClick={() => handleAddToIncome(idea)} className="bg-green-600 hover:bg-green-700">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleLearnMore(idea)}
+                    className="flex-shrink-0"
+                  >
+                    <ExternalLink size={14} className="mr-1" />
+                    Learn More
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => handleAddToIncome(idea)}
+                    className="bg-green-600 hover:bg-green-700 flex-shrink-0"
+                  >
                     <PlusCircle size={14} className="mr-1" />
                     Add to Income
                   </Button>

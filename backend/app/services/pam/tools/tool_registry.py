@@ -1273,11 +1273,14 @@ async def _register_all_tools(registry: ToolRegistry):
         if find_cheap_gas is None:
             raise ImportError("find_cheap_gas function not available")
 
+        # Consistent description to avoid duplication
+        FUEL_PRICE_DESCRIPTION = "Find current fuel prices near a location. Returns regional average pricing for Australian users (AUD/litre from NSW FuelCheck) and representative prices for other regions. Use when user asks about fuel prices, diesel prices, petrol prices, or cheap gas."
+
         class FindCheapGasTool(BaseTool):
             def __init__(self):
                 super().__init__(
                     "find_cheap_gas",
-                    "Find cheapest gas stations near a location. Returns prices, distances, and station details. Critical for user savings - gas is major RV expense. Use when user asks about gas prices or fuel.",
+                    FUEL_PRICE_DESCRIPTION,
                     capabilities=[ToolCapability.TRIP_PLANNING]
                 )
                 self.find_cheap_gas_func = find_cheap_gas
@@ -1293,22 +1296,22 @@ async def _register_all_tools(registry: ToolRegistry):
             tool=FindCheapGasTool(),
             function_definition={
                 "name": "find_cheap_gas",
-                "description": "Find cheapest gas stations near a location. Returns prices in local currency ($/litre for Australian users, $/gallon for US users). Critical for travelers - fuel is major expense. Supports Australian locations with real-time pricing from NSW FuelCheck API.",
+                "description": FUEL_PRICE_DESCRIPTION,
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "location": {
                             "type": "string",
-                            "description": "Location to search for fuel prices (e.g., 'Croydon Park NSW', 'Sydney Australia', 'Brisbane QLD')"
+                            "description": "Location to search near - suburb, city, or address"
                         },
                         "radius_miles": {
                             "type": "number",
-                            "description": "Search radius in miles (optional, default: 25)"
+                            "description": "Search radius in miles, default 25"
                         },
                         "fuel_type": {
                             "type": "string",
                             "enum": ["regular", "premium", "diesel"],
-                            "description": "Type of fuel to search for (optional, default: regular)"
+                            "description": "Type of fuel, default regular"
                         }
                     },
                     "required": ["location"]
