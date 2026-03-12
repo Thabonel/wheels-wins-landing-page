@@ -1273,14 +1273,14 @@ async def _register_all_tools(registry: ToolRegistry):
         if find_cheap_gas is None:
             raise ImportError("find_cheap_gas function not available")
 
-        # Consistent description to avoid duplication
-        FUEL_PRICE_DESCRIPTION = "Find current fuel prices near a location. Returns regional average pricing for Australian users (AUD/litre from NSW FuelCheck) and representative prices for other regions. Use when user asks about fuel prices, diesel prices, petrol prices, or cheap gas."
+        # Tool constructor description
+        FUEL_PRICE_TOOL_DESCRIPTION = "Find current fuel prices near a location. Returns real NSW FuelCheck pricing for Australian users (AUD/litre) and regional estimates for other regions."
 
         class FindCheapGasTool(BaseTool):
             def __init__(self):
                 super().__init__(
                     "find_cheap_gas",
-                    FUEL_PRICE_DESCRIPTION,
+                    FUEL_PRICE_TOOL_DESCRIPTION,
                     capabilities=[ToolCapability.TRIP_PLANNING]
                 )
                 self.find_cheap_gas_func = find_cheap_gas
@@ -1296,22 +1296,22 @@ async def _register_all_tools(registry: ToolRegistry):
             tool=FindCheapGasTool(),
             function_definition={
                 "name": "find_cheap_gas",
-                "description": FUEL_PRICE_DESCRIPTION,
+                "description": "Find current fuel prices near a location. Returns regional average pricing for Australian users (AUD/litre from NSW FuelCheck) and representative prices for other regions. Use when user asks about fuel prices, diesel prices, petrol prices, cheap gas, or servo prices.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "location": {
                             "type": "string",
-                            "description": "Location to search near - suburb, city, or address"
+                            "description": "Location to search near - suburb, city, address, or region name (e.g. 'Croydon Park NSW', 'Sydney', 'near me')"
                         },
                         "radius_miles": {
                             "type": "number",
-                            "description": "Search radius in miles, default 25"
+                            "description": "Search radius in miles (default: 25)"
                         },
                         "fuel_type": {
                             "type": "string",
                             "enum": ["regular", "premium", "diesel"],
-                            "description": "Type of fuel, default regular"
+                            "description": "Type of fuel (default: regular). Use 'diesel' for RVs and caravans."
                         }
                     },
                     "required": ["location"]

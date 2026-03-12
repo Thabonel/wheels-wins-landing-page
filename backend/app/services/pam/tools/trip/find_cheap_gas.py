@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, List
 import os
 from pydantic import ValidationError
 from supabase import create_client, Client
-from app.services.external.eia_gas_prices import get_fuel_price_for_region
+from app.services.external.eia_gas_prices import get_fuel_price_for_region, get_nearby_fuel_stations
 from app.services.pam.schemas.trip import FindCheapGasInput
 from app.services.pam.tools.budget.auto_track_savings import record_potential_savings
 from app.services.pam.tools.exceptions import (
@@ -31,6 +31,47 @@ MAX_RESULTS_RETURNED = 10
 AVERAGE_TANK_SIZE_GALLONS = 25.0
 AVERAGE_TANK_SIZE_LITERS = 95.0
 MINIMUM_SAVINGS_THRESHOLD = 2.0
+
+
+async def _geocode_location(location: str) -> Optional[Dict[str, float]]:
+    """
+    Geocode a location string to lat/lng coordinates using Mapbox.
+    Returns None if geocoding fails.
+    """
+    try:
+        import os
+        mapbox_token = os.getenv("MAPBOX_API_KEY") or os.getenv("MAPBOX_TOKEN") or os.getenv("VITE_MAPBOX_TOKEN")
+        if not mapbox_token:
+            logger.warning("No Mapbox token available for geocoding")
+            return None
+
+        from urllib.parse import quote_plus
+        import httpx
+
+        query = quote_plus(location)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"https://api.mapbox.com/geocoding/v5/mapbox.places/{query}.json",
+                params={
+                    "access_token": mapbox_token,
+                    "limit": 1,
+                    "country": "AU"
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        if data.get("features"):
+            lon, lat = data["features"][0]["center"]
+            logger.info(f"Geocoded '{location}' to ({lat}, {lon})")
+            return {"latitude": lat, "longitude": lon}
+
+        logger.warning(f"Could not geocode location: {location}")
+        return None
+
+    except Exception as e:
+        logger.warning(f"Geocoding failed for '{location}': {e}")
+        return None
 
 
 async def _detect_user_region(user_id: str, location: str = "") -> str:
@@ -194,14 +235,53 @@ async def find_cheap_gas(
 
         variation = US_PRICE_VARIATION if region == "US" else INTERNATIONAL_PRICE_VARIATION
 
-        # Australian users get honest pricing without fake stations
+        # Australian users get real station data from NSW FuelCheck
         if region == "AU":
-            sorted_stations = []
-            stations_available = False
-            cheapest_price = None
-            recommended_apps = ["NSW FuelCheck", "PetrolSpy"]
+            coords = await _geocode_location(validated.location)
 
-            logger.info(f"Returning NSW average pricing for {validated.location} - no fake stations for user {validated.user_id}")
+            if coords:
+                nearby_data = await get_nearby_fuel_stations(
+                    latitude=coords["latitude"],
+                    longitude=coords["longitude"],
+                    fuel_type=validated.fuel_type,
+                    radius=10
+                )
+                nearby_stations = nearby_data.get("stations", [])
+            else:
+                nearby_stations = []
+
+            if nearby_stations:
+                # Real station data available
+                sorted_stations = [
+                    {
+                        "name": s["name"],
+                        "brand": s["brand"],
+                        "address": s["address"],
+                        "price": s["price"],
+                        "has_diesel": True,
+                        "last_updated": s.get("last_updated", ""),
+                    }
+                    for s in nearby_stations[:MAX_RESULTS_RETURNED]
+                ]
+                cheapest_price = sorted_stations[0]["price"] if sorted_stations else None
+                stations_available = True
+                recommended_apps = None
+
+                logger.info(
+                    f"Returning {len(sorted_stations)} real NSW stations "
+                    f"near {validated.location} for user {validated.user_id}"
+                )
+            else:
+                # Fallback: no nearby data, show average pricing
+                sorted_stations = []
+                cheapest_price = None
+                stations_available = False
+                recommended_apps = ["NSW FuelCheck", "PetrolSpy"]
+
+                logger.info(
+                    f"No nearby station data for {validated.location} - "
+                    f"returning NSW average for user {validated.user_id}"
+                )
 
         else:
             # Other regions: Generate representative stations with clear disclaimer
@@ -277,30 +357,56 @@ async def find_cheap_gas(
 
         # Calculate potential savings differently for AU vs other regions
         if region == "AU":
-            # For Australian users: base savings on price variation range without fake stations
             estimated_liters = AVERAGE_TANK_SIZE_LITERS
-            price_diff = variation  # Typical variation from average
-            potential_savings = round(price_diff * estimated_liters, 2)
 
-            if potential_savings >= MINIMUM_SAVINGS_THRESHOLD:
-                savings_opportunity_id = await record_potential_savings(
-                    user_id=validated.user_id,
-                    amount=potential_savings,
-                    category="fuel",
-                    savings_type="fuel_optimization",
-                    description=f"Potential fuel savings of {currency}{potential_savings:.2f} by shopping around stations near {validated.location} vs NSW average",
-                    confidence_score=0.60,  # Lower confidence without specific station data
-                    baseline_cost=base_price * estimated_liters,
-                    optimized_cost=(base_price - variation) * estimated_liters
+            if stations_available and cheapest_price:
+                # Real station data - calculate savings vs average
+                price_diff = base_price - cheapest_price if base_price > cheapest_price else 0
+                potential_savings = round(price_diff * estimated_liters, 2)
+
+                if potential_savings >= MINIMUM_SAVINGS_THRESHOLD:
+                    savings_opportunity_id = await record_potential_savings(
+                        user_id=validated.user_id,
+                        amount=potential_savings,
+                        category="fuel",
+                        savings_type="fuel_optimization",
+                        description=f"Found cheaper {validated.fuel_type} at {sorted_stations[0]['name']} near {validated.location} - could save {currency}{potential_savings:.2f} vs NSW average",
+                        confidence_score=0.90,
+                        baseline_cost=base_price * estimated_liters,
+                        optimized_cost=cheapest_price * estimated_liters
+                    )
+
+                cheapest_station = sorted_stations[0]
+                savings_msg = f" You could save {currency}{potential_savings:.2f} per fill-up vs the NSW average!" if potential_savings >= MINIMUM_SAVINGS_THRESHOLD else ""
+                message = (
+                    f"Found {len(sorted_stations)} {validated.fuel_type} stations near {validated.location}. "
+                    f"Cheapest is {cheapest_station['name']} at {cheapest_station['address']} "
+                    f"for {currency}{cheapest_price:.3f}/{unit}.{savings_msg} "
+                    f"NSW average is {currency}{base_price:.2f}/{unit}."
                 )
+            else:
+                # Fallback average pricing
+                price_diff = INTERNATIONAL_PRICE_VARIATION
+                potential_savings = round(price_diff * estimated_liters, 2)
 
-            fuel_type_display = validated.fuel_type
-            savings_msg = f" 💰 By shopping around, you could save up to {currency}{potential_savings:.2f} per fill-up compared to the average!" if potential_savings >= MINIMUM_SAVINGS_THRESHOLD else ""
+                if potential_savings >= MINIMUM_SAVINGS_THRESHOLD:
+                    savings_opportunity_id = await record_potential_savings(
+                        user_id=validated.user_id,
+                        amount=potential_savings,
+                        category="fuel",
+                        savings_type="fuel_optimization",
+                        description=f"Potential fuel savings near {validated.location} vs NSW average",
+                        confidence_score=0.60,
+                        baseline_cost=base_price * estimated_liters,
+                        optimized_cost=(base_price - price_diff) * estimated_liters
+                    )
 
-            message = (
-                f"The current NSW average {fuel_type_display} price is {currency}{base_price:.2f}/{unit} based on NSW FuelCheck data.{savings_msg} "
-                f"For real-time station prices near {validated.location}, check the NSW FuelCheck app or PetrolSpy."
-            )
+                fuel_type_display = validated.fuel_type
+                savings_msg = f" By shopping around, you could save up to {currency}{potential_savings:.2f} per fill-up compared to the average!" if potential_savings >= MINIMUM_SAVINGS_THRESHOLD else ""
+                message = (
+                    f"The current NSW average {fuel_type_display} price is {currency}{base_price:.2f}/{unit} based on NSW FuelCheck data.{savings_msg} "
+                    f"For real-time station prices near {validated.location}, check the NSW FuelCheck app or PetrolSpy."
+                )
         else:
             # For other regions: use existing logic with fake stations
             if cheapest_price and base_price > cheapest_price:
