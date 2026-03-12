@@ -16,7 +16,7 @@ interface ProfileImageUploadProps {
   label?: string;
   altText?: string;
   size?: 'sm' | 'md' | 'lg';
-  type?: 'profile' | 'vehicle';
+  type?: 'profile' | 'vehicle' | 'group';
 }
 
 export const ProfileImageUpload = ({

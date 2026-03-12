@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ProfileImageUpload } from "@/components/profile/ProfileImageUpload";
 
 interface CreateGroupFormProps {
   isOpen: boolean;
@@ -17,8 +18,13 @@ interface CreateGroupFormProps {
 export default function CreateGroupForm({ isOpen, onClose, onGroupCreated }: CreateGroupFormProps) {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDescription, setNewGroupDescription] = useState("");
+  const [groupImageUrl, setGroupImageUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
+
+  const handleImageUpload = (url: string | null) => {
+    setGroupImageUrl(url);
+  };
 
   const handleCreateGroup = async () => {
     if (!user) {
@@ -39,6 +45,7 @@ export default function CreateGroupForm({ isOpen, onClose, onGroupCreated }: Cre
         .insert({
           name: newGroupName.trim(),
           description: newGroupDescription.trim() || null,
+          avatar_url: groupImageUrl,
           owner_id: user.id,
           admin_id: user.id,
           member_count: 1
@@ -70,6 +77,7 @@ export default function CreateGroupForm({ isOpen, onClose, onGroupCreated }: Cre
 
       setNewGroupName("");
       setNewGroupDescription("");
+      setGroupImageUrl(null);
       onClose();
       onGroupCreated();
     } catch (err) {
@@ -87,6 +95,16 @@ export default function CreateGroupForm({ isOpen, onClose, onGroupCreated }: Cre
           <DialogTitle>Create New Group</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <div>
+            <ProfileImageUpload
+              imageUrl={groupImageUrl || undefined}
+              onImageUploaded={handleImageUpload}
+              label="Group Cover Image"
+              altText="Group Cover"
+              size="lg"
+              type="group"
+            />
+          </div>
           <div>
             <label className="text-sm font-medium">Group Name</label>
             <Input
