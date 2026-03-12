@@ -3,10 +3,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, MapPin } from "lucide-react";
+import { Users, MapPin, Edit3, X } from "lucide-react";
 import { SocialGroup, SocialPost } from "../types";
 import GroupPost from "./GroupPost";
 import PostCreationForm from "./PostCreationForm";
+import { ProfileImageUpload } from "@/components/profile/ProfileImageUpload";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface GroupDetailViewProps {
   group: SocialGroup;
@@ -21,6 +24,7 @@ interface GroupDetailViewProps {
   onModeratePost: (postId: string, approve: boolean) => void;
   onVote: (postId: string, isUp: boolean) => void;
   isSubmitting: boolean;
+  onGroupUpdated?: () => void; // Add callback for when group is updated
 }
 
 export default function GroupDetailView({
@@ -35,8 +39,40 @@ export default function GroupDetailView({
   onPostSubmit,
   onModeratePost,
   onVote,
-  isSubmitting
+  isSubmitting,
+  onGroupUpdated
 }: GroupDetailViewProps) {
+  const [isEditingImage, setIsEditingImage] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState(group.cover);
+
+  const handleImageUpdate = async (imageUrl: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('social_groups')
+        .update({ avatar_url: imageUrl })
+        .eq('id', group.id.toString());
+
+      if (error) {
+        console.error("Error updating group image:", error);
+        toast.error("Failed to update group image");
+        return;
+      }
+
+      // Update local state
+      setCurrentImageUrl(imageUrl || '/placeholder.svg');
+      setIsEditingImage(false);
+      toast.success("Group cover image updated!");
+
+      // Notify parent to refresh
+      if (onGroupUpdated) {
+        onGroupUpdated();
+      }
+    } catch (err) {
+      console.error("Error updating group image:", err);
+      toast.error("Something went wrong");
+    }
+  };
+
   const getActivityBadge = (activityLevel: string) => {
     switch (activityLevel) {
       case 'active':
@@ -65,13 +101,53 @@ export default function GroupDetailView({
       
       {/* Group cover and details */}
       <Card className="mb-6">
-        <div className="h-40 overflow-hidden">
-          <img 
-            src={group.cover} 
-            alt={group.name} 
+        <div className="relative h-40 overflow-hidden group/cover">
+          <img
+            src={currentImageUrl}
+            alt={group.name}
             className="w-full h-full object-cover"
           />
+
+          {/* Edit overlay for admins */}
+          {group.isAdmin && !isEditingImage && (
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/cover:opacity-100 transition-opacity flex items-center justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditingImage(true)}
+                className="bg-white/90 hover:bg-white text-black"
+              >
+                <Edit3 size={16} className="mr-2" />
+                Change Cover
+              </Button>
+            </div>
+          )}
         </div>
+
+        {/* Image editing interface */}
+        {group.isAdmin && isEditingImage && (
+          <CardContent className="p-4 border-b bg-gray-50">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-medium">Change Cover Image</h4>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingImage(false)}
+              >
+                <X size={16} />
+              </Button>
+            </div>
+            <ProfileImageUpload
+              imageUrl={currentImageUrl !== '/placeholder.svg' ? currentImageUrl : undefined}
+              onImageUploaded={handleImageUpdate}
+              label="Group Cover Image"
+              altText="Group Cover"
+              size="lg"
+              type="group"
+            />
+          </CardContent>
+        )}
+
         <CardContent className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div>

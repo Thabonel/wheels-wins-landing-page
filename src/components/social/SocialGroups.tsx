@@ -271,6 +271,7 @@ export default function SocialGroups() {
           onModeratePost={handleModeratePost}
           onVote={handleVote}
           isSubmitting={isSubmitting}
+          onGroupUpdated={fetchGroups}
         />
       ) : (
         <>
