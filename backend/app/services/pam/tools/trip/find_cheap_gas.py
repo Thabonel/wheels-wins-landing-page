@@ -75,10 +75,39 @@ async def _detect_user_region(user_id: str, location: str = "") -> str:
             else:
                 return "US"
 
+        # Second fallback: check user's profile region/timezone
+        profile_response = await safe_db_select(
+            "profiles",
+            filters={"id": user_id},  # profiles table uses 'id' not 'user_id'
+            columns="region",
+            single=True
+        )
 
-        # Fallback: detect region from location string
+        if profile_response and profile_response.get("region"):
+            region = profile_response["region"].upper()
+            if region in ["AU", "AUSTRALIA"] or "AUSTRALIA" in region:
+                return "AU"
+            elif region in ["CA", "CANADA"] or "CANADA" in region:
+                return "CA"
+            elif region in ["UK", "UNITED KINGDOM", "GB"] or any(country in region for country in ["KINGDOM", "ENGLAND", "SCOTLAND", "WALES"]):
+                return "UK"
+            elif region in ["NZ", "NEW ZEALAND"] or "NEW ZEALAND" in region:
+                return "NZ"
+            elif region == "US" or any(country in region for country in ["UNITED STATES", "AMERICA"]):
+                return "US"
+
+        # Third fallback: detect region from location string
         location_lower = location.lower()
-        if any(kw in location_lower for kw in ["australia", "new south wales", "nsw", "victoria", "queensland", "tasmania", "western australia"]):
+        australian_keywords = [
+            # States and territories
+            "australia", "new south wales", "nsw", "victoria", "queensland", "tasmania", "western australia",
+            "south australia", "northern territory", "act", "australian capital territory",
+            # Major cities
+            "sydney", "melbourne", "brisbane", "perth", "adelaide", "hobart", "darwin", "canberra",
+            # Specific locations mentioned by user
+            "croydon park", "gold coast"
+        ]
+        if any(kw in location_lower for kw in australian_keywords):
             return "AU"
         elif any(kw in location_lower for kw in ["canada", "ontario", "quebec", "british columbia", "alberta"]):
             return "CA"
@@ -165,62 +194,74 @@ async def find_cheap_gas(
 
         variation = US_PRICE_VARIATION if region == "US" else INTERNATIONAL_PRICE_VARIATION
 
-        station_names = {
-            "US": ["Shell", "Chevron", "Exxon", "Circle K", "76"],
-            "CA": ["Petro-Canada", "Shell", "Esso", "Husky", "Canadian Tire Gas+"],
-            "AU": ["Shell", "BP", "Caltex", "7-Eleven", "Coles Express"],
-            "UK": ["BP", "Shell", "Esso", "Tesco", "Sainsbury's"],
-            "NZ": ["Z Energy", "BP", "Mobil", "Caltex", "Gull"],
-            "EU": ["Shell", "BP", "Total", "Esso", "Q8"]
-        }
-        stations = station_names.get(region, station_names["US"])
+        # Australian users get honest pricing without fake stations
+        if region == "AU":
+            sorted_stations = []
+            stations_available = False
+            cheapest_price = None
+            recommended_apps = ["NSW FuelCheck", "PetrolSpy"]
 
-        mock_stations = [
-            {
-                "name": f"{stations[0]} Station",
-                "address": "123 Main St",
-                "price": round(base_price - (variation * 0.75), 2),
-                "distance_miles": 2.1,
-                "has_diesel": True
-            },
-            {
-                "name": stations[1],
-                "address": "456 Oak Ave",
-                "price": round(base_price - (variation * 0.40), 2),
-                "distance_miles": 3.5,
-                "has_diesel": True
-            },
-            {
-                "name": stations[2],
-                "address": "789 Pine Rd",
-                "price": round(base_price + (variation * 0.25), 2),
-                "distance_miles": 5.2,
-                "has_diesel": False
-            },
-            {
-                "name": stations[3],
-                "address": "321 Elm St",
-                "price": round(base_price - variation, 2),
-                "distance_miles": 8.1,
-                "has_diesel": True
-            },
-            {
-                "name": stations[4],
-                "address": "654 Maple Dr",
-                "price": round(base_price + (variation * 0.60), 2),
-                "distance_miles": 4.3,
-                "has_diesel": False
+            logger.info(f"Returning NSW average pricing for {validated.location} - no fake stations for user {validated.user_id}")
+
+        else:
+            # Other regions: Generate representative stations with clear disclaimer
+            station_names = {
+                "US": ["Shell", "Chevron", "Exxon", "Circle K", "76"],
+                "CA": ["Petro-Canada", "Shell", "Esso", "Husky", "Canadian Tire Gas+"],
+                "UK": ["BP", "Shell", "Esso", "Tesco", "Sainsbury's"],
+                "NZ": ["Z Energy", "BP", "Mobil", "Caltex", "Gull"],
+                "EU": ["Shell", "BP", "Total", "Esso", "Q8"]
             }
-        ]
+            stations = station_names.get(region, station_names["US"])
 
-        sorted_stations = sorted(mock_stations, key=lambda x: x["price"])
+            mock_stations = [
+                {
+                    "name": f"{stations[0]} Station",
+                    "address": "123 Main St",
+                    "price": round(base_price - (variation * 0.75), 2),
+                    "distance_miles": 2.1,
+                    "has_diesel": True
+                },
+                {
+                    "name": stations[1],
+                    "address": "456 Oak Ave",
+                    "price": round(base_price - (variation * 0.40), 2),
+                    "distance_miles": 3.5,
+                    "has_diesel": True
+                },
+                {
+                    "name": stations[2],
+                    "address": "789 Pine Rd",
+                    "price": round(base_price + (variation * 0.25), 2),
+                    "distance_miles": 5.2,
+                    "has_diesel": False
+                },
+                {
+                    "name": stations[3],
+                    "address": "321 Elm St",
+                    "price": round(base_price - variation, 2),
+                    "distance_miles": 8.1,
+                    "has_diesel": True
+                },
+                {
+                    "name": stations[4],
+                    "address": "654 Maple Dr",
+                    "price": round(base_price + (variation * 0.60), 2),
+                    "distance_miles": 4.3,
+                    "has_diesel": False
+                }
+            ]
 
-        if validated.fuel_type == "diesel":
-            sorted_stations = [s for s in sorted_stations if s.get("has_diesel", False)]
+            sorted_stations = sorted(mock_stations, key=lambda x: x["price"])
 
-        cheapest_price = sorted_stations[0]["price"] if sorted_stations else None
+            if validated.fuel_type == "diesel":
+                sorted_stations = [s for s in sorted_stations if s.get("has_diesel", False)]
 
-        logger.info(f"Found {len(sorted_stations)} gas stations near {validated.location} for user {validated.user_id}")
+            cheapest_price = sorted_stations[0]["price"] if sorted_stations else None
+            stations_available = True
+            recommended_apps = None
+
+            logger.info(f"Generated {len(sorted_stations)} representative stations near {validated.location} for user {validated.user_id}")
 
         price_source = {
             "US": "U.S. Energy Information Administration (EIA)",
@@ -233,36 +274,66 @@ async def find_cheap_gas(
 
         potential_savings = 0.0
         savings_opportunity_id = None
-        if cheapest_price and base_price > cheapest_price:
-            estimated_gallons = AVERAGE_TANK_SIZE_GALLONS if region == "US" else AVERAGE_TANK_SIZE_LITERS
-            price_diff = base_price - cheapest_price
-            potential_savings = round(price_diff * estimated_gallons, 2)
+
+        # Calculate potential savings differently for AU vs other regions
+        if region == "AU":
+            # For Australian users: base savings on price variation range without fake stations
+            estimated_liters = AVERAGE_TANK_SIZE_LITERS
+            price_diff = variation  # Typical variation from average
+            potential_savings = round(price_diff * estimated_liters, 2)
 
             if potential_savings >= MINIMUM_SAVINGS_THRESHOLD:
-                cheapest_station = sorted_stations[0]["name"] if sorted_stations else "nearby station"
                 savings_opportunity_id = await record_potential_savings(
                     user_id=validated.user_id,
                     amount=potential_savings,
                     category="fuel",
                     savings_type="fuel_optimization",
-                    description=f"Found cheaper gas at {cheapest_station} near {validated.location} - could save {currency}{potential_savings:.2f} vs regional average",
-                    confidence_score=0.75,
-                    baseline_cost=base_price * estimated_gallons,
-                    optimized_cost=cheapest_price * estimated_gallons
+                    description=f"Potential fuel savings of {currency}{potential_savings:.2f} by shopping around stations near {validated.location} vs NSW average",
+                    confidence_score=0.60,  # Lower confidence without specific station data
+                    baseline_cost=base_price * estimated_liters,
+                    optimized_cost=(base_price - variation) * estimated_liters
                 )
 
-        if cheapest_price:
-            savings_msg = f" 💰 Potential savings: {currency}{potential_savings:.2f} per fill-up!" if potential_savings >= MINIMUM_SAVINGS_THRESHOLD else ""
+            fuel_type_display = validated.fuel_type
+            savings_msg = f" 💰 By shopping around, you could save up to {currency}{potential_savings:.2f} per fill-up compared to the average!" if potential_savings >= MINIMUM_SAVINGS_THRESHOLD else ""
+
             message = (
-                f"Based on current {region} averages ({base_price:.2f} {currency}/{unit} from {price_source}), "
-                f"the cheapest {validated.fuel_type} should be around {cheapest_price:.2f} {currency}/{unit} near {validated.location}. "
-                f"I've listed {len(sorted_stations)} representative stations below.{savings_msg} "
-                f"Note: For real-time station-specific prices, check local apps or websites."
+                f"The current NSW average {fuel_type_display} price is {currency}{base_price:.2f}/{unit} based on NSW FuelCheck data.{savings_msg} "
+                f"For real-time station prices near {validated.location}, check the NSW FuelCheck app or PetrolSpy."
             )
         else:
-            message = f"No {validated.fuel_type} stations found"
+            # For other regions: use existing logic with fake stations
+            if cheapest_price and base_price > cheapest_price:
+                estimated_gallons = AVERAGE_TANK_SIZE_GALLONS if region == "US" else AVERAGE_TANK_SIZE_LITERS
+                price_diff = base_price - cheapest_price
+                potential_savings = round(price_diff * estimated_gallons, 2)
 
-        return {
+                if potential_savings >= MINIMUM_SAVINGS_THRESHOLD:
+                    cheapest_station = sorted_stations[0]["name"] if sorted_stations else "nearby station"
+                    savings_opportunity_id = await record_potential_savings(
+                        user_id=validated.user_id,
+                        amount=potential_savings,
+                        category="fuel",
+                        savings_type="fuel_optimization",
+                        description=f"Found cheaper gas at {cheapest_station} near {validated.location} - could save {currency}{potential_savings:.2f} vs regional average",
+                        confidence_score=0.75,
+                        baseline_cost=base_price * estimated_gallons,
+                        optimized_cost=cheapest_price * estimated_gallons
+                    )
+
+            if cheapest_price:
+                savings_msg = f" 💰 Potential savings: {currency}{potential_savings:.2f} per fill-up!" if potential_savings >= MINIMUM_SAVINGS_THRESHOLD else ""
+                message = (
+                    f"Based on current {region} averages ({base_price:.2f} {currency}/{unit} from {price_source}), "
+                    f"the cheapest {validated.fuel_type} should be around {cheapest_price:.2f} {currency}/{unit} near {validated.location}. "
+                    f"I've listed {len(sorted_stations)} representative stations below.{savings_msg} "
+                    f"Note: These are estimated prices based on regional averages. For real-time prices, check local fuel apps."
+                )
+            else:
+                message = f"No {validated.fuel_type} stations found"
+
+        # Build response with region-specific data
+        response = {
             "success": True,
             "location": validated.location,
             "radius_miles": validated.radius_miles,
@@ -273,13 +344,22 @@ async def find_cheap_gas(
             "unit": unit,
             "stations_found": len(sorted_stations),
             "cheapest_price": cheapest_price,
-            "stations": sorted_stations[:MAX_RESULTS_RETURNED],
+            "stations": sorted_stations[:MAX_RESULTS_RETURNED] if stations_available else [],
+            "stations_available": stations_available,
             "potential_savings": potential_savings,
             "savings_opportunity_id": savings_opportunity_id,
             "potential_savings_recorded": bool(savings_opportunity_id),
-            "message": message,
-            "note": f"Prices are representative estimates based on {price_source}. For real-time prices, check local fuel price apps."
+            "message": message
         }
+
+        # Add region-specific fields
+        if region == "AU":
+            response["recommended_apps"] = recommended_apps
+            response["note"] = f"NSW average pricing from {price_source}. For current station prices, use recommended apps."
+        else:
+            response["note"] = f"Station prices are estimates based on {price_source}. For real-time prices, check local fuel apps."
+
+        return response
 
     except CustomValidationError:
         raise
