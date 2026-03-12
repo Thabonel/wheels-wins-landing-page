@@ -1293,29 +1293,25 @@ async def _register_all_tools(registry: ToolRegistry):
             tool=FindCheapGasTool(),
             function_definition={
                 "name": "find_cheap_gas",
-                "description": "Find cheapest gas stations near a location. Returns prices, distances, and station details. Critical for user savings - gas is major RV expense. Use when user asks about gas prices or fuel.",
+                "description": "Find cheapest gas stations near a location. Returns prices in local currency ($/litre for Australian users, $/gallon for US users). Critical for travelers - fuel is major expense. Supports Australian locations with real-time pricing from NSW FuelCheck API.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "latitude": {
-                            "type": "number",
-                            "description": "Latitude of search location"
-                        },
-                        "longitude": {
-                            "type": "number",
-                            "description": "Longitude of search location"
+                        "location": {
+                            "type": "string",
+                            "description": "Location to search for fuel prices (e.g., 'Croydon Park NSW', 'Sydney Australia', 'Brisbane QLD')"
                         },
                         "radius_miles": {
                             "type": "number",
-                            "description": "Search radius in miles (default: 10)"
+                            "description": "Search radius in miles (optional, default: 25)"
                         },
                         "fuel_type": {
                             "type": "string",
-                            "enum": ["regular", "midgrade", "premium", "diesel"],
-                            "description": "Type of fuel (default: diesel for RVs)"
+                            "enum": ["regular", "premium", "diesel"],
+                            "description": "Type of fuel to search for (optional, default: regular)"
                         }
                     },
-                    "required": ["latitude", "longitude"]
+                    "required": ["location"]
                 }
             },
             capability=ToolCapability.TRIP_PLANNING,
