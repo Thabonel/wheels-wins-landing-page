@@ -241,6 +241,115 @@ async def get_australia_fuel_price(fuel_type: str = "regular") -> float:
         return _get_fallback_price_regional("AU", fuel_type)
 
 
+async def get_nearby_fuel_stations(
+    latitude: float,
+    longitude: float,
+    fuel_type: str = "diesel",
+    radius: int = 5
+) -> Dict[str, Any]:
+    """
+    Get nearby fuel stations with real prices from NSW FuelCheck API.
+
+    Args:
+        latitude: Latitude of search location
+        longitude: Longitude of search location
+        fuel_type: Type of fuel (regular, diesel, premium)
+        radius: Search radius in km (default 5)
+
+    Returns:
+        Dict with stations list, each having name, address, brand, price, location
+        Returns empty stations list if API unavailable
+    """
+    try:
+        token = await _get_nsw_oauth_token()
+        if not token:
+            logger.warning("No NSW OAuth token - cannot fetch nearby stations")
+            return {"stations": [], "source": "unavailable"}
+
+        fuel_type_map = {
+            "regular": "U91",
+            "premium": "U95",
+            "diesel": "DL"
+        }
+        nsw_fuel_code = fuel_type_map.get(fuel_type, "U91")
+
+        import uuid
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "apikey": NSW_API_KEY,
+                "transactionid": str(uuid.uuid4()),
+                "requesttimestamp": datetime.utcnow().strftime("%d/%m/%Y %I:%M:%S %p"),
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            }
+            response = await client.post(
+                f"{NSW_FUEL_API_BASE_URL}/fuel/prices/nearby",
+                headers=headers,
+                json={
+                    "fueltype": nsw_fuel_code,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "radius": radius,
+                    "brand": []
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        # Build station lookup from response
+        stations_map = {}
+        if "stations" in data:
+            for s in data["stations"]:
+                stations_map[int(s["code"])] = {
+                    "name": s.get("name", "Unknown Station"),
+                    "brand": s.get("brand", ""),
+                    "address": s.get("address", ""),
+                    "latitude": s.get("location", {}).get("latitude"),
+                    "longitude": s.get("location", {}).get("longitude"),
+                }
+
+        # Match prices to stations
+        station_prices = []
+        if "prices" in data:
+            for p in data["prices"]:
+                station_code = int(p.get("stationcode", 0))
+                station_info = stations_map.get(station_code, {})
+                if station_info:
+                    price_dollars = p["price"] / 100  # cents to dollars
+                    station_prices.append({
+                        "name": station_info["name"],
+                        "brand": station_info["brand"],
+                        "address": station_info["address"],
+                        "price": round(price_dollars, 3),
+                        "latitude": station_info["latitude"],
+                        "longitude": station_info["longitude"],
+                        "last_updated": p.get("lastupdated", ""),
+                    })
+
+        # Sort by price ascending
+        station_prices.sort(key=lambda x: x["price"])
+
+        logger.info(
+            f"NSW FuelCheck nearby: found {len(station_prices)} {fuel_type} stations "
+            f"within {radius}km of ({latitude}, {longitude})"
+        )
+
+        return {
+            "stations": station_prices,
+            "source": "NSW_FuelCheck_nearby",
+            "fuel_code": nsw_fuel_code,
+            "search_radius_km": radius,
+        }
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"NSW FuelCheck nearby HTTP {e.response.status_code}: {e}")
+        return {"stations": [], "source": "error"}
+    except Exception as e:
+        logger.error(f"Error fetching nearby fuel stations: {e}", exc_info=True)
+        return {"stations": [], "source": "error"}
+
+
 async def get_europe_fuel_price(country_code: str = "DE", fuel_type: str = "regular") -> float:
     """
     Get current fuel price for Europe
