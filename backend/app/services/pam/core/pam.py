@@ -1959,12 +1959,17 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                                 recent_context = msg.get("context", {})
                                 break
 
-                        # Only add context to tools that explicitly request it in their schema
-                        # Check if the tool's input schema has a 'context' parameter
-                        tool_func = tool_functions[tool_name]
-                        tool_signature = inspect.signature(tool_func)
-                        if recent_context and 'context' in tool_signature.parameters:
-                            tool_input["context"] = recent_context
+                        # Pass context to tools that accept it (either explicit param or **kwargs)
+                        if recent_context:
+                            tool_func = tool_functions[tool_name]
+                            tool_signature = inspect.signature(tool_func)
+                            has_context_param = 'context' in tool_signature.parameters
+                            has_kwargs = any(
+                                p.kind == inspect.Parameter.VAR_KEYWORD
+                                for p in tool_signature.parameters.values()
+                            )
+                            if has_context_param or has_kwargs:
+                                tool_input["context"] = recent_context
 
                         # DIAGNOSTIC: Log tool execution details
                         logger.info(f"🔍 DIAGNOSTIC: Executing {tool_name} for user {self.user_id}")
