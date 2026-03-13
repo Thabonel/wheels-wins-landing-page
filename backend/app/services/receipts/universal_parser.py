@@ -86,20 +86,38 @@ def _extract_date(text: str) -> Tuple[Optional[str], float]:
         (r"(\d{4})-(\d{1,2})-(\d{1,2})", "ymd", 0.95),
         (r"(\d{1,2})/(\d{1,2})/(\d{4})", "mdy", 0.85),
         (r"(\d{1,2})-(\d{1,2})-(\d{4})", "mdy", 0.75),
+        # Handle "Mar 11, 2026" format
+        (r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s+(\d{4})", "text", 0.90),
+        # Handle "3/11/26" short year format
+        (r"(\d{1,2})/(\d{1,2})/(\d{2})", "mdy_short", 0.80),
     ]
 
+    month_map = {
+        "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+        "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12
+    }
+
     for pattern, fmt, confidence in patterns:
-        match = re.search(pattern, text)
+        match = re.search(pattern, text, re.IGNORECASE)
         if match:
             try:
                 if fmt == "ymd":
                     year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
-                else:
+                elif fmt == "text":
+                    month_name = match.group(1)
+                    month = month_map.get(month_name.capitalize(), 0)
+                    day = int(match.group(2))
+                    year = int(match.group(3))
+                elif fmt == "mdy_short":
+                    month, day, short_year = int(match.group(1)), int(match.group(2)), int(match.group(3))
+                    # Assume 20xx for years < 50, 19xx for years >= 50
+                    year = 2000 + short_year if short_year < 50 else 1900 + short_year
+                else:  # mdy
                     month, day, year = int(match.group(1)), int(match.group(2)), int(match.group(3))
 
                 if 1 <= month <= 12 and 1 <= day <= 31 and 1900 <= year <= 2100:
                     return f"{year:04d}-{month:02d}-{day:02d}", confidence
-            except (ValueError, IndexError):
+            except (ValueError, IndexError, KeyError):
                 continue
 
     return None, 0.0
@@ -107,27 +125,48 @@ def _extract_date(text: str) -> Tuple[Optional[str], float]:
 
 def _extract_vendor(text: str) -> Tuple[Optional[str], float]:
     """
-    Extract vendor/business name from the first few lines.
-    Receipts almost always print the business name at the top.
+    Extract vendor/business name, looking for actual business names.
     """
     lines = text.strip().split("\n")
+
+    # Skip obvious header/receipt info patterns
+    skip_patterns = re.compile(
+        r"(^receipt|^invoice|^tax|^gst|^abn|issue date|payment|customer|subtotal|total|date:|#\s*\d+)",
+        re.IGNORECASE
+    )
 
     # All known keywords across every receipt type for header matching
     all_keywords = []
     for keywords in TYPE_KEYWORDS.values():
         all_keywords.extend(keywords)
 
-    for line in lines[:5]:
+    # First pass: Look for lines with business keywords
+    for line in lines[:8]:  # Extended search range
         line_lower = line.strip().lower()
+        cleaned = line.strip()
+
+        if not cleaned or skip_patterns.search(line_lower):
+            continue
+
         for keyword in all_keywords:
             if keyword in line_lower:
-                return line.strip(), 0.85
+                return cleaned, 0.85
 
-    # Fall back to first non-numeric, non-empty line
-    for line in lines[:3]:
+    # Second pass: Look for business-like names (avoid obvious receipt artifacts)
+    for line in lines[:8]:
         cleaned = line.strip()
-        if cleaned and not re.match(r"^[\d$./\-]+$", cleaned):
-            return cleaned, 0.4
+        line_lower = cleaned.lower()
+
+        if (cleaned and
+            len(cleaned) >= 3 and
+            not skip_patterns.search(line_lower) and
+            not re.match(r"^[\d$./\-\s,]+$", cleaned) and
+            not re.match(r"^\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}", cleaned) and
+            "@" not in cleaned and  # Skip email addresses
+            "+" not in cleaned):    # Skip phone numbers
+
+            # This looks like it could be a business name
+            return cleaned, 0.6
 
     return None, 0.0
 
@@ -141,18 +180,38 @@ def _extract_description(text: str) -> Tuple[Optional[str], float]:
     item_lines: List[str] = []
 
     skip_patterns = re.compile(
-        r"(^\s*$|^[\d$./\-]+$|TOTAL|SUBTOTAL|TAX|CHANGE|CASH|CARD|VISA|MASTER"
-        r"|THANK|RECEIPT|ABN|GST|^\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4})",
+        r"(^\s*$|^[\d$./\-\s,]+$|TOTAL|SUBTOTAL|TAX|CHANGE|CASH|CARD|VISA|MASTER"
+        r"|THANK|RECEIPT|ABN|GST|^\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}|customer details"
+        r"|payment details|invoice|issue date|quantity|price|line total|australia"
+        r"|@.*\.com|^\+?\d+[\s\-\d]+$)",  # emails and phone numbers
         re.IGNORECASE,
     )
 
-    # Skip first 2 lines (usually store name/address) and last 3 (totals/footer)
-    body = lines[2:-3] if len(lines) > 5 else lines
+    # Look for lines that contain actual service/item descriptions
+    service_keywords = re.compile(
+        r"(repair|fix|install|replace|service|check|design|supply|fit|wire|top|clean"
+        r"|labour|labor|parts|maintenance|oil|brake|tire|engine|window|mirror)",
+        re.IGNORECASE
+    )
 
-    for line in body:
+    # Scan all lines for service-related content
+    for line in lines:
         stripped = line.strip()
-        if stripped and not skip_patterns.search(stripped):
+        if (stripped and
+            len(stripped) > 5 and  # Minimum meaningful length
+            not skip_patterns.search(stripped) and
+            (service_keywords.search(stripped) or  # Contains service keywords
+             (len(stripped) > 15 and not re.match(r"^[A-Z\s]+$", stripped)))):  # Long line, not all caps header
+
             item_lines.append(stripped)
+
+    # If we don't have service-specific lines, fall back to general body content
+    if not item_lines:
+        body = lines[3:-3] if len(lines) > 6 else lines[2:-2] if len(lines) > 4 else lines
+        for line in body:
+            stripped = line.strip()
+            if stripped and not skip_patterns.search(stripped):
+                item_lines.append(stripped)
 
     if not item_lines:
         return None, 0.0
