@@ -746,13 +746,13 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             },
             {
                 "name": "find_cheap_gas",
-                "description": "Find fuel prices near a location. NOTE: For real-time, accurate fuel prices, PREFER using the web_search tool instead - search for 'cheapest [fuel_type] prices near [location]' on FuelCheck or PetrolSpy. This tool only provides estimates based on regional averages, not real station prices. Only use this tool as a fallback if web_search fails.",
+                "description": "Find real fuel station names, addresses and live prices near a location. For Australian users, returns actual nearby stations with current AUD/litre prices from NSW FuelCheck. Use when the user asks about fuel prices, diesel prices, petrol prices, cheap gas, or servo prices. IMPORTANT: If the user says 'near me' or does not specify a location, check the system prompt for [USER LOCATION] and pass their actual suburb/city name as the location parameter instead of 'near me'. For example, if the system prompt shows '[USER LOCATION: Croydon Park, NSW]', pass location='Croydon Park, NSW'.",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "location": {"type": "string", "description": "Location to search near"},
+                        "location": {"type": "string", "description": "Location to search near - use the actual suburb or city name, not 'near me'. Check system prompt for [USER LOCATION] if needed."},
                         "radius_miles": {"type": "integer", "description": "Search radius (default: 25)"},
-                        "fuel_type": {"type": "string", "enum": ["regular", "diesel", "premium"], "description": "Type of fuel"}
+                        "fuel_type": {"type": "string", "enum": ["regular", "diesel", "premium"], "description": "Type of fuel. Use 'diesel' for RVs, caravans, trucks."}
                     },
                     "required": ["location"]
                 }
