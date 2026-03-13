@@ -68,11 +68,32 @@ UNIVERSAL_EXTRACTION_PROMPT = (
     '- "suggested_category": one of "Fuel", "Food", "Camp", "Fun", "Other"\n'
     '- "confidence": object with keys total, date, vendor, description each valued 0.0-1.0\n\n'
     "If this is a FUEL receipt, also include:\n"
-    '- "volume": number or null (fuel volume)\n'
+    '- "volume": number or null (TOTAL fuel volume - if multiple tanks/pumps shown, sum ALL volumes together)\n'
+    '- "volumes": array of numbers or null (individual tank volumes if multiple detected)\n'
     '- "price": number or null (price per unit)\n'
     '- "unit": "L" or "GAL"\n'
-    '- "odometer": number or null\n'
-    '- "station": string or null\n\n'
+    '- "odometer": number or null (full odometer reading with decimals if shown, e.g. 150057.6)\n'
+    '- "station": string or null (actual station/brand name, not "TEMP" or placeholder)\n\n'
+    "CRITICAL RULES for FUEL receipts:\n"
+    "1. MULTIPLE TANKS: Look carefully for TWO separate volume readings (common in RV/caravan setups)\n"
+    "   - Check for patterns like 'Tank 1: 45.78L' and 'Tank 2: 163.97L'\n"
+    "   - Look for 'Pump A:' and 'Pump B:' or similar dual-pump indicators\n"
+    "   - Sum ALL volume readings for the 'volume' field: 45.78 + 163.97 = 209.75\n"
+    "   - Store individual volumes in 'volumes' array: [45.78, 163.97]\n\n"
+    "2. ODOMETER READING: Find the COMPLETE odometer number (usually 5-6 digits with decimals)\n"
+    "   - Look for labels: 'ODO:', 'Odometer:', 'KM:', 'Miles:', or similar\n"
+    "   - Extract the FULL number including decimals: 150057.6 (not just 125 or partial)\n"
+    "   - Common formats: '150,057.6', '150057.6', '150 057.6'\n"
+    "   - DO NOT extract random short numbers - odometers are typically 100,000+ readings\n\n"
+    "3. STATION NAME: Find the ACTUAL business name, not placeholder text\n"
+    "   - Look for recognizable brands: Shell, BP, Caltex, Mobil, Chevron, etc.\n"
+    "   - Check header text, logos, or business name sections\n"
+    "   - AVOID placeholder text like 'TEMP', 'Service Station', 'Fuel Stop'\n"
+    "   - If the actual name is unclear, extract the most specific business identifier visible\n\n"
+    "4. VOLUME CALCULATION: If you see multiple volume readings:\n"
+    "   - Example: Tank 1 shows 45.78L, Tank 2 shows 163.97L\n"
+    "   - Set 'volume': 209.75 (sum of both)\n"
+    "   - Set 'volumes': [45.78, 163.97] (individual readings)\n\n"
     "Return only the JSON object, no markdown or explanation."
 )
 

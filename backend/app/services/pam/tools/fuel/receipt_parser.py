@@ -10,14 +10,22 @@ import re
 from typing import Dict, Any, Optional
 
 
-# Known fuel station brand keywords (lowercase)
+# Known fuel station brand keywords (lowercase) - includes Australian brands
 STATION_KEYWORDS = [
-    "shell", "bp", "caltex", "chevron", "mobil", "exxon", "texaco",
+    # Major Australian brands
+    "shell", "bp", "caltex", "chevron", "mobil", "exxon", "texaco", "ampol",
+    "united", "metro petroleum", "woolworths petrol", "coles express",
+    "7-eleven", "puma energy", "gull", "liberty", "viva energy", "z energy",
+    "iga petrol", "apco", "on the run", "otr", "fast fuel", "budget petrol",
+    "independent", "fuel express", "petro stop", "fuel stop",
+    # US brands (for comparison/travel)
     "costco", "arco", "sunoco", "citgo", "valero", "marathon",
     "phillips", "conoco", "sinclair", "casey", "wawa", "sheetz",
-    "racetrac", "quiktrip", "speedway", "circle k", "7-eleven",
-    "pilot", "love", "flying j", "ta ", "petro", "fuel", "gas",
-    "service station", "truck stop", "petrol",
+    "racetrac", "quiktrip", "speedway", "circle k",
+    "pilot", "love", "flying j", "ta ", "petro",
+    # Generic terms
+    "fuel", "gas", "petrol", "service station", "truck stop", "roadhouse",
+    "servo", "service centre", "automotive",
 ]
 
 
@@ -43,42 +51,75 @@ def _extract_total(text: str) -> tuple[Optional[float], float]:
     return None, 0.0
 
 
-def _extract_volume(text: str) -> tuple[Optional[float], float, str]:
-    """Extract volume and determine unit. Returns (value, confidence, unit)."""
+def _extract_volume(text: str) -> tuple[Optional[float], float, str, Optional[list]]:
+    """Extract volume(s) and determine unit. Returns (total_volume, confidence, unit, individual_volumes)."""
     patterns_litres = [
-        # "45.00L" or "45.00 L" or "45L"
+        # "45.00L" or "45.00 L" or "45L" - captures individual volumes
         (r"(\d+\.?\d*)\s*[Ll](?:\b|itr)", 0.95),
-        # "Volume: 45.00" (assumes litres if no unit specified)
-        (r"[Vv]olume\s*:?\s*(\d+\.?\d*)", 0.85),
+        # "Volume: 45.00" or "Tank 1: 45.00" (assumes litres if no unit specified)
+        (r"(?:[Vv]olume|[Tt]ank\s*\d*)\s*:?\s*(\d+\.?\d*)", 0.85),
         # "Litres: 45.00"
         (r"[Ll]it(?:re|er)s?\s*:?\s*(\d+\.?\d*)", 0.95),
+        # "Pump A: 45.78L" or "Pump B: 163.97L"
+        (r"[Pp]ump\s*[A-Z\d]\s*:?\s*(\d+\.?\d*)\s*[Ll]?", 0.90),
     ]
 
     patterns_gallons = [
         # "12.5 GAL" or "12.5GAL" or "12.5 gal"
         (r"(\d+\.?\d*)\s*[Gg][Aa][Ll]", 0.95),
-        # "12.5 gal @" or "Gallons: 12.5"
-        (r"[Gg]allons?\s*:?\s*(\d+\.?\d*)", 0.90),
+        # "12.5 gal @" or "Gallons: 12.5" or "Tank 1: 12.5 gal"
+        (r"(?:[Gg]allons?|[Tt]ank\s*\d*|[Pp]ump\s*[A-Z\d])\s*:?\s*(\d+\.?\d*)", 0.90),
     ]
+
+    volumes_found = []
+    unit = "L"  # default unit
+    max_confidence = 0.0
 
     # Check gallons first (more specific patterns)
     for pattern, confidence in patterns_gallons:
-        match = re.search(pattern, text)
-        if match:
+        matches = re.findall(pattern, text)
+        if matches:
             try:
-                return float(match.group(1)), confidence, "GAL"
+                for match in matches:
+                    vol = float(match)
+                    volumes_found.append(vol)
+                    max_confidence = max(max_confidence, confidence)
+                unit = "GAL"
             except ValueError:
                 continue
 
-    for pattern, confidence in patterns_litres:
-        match = re.search(pattern, text)
-        if match:
-            try:
-                return float(match.group(1)), confidence, "L"
-            except ValueError:
-                continue
+    # If no gallons found, check litres
+    if not volumes_found:
+        for pattern, confidence in patterns_litres:
+            matches = re.findall(pattern, text)
+            if matches:
+                try:
+                    for match in matches:
+                        vol = float(match)
+                        volumes_found.append(vol)
+                        max_confidence = max(max_confidence, confidence)
+                    unit = "L"
+                except ValueError:
+                    continue
 
-    return None, 0.0, "L"
+    if not volumes_found:
+        return None, 0.0, "L", None
+
+    # Filter out unrealistic volumes (too small or too large)
+    realistic_volumes = [v for v in volumes_found if 1.0 <= v <= 1000.0]
+
+    if not realistic_volumes:
+        return None, 0.0, unit, None
+
+    # If we have multiple realistic volumes, return the sum and the list
+    if len(realistic_volumes) > 1:
+        total_volume = sum(realistic_volumes)
+        # Higher confidence when multiple tanks detected as expected for RVs
+        adjusted_confidence = min(max_confidence * 1.1, 1.0)
+        return total_volume, adjusted_confidence, unit, realistic_volumes
+    else:
+        # Single volume
+        return realistic_volumes[0], max_confidence, unit, None
 
 
 def _extract_price(text: str) -> tuple[Optional[float], float]:
@@ -141,42 +182,85 @@ def _extract_station(text: str) -> tuple[Optional[str], float]:
     """Extract station name from receipt text. Returns (name, confidence)."""
     lines = text.strip().split("\n")
 
+    # Avoid obvious placeholder text
+    PLACEHOLDER_PATTERNS = [
+        "temp", "temporary", "test", "example", "placeholder", "tbd", "xxx",
+        "fuel stop", "gas station", "service station", "petrol station"
+    ]
+
     # Check first few lines for station brand keywords
     for line in lines[:5]:
         line_lower = line.strip().lower()
+
+        # Skip obvious placeholder text
+        is_placeholder = any(placeholder in line_lower for placeholder in PLACEHOLDER_PATTERNS)
+        if is_placeholder:
+            continue
+
         for keyword in STATION_KEYWORDS:
             if keyword in line_lower:
-                return line.strip(), 0.85
+                # Found a matching brand keyword
+                cleaned_line = line.strip()
+                # Extra validation - avoid very short or generic matches
+                if len(cleaned_line) >= 3 and not cleaned_line.lower() in ["fuel", "gas", "petrol"]:
+                    return cleaned_line, 0.85
 
-    # If no keyword match, use the first non-empty line as a guess
-    for line in lines[:3]:
+    # Look for business names in a wider range (sometimes station name is not in the first few lines)
+    for line in lines[:8]:
         cleaned = line.strip()
-        # Skip lines that look like amounts or dates
-        if cleaned and not re.match(r"^[\d$./\-]+$", cleaned):
+        line_lower = cleaned.lower()
+
+        # Skip placeholder text, amounts, dates, and common receipt formatting
+        if (cleaned and
+            len(cleaned) >= 4 and
+            not re.match(r"^[\d$./\-\s,]+$", cleaned) and
+            not any(placeholder in line_lower for placeholder in PLACEHOLDER_PATTERNS) and
+            not re.match(r"^\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}", cleaned) and
+            "total" not in line_lower and
+            "tax" not in line_lower and
+            "receipt" not in line_lower):
+
+            # This looks like it could be a business name
             return cleaned, 0.4
 
     return None, 0.0
 
 
 def _extract_odometer(text: str) -> tuple[Optional[float], float]:
-    """Extract odometer/mileage reading. Returns (value, confidence)."""
+    """Extract odometer/mileage reading with decimals. Returns (value, confidence)."""
     patterns = [
-        # "Odometer: 123456" or "ODO: 123456"
-        (r"(?:ODO(?:METER)?|MILEAGE|KM|MILES)\s*:?\s*(\d{3,7})", 0.90),
-        # "123,456 km" or "123,456 mi"
-        (r"(\d{1,3}(?:,\d{3})+)\s*(?:km|mi|miles)", 0.85),
-        # "123456 km" or "123456 mi"
-        (r"(\d{4,7})\s*(?:km|mi|miles)", 0.80),
+        # "Odometer: 150057.6" or "ODO: 150,057.6" - with decimals
+        (r"(?:ODO(?:METER)?|MILEAGE|KM|MILES)\s*:?\s*(\d{1,3}(?:,?\d{3})*\.?\d*)", 0.95),
+        # "150,057.6 km" or "150057.6 mi" - with commas and decimals
+        (r"(\d{1,3}(?:,\d{3})*\.?\d*)\s*(?:km|mi|miles)", 0.90),
+        # "150057.6 km" or "150057.6 mi" - without commas but with decimals
+        (r"(\d{5,7}\.?\d*)\s*(?:km|mi|miles)", 0.85),
+        # Look for standalone large numbers with decimals that could be odometer
+        (r"\b(\d{5,6}\.\d+)\b", 0.75),
+        # Look for large whole numbers that are likely odometer readings
+        (r"\b(\d{5,7})\b(?!\s*(?:L|GAL|gal|litr|\$|cent))", 0.70),
     ]
 
     for pattern, confidence in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            try:
-                val_str = match.group(1).replace(",", "")
-                return float(val_str), confidence
-            except ValueError:
-                continue
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        if matches:
+            # Process all matches and pick the most realistic odometer reading
+            for match in matches:
+                try:
+                    # Clean up the match (remove commas, handle multiple groups)
+                    if isinstance(match, tuple):
+                        val_str = match[0]
+                    else:
+                        val_str = match
+
+                    val_str = val_str.replace(",", "").replace(" ", "")
+                    val = float(val_str)
+
+                    # Realistic odometer range: 1000 to 9,999,999 (reasonable vehicle range)
+                    if 1000 <= val <= 9999999:
+                        return val, confidence
+                except ValueError:
+                    continue
 
     return None, 0.0
 
@@ -199,6 +283,7 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
         return {
             "total": None,
             "volume": None,
+            "volumes": None,
             "price": None,
             "date": None,
             "station": None,
@@ -216,7 +301,7 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
         }
 
     total, total_conf = _extract_total(text)
-    volume, volume_conf, unit = _extract_volume(text)
+    volume, volume_conf, unit, individual_volumes = _extract_volume(text)
     price, price_conf = _extract_price(text)
     date_str, date_conf = _extract_date(text)
     station, station_conf = _extract_station(text)
@@ -252,6 +337,7 @@ def parse_receipt_text(text: str) -> Dict[str, Any]:
     return {
         "total": total,
         "volume": volume,
+        "volumes": individual_volumes,  # Array of individual tank volumes
         "price": price,
         "date": date_str,
         "station": station,
