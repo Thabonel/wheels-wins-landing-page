@@ -1296,7 +1296,7 @@ async def _register_all_tools(registry: ToolRegistry):
             tool=FindCheapGasTool(),
             function_definition={
                 "name": "find_cheap_gas",
-                "description": "Find current fuel prices near a location. Returns regional average pricing for Australian users (AUD/litre from NSW FuelCheck) and representative prices for other regions. Use when user asks about fuel prices, diesel prices, petrol prices, cheap gas, or servo prices.",
+                "description": "Find current fuel prices near a location. Returns real station names, addresses and prices for Australian users (AUD/litre from NSW FuelCheck) and representative prices for other regions. Use when user asks about fuel prices, diesel prices, petrol prices, cheap gas, or servo prices. IMPORTANT: If the user says 'near me' or doesn't specify a location, check the system prompt for [USER LOCATION] and pass their actual suburb/city name as the location parameter instead of 'near me'. For example, if the system prompt shows '[USER LOCATION: Croydon Park, NSW]', pass location='Croydon Park NSW'.",
                 "parameters": {
                     "type": "object",
                     "properties": {

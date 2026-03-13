@@ -220,7 +220,24 @@ async def find_cheap_gas(
                 context={"validation_errors": e.errors()}
             )
 
-        region = await _detect_user_region(validated.user_id, validated.location)
+        # Extract GPS coordinates from context if available (passed via PAM orchestrator)
+        context = kwargs.get("context", {})
+        user_location = context.get("user_location", {})
+        gps_lat = user_location.get("lat") or user_location.get("latitude")
+        gps_lng = user_location.get("lng") or user_location.get("longitude")
+
+        # If we have GPS coordinates, use them for region detection
+        # Australian coordinates: lat between -10 and -44, lng between 113 and 154
+        if gps_lat and gps_lng:
+            gps_lat = float(gps_lat)
+            gps_lng = float(gps_lng)
+            if -44 <= gps_lat <= -10 and 113 <= gps_lng <= 154:
+                logger.info(f"GPS coordinates ({gps_lat}, {gps_lng}) detected as Australia")
+                region = "AU"
+            else:
+                region = await _detect_user_region(validated.user_id, validated.location)
+        else:
+            region = await _detect_user_region(validated.user_id, validated.location)
         fuel_price_data = await get_fuel_price_for_region(region, validated.fuel_type)
 
         base_price = fuel_price_data["price"]
@@ -237,7 +254,12 @@ async def find_cheap_gas(
 
         # Australian users get real station data from NSW FuelCheck
         if region == "AU":
-            coords = await _geocode_location(validated.location)
+            # Use GPS coordinates directly if available, otherwise geocode the location string
+            if gps_lat and gps_lng:
+                coords = {"latitude": gps_lat, "longitude": gps_lng}
+                logger.info(f"Using GPS coordinates directly: ({gps_lat}, {gps_lng})")
+            else:
+                coords = await _geocode_location(validated.location)
 
             if coords:
                 nearby_data = await get_nearby_fuel_stations(
