@@ -40,7 +40,13 @@ async def _geocode_location(location: str) -> Optional[Dict[str, float]]:
     """
     try:
         import os
-        mapbox_token = os.getenv("MAPBOX_API_KEY") or os.getenv("MAPBOX_TOKEN") or os.getenv("VITE_MAPBOX_TOKEN")
+        mapbox_token = (
+            os.getenv("MAPBOX_API_KEY")
+            or os.getenv("MAPBOX_TOKEN")
+            or os.getenv("MAPBOX_SECRET_TOKEN")
+            or os.getenv("VITE_MAPBOX_PUBLIC_TOKEN")
+            or os.getenv("VITE_MAPBOX_TOKEN")
+        )
         if not mapbox_token:
             logger.warning("No Mapbox token available for geocoding")
             return None
