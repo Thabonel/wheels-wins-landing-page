@@ -3,8 +3,8 @@
 
 # Enhanced database support
 
-# Performance optimizations
-ujson==5.8.0
+# Performance optimizations - SECURITY FIX: Updated ujson to fix integer overflow vulnerability
+ujson>=5.12.0
 python-rapidjson==1.12
 
 # Enhanced async support
