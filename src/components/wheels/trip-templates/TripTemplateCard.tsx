@@ -18,7 +18,8 @@ import {
   Loader2,
   Camera,
   Upload,
-  X
+  X,
+  Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TripTemplate } from '@/services/tripTemplateService';
@@ -33,6 +34,7 @@ interface TripTemplateCardProps {
   template: TripTemplate;
   onAddToJourney: (template: TripTemplate) => void;
   onUseTemplate: (template: TripTemplate) => void;
+  onViewTemplate?: (template: TripTemplate) => void;
   isInJourney: boolean;
 }
 
@@ -50,6 +52,7 @@ export default function TripTemplateCard({
   template,
   onAddToJourney,
   onUseTemplate,
+  onViewTemplate,
   isInJourney
 }: TripTemplateCardProps) {
   // Photo cycling state
@@ -500,7 +503,17 @@ export default function TripTemplateCard({
 
         {/* Action Buttons */}
         <div className="flex gap-2">
-          <Button 
+          {onViewTemplate && (
+            <Button
+              onClick={() => onViewTemplate(template)}
+              variant="outline"
+              size="sm"
+              className="px-3"
+            >
+              <Eye className="w-4 h-4" />
+            </Button>
+          )}
+          <Button
             onClick={() => onAddToJourney(template)}
             disabled={isInJourney}
             className="flex-1"
@@ -518,7 +531,7 @@ export default function TripTemplateCard({
               </>
             )}
           </Button>
-          <Button 
+          <Button
             onClick={() => onUseTemplate(template)}
             className="flex-1"
             variant="default"

@@ -9,9 +9,12 @@ import {
   Clock,
   Camera,
   Upload,
-  X
+  X,
+  Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TripViewer } from '@/components/wheels/trip-viewer/TripViewer';
+import { UserTrip } from '@/types/userTrips';
 
 interface PastTrip {
   id: string;
@@ -34,6 +37,8 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
   const [loading, setLoading] = useState(false);
   const [tripPhotos, setTripPhotos] = useState<Record<string, string>>({});
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedTrip, setSelectedTrip] = useState<UserTrip | null>(null);
   
   // Mock past trips data - in real app this would come from database
   const mockPastTrips: PastTrip[] = [
@@ -112,6 +117,46 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
       delete updated[tripId];
       return updated;
     });
+  };
+
+  const handleViewTrip = (trip: PastTrip) => {
+    // Convert PastTrip to UserTrip format for TripViewer
+    const userTrip: UserTrip = {
+      id: trip.id,
+      user_id: 'current-user', // Mock user ID
+      title: trip.name,
+      description: trip.description || `${trip.duration}-day journey through ${trip.destinations.join(', ')}`,
+      start_date: trip.dates.start,
+      end_date: trip.dates.end,
+      status: 'completed',
+      trip_type: 'road_trip',
+      total_budget: null,
+      spent_budget: null,
+      privacy_level: 'private',
+      metadata: {
+        route_data: {
+          waypoints: trip.destinations.map((dest, index) => ({
+            name: dest,
+            coordinates: [133.775136 + (index * 2), -25.274398] as [number, number], // Mock coordinates [lng, lat]
+          })),
+          distance: trip.duration * 400, // Mock distance (400km/day)
+          route: null // No detailed route geometry for past trips
+        },
+        distance_miles: trip.duration * 250, // Mock distance in miles
+        duration_hours: trip.duration * 8, // Mock 8 hours driving per day
+        highlights: trip.highlights
+      },
+      created_at: trip.dates.start,
+      updated_at: trip.dates.end
+    };
+
+    setSelectedTrip(userTrip);
+    setViewerOpen(true);
+  };
+
+  const handleCloseViewer = () => {
+    setViewerOpen(false);
+    setSelectedTrip(null);
   };
 
   return (
@@ -249,15 +294,14 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
                           <Share className="w-3 h-3 mr-1" />
                           Share
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           className="h-7 text-xs px-2"
-                          onClick={() => {
-                            console.log('View details for trip:', trip.id);
-                          }}
+                          onClick={() => handleViewTrip(trip)}
                         >
-                          Details
+                          <Eye className="w-3 h-3 mr-1" />
+                          View
                         </Button>
                       </div>
                     </div>
@@ -268,6 +312,32 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
           )}
         </CardContent>
       )}
+
+      {/* Trip Viewer */}
+      <TripViewer
+        trip={selectedTrip}
+        isOpen={viewerOpen}
+        onClose={handleCloseViewer}
+        onEdit={() => {
+          // Past trips can't be edited, but we could implement "Create Similar Trip"
+          // For now, just show a message
+          console.log('Edit past trip not supported');
+        }}
+        onShare={(trip) => {
+          // Reuse existing share functionality
+          const mockPastTrip: PastTrip = {
+            id: trip.id,
+            name: trip.title,
+            dates: { start: trip.start_date!, end: trip.end_date! },
+            destinations: trip.metadata?.route_data?.waypoints?.map(w => w.name) || [],
+            duration: Math.round((trip.metadata?.duration_hours || 0) / 24),
+            thumbnail: '/placeholder.svg',
+            highlights: trip.metadata?.highlights || [],
+            description: trip.description
+          };
+          handleShareTrip(mockPastTrip);
+        }}
+      />
     </Card>
   );
 }
