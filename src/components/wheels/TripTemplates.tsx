@@ -1,29 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
 import { useRegion } from '@/context/RegionContext';
 import { useToast } from '@/hooks/use-toast';
 import { tripTemplateServiceSafe } from '@/services/tripTemplateServiceSafe';
 import { TripTemplate, incrementTemplateUsage } from '@/services/tripTemplateService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import {
-  MapPin,
-  Clock,
-  DollarSign,
-  ChevronRight,
-  Search,
-  Filter,
-  Route,
-  Calendar,
-  X,
-  AlertCircle
-} from 'lucide-react';
+import { ChevronRight, X, Route } from 'lucide-react';
 import { TripViewer } from '@/components/wheels/trip-viewer/TripViewer';
 import { UserTrip } from '@/types/userTrips';
-import { cn } from '@/lib/utils';
 
 // Import the advanced components
 import TripTemplateCard from './trip-templates/TripTemplateCard';
@@ -35,7 +21,6 @@ interface TripTemplatesProps {
 }
 
 export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
-  const { user } = useAuth();
   const { region } = useRegion();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -219,15 +204,14 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
   };
 
   const handleViewTemplate = (template: TripTemplate) => {
-    // Convert TripTemplate to UserTrip format for TripViewer
     const userTrip: UserTrip = {
       id: template.id,
-      user_id: 'template', // Templates don't have user ownership
+      user_id: 'template',
       title: template.name,
       description: template.description,
       start_date: null,
       end_date: null,
-      status: 'planning', // Use valid status type
+      status: 'planning',
       trip_type: template.category || 'road_trip',
       total_budget: template.suggestedBudget || null,
       spent_budget: null,
@@ -238,7 +222,7 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
             name: waypoint.name,
             coordinates: [waypoint.longitude, waypoint.latitude] as [number, number],
           })),
-          distance: template.estimatedDays * 400, // Mock distance
+          distance: template.estimatedDays * 400,
           route: template.route || null
         },
         distance_miles: template.estimatedDays * 250,
@@ -443,10 +427,8 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
         isOpen={viewerOpen}
         onClose={handleCloseViewer}
         onEdit={(trip) => {
-          // Close viewer and use the template
           handleCloseViewer();
           if (onUseTemplate) {
-            // Convert back to TripTemplate for onUseTemplate
             const template = tripTemplates.find(t => t.id === trip.id);
             if (template) {
               onUseTemplate(template);
@@ -454,7 +436,6 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
           }
         }}
         onShare={(trip) => {
-          // Share functionality for templates
           const shareUrl = `${window.location.origin}/wheels/templates/shared/${trip.id}`;
           navigator.clipboard.writeText(shareUrl).then(() => {
             toast({

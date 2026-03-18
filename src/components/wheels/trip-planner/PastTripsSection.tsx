@@ -40,7 +40,7 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<UserTrip | null>(null);
   
-  // Mock past trips data - in real app this would come from database
+  // Mock data - will be replaced with real trip history
   const mockPastTrips: PastTrip[] = [
     {
       id: '1',
@@ -77,7 +77,6 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(shareData.url);
-        // Could add toast notification here
       }
     } catch (error) {
       console.error('Error sharing trip:', error);
@@ -96,14 +95,10 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
         reader.readAsDataURL(file);
       });
 
-      // Update the tripPhotos state
       setTripPhotos(prev => ({
         ...prev,
         [tripId]: dataUrl
       }));
-
-      // In a real app, you would upload to your backend/storage here
-      // await uploadTripPhoto(tripId, file);
     } catch (error) {
       console.error('Error uploading photo:', error);
     } finally {
@@ -120,10 +115,9 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
   };
 
   const handleViewTrip = (trip: PastTrip) => {
-    // Convert PastTrip to UserTrip format for TripViewer
     const userTrip: UserTrip = {
       id: trip.id,
-      user_id: 'current-user', // Mock user ID
+      user_id: 'current-user',
       title: trip.name,
       description: trip.description || `${trip.duration}-day journey through ${trip.destinations.join(', ')}`,
       start_date: trip.dates.start,
@@ -137,13 +131,13 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
         route_data: {
           waypoints: trip.destinations.map((dest, index) => ({
             name: dest,
-            coordinates: [133.775136 + (index * 2), -25.274398] as [number, number], // Mock coordinates [lng, lat]
+            coordinates: [133.775136 + (index * 2), -25.274398] as [number, number],
           })),
-          distance: trip.duration * 400, // Mock distance (400km/day)
-          route: null // No detailed route geometry for past trips
+          distance: trip.duration * 400,
+          route: null
         },
-        distance_miles: trip.duration * 250, // Mock distance in miles
-        duration_hours: trip.duration * 8, // Mock 8 hours driving per day
+        distance_miles: trip.duration * 250,
+        duration_hours: trip.duration * 8,
         highlights: trip.highlights
       },
       created_at: trip.dates.start,
@@ -319,12 +313,9 @@ export default function PastTripsSection({ className }: PastTripsSectionProps) {
         isOpen={viewerOpen}
         onClose={handleCloseViewer}
         onEdit={() => {
-          // Past trips can't be edited, but we could implement "Create Similar Trip"
-          // For now, just show a message
-          console.log('Edit past trip not supported');
+          // Past trips are read-only
         }}
         onShare={(trip) => {
-          // Reuse existing share functionality
           const mockPastTrip: PastTrip = {
             id: trip.id,
             name: trip.title,
