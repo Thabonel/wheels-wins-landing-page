@@ -9,10 +9,10 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  MapPin, 
-  Clock, 
-  DollarSign, 
+import {
+  MapPin,
+  Clock,
+  DollarSign,
   ChevronRight,
   Search,
   Filter,
@@ -21,6 +21,8 @@ import {
   X,
   AlertCircle
 } from 'lucide-react';
+import { TripViewer } from '@/components/wheels/trip-viewer/TripViewer';
+import { UserTrip } from '@/types/userTrips';
 import { cn } from '@/lib/utils';
 
 // Import the advanced components
@@ -50,6 +52,8 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
     difficulty: 'all',
     category: 'all'
   });
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<UserTrip | null>(null);
 
   // Load trip templates based on region
   useEffect(() => {
@@ -212,6 +216,49 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
       title: "Journey Created",
       description: `Your ${selectedTrips.length}-trip journey has been loaded into the trip planner`,
     });
+  };
+
+  const handleViewTemplate = (template: TripTemplate) => {
+    // Convert TripTemplate to UserTrip format for TripViewer
+    const userTrip: UserTrip = {
+      id: template.id,
+      user_id: 'template', // Templates don't have user ownership
+      title: template.name,
+      description: template.description,
+      start_date: null,
+      end_date: null,
+      status: 'planning', // Use valid status type
+      trip_type: template.category || 'road_trip',
+      total_budget: template.suggestedBudget || null,
+      spent_budget: null,
+      privacy_level: 'public',
+      metadata: {
+        route_data: {
+          waypoints: (template.waypoints || []).map((waypoint) => ({
+            name: waypoint.name,
+            coordinates: [waypoint.longitude, waypoint.latitude] as [number, number],
+          })),
+          distance: template.estimatedDays * 400, // Mock distance
+          route: template.route || null
+        },
+        distance_miles: template.estimatedDays * 250,
+        duration_hours: template.estimatedDays * 8,
+        estimated_cost: template.suggestedBudget,
+        highlights: template.highlights,
+        difficulty: template.difficulty,
+        category: template.category
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    setSelectedTemplate(userTrip);
+    setViewerOpen(true);
+  };
+
+  const handleCloseViewer = () => {
+    setViewerOpen(false);
+    setSelectedTemplate(null);
   };
 
   return (
@@ -380,6 +427,7 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
                     template={template}
                     onAddToJourney={handleAddToJourney}
                     onUseTemplate={handleUseTemplate}
+                    onViewTemplate={handleViewTemplate}
                     isInJourney={selectedTrips.some(t => t.id === template.id)}
                   />
                 ))}
@@ -388,6 +436,40 @@ export default function TripTemplates({ onUseTemplate }: TripTemplatesProps) {
           )}
         </>
       )}
+
+      {/* Trip Viewer */}
+      <TripViewer
+        trip={selectedTemplate}
+        isOpen={viewerOpen}
+        onClose={handleCloseViewer}
+        onEdit={(trip) => {
+          // Close viewer and use the template
+          handleCloseViewer();
+          if (onUseTemplate) {
+            // Convert back to TripTemplate for onUseTemplate
+            const template = tripTemplates.find(t => t.id === trip.id);
+            if (template) {
+              onUseTemplate(template);
+            }
+          }
+        }}
+        onShare={(trip) => {
+          // Share functionality for templates
+          const shareUrl = `${window.location.origin}/wheels/templates/shared/${trip.id}`;
+          navigator.clipboard.writeText(shareUrl).then(() => {
+            toast({
+              title: "Share link copied",
+              description: "Template share link copied to clipboard",
+            });
+          }).catch(() => {
+            toast({
+              title: "Share failed",
+              description: "Failed to copy share link",
+              variant: "destructive"
+            });
+          });
+        }}
+      />
     </div>
   );
 }
