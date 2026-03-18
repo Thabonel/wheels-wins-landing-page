@@ -7,12 +7,14 @@ import {
   Calendar,
   Clock,
   Trash2,
-  Play,
   Share2,
   Bot,
   Edit3,
-  User
+  User,
+  Eye
 } from 'lucide-react';
+import { TripThumbnail } from '@/components/wheels/trips/TripThumbnail';
+import { TripViewer } from '@/components/wheels/trip-viewer/TripViewer';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -40,6 +42,8 @@ export default function SavedTrips() {
   const navigate = useNavigate();
   const [trips, setTrips] = useState<SavedTrip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedTrip, setSelectedTrip] = useState<SavedTrip | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -118,6 +122,27 @@ export default function SavedTrips() {
     navigate(`/wheels?tab=trip-planner&trip=${trip.id}${editParam}`);
   };
 
+  const handleViewTrip = (trip: SavedTrip) => {
+    // PRD Phase 2: Open slide-over panel for trip inspection
+    setSelectedTrip(trip);
+    setViewerOpen(true);
+  };
+
+  const handleCloseViewer = () => {
+    setViewerOpen(false);
+    setSelectedTrip(null);
+  };
+
+  const handleEditFromViewer = (trip: SavedTrip) => {
+    // Close viewer and navigate to edit mode
+    handleCloseViewer();
+    handleLoadTrip(trip, true);
+  };
+
+  const handleShareFromViewer = (trip: SavedTrip) => {
+    handleShareTrip(trip);
+  };
+
   const handleShareTrip = async (trip: SavedTrip) => {
     const shareUrl = `${window.location.origin}/wheels/trips/shared/${trip.id}`;
 
@@ -190,9 +215,20 @@ export default function SavedTrips() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="relative">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {trips.map((trip) => (
         <Card key={trip.id} className="hover:shadow-lg transition-shadow">
+          {/* Trip Thumbnail - PRD Phase 1 */}
+          <div className="relative">
+            <TripThumbnail
+              trip={trip as any} // Type assertion for thumbnail component
+              className="w-full rounded-t-lg"
+              height={150}
+              onClick={() => handleViewTrip(trip)}
+            />
+          </div>
+
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -267,11 +303,12 @@ export default function SavedTrips() {
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
-                onClick={() => handleLoadTrip(trip, false)}
+                onClick={() => handleViewTrip(trip)}
                 className="flex-1"
+                title="View trip details"
               >
-                <Play className="w-4 h-4 mr-1" />
-                Load
+                <Eye className="w-4 h-4 mr-1" />
+                View
               </Button>
               <Button
                 size="sm"
@@ -303,6 +340,16 @@ export default function SavedTrips() {
           </CardContent>
         </Card>
       ))}
+      </div>
+
+      {/* Trip Viewer Slide-over Panel */}
+      <TripViewer
+        trip={selectedTrip as any} // Type assertion for slide-over viewer
+        isOpen={viewerOpen}
+        onClose={handleCloseViewer}
+        onEdit={handleEditFromViewer}
+        onShare={handleShareFromViewer}
+      />
     </div>
   );
 }

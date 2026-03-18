@@ -39,6 +39,10 @@ export interface UserTripMetadata {
   route_source?: 'mapbox_navigator' | 'estimated';
   sourceTool?: string;
 
+  // Trip thumbnail metadata
+  thumbnail_url?: string;
+  thumbnail_generated_at?: string;
+
   // Additional metadata
   [key: string]: any;
 }
@@ -51,6 +55,7 @@ export interface UserTrip {
   start_date?: string;
   end_date?: string;
   total_budget?: number;
+  spent_budget?: number;
   status: 'planning' | 'active' | 'completed' | 'cancelled';
   trip_type?: string;
   privacy_level: 'private' | 'shared' | 'public';
