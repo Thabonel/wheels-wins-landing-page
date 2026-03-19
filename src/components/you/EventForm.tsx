@@ -104,7 +104,14 @@ const EventForm: React.FC<EventFormProps> = ({
             <FormItem>
               <FormLabel>Event Title</FormLabel>
               <FormControl>
-                <Input placeholder="Enter event title" {...field} />
+                <Input
+                  placeholder="Enter event title"
+                  {...field}
+                  onFocus={(e) => {
+                    // Prevent automatic text selection when modal opens
+                    e.target.setSelectionRange(e.target.value.length, e.target.value.length);
+                  }}
+                />
               </FormControl>
             </FormItem>
           )}
