@@ -50,8 +50,27 @@ export const LocationConsentModal: React.FC<LocationConsentModalProps> = ({ open
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      style={{ touchAction: 'manipulation' }}
+      onTouchStart={(e) => {
+        // Prevent scroll-through on backdrop
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+        }
+      }}
+      onClick={(e) => {
+        // Close on backdrop click (but not on mobile to prevent accidental closes)
+        if (e.target === e.currentTarget && !/iPad|iPhone|iPod|Android/.test(navigator.userAgent)) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+        style={{ touchAction: 'auto' }}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
         <h2 className="text-xl font-semibold text-gray-900">Enable Location</h2>
         <p className="mt-2 text-sm text-gray-600">
           Turn on location to get instant local weather, nearby places, and show your
@@ -65,6 +84,7 @@ export const LocationConsentModal: React.FC<LocationConsentModalProps> = ({ open
               checked={useCurrentLocation}
               onChange={(e) => setUseCurrentLocation(e.target.checked)}
               className="mt-1"
+              style={{ minWidth: '44px', minHeight: '44px' }}
             />
             <span>
               <span className="font-medium text-gray-900">Use precise location</span>
@@ -78,6 +98,7 @@ export const LocationConsentModal: React.FC<LocationConsentModalProps> = ({ open
               checked={shareOnMap}
               onChange={(e) => setShareOnMap(e.target.checked)}
               className="mt-1"
+              style={{ minWidth: '44px', minHeight: '44px' }}
             />
             <span>
               <span className="font-medium text-gray-900">Share on community map</span>
@@ -91,6 +112,7 @@ export const LocationConsentModal: React.FC<LocationConsentModalProps> = ({ open
             onClick={onClose}
             disabled={saving}
             className="rounded-md border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            style={{ minWidth: '44px', minHeight: '44px', touchAction: 'manipulation' }}
           >
             Not now
           </button>
@@ -98,6 +120,7 @@ export const LocationConsentModal: React.FC<LocationConsentModalProps> = ({ open
             onClick={onConfirm}
             disabled={saving}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            style={{ minWidth: '44px', minHeight: '44px', touchAction: 'manipulation' }}
           >
             {saving ? 'Saving…' : 'Enable'}
           </button>
