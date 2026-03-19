@@ -99,6 +99,72 @@ export function analyzeSupabaseError(error: any): SupabaseErrorInfo {
   };
 }
 
+// Mobile-specific retry with longer timeouts for slow networks
+export async function executeWithRetryMobile<T>(
+  operation: () => Promise<T>,
+  context: string,
+  timeoutMs: number = 10000, // 10s for mobile networks
+  maxRetries: number = 3,
+  delayMs: number = 2000
+): Promise<T> {
+  const executeWithTimeout = async (): Promise<T> => {
+    return Promise.race([
+      operation(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Mobile timeout after ${timeoutMs}ms`)), timeoutMs)
+      )
+    ]);
+  };
+
+  let lastError: any;
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      console.log(`📱 ${context} - Mobile attempt ${attempt}/${maxRetries + 1} (${timeoutMs}ms timeout)`);
+      const result = await executeWithTimeout();
+
+      if (attempt > 1) {
+        console.log(`✅ ${context} - Mobile retry succeeded on attempt ${attempt}`);
+        toast.success(`${context} succeeded after mobile retry`);
+      }
+
+      return result;
+    } catch (error) {
+      lastError = error;
+      const errorInfo = analyzeSupabaseError(error);
+
+      console.warn(`⚠️ ${context} - Mobile attempt ${attempt} failed:`, {
+        type: errorInfo.type,
+        message: errorInfo.message,
+        isRetryable: errorInfo.isRetryable,
+        isMobileTimeout: String(error).includes('Mobile timeout'),
+        error: error
+      });
+
+      // Don't retry if we've exceeded max attempts or error is not retryable (unless it's a mobile timeout)
+      const isMobileTimeout = String(error).includes('Mobile timeout');
+      if (attempt > maxRetries || (!errorInfo.isRetryable && !isMobileTimeout)) {
+        break;
+      }
+
+      // Wait before retry with longer delays for mobile
+      const delay = delayMs * Math.pow(2, attempt - 1);
+      console.log(`⏱️ ${context} - Mobile waiting ${delay}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  // All attempts failed
+  const errorInfo = analyzeSupabaseError(lastError);
+  console.error(`❌ ${context} - All mobile attempts failed:`, {
+    type: errorInfo.type,
+    message: errorInfo.message,
+    finalError: lastError
+  });
+
+  throw lastError;
+}
+
 export async function executeWithRetry<T>(
   operation: () => Promise<T>,
   context: string,

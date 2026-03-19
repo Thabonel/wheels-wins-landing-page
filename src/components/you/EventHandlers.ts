@@ -3,7 +3,7 @@ import { CalendarEvent } from "./types";
 import { formatEventTime } from "./EventFormatter";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { executeWithRetry, handleSupabaseResponse } from "@/utils/supabaseErrorHandler";
+import { executeWithRetry, executeWithRetryMobile, handleSupabaseResponse } from "@/utils/supabaseErrorHandler";
 import { CalendarDeleteLogger } from "@/utils/calendarDeleteDebug";
 
 // Helper function to check if user is admin
@@ -474,14 +474,33 @@ export const handleEventDelete = async (
   CalendarDeleteLogger.startDelete(eventId, supabase);
 
   try {
-    // Get authenticated user (required for RLS)
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Enhanced authentication check with PWA session refresh for iOS PWA
+    const authOperation = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      // For iOS PWA, try refreshing session if getUser fails
+      if (!user && typeof window !== 'undefined' && (window.navigator as any).standalone) {
+        console.warn('🔄 PWA mode: Attempting session refresh for auth recovery');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (session?.user && !sessionError) {
+          console.log('✅ PWA mode: Session refreshed successfully');
+          return { data: { user: session.user }, error: null };
+        } else {
+          console.error('❌ PWA mode: Session refresh failed', sessionError);
+        }
+      }
+
+      return { data: { user }, error: userError };
+    };
+
+    const { data: { user }, error: userError } = await authOperation();
 
     // Log authentication check results
     CalendarDeleteLogger.logAuthCheck(user, userError);
 
     if (userError || !user) {
-      console.error('User not authenticated:', userError);
+      console.error('User not authenticated after enhanced check:', userError);
       toast.error("Not signed in – cannot delete event.");
       CalendarDeleteLogger.logError(userError || new Error('No user'), 'auth_check');
       return;
@@ -499,8 +518,8 @@ export const handleEventDelete = async (
     // Log start of database operation
     CalendarDeleteLogger.logDbOperation();
 
-    // Use retry logic for the delete operation
-    await executeWithRetry(async () => {
+    // Use mobile-optimized retry logic for the delete operation
+    await executeWithRetryMobile(async () => {
       const response = await supabase
         .from('calendar_events')
         .delete()
@@ -518,7 +537,7 @@ export const handleEventDelete = async (
       }
 
       return result;
-    }, 'Delete Calendar Event', 2);
+    }, 'Delete Calendar Event');
 
     // If we get here, the operation succeeded
     console.log('✅ Event deleted successfully');

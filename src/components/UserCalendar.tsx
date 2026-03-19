@@ -91,7 +91,7 @@ const UserCalendar = () => {
   return (
     <>
       {/* Debug Panel Button - Only show in development or when debugging */}
-      {(import.meta.env.MODE === 'development' || window.location.search.includes('debug')) && (
+      {(import.meta.env.MODE === 'development' || import.meta.env.MODE === 'staging' || window.location.search.includes('debug')) && (
         <Card className="mb-4 border-orange-200 bg-orange-50">
           <CardContent className="py-3">
             <div className="flex items-center justify-between">
