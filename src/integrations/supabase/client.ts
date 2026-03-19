@@ -123,33 +123,38 @@ function createSupabaseClient(): ReturnType<typeof createClient<Database>> {
     debug: import.meta.env.MODE === 'development' || isPWAIsolated, // Enable debug logging in dev and PWA
   };
 
-  // For iOS PWA, use memory-based storage to avoid localStorage isolation issues
+  // For iOS PWA, use hybrid storage to survive modal operations while maintaining PWA isolation
   if (isPWAIsolated) {
-    console.warn('🔍 PWA storage isolation detected - using memory-based auth storage');
+    console.warn('🔍 PWA storage isolation detected - using hybrid memory+sessionStorage auth storage');
 
-    // Custom storage adapter that uses memory instead of localStorage for PWA
+    // Custom hybrid storage adapter that uses memory for performance + sessionStorage for persistence
     let memoryStorage: { [key: string]: string } = {};
 
-    authConfig.storage = {
-      getItem: (key: string) => {
-        const value = memoryStorage[key] || null;
+    const hybridStorage = {
+      getItem: async (key: string) => {
+        // Try memory first (fastest), fallback to sessionStorage (survives modals)
+        let value = memoryStorage[key] || sessionStorage.getItem(key);
+        if (value && !memoryStorage[key]) {
+          memoryStorage[key] = value; // Restore to memory for performance
+          console.log(`[PWA Storage] Restored ${key} from sessionStorage to memory`);
+        }
         console.log(`[PWA Storage] Getting ${key}: ${value ? 'FOUND' : 'NOT FOUND'}`);
-        return Promise.resolve(value);
+        return value;
       },
-      setItem: (key: string, value: string) => {
+      setItem: async (key: string, value: string) => {
         memoryStorage[key] = value;
-        console.log(`[PWA Storage] Setting ${key}: ${value ? 'SET' : 'CLEARED'}`);
-        return Promise.resolve();
+        sessionStorage.setItem(key, value); // Survives modal operations
+        console.log(`[PWA Storage] Setting ${key} in both memory and sessionStorage`);
       },
-      removeItem: (key: string) => {
+      removeItem: async (key: string) => {
         delete memoryStorage[key];
-        console.log(`[PWA Storage] Removing ${key}`);
-        return Promise.resolve();
-      },
+        sessionStorage.removeItem(key);
+        console.log(`[PWA Storage] Removing ${key} from both storages`);
+      }
     };
 
-    // Force re-authentication in PWA mode since we can't access browser storage
-    authConfig.persistSession = false; // Don't rely on persisted sessions in PWA
+    authConfig.storage = hybridStorage;
+    authConfig.persistSession = true; // Re-enable persistence with hybrid storage
   }
 
   // Create the supabase client optimized for minimal JWT size (SaaS best practice)
