@@ -1022,7 +1022,18 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         // If user has not opted in to precise location, show just-in-time consent modal
         const allowPrecise = settings?.location_preferences?.use_current_location !== false;
         if (!allowPrecise) {
-          window.dispatchEvent(new Event('open-location-consent'));
+          // Dispatch events with mobile support
+          try {
+            window.dispatchEvent(new CustomEvent('open-location-consent'));
+
+            // Add iOS Safari touch variant
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+              window.dispatchEvent(new CustomEvent('touchstart-location-consent'));
+            }
+          } catch (err) {
+            console.error('Failed to dispatch location consent event:', err);
+          }
+
           setMessages(prev => prev.filter(m => !m.content.includes("PAM is thinking")));
           addMessage("To give you local weather, please enable location or tell me your city.", "pam");
           return;

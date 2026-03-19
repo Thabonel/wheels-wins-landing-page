@@ -4,6 +4,7 @@ import { formatEventTime } from "./EventFormatter";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { executeWithRetry, handleSupabaseResponse } from "@/utils/supabaseErrorHandler";
+import { CalendarDeleteLogger } from "@/utils/calendarDeleteDebug";
 
 // Helper function to check if user is admin
 const isUserAdmin = async (): Promise<boolean> => {
@@ -469,20 +470,34 @@ export const handleEventDelete = async (
   setIsEventModalOpen: (open: boolean) => void,
   setEditingEventId: (id: string | null) => void
 ) => {
+  // Start diagnostic logging
+  CalendarDeleteLogger.startDelete(eventId, supabase);
+
   try {
     // Get authenticated user (required for RLS)
     const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    // Log authentication check results
+    CalendarDeleteLogger.logAuthCheck(user, userError);
+
     if (userError || !user) {
       console.error('User not authenticated:', userError);
       toast.error("Not signed in – cannot delete event.");
+      CalendarDeleteLogger.logError(userError || new Error('No user'), 'auth_check');
       return;
     }
+
+    // Log user validation
+    CalendarDeleteLogger.logUserValidation(true);
 
     console.log('🔍 Delete attempt:', {
       eventId,
       userId: user.id,
       userEmail: user.email
     });
+
+    // Log start of database operation
+    CalendarDeleteLogger.logDbOperation();
 
     // Use retry logic for the delete operation
     await executeWithRetry(async () => {
@@ -509,6 +524,9 @@ export const handleEventDelete = async (
     console.log('✅ Event deleted successfully');
     toast.success("Event deleted successfully!");
 
+    // Log success
+    CalendarDeleteLogger.logSuccess();
+
     // Remove the event from local state
     setEvents((prevEvents: CalendarEvent[]) =>
       prevEvents.filter(event => event.id !== eventId)
@@ -520,5 +538,8 @@ export const handleEventDelete = async (
   } catch (error) {
     console.error('❌ Failed to delete event after retries:', error);
     toast.error("Failed to delete event. Please try again.");
+
+    // Log the error with full diagnostic context
+    CalendarDeleteLogger.logError(error, 'db_operation');
   }
 };

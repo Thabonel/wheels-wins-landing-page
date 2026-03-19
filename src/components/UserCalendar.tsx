@@ -6,6 +6,7 @@ import "@/components/you/calendar-styles.css";
 import { useToast } from "@/hooks/use-toast";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import CalendarContainer from "@/components/you/CalendarContainer";
 import EventModal from "@/components/you/EventModal";
 import { getFormattedTime } from "@/components/you/EventFormatter";
@@ -17,6 +18,7 @@ import {
   handleEventSubmit,
   handleEventDelete
 } from "@/components/you/EventHandlers";
+import CalendarDeleteDebugPanel from "@/components/debug/CalendarDeleteDebugPanel";
 
 const UserCalendar = () => {
   console.log("🎯 UserCalendar component mounting");
@@ -25,7 +27,7 @@ const UserCalendar = () => {
   const { events, setEvents, loading, accessStatus, reloadEvents } = useCalendarEvents();
 
   const { toast } = useToast();
-  
+
   // Event modal state
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [newEventDate, setNewEventDate] = useState<Date>(new Date());
@@ -33,10 +35,13 @@ const UserCalendar = () => {
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editingEventTitle, setEditingEventTitle] = useState<string>("");
   const [editingEventType, setEditingEventType] = useState<string>("reminder");
-  
+
   // Event creation/edit state
   const [eventStartTime, setEventStartTime] = useState<Date>(new Date());
   const [eventEndTime, setEventEndTime] = useState<Date>(new Date());
+
+  // Debug panel state
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   const handleEventSelect = (eventId: string) => {
     // Try to find by ID first, then fall back to index-based ID
@@ -85,6 +90,27 @@ const UserCalendar = () => {
 
   return (
     <>
+      {/* Debug Panel Button - Only show in development or when debugging */}
+      {(import.meta.env.MODE === 'development' || window.location.search.includes('debug')) && (
+        <Card className="mb-4 border-orange-200 bg-orange-50">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-orange-800">
+                🛠️ <strong>Debug Mode:</strong> Calendar deletion diagnostics available
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDebugPanel(true)}
+                className="text-orange-700 border-orange-300 hover:bg-orange-100"
+              >
+                📊 Open Diagnostics
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {showEmptyState && (
         <Card className="mb-4">
           <CardContent className="flex items-center justify-center py-4">
@@ -169,6 +195,12 @@ const UserCalendar = () => {
           setIsEventModalOpen,
           setEditingEventId
         ) : undefined}
+      />
+
+      {/* Debug Panel */}
+      <CalendarDeleteDebugPanel
+        show={showDebugPanel}
+        onClose={() => setShowDebugPanel(false)}
       />
     </>
   );
