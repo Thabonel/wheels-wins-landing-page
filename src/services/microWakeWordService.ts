@@ -19,11 +19,17 @@
 
 import { logger } from '@/lib/logger';
 
-// TensorFlow modules loaded dynamically to avoid Vite bundling issues
+// TensorFlow modules loaded from CDN to avoid bundling issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let tflite: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let tf: any = null;
+
+// CDN URLs for TensorFlow modules
+const TF_CDN_CONFIG = {
+  tfjs: 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js',
+  tflite: 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js',
+} as const;
 
 // Configuration matching training parameters
 const WAKE_WORD_CONFIG = {
@@ -47,6 +53,34 @@ export interface WakeWordOptions {
   onStatusChange?: (listening: boolean) => void;
   sensitivity?: number; // 0-1, maps to detection threshold (1 = most sensitive)
 }
+
+/**
+ * Load a script from CDN and return when it's available
+ */
+const loadScriptFromCDN = (url: string, globalName: string): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if ((window as any)[globalName]) {
+      resolve((window as any)[globalName]);
+      return;
+    }
+
+    // Check if script is already being loaded
+    const existingScript = document.querySelector(`script[src="${url}"]`);
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve((window as any)[globalName]));
+      existingScript.addEventListener('error', reject);
+      return;
+    }
+
+    // Create and load script
+    const script = document.createElement('script');
+    script.src = url;
+    script.onload = () => resolve((window as any)[globalName]);
+    script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+    document.head.appendChild(script);
+  });
+};
 
 class MicroWakeWordService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,23 +131,28 @@ class MicroWakeWordService {
     try {
       logger.info('[MicroWakeWord] Loading Hey Pam TFLite model...');
 
-      // Dynamic imports to avoid Vite bundling issues with tfjs-tflite
-      // These packages have internal module paths that don't resolve correctly in Rollup
+      // Load TensorFlow modules from CDN to avoid bundling issues
       if (!tf) {
-        logger.info('[MicroWakeWord] Loading TensorFlow.js...');
-        tf = await import('@tensorflow/tfjs');
+        logger.info('[MicroWakeWord] Loading TensorFlow.js from CDN...');
+        tf = await loadScriptFromCDN(TF_CDN_CONFIG.tfjs, 'tf');
       }
       if (!tflite) {
-        logger.info('[MicroWakeWord] Loading TFLite runtime...');
+        logger.info('[MicroWakeWord] Loading TFLite runtime from CDN...');
         try {
-          // Try dynamic import with fallback for module resolution issues
-          tflite = await import('@tensorflow/tfjs-tflite');
-        } catch (moduleError) {
-          logger.warn('[MicroWakeWord] TFLite module import failed, trying alternative approach');
-          // Try alternative import method for alpha packages
-          tflite = await import('@tensorflow/tfjs-tflite/dist/tf-tflite.min.js').catch(() => {
-            throw new Error(`TFLite module not available: ${moduleError.message}`);
-          });
+          // Load TFLite from CDN - it should add itself to the global tf object
+          await loadScriptFromCDN(TF_CDN_CONFIG.tflite, 'tf');
+          tflite = tf.tflite || (window as any).tflite;
+          if (!tflite) {
+            throw new Error('TFLite not found in global tf object after CDN load');
+          }
+        } catch (cdnError) {
+          logger.warn('[MicroWakeWord] CDN loading failed, trying fallback approaches');
+          // Try local import as fallback
+          try {
+            tflite = await import('@tensorflow/tfjs-tflite');
+          } catch (importError) {
+            throw new Error(`TFLite module not available: CDN failed (${cdnError.message}), import failed (${importError.message})`);
+          }
         }
       }
 
