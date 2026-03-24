@@ -106,9 +106,12 @@ export async function investigateAuthIssue(): Promise<AuthInvestigationReport> {
 
   // 1. Client Configuration Analysis
   try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
     report.clientConfig = {
-      url: supabase.supabaseUrl,
-      hasAnonKey: !!supabase.supabaseKey,
+      url: supabaseUrl,
+      hasAnonKey: !!supabaseKey,
       storageKey: 'pam-auth-token'
     };
     console.log('✅ Client configuration analyzed');
@@ -169,14 +172,18 @@ export async function investigateAuthIssue(): Promise<AuthInvestigationReport> {
     console.error('❌ Session analysis failed:', sessionError);
   }
 
-  // 4. Network Test
+  // 4. Network Test - Updated to avoid restricted root endpoint
   try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
     const startTime = Date.now();
-    const response = await fetch(`${supabase.supabaseUrl}/rest/v1/`, {
+    // Test a specific table endpoint instead of root endpoint to avoid April 8th restriction
+    const response = await fetch(`${supabaseUrl}/rest/v1/profiles?select=id&limit=1`, {
       method: 'GET',
       headers: {
-        'apikey': supabase.supabaseKey,
-        'Authorization': `Bearer ${supabase.supabaseKey}`
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
       }
     });
 
@@ -201,7 +208,7 @@ export async function investigateAuthIssue(): Promise<AuthInvestigationReport> {
   // 5. Database Test
   try {
     // Test basic connection
-    const { data, error } = await supabase.from('profiles').select('count').limit(1);
+    const { error } = await supabase.from('profiles').select('count').limit(1);
 
     if (error) {
       report.databaseTest = {
@@ -212,21 +219,9 @@ export async function investigateAuthIssue(): Promise<AuthInvestigationReport> {
     } else {
       report.databaseTest.canConnect = true;
 
-      // Test auth.uid() function
-      try {
-        const { data: authData, error: authError } = await supabase
-          .rpc('get_current_user_id')
-          .single();
-
-        if (authError) {
-          report.databaseTest.authUidResult = `ERROR: ${authError.message}`;
-        } else {
-          report.databaseTest.authUidResult = authData || 'NULL';
-        }
-      } catch {
-        // Function might not exist, that's ok
-        report.databaseTest.authUidResult = 'FUNCTION_NOT_FOUND';
-      }
+      // Test auth.uid() function - skip since the function doesn't exist in our schema
+      // This was causing TypeScript errors as 'get_current_user_id' is not in our RPC functions
+      report.databaseTest.authUidResult = 'SKIPPED_NO_TEST_FUNCTION';
     }
 
     console.log('✅ Database test completed');
