@@ -45,20 +45,6 @@
   width: 100vw !important;
   height: 100vh !important;
   z-index: 9999 !important;
-  overflow: hidden !important;
-}
-
-/* Prevent scrollbars in fullscreen mode */
-.mapbox-fullscreen * {
-  box-sizing: border-box;
-}
-
-/* Ensure panels in fullscreen mode don't create scrollbars */
-.mapbox-fullscreen .panel,
-.mapbox-fullscreen .sidebar,
-.mapbox-fullscreen .modal {
-  max-height: 100vh !important;
-  max-width: 100vw !important;
 }
 
 /* Cursor style for adding waypoints */

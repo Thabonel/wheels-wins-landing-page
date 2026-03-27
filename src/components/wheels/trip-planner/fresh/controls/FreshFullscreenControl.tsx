@@ -64,9 +64,6 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
       // Prevent body scrolling when fullscreen is active
       document.body.style.overflow = 'hidden';
 
-      // Add CSS class and inline styles for fullscreen
-      tripPlannerWrapper.classList.add('mapbox-fullscreen');
-
       // Apply fullscreen styles to the wrapper
       // Use z-index: 100000 to ensure panels (z-index: 10000) work inside
       tripPlannerWrapper.style.cssText = `
@@ -139,9 +136,6 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
 
       // Restore body scrolling
       document.body.style.overflow = '';
-
-      // Remove fullscreen CSS class
-      tripPlannerWrapper.classList.remove('mapbox-fullscreen');
 
       tripPlannerWrapper.style.position = '';
       tripPlannerWrapper.style.top = '';
