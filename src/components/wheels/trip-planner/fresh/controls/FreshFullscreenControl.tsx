@@ -73,7 +73,7 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
         height: 100vh !important;
         z-index: 100000 !important;
         background: white;
-        overflow: visible !important;
+        overflow: hidden !important;
       `;
 
       mapContainer.style.cssText = `
