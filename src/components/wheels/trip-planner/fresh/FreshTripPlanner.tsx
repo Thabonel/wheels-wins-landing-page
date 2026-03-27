@@ -12,7 +12,7 @@ import { useFreshWaypointManager } from './hooks/useFreshWaypointManager';
 import { transformToGeoJSONLineString, createFallbackGeometry, extractWaypoints } from '@/utils/routeDataTransformers';
 import { useAuth } from '@/context/AuthContext';
 import { FreshMapOptionsControl } from './controls/FreshMapOptionsControl';
-// Removed custom FreshFullscreenControl - using native Mapbox control instead
+import { FreshFullscreenControl } from './controls/FreshFullscreenControl';
 import FreshTrackPanel from './components/FreshTrackPanel';
 import FreshRouteToolbar from './components/FreshRouteToolbar';
 import FreshStatusBar from './components/FreshStatusBar';
@@ -370,12 +370,9 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         console.log('📍 Tracking user location stopped');
       });
 
-      // Add native Mapbox fullscreen control with container option
+      // Add custom fullscreen control (mobile-friendly, visible on iPad)
       // This ensures the entire trip planner (including toolbar) goes fullscreen
-      const tripPlannerRoot = mapContainerRef.current?.closest('[data-trip-planner-root="true"]');
-      newMap.addControl(new mapboxgl.FullscreenControl({
-        container: tripPlannerRoot || undefined
-      }), 'top-right');
+      newMap.addControl(new FreshFullscreenControl(), 'top-right');
       
       // Add Mapbox Directions control for draggable routes
       if (!directionsRef.current) {
