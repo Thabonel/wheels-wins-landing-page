@@ -88,6 +88,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const [isNavigating, setIsNavigating] = useState(false);
   const [isAddingWaypoint, setIsAddingWaypoint] = useState(false);
   const isAddingWaypointRef = useRef(false);
+  const [isLocationTrackingActive, setIsLocationTrackingActive] = useState(false);
+  const isLocationTrackingActiveRef = useRef(false);
   const [hasDirectionsRoute, setHasDirectionsRoute] = useState(false);
   const [mapOverlays, setMapOverlays] = useState([
     { id: 'traffic', name: 'Traffic', enabled: false },
@@ -116,6 +118,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
   const directionsRef = useRef<MapboxDirections | null>(null);
   const pendingTemplateRef = useRef<any>(null);
+  const handleManualMapInteractionRef = useRef<((e: any) => void) | null>(null);
 
   // Hooks
   const { user } = useAuth();
@@ -363,12 +366,33 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
 
       // Listen for tracking events
       geolocate.on('trackuserlocationstart', () => {
-        console.log('📍 Tracking user location started');
+        console.log('📍 Location tracking started - will auto-disable on manual map interaction');
+        setIsLocationTrackingActive(true);
+        isLocationTrackingActiveRef.current = true;
       });
 
       geolocate.on('trackuserlocationend', () => {
-        console.log('📍 Tracking user location stopped');
+        console.log('📍 Location tracking stopped');
+        setIsLocationTrackingActive(false);
+        isLocationTrackingActiveRef.current = false;
       });
+
+      // Auto-disable location tracking on manual map interaction
+      const handleManualMapInteraction = (e: any) => {
+        // Only disable if tracking is active AND this is a user-initiated event
+        if (e.originalEvent && isLocationTrackingActiveRef.current) {
+          console.log('📍 Manual map interaction detected - disabling location tracking');
+          geolocateControlRef.current?.trigger(); // Cycles control to OFF state
+        }
+      };
+
+      // Store function in ref for cleanup access
+      handleManualMapInteractionRef.current = handleManualMapInteraction;
+
+      // Listen for manual map interactions
+      newMap.on('movestart', handleManualMapInteraction);
+      newMap.on('dragstart', handleManualMapInteraction);
+      newMap.on('zoomstart', handleManualMapInteraction);
 
       // Add custom fullscreen control (mobile-friendly, visible on iPad)
       // This ensures the entire trip planner (including toolbar) goes fullscreen
@@ -543,6 +567,12 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       if (mapOptionsControlRef.current && typeof mapOptionsControlRef.current.cleanup === 'function') {
         mapOptionsControlRef.current.cleanup();
         mapOptionsControlRef.current = null;
+      }
+      // Cleanup manual interaction event listeners
+      if (mapRef.current && handleManualMapInteractionRef.current) {
+        mapRef.current.off('movestart', handleManualMapInteractionRef.current);
+        mapRef.current.off('dragstart', handleManualMapInteractionRef.current);
+        mapRef.current.off('zoomstart', handleManualMapInteractionRef.current);
       }
       if (mapRef.current) {
         mapRef.current.remove();
