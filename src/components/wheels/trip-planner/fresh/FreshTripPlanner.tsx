@@ -379,20 +379,42 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
 
       // Auto-disable location tracking on manual map interaction
       const handleManualMapInteraction = (e: any) => {
-        // Only disable if tracking is active AND this is a user-initiated event
-        if (e.originalEvent && isLocationTrackingActiveRef.current) {
+        // Simple check: if tracking is active, disable it
+        if (isLocationTrackingActiveRef.current) {
           console.log('📍 Manual map interaction detected - disabling location tracking');
-          geolocateControlRef.current?.trigger(); // Cycles control to OFF state
+
+          // Force disable tracking
+          try {
+            const control = geolocateControlRef.current;
+            if (control) {
+              // Multiple attempts to disable tracking
+              if (typeof control._finish === 'function') {
+                control._finish();
+              } else {
+                // Fallback: trigger twice to ensure off state
+                control.trigger();
+                setTimeout(() => control.trigger(), 50);
+              }
+
+              // Force state update
+              setIsLocationTrackingActive(false);
+              isLocationTrackingActiveRef.current = false;
+            }
+          } catch (error) {
+            console.warn('Error disabling location tracking:', error);
+          }
         }
       };
 
       // Store function in ref for cleanup access
       handleManualMapInteractionRef.current = handleManualMapInteraction;
 
-      // Listen for manual map interactions
+      // Listen for manual map interactions (multiple events for reliability)
       newMap.on('movestart', handleManualMapInteraction);
       newMap.on('dragstart', handleManualMapInteraction);
       newMap.on('zoomstart', handleManualMapInteraction);
+      newMap.on('touchstart', handleManualMapInteraction);
+      newMap.on('mousedown', handleManualMapInteraction);
 
       // Add custom fullscreen control (mobile-friendly, visible on iPad)
       // This ensures the entire trip planner (including toolbar) goes fullscreen
@@ -573,6 +595,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         mapRef.current.off('movestart', handleManualMapInteractionRef.current);
         mapRef.current.off('dragstart', handleManualMapInteractionRef.current);
         mapRef.current.off('zoomstart', handleManualMapInteractionRef.current);
+        mapRef.current.off('touchstart', handleManualMapInteractionRef.current);
+        mapRef.current.off('mousedown', handleManualMapInteractionRef.current);
       }
       if (mapRef.current) {
         mapRef.current.remove();
