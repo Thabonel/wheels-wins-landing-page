@@ -38,6 +38,7 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
   }
 
   private toggleFullscreen(): void {
+    console.log('FreshFullscreenControl: Toggle fullscreen clicked, current state:', this.isFullscreen);
     if (!this.map) return;
 
     const mapContainer = this.map.getContainer();
@@ -45,14 +46,17 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
     const tripPlannerWrapper = mapContainer.closest('[data-trip-planner-root="true"]') as HTMLElement | null;
 
     if (!tripPlannerWrapper) {
-      console.error('Could not find trip planner root container');
+      console.error('FreshFullscreenControl: Could not find trip planner root container');
       return;
     }
 
     if (!this.isFullscreen) {
       // Store original position
+      console.log('FreshFullscreenControl: Entering fullscreen mode');
       this.originalParent = tripPlannerWrapper.parentElement;
       this.originalNextSibling = tripPlannerWrapper.nextSibling;
+      console.log('FreshFullscreenControl: Stored original parent:', this.originalParent);
+      console.log('FreshFullscreenControl: Stored original next sibling:', this.originalNextSibling);
 
       // Move entire trip planner wrapper to fullscreen
       document.body.appendChild(tripPlannerWrapper);
@@ -99,38 +103,69 @@ export class FreshFullscreenControl implements mapboxgl.IControl {
   }
 
   private exitFullscreen(): void {
+    console.log('FreshFullscreenControl: Attempting to exit fullscreen');
     if (!this.map) return;
 
     const mapContainer = this.map.getContainer();
     const tripPlannerWrapper = mapContainer.closest('[data-trip-planner-root="true"]') as HTMLElement | null;
 
-    if (!tripPlannerWrapper || !this.originalParent) return;
-
-    // Restore original position
-    if (this.originalNextSibling) {
-      this.originalParent.insertBefore(tripPlannerWrapper, this.originalNextSibling);
-    } else {
-      this.originalParent.appendChild(tripPlannerWrapper);
+    if (!tripPlannerWrapper) {
+      console.error('FreshFullscreenControl: Could not find trip planner wrapper during exit');
+      return;
     }
 
-    // Remove fullscreen styles
-    tripPlannerWrapper.style.cssText = '';
-    mapContainer.style.cssText = '';
+    if (!this.originalParent) {
+      console.error('FreshFullscreenControl: No original parent stored');
+      return;
+    }
 
-    // Update button icon
-    this.button!.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-      </svg>
-    `;
-    this.button!.title = 'Toggle fullscreen';
+    try {
+      // Restore original position
+      console.log('FreshFullscreenControl: Restoring original position');
+      if (this.originalNextSibling && this.originalNextSibling.parentNode === this.originalParent) {
+        this.originalParent.insertBefore(tripPlannerWrapper, this.originalNextSibling);
+      } else {
+        this.originalParent.appendChild(tripPlannerWrapper);
+      }
 
-    this.isFullscreen = false;
+      // Clear fullscreen styles more thoroughly
+      console.log('FreshFullscreenControl: Clearing fullscreen styles');
+      tripPlannerWrapper.style.position = '';
+      tripPlannerWrapper.style.top = '';
+      tripPlannerWrapper.style.left = '';
+      tripPlannerWrapper.style.right = '';
+      tripPlannerWrapper.style.bottom = '';
+      tripPlannerWrapper.style.width = '';
+      tripPlannerWrapper.style.height = '';
+      tripPlannerWrapper.style.zIndex = '';
+      tripPlannerWrapper.style.background = '';
+      tripPlannerWrapper.style.overflow = '';
 
-    // Trigger map resize
-    setTimeout(() => {
-      this.map?.resize();
-    }, 100);
+      mapContainer.style.width = '';
+      mapContainer.style.height = '';
+
+      // Update button icon
+      this.button!.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+      `;
+      this.button!.title = 'Toggle fullscreen';
+
+      this.isFullscreen = false;
+
+      console.log('FreshFullscreenControl: Successfully exited fullscreen');
+
+      // Trigger map resize
+      setTimeout(() => {
+        this.map?.resize();
+      }, 100);
+
+    } catch (error) {
+      console.error('FreshFullscreenControl: Error during exit fullscreen:', error);
+      // Reset state even if restoration failed
+      this.isFullscreen = false;
+    }
   }
 }
 
