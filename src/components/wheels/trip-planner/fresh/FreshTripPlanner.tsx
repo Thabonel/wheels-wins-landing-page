@@ -409,12 +409,10 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       // Store function in ref for cleanup access
       handleManualMapInteractionRef.current = handleManualMapInteraction;
 
-      // Listen for manual map interactions (multiple events for reliability)
+      // Listen for manual map interactions (safe events that don't interfere with UI)
       newMap.on('movestart', handleManualMapInteraction);
       newMap.on('dragstart', handleManualMapInteraction);
       newMap.on('zoomstart', handleManualMapInteraction);
-      newMap.on('touchstart', handleManualMapInteraction);
-      newMap.on('mousedown', handleManualMapInteraction);
 
       // Add custom fullscreen control (mobile-friendly, visible on iPad)
       // This ensures the entire trip planner (including toolbar) goes fullscreen
@@ -595,8 +593,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         mapRef.current.off('movestart', handleManualMapInteractionRef.current);
         mapRef.current.off('dragstart', handleManualMapInteractionRef.current);
         mapRef.current.off('zoomstart', handleManualMapInteractionRef.current);
-        mapRef.current.off('touchstart', handleManualMapInteractionRef.current);
-        mapRef.current.off('mousedown', handleManualMapInteractionRef.current);
       }
       if (mapRef.current) {
         mapRef.current.remove();
