@@ -54,6 +54,7 @@ from app.services.pam.security import check_message_safety
 
 # Import error classifier for user-readable tool failure messages
 from app.services.pam.error_classifier import get_user_message as classify_tool_error
+from app.services.pam.tools.tool_registry import _fire_and_forget_log
 
 # Import tool prefiltering
 from app.services.pam.tools.tool_prefilter import tool_prefilter
@@ -1992,6 +1993,8 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                             # Generate a user-readable message so Claude can relay it naturally
                             user_msg = classify_tool_error(tool_name, error_msg)
 
+                            _fire_and_forget_log(tool_name, False, 0, self.user_id, error_msg, "TOOL_FAILURE")
+
                             # Include failure context in tool result so Claude knows to tell the user
                             tool_results.append({
                                 "type": "tool_result",
@@ -2013,6 +2016,8 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                                 "content": json.dumps(result)
                             })
 
+                            _fire_and_forget_log(tool_name, True, 0, self.user_id)
+
                             logger.info(f"✅ Tool {tool_name} executed successfully")
                             logger.info(f"🔧 Tool result preview: {json.dumps(result, default=str)[:300]}...")
                     else:
@@ -2028,6 +2033,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                     # Tool execution failed - surface a user-readable message
                     error_msg = str(e)
                     user_msg = classify_tool_error(tool_name, error_msg)
+                    _fire_and_forget_log(tool_name, False, 0, self.user_id, error_msg, "EXECUTION_ERROR")
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": tool_use_id,
