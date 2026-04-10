@@ -190,7 +190,7 @@ export function ShakedownLogger() {
     if (!profileId) return;
 
     const { data, error } = await supabase.rpc('get_shakedown_stats', {
-      p_user_id: profileId,
+      p_profile_id: profileId,
     });
 
     if (error) {

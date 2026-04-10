@@ -11195,7 +11195,7 @@ export type Database = {
       }
       get_equipment_stats: {
         Args: {
-          p_user_id: string
+          p_profile_id: string
         }
         Returns: unknown
       }
@@ -11255,7 +11255,7 @@ export type Database = {
       }
       get_shakedown_stats: {
         Args: {
-          p_user_id: string
+          p_profile_id: string
         }
         Returns: unknown
       }
@@ -11293,7 +11293,7 @@ export type Database = {
       }
       get_vehicle_mod_stats: {
         Args: {
-          p_user_id: string
+          p_profile_id: string
         }
         Returns: unknown
       }
