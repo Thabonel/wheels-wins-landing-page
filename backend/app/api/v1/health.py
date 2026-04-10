@@ -713,6 +713,75 @@ async def proactive_assistant_metrics(request: Request):
             status_code=500
         )
 
+@router.get("/health/tools")
+async def tools_health():
+    """PAM tool registry health check.
+
+    Reports which tools are enabled/disabled and whether the database client
+    is a real connection or missing. Useful for diagnosing 'PAM can't access
+    her tools' symptoms without digging through logs.
+    """
+    result = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "database": {},
+        "tool_registry": {},
+        "status": HealthStatus.HEALTHY,
+        "issues": [],
+    }
+
+    # --- Database client check ---
+    # get_cached_supabase_client() raises DatabaseUnavailableError if credentials
+    # are missing or invalid - it never returns a MockClient anymore.
+    try:
+        from app.core.database import get_cached_supabase_client, DatabaseUnavailableError
+        get_cached_supabase_client()
+        result["database"] = {"status": HealthStatus.HEALTHY}
+    except DatabaseUnavailableError as e:
+        result["database"] = {
+            "status": HealthStatus.UNHEALTHY,
+            "error": str(e),
+        }
+        result["issues"].append(str(e))
+        result["status"] = HealthStatus.UNHEALTHY
+    except Exception as e:
+        result["database"] = {
+            "status": HealthStatus.UNHEALTHY,
+            "error": str(e),
+        }
+        result["issues"].append(f"Database client error: {e}")
+        result["status"] = HealthStatus.UNHEALTHY
+
+    # --- Tool registry check ---
+    try:
+        from app.services.pam.tools.tool_registry import get_tool_registry
+        registry = get_tool_registry()
+        available = [n for n, d in registry.tool_definitions.items() if d.is_available()]
+        disabled = [n for n, d in registry.tool_definitions.items() if not d.is_available()]
+        result["tool_registry"] = {
+            "initialized": registry.is_initialized,
+            "available_count": len(available),
+            "unavailable_count": len(disabled),
+            "unavailable_tools": disabled[:20],
+        }
+        if not available:
+            result["tool_registry"]["status"] = HealthStatus.UNHEALTHY
+            result["issues"].append("Tool registry has zero available tools")
+            result["status"] = HealthStatus.UNHEALTHY
+        elif disabled:
+            result["tool_registry"]["status"] = HealthStatus.DEGRADED
+            if result["status"] == HealthStatus.HEALTHY:
+                result["status"] = HealthStatus.DEGRADED
+        else:
+            result["tool_registry"]["status"] = HealthStatus.HEALTHY
+    except Exception as e:
+        result["tool_registry"] = {
+            "status": HealthStatus.DEGRADED,
+            "error": str(e),
+        }
+
+    return result
+
+
 @router.get("/health/metrics")
 async def metrics():
     """Prometheus-compatible metrics endpoint"""

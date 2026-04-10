@@ -5,17 +5,87 @@ Enhanced with Phase 4 RAG and intelligent agent capabilities
 """
 
 import asyncio
-import json
+import inspect
 from typing import Dict, List, Any, Optional, Union, Callable
-from datetime import datetime
-from dataclasses import dataclass, asdict
+from datetime import datetime, timedelta
+from dataclasses import dataclass
 
 from app.core.logging import get_logger
+from app.core.database import DatabaseUnavailableError
 from .tool_capabilities import ToolCapability, normalize_capability
 from .base_tool import BaseTool
 from .import_utils import lazy_import
 
 logger = get_logger(__name__)
+
+
+def _get_error_recovery():
+    """Lazy import of error recovery system so registry loads even if that module has issues."""
+    try:
+        from app.services.pam.error_recovery import error_recovery_system
+        return error_recovery_system
+    except Exception:
+        return None
+
+
+def _fire_and_forget_error_report(exc: Exception, tool_name: str, user_id: str) -> None:
+    """Report a tool failure to the circuit breaker / error recovery system.
+
+    Fire-and-forget via asyncio.create_task so the tool response returns immediately.
+    """
+    recovery = _get_error_recovery()
+    if recovery is None:
+        return
+
+    async def _report():
+        try:
+            await recovery.handle_error(
+                error=exc,
+                service_name="tool_registry",
+                operation=tool_name,
+                user_id=user_id,
+            )
+        except Exception as report_exc:
+            logger.debug(f"Background error report failed for '{tool_name}': {report_exc}")
+
+    try:
+        asyncio.create_task(_report())
+    except RuntimeError:
+        pass  # No running event loop (tests) - skip silently
+
+
+def _fire_and_forget_log(
+    tool_name: str,
+    success: bool,
+    execution_time_ms: float,
+    user_id: str,
+    error: Optional[str] = None,
+    error_code: Optional[str] = None,
+) -> None:
+    """Write an execution record to tool_execution_log asynchronously.
+
+    Non-blocking. A write failure is silently discarded - logging must never
+    affect tool response latency or availability.
+    """
+    async def _write():
+        try:
+            from app.core.database import get_cached_supabase_client
+            client = get_cached_supabase_client()
+            client.table("tool_execution_log").insert({
+                "tool_name": tool_name,
+                "success": success,
+                "execution_time_ms": int(execution_time_ms),
+                "error_message": error,
+                "error_code": error_code,
+                "user_id": user_id or None,
+            }).execute()
+        except Exception:
+            pass
+
+    try:
+        asyncio.create_task(_write())
+    except RuntimeError:
+        pass
 
 
 @dataclass
@@ -29,6 +99,19 @@ class ToolDefinition:
     priority: int = 1  # Lower number = higher priority
     max_execution_time: int = 30  # seconds
     requires_user_context: bool = False
+    # When set, tool is temporarily disabled until this datetime.
+    # None means permanently disabled (enabled=False) or not disabled.
+    disabled_until: Optional[datetime] = None
+
+    def is_available(self) -> bool:
+        """Return True if the tool is enabled and not in a temporary disable window."""
+        if not self.enabled:
+            return False
+        if self.disabled_until:
+            if datetime.utcnow() < self.disabled_until:
+                return False
+            self.disabled_until = None  # Window expired - clear it
+        return True
 
 
 @dataclass
@@ -45,7 +128,7 @@ class ToolExecutionResult:
 class ToolRegistry:
     """
     Central registry for PAM tools with OpenAI function calling integration
-    
+
     Features:
     - Automatic OpenAI function definition generation
     - Tool execution with timeout and error handling
@@ -53,7 +136,9 @@ class ToolRegistry:
     - Capability-based filtering
     - Performance monitoring
     """
-    
+
+    _INIT_RETRY_DELAY_MINUTES = 5
+
     def __init__(self):
         self.tools: Dict[str, BaseTool] = {}
         self.tool_definitions: Dict[str, ToolDefinition] = {}
@@ -85,27 +170,45 @@ class ToolRegistry:
             raise
     
     async def _initialize_tool(self, tool_name: str, tool: BaseTool):
-        """Initialize a single tool with error handling and graceful degradation"""
+        """Initialize a single tool with error handling and graceful degradation.
+
+        On timeout or transient failure: temporarily disables the tool for
+        _INIT_RETRY_DELAY_MINUTES so it gets a second chance on the next request
+        cycle rather than being permanently dead for the process lifetime.
+
+        On ImportError (missing dependency): permanently disabled since retrying
+        won't change whether the package is installed.
+        """
         try:
-            # Set a timeout for tool initialization to prevent hanging
             await asyncio.wait_for(tool.initialize(), timeout=10.0)
-            logger.info(f"✅ Tool '{tool_name}' initialized successfully")
+            logger.info(f"Tool '{tool_name}' initialized successfully")
+            # Clear any previous temporary disable when init succeeds
+            if tool_name in self.tool_definitions:
+                self.tool_definitions[tool_name].disabled_until = None
             return True
         except asyncio.TimeoutError:
-            logger.warning(f"⏱️ Tool '{tool_name}' initialization timed out - disabling")
+            retry_at = datetime.utcnow() + timedelta(minutes=self._INIT_RETRY_DELAY_MINUTES)
+            logger.warning(
+                f"Tool '{tool_name}' initialization timed out - "
+                f"temporarily disabled until {retry_at.strftime('%H:%M:%S UTC')}"
+            )
             if tool_name in self.tool_definitions:
-                self.tool_definitions[tool_name].enabled = False
+                self.tool_definitions[tool_name].disabled_until = retry_at
             return False
         except ImportError as e:
-            logger.warning(f"📦 Tool '{tool_name}' dependencies missing: {e} - skipping")
+            # Missing package - permanent disable (retry won't help)
+            logger.warning(f"Tool '{tool_name}' dependencies missing: {e} - permanently skipping")
             if tool_name in self.tool_definitions:
                 self.tool_definitions[tool_name].enabled = False
             return False
         except Exception as e:
-            logger.error(f"❌ Tool '{tool_name}' initialization failed: {e}")
-            # Disable tool if initialization fails, but don't crash the registry
+            retry_at = datetime.utcnow() + timedelta(minutes=self._INIT_RETRY_DELAY_MINUTES)
+            logger.error(
+                f"Tool '{tool_name}' initialization failed: {e} - "
+                f"temporarily disabled until {retry_at.strftime('%H:%M:%S UTC')}"
+            )
             if tool_name in self.tool_definitions:
-                self.tool_definitions[tool_name].enabled = False
+                self.tool_definitions[tool_name].disabled_until = retry_at
             return False
     
     def register_tool(
@@ -199,8 +302,7 @@ class ToolRegistry:
         functions = []
         
         for tool_name, definition in self.tool_definitions.items():
-            # Skip disabled tools
-            if not definition.enabled:
+            if not definition.is_available():
                 continue
                 
             # Filter by capabilities if specified
@@ -247,7 +349,24 @@ class ToolRegistry:
             Tool execution result
         """
         start_time = datetime.utcnow()
-        
+
+        # Check circuit breaker before attempting execution - if this tool's
+        # circuit is open, fail fast rather than adding another timeout to the pile.
+        recovery = _get_error_recovery()
+        if recovery:
+            circuit_key = f"tool_registry:{tool_name}"
+            breaker = recovery.circuit_breakers.get(circuit_key)
+            if breaker and breaker.state == "open":
+                logger.warning(f"Circuit breaker OPEN for '{tool_name}' - skipping execution")
+                return ToolExecutionResult(
+                    success=False,
+                    tool_name=tool_name,
+                    execution_time_ms=0,
+                    result=None,
+                    error=f"Tool '{tool_name}' is temporarily unavailable (circuit breaker open). Try again in a minute.",
+                    metadata={"error_code": "CIRCUIT_OPEN"}
+                )
+
         if tool_name not in self.tools:
             return ToolExecutionResult(
                 success=False,
@@ -260,13 +379,25 @@ class ToolRegistry:
         tool = self.tools[tool_name]
         definition = self.tool_definitions.get(tool_name)
         
-        if not definition or not definition.enabled:
+        if not definition or not definition.is_available():
+            # Distinguish between permanent disable and temporary window
+            if definition and definition.disabled_until and datetime.utcnow() < definition.disabled_until:
+                mins = int((definition.disabled_until - datetime.utcnow()).total_seconds() / 60) + 1
+                error_msg = (
+                    f"Tool '{tool_name}' is temporarily unavailable "
+                    f"(initialization failed - retrying in ~{mins} min)"
+                )
+                error_code = "TEMPORARILY_DISABLED"
+            else:
+                error_msg = f"Tool '{tool_name}' is disabled"
+                error_code = "DISABLED"
             return ToolExecutionResult(
                 success=False,
                 tool_name=tool_name,
                 execution_time_ms=0,
                 result=None,
-                error=f"Tool '{tool_name}' is disabled"
+                error=error_msg,
+                metadata={"error_code": error_code}
             )
         
         # Use custom timeout or tool default
@@ -275,9 +406,6 @@ class ToolRegistry:
         try:
             logger.info(f"🔧 Executing tool: {tool_name} for user: {user_id}")
             
-            # Execute tool with timeout
-            # Check if tool supports context parameter (like WeatherTool)
-            import inspect
             if 'context' in inspect.signature(tool.execute).parameters:
                 result = await asyncio.wait_for(
                     tool.execute(user_id, parameters, context),
@@ -290,12 +418,13 @@ class ToolRegistry:
                 )
             
             execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
-            
-            # Update stats
+
             self._update_execution_stats(tool_name, True, execution_time)
-            
-            logger.info(f"✅ Tool '{tool_name}' executed successfully in {execution_time:.1f}ms")
-            
+
+            logger.info(f"Tool '{tool_name}' executed successfully in {execution_time:.1f}ms")
+
+            _fire_and_forget_log(tool_name, True, execution_time, user_id)
+
             return ToolExecutionResult(
                 success=True,
                 tool_name=tool_name,
@@ -310,33 +439,64 @@ class ToolRegistry:
         except asyncio.TimeoutError:
             execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             error_msg = f"Tool execution timed out after {execution_timeout}s"
-            
+
             self._update_execution_stats(tool_name, False, execution_time)
-            
-            logger.warning(f"⏱️ Tool '{tool_name}' timed out after {execution_timeout}s")
-            
+
+            logger.warning(f"Tool '{tool_name}' timed out after {execution_timeout}s")
+
+            _fire_and_forget_error_report(
+                asyncio.TimeoutError(error_msg), tool_name, user_id
+            )
+            _fire_and_forget_log(tool_name, False, execution_time, user_id, error_msg, "TIMEOUT")
+
             return ToolExecutionResult(
                 success=False,
                 tool_name=tool_name,
                 execution_time_ms=execution_time,
                 result=None,
-                error=error_msg
+                error=error_msg,
+                metadata={"error_code": "TIMEOUT"}
             )
-            
+
+        except DatabaseUnavailableError as e:
+            # Database credentials missing or client creation failed.
+            # Caught here so a single missing env var doesn't crash all 40+ tools.
+            execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+            error_msg = str(e)
+
+            self._update_execution_stats(tool_name, False, execution_time)
+
+            logger.error(f"Tool '{tool_name}' failed - database unavailable: {e}")
+
+            _fire_and_forget_log(tool_name, False, execution_time, user_id, error_msg, "DATABASE_UNAVAILABLE")
+
+            return ToolExecutionResult(
+                success=False,
+                tool_name=tool_name,
+                execution_time_ms=execution_time,
+                result=None,
+                error=error_msg,
+                metadata={"error_code": "DATABASE_UNAVAILABLE"}
+            )
+
         except Exception as e:
             execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
             error_msg = f"Tool execution failed: {str(e)}"
-            
+
             self._update_execution_stats(tool_name, False, execution_time)
-            
-            logger.error(f"❌ Tool '{tool_name}' execution failed: {e}")
-            
+
+            logger.error(f"Tool '{tool_name}' execution failed: {e}")
+
+            _fire_and_forget_error_report(e, tool_name, user_id)
+            _fire_and_forget_log(tool_name, False, execution_time, user_id, error_msg, "EXECUTION_ERROR")
+
             return ToolExecutionResult(
                 success=False,
                 tool_name=tool_name,
                 execution_time_ms=execution_time,
                 result=None,
-                error=error_msg
+                error=error_msg,
+                metadata={"error_code": "EXECUTION_ERROR"}
             )
     
     def _update_execution_stats(self, tool_name: str, success: bool, execution_time_ms: float):

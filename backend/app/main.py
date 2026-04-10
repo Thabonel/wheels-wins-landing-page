@@ -254,6 +254,18 @@ async def lifespan(app: FastAPI):
         await cache_service.initialize()
         logger.info("✅ Redis cache service initialized")
 
+        # Validate PAM readiness (credentials, Supabase client, optional API keys)
+        try:
+            from scripts.validate_pam_readiness import validate_pam_readiness, PAMReadinessError
+            validate_pam_readiness()
+            logger.info("✅ PAM readiness validation passed")
+        except PAMReadinessError as pam_err:
+            logger.critical(f"PAM startup blocked: {pam_err}")
+            # Don't hard-exit - log clearly and let the server start so /health/tools
+            # can explain the problem to the operator.
+        except Exception as pam_check_err:
+            logger.warning(f"⚠️ PAM readiness check failed unexpectedly: {pam_check_err}")
+
         # Validate database schema (prevents id/user_id confusion)
         try:
             from app.core.schema_validator import run_startup_validation

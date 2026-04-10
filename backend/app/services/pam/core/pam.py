@@ -52,6 +52,9 @@ import json
 # Import safety layer
 from app.services.pam.security import check_message_safety
 
+# Import error classifier for user-readable tool failure messages
+from app.services.pam.error_classifier import get_user_message as classify_tool_error
+
 # Import tool prefiltering
 from app.services.pam.tools.tool_prefilter import tool_prefilter
 
@@ -1984,7 +1987,10 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         # Check if tool failed and add error context to Claude
                         if isinstance(result, dict) and not result.get("success"):
                             error_msg = result.get("error", "Unknown error")
-                            logger.error(f"❌ Tool {tool_name} failed: {error_msg}")
+                            logger.error(f"Tool {tool_name} failed: {error_msg}")
+
+                            # Generate a user-readable message so Claude can relay it naturally
+                            user_msg = classify_tool_error(tool_name, error_msg)
 
                             # Include failure context in tool result so Claude knows to tell the user
                             tool_results.append({
@@ -1992,7 +1998,11 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                                 "tool_use_id": tool_use_id,
                                 "content": json.dumps({
                                     **result,
-                                    "instruction_to_claude": f"IMPORTANT: Tool failed with error: {error_msg}. Tell user about this error and ask them to try again or provide more details."
+                                    "user_facing_message": user_msg,
+                                    "instruction_to_claude": (
+                                        f"Tool failed. Tell the user: '{user_msg}' "
+                                        f"(technical detail for logs only: {error_msg})"
+                                    )
                                 })
                             })
                         else:
@@ -2015,11 +2025,21 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         logger.error(f"❌ Tool {tool_name} not found in tool_functions registry")
 
                 except Exception as e:
-                    # Tool execution failed
+                    # Tool execution failed - surface a user-readable message
+                    error_msg = str(e)
+                    user_msg = classify_tool_error(tool_name, error_msg)
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": tool_use_id,
-                        "content": json.dumps({"success": False, "error": str(e)})
+                        "content": json.dumps({
+                            "success": False,
+                            "error": error_msg,
+                            "user_facing_message": user_msg,
+                            "instruction_to_claude": (
+                                f"Tool failed. Tell the user: '{user_msg}' "
+                                f"(technical detail for logs only: {error_msg})"
+                            )
+                        })
                     })
                     logger.error(f"Error executing tool {tool_name}: {e}", exc_info=True)
 
