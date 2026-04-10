@@ -18,7 +18,7 @@ except Exception:  # pragma: no cover - fallback without optional deps
 
     def setup_logging():
         pass
-    
+
     def get_logger(name: str = "database") -> logging.Logger:
         return logging.getLogger(name)
 
@@ -27,41 +27,49 @@ logger = get_logger(__name__)
 supabase_client: Optional[Client] = None
 
 
+class DatabaseUnavailableError(Exception):
+    """Raised when the Supabase database client cannot be created.
+
+    Callers should catch this and surface a clear error to the user rather
+    than letting it propagate silently.
+    """
+    pass
+
+
 @lru_cache(maxsize=1)
 def get_cached_supabase_client() -> Client:
     """
-    Create a single shared Supabase client with connection pooling
+    Create a single shared Supabase client with connection pooling.
 
     Using @lru_cache ensures only one client instance is created and reused
     across all requests, preventing connection exhaustion under high load.
 
-    Returns:
-        Supabase Client instance (cached)
+    Raises:
+        DatabaseUnavailableError: If credentials are missing or client creation fails.
     """
+    url = getattr(settings, "SUPABASE_URL", None)
+    key = getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None)
+
+    # Convert SecretStr to string if needed
+    if hasattr(key, 'get_secret_value'):
+        key = key.get_secret_value()
+
+    if not url or not key:
+        get_cached_supabase_client.cache_clear()
+        raise DatabaseUnavailableError(
+            "Supabase credentials not configured. "
+            "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend/.env."
+        )
+
     try:
-        url = getattr(settings, "SUPABASE_URL", None)
-        key = getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", None)
-
-        # Convert SecretStr to string if needed
-        if hasattr(key, 'get_secret_value'):
-            key = key.get_secret_value()
-
-        if not url or not key:
-            logger.warning("Supabase settings not configured; using dummy client")
-            class MockClient:
-                def __getattr__(self, name):
-                    return lambda *args, **kwargs: None
-            return MockClient()
-
         client = create_client(str(url), key)
-        logger.info("✅ Cached Supabase client created (connection pooling enabled)")
+        logger.info("Cached Supabase client created (connection pooling enabled)")
         return client
     except Exception as e:
-        logger.error(f"Failed to create cached Supabase client: {str(e)}")
-        class MockClient:
-            def __getattr__(self, name):
-                return lambda *args, **kwargs: None
-        return MockClient()
+        get_cached_supabase_client.cache_clear()
+        raise DatabaseUnavailableError(
+            f"Failed to create Supabase client: {e}"
+        ) from e
 
 
 def init_supabase() -> Client:
@@ -98,26 +106,17 @@ def get_user_context_supabase_client(user_jwt: str) -> Client:
         Supabase client with service role access
     """
     try:
-        # For now, use service role client with enhanced logging
-        # This bypasses RLS but allows profile access
-        logger.info(f"🔐 Creating user-context client for user JWT (simplified approach)")
-
         if user_jwt:
-            # Parse JWT for debugging
             import jwt
             try:
                 decoded = jwt.decode(user_jwt, options={"verify_signature": False})
-                logger.info(f"🔐 User context: {decoded.get('sub')} ({decoded.get('email')})")
+                # Log user ID only - never log email or other PII
+                logger.debug(f"User-context client for sub={decoded.get('sub')}")
             except Exception:
-                logger.warning("Could not parse user JWT for debugging")
+                pass
 
-        # Return service role client - this will bypass RLS but allow profile access
-        service_client = get_supabase()
-        logger.info("✅ Service role client returned for profile access (bypasses RLS)")
-        return service_client
+        return get_supabase()
 
     except Exception as e:
-        logger.error(f"Failed to create user-context Supabase client: {str(e)}")
-        # Fallback to service role client
-        logger.warning("Falling back to service role client")
+        logger.error(f"Failed to create user-context Supabase client: {e}")
         return get_supabase()

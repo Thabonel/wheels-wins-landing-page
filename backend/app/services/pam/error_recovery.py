@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
 import traceback
-import json
 import time
 
 logger = logging.getLogger(__name__)
@@ -59,6 +58,10 @@ class ErrorContext:
     metadata: Dict[str, Any]
     recovery_attempts: int = 0
     resolved: bool = False
+    # Optional callable to re-execute the failed operation during retry.
+    # Signature: async () -> Any. If None, retry strategy will report failure
+    # rather than pretending to succeed.
+    retry_callable: Optional[Callable[[], Awaitable[Any]]] = None
 
 @dataclass
 class CircuitBreakerState:
@@ -400,17 +403,34 @@ class PAMErrorRecoverySystem:
         
         await asyncio.sleep(delay)
         error_context.recovery_attempts += 1
-        
-        # In production, this would actually retry the operation
-        # For now, simulate success based on attempt count
-        success_probability = 0.3 + (0.2 * error_context.recovery_attempts)
-        success = error_context.recovery_attempts >= 2  # Simulate eventual success
-        
-        return {
-            "success": success,
-            "attempt": error_context.recovery_attempts,
-            "delay": delay
-        }
+
+        if error_context.retry_callable is None:
+            # No callable provided - cannot actually retry. Report failure so
+            # the system can fall through to a different recovery strategy.
+            return {
+                "success": False,
+                "reason": "no_retry_callable",
+                "attempt": error_context.recovery_attempts,
+                "delay": delay,
+            }
+
+        try:
+            await error_context.retry_callable()
+            return {
+                "success": True,
+                "attempt": error_context.recovery_attempts,
+                "delay": delay,
+            }
+        except Exception as retry_exc:
+            logger.warning(
+                f"Retry attempt {error_context.recovery_attempts} failed: {retry_exc}"
+            )
+            return {
+                "success": False,
+                "reason": f"retry_failed: {retry_exc}",
+                "attempt": error_context.recovery_attempts,
+                "delay": delay,
+            }
     
     async def _apply_fallback_strategy(self, error_context: ErrorContext) -> Dict[str, Any]:
         """Apply fallback strategy"""
