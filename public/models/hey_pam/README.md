@@ -2,36 +2,31 @@
 
 This directory contains the "Hey Pam" wake word detection model.
 
-## Status: BLOCKED - Waiting for Model Training
+## Status: Needs TF.js Conversion
 
-The model files should be placed here after training completes on Google Colab.
+A trained TFLite model (`hey_pam.tflite`) exists but must be converted to TF.js format
+before the browser can use it. Until converted, the system falls back to Web Speech API.
 
 ## Required Files
 
-After training, convert and place these files here:
+After conversion, this directory should contain:
 
 ```
 public/models/hey_pam/
-  model.json         # TensorFlow.js model architecture
-  group1-shard1of1.bin  # Model weights
+  model.json              # TF.js graph model architecture
+  group1-shard1of1.bin    # Model weights
 ```
 
 ## Converting from TFLite to TensorFlow.js
 
-1. Complete training in `/Users/thabonel/Code/Pam-Wakeword/`
-2. Export the TFLite model from training
-3. Convert to TensorFlow.js format:
-
 ```bash
-# Install tensorflowjs converter
 pip install tensorflowjs
 
-# Convert TFLite to TensorFlow.js
 tensorflowjs_converter \
   --input_format=tf_lite \
   --output_format=tfjs_graph_model \
-  /path/to/stream_state_internal_quant.tflite \
-  /Users/thabonel/Code/wheels-wins-landing-page/public/models/hey_pam/
+  public/models/hey_pam/hey_pam.tflite \
+  public/models/hey_pam/
 ```
 
 ## Model Architecture (MixedNet)
@@ -51,15 +46,17 @@ tensorflowjs_converter \
 - Frame stride: 10ms
 - Frame length: 25ms
 
-## Testing
+## How It Works
 
-Once the model is placed here, the `microWakeWordService` will automatically:
-1. Load the model on first activation
-2. Process audio through the spectrogram pipeline
-3. Run inference on each audio frame
-4. Trigger detection when confidence > 0.85
+Once `model.json` is placed here, the `microWakeWordService` will:
+1. Detect model availability via HEAD request (fast, no CDN load if missing)
+2. Load TensorFlow.js from CDN
+3. Load the graph model via `tf.loadGraphModel()`
+4. Process audio through the mel spectrogram pipeline
+5. Run inference on each audio frame
+6. Trigger detection when confidence > 0.85
 
 ## Fallback
 
-If the model is not present, the system falls back to Web Speech API
-for wake word detection (less reliable but works everywhere).
+If `model.json` is not present, the system silently falls back to Web Speech API
+for wake word detection. No console errors are generated.

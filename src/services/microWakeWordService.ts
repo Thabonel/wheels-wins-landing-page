@@ -1,14 +1,17 @@
 /**
  * MicroWakeWord Service for "Hey Pam" Detection
  *
- * Uses a custom-trained TFLite model (MixedNet architecture) for offline wake word detection.
+ * Uses a custom-trained TF.js model (MixedNet architecture) for offline wake word detection.
  * This replaces the flaky Web Speech API with a purpose-built wake word model.
  *
  * Architecture:
  * - Audio capture via AudioContext (16kHz, mono)
  * - Mel-frequency spectrogram extraction (40 features, 10ms stride)
- * - TFLite model inference via @tensorflow/tfjs-tflite
+ * - TF.js graph model inference via @tensorflow/tfjs (loaded from CDN)
  * - Detection threshold crossing triggers callback
+ *
+ * Model format: TF.js graph model (model.json + weights)
+ * Convert from TFLite: tensorflowjs_converter --input_format=tf_lite --output_format=tfjs_graph_model input.tflite output_dir/
  *
  * Benefits over Web Speech API:
  * - 100% offline (no internet required)
@@ -19,17 +22,11 @@
 
 import { logger } from '@/lib/logger';
 
-// TensorFlow modules loaded from CDN to avoid bundling issues
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let tflite: any = null;
+// TensorFlow.js loaded from CDN to avoid bundling a large dependency
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let tf: any = null;
 
-// CDN URLs for TensorFlow modules
-const TF_CDN_CONFIG = {
-  tfjs: 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js',
-  tflite: 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite@0.0.1-alpha.10/dist/tf-tflite.min.js',
-} as const;
+const TF_CDN_URL = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js';
 
 // Configuration matching training parameters
 const WAKE_WORD_CONFIG = {
@@ -38,7 +35,8 @@ const WAKE_WORD_CONFIG = {
   frameStrideMs: 10,
   frameLengthMs: 25,
   detectionThreshold: 0.85,
-  modelPath: '/models/hey_pam/hey_pam.tflite',
+  // TF.js graph model format (model.json + weights bin)
+  modelPath: '/models/hey_pam/model.json',
   // Rolling buffer for streaming inference
   bufferDurationMs: 1500,
   // Debounce to prevent rapid re-triggering
@@ -53,6 +51,19 @@ export interface WakeWordOptions {
   onStatusChange?: (listening: boolean) => void;
   sensitivity?: number; // 0-1, maps to detection threshold (1 = most sensitive)
 }
+
+/**
+ * Check if the model files are available before attempting heavy CDN loads.
+ * Returns true only if model.json is accessible.
+ */
+const checkModelAvailability = async (modelPath: string): Promise<boolean> => {
+  try {
+    const response = await fetch(modelPath, { method: 'HEAD' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Load a script from CDN and return when it's available
@@ -123,41 +134,27 @@ class MicroWakeWordService {
   }
 
   /**
-   * Load the TFLite model
+   * Load the TF.js graph model
    */
   private async loadModel(): Promise<void> {
     if (this.modelLoaded) return;
 
     try {
-      logger.info('[MicroWakeWord] Loading Hey Pam TFLite model...');
+      // Fast check: verify model files exist before loading heavy CDN script
+      const modelAvailable = await checkModelAvailability(WAKE_WORD_CONFIG.modelPath);
+      if (!modelAvailable) {
+        throw new Error('Model not available at ' + WAKE_WORD_CONFIG.modelPath);
+      }
 
-      // Load TensorFlow modules from CDN to avoid bundling issues
+      // Load TensorFlow.js from CDN
       if (!tf) {
         logger.info('[MicroWakeWord] Loading TensorFlow.js from CDN...');
-        tf = await loadScriptFromCDN(TF_CDN_CONFIG.tfjs, 'tf');
-      }
-      if (!tflite) {
-        logger.info('[MicroWakeWord] Loading TFLite runtime from CDN...');
-        try {
-          // Load TFLite from CDN - it should add itself to the global tf object
-          await loadScriptFromCDN(TF_CDN_CONFIG.tflite, 'tf');
-          tflite = tf.tflite || (window as any).tflite;
-          if (!tflite) {
-            throw new Error('TFLite not found in global tf object after CDN load');
-          }
-        } catch (cdnError) {
-          logger.warn('[MicroWakeWord] CDN loading failed, trying fallback approaches');
-          // Try local import as fallback
-          try {
-            tflite = await import('@tensorflow/tfjs-tflite');
-          } catch (importError) {
-            throw new Error(`TFLite module not available: CDN failed (${cdnError.message}), import failed (${importError.message})`);
-          }
-        }
+        tf = await loadScriptFromCDN(TF_CDN_URL, 'tf');
       }
 
-      // Load TFLite model directly using the official runtime
-      this.model = await tflite.loadTFLiteModel(WAKE_WORD_CONFIG.modelPath);
+      // Load graph model using standard tf.loadGraphModel
+      logger.info('[MicroWakeWord] Loading Hey Pam model...');
+      this.model = await tf.loadGraphModel(WAKE_WORD_CONFIG.modelPath);
 
       // Initialize mel filter bank
       this.initMelFilterBank();
@@ -165,8 +162,8 @@ class MicroWakeWordService {
       this.modelLoaded = true;
       logger.info('[MicroWakeWord] Hey Pam model loaded successfully');
     } catch (error) {
-      logger.warn('[MicroWakeWord] Model not found - falling back to Web Speech API');
-      logger.warn(`[MicroWakeWord] Place TFLite model at: public${WAKE_WORD_CONFIG.modelPath}`);
+      logger.debug('[MicroWakeWord] Model not available - will fall back to Web Speech API');
+      logger.debug('[MicroWakeWord] To enable: convert TFLite model to TF.js format and place at public/models/hey_pam/model.json');
       throw error;
     }
   }
@@ -279,7 +276,7 @@ class MicroWakeWordService {
 
       this.isListening = true;
       this.options?.onStatusChange?.(true);
-      logger.info('[MicroWakeWord] Listening for "Hey Pam" (TFLite model)');
+      logger.info('[MicroWakeWord] Listening for "Hey Pam" (TF.js model)');
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`[MicroWakeWord] Failed to start: ${errorMsg}`);
@@ -415,7 +412,7 @@ class MicroWakeWordService {
         [1, spectrogram.length, WAKE_WORD_CONFIG.numMelFeatures]
       );
 
-      // Run TFLite inference
+      // Run model inference
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const output = this.model.predict(inputTensor) as any;
 
