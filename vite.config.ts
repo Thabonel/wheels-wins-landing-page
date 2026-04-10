@@ -49,10 +49,7 @@ export default defineConfig(({ mode }) => {
     target: 'esnext',
     rollupOptions: {
       // Handle native dependencies issue on Netlify
-      // Exclude tfjs-tflite from bundling due to internal module resolution issues
-      // It will be loaded from CDN at runtime instead
       external: (id) => {
-        if (id.includes('@tensorflow/tfjs-tflite')) return true;
         if (id.includes('@rollup/rollup-linux-x64-gnu')) return false;
         return false;
       },

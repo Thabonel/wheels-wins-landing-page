@@ -2,7 +2,7 @@
  * Hybrid Wake Word Service
  *
  * Intelligently selects the best wake word detection method:
- * 1. microWakeWord (TFLite model) - Best quality, offline, survives tab blur
+ * 1. microWakeWord (TF.js model) - Best quality, offline, survives tab blur
  * 2. Web Speech API (fallback) - Works everywhere, but less reliable
  *
  * The service tries microWakeWord first and falls back gracefully if:
@@ -58,7 +58,7 @@ class WakeWordHybridService {
     // Try microWakeWord first (better quality)
     if (microWakeWordService.isSupported()) {
       try {
-        logger.info('[WakeWordHybrid] Attempting microWakeWord (TFLite model)...');
+        logger.info('[WakeWordHybrid] Attempting microWakeWord (TF.js model)...');
 
         await microWakeWordService.start({
           onWakeWordDetected: options.onWakeWordDetected,
@@ -71,7 +71,7 @@ class WakeWordHybridService {
         });
 
         this.currentEngine = 'micro';
-        logger.info('[WakeWordHybrid] Using microWakeWord (TFLite model)');
+        logger.info('[WakeWordHybrid] Using microWakeWord (TF.js model)');
         return;
       } catch (error) {
         logger.warn('[WakeWordHybrid] microWakeWord failed, falling back to Web Speech API');
