@@ -157,23 +157,21 @@ const Hero = () => {
               <div className="absolute -inset-4 bg-accent/10 rounded-3xl transform rotate-2" />
 
               <div className="relative rounded-2xl overflow-hidden shadow-warm-lg">
-                <video
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  poster="/WheelsnadwinsHero-800w.webp"
+                <img
+                  src="/WheelsnadwinsHero-800w.webp"
+                  alt="RV adventure by campfire at sunset"
                   className="w-full h-auto object-cover aspect-[4/3]"
-                  preload="auto"
-                >
-                  <source src="/hero-campfire.webm" type="video/webm" />
-                  <source src="/hero-campfire.mp4" type="video/mp4" />
-                  <img
-                    src="/WheelsnadwinsHero-800w.webp"
-                    alt="RV adventure by campfire at sunset"
-                    className="w-full h-auto object-cover aspect-[4/3]"
-                  />
-                </video>
+                  fetchPriority="high"
+                />
+                <img
+                  src="/Closeup_of_mudcovered.gif"
+                  alt="RV adventure by campfire at sunset"
+                  className="absolute inset-0 w-full h-full object-cover aspect-[4/3] opacity-0 transition-opacity duration-1000"
+                  loading="lazy"
+                  onLoad={(e) => {
+                    (e.target as HTMLImageElement).style.opacity = '1';
+                  }}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/10 to-transparent pointer-events-none" />
               </div>
 
