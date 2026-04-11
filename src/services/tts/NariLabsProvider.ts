@@ -29,7 +29,7 @@ export class NariLabsProvider implements TTSProvider {
         },
         body: JSON.stringify({
           text: text.trim(),
-          voice: options.voice || 'alloy',
+          voice: options.voice || 'coral',
           rate: options.rate || 1.0,
           volume: options.volume || 0.8,
           format: options.format || 'mp3',

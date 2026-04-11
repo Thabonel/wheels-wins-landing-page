@@ -142,7 +142,7 @@ export function PAMVoiceHybrid() {
         userId: user.uid,
         apiBaseUrl,
         authToken,
-        voice: 'marin', // Natural expressive voice
+        voice: 'coral',
         onTranscript: (text) => {
           setCurrentTranscript(text);
           addMessage('user', text);

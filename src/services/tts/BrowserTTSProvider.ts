@@ -104,10 +104,12 @@ export class BrowserTTSProvider implements TTSProvider {
     }
 
     if (!voice) {
-      // Try to find a good default English voice
-      voice = this.voices.find(v => 
-        v.lang.startsWith('en') && v.default
-      ) || this.voices.find(v => 
+      // Prefer a female English voice to match PAM's persona
+      voice = this.voices.find(v =>
+        v.lang.startsWith('en') && /female|samantha|karen|zira|fiona|moira|tessa|victoria/i.test(v.name)
+      ) || this.voices.find(v =>
+        v.lang.startsWith('en') && !/male|daniel|aaron|david|james|thomas|fred/i.test(v.name)
+      ) || this.voices.find(v =>
         v.lang.startsWith('en')
       );
     }

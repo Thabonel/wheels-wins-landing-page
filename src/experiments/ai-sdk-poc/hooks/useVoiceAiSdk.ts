@@ -193,17 +193,13 @@ export const useVoiceAiSdk = (options: VoiceAiSdkOptions = {}) => {
         Sentry.captureException(new Error(`TTS Error: ${  error.error}`));
       };
 
-      // Use a pleasant voice if available
       const voices = speechSynthesis.getVoices();
-      const preferredVoice = voices.find(voice => 
-        voice.name.includes('Google') || 
-        voice.name.includes('Microsoft') ||
-        voice.name.includes('Alex')
+      const pamVoice = voices.find(v =>
+        v.lang.startsWith('en') && /female|samantha|karen|zira|fiona|moira|tessa|victoria/i.test(v.name)
+      ) || voices.find(v =>
+        v.lang.startsWith('en') && !/male|daniel|aaron|david|james|thomas|fred/i.test(v.name)
       );
-      
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
-      }
+      if (pamVoice) utterance.voice = pamVoice;
       
       utterance.rate = 0.9;
       utterance.pitch = 1.0;

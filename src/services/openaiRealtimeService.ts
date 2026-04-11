@@ -66,7 +66,7 @@ export class OpenAIRealtimeService {
           session: {
             modalities: ['text', 'audio'],
             instructions: '',  // Already set in backend
-            voice: 'alloy',
+            voice: 'coral',
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',
             input_audio_transcription: {
