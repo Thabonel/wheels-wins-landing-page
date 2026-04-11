@@ -87,7 +87,6 @@
     "@fullcalendar/react": "^6.1.17",
     "@fullcalendar/timegrid": "^6.1.17",
     "@google/generative-ai": "^0.24.1",
-    "@mapbox/mapbox-gl-directions": "^4.3.1",
     "@mapbox/mapbox-gl-geocoder": "^5.0.3",
     "@netlify/functions": "2.8.2",
     "@openai/realtime-api-beta": "github:openai/openai-realtime-api-beta",

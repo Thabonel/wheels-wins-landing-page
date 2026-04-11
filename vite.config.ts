@@ -67,7 +67,7 @@ export default defineConfig(({ mode }) => {
           'query-vendor': ['@tanstack/react-query'],
           
           // Map libraries - large and specific to trip planning (now lazy loaded)
-          'mapbox-vendor': ['mapbox-gl', '@mapbox/mapbox-gl-directions', '@mapbox/mapbox-gl-geocoder'],
+          'mapbox-vendor': ['mapbox-gl', '@mapbox/mapbox-gl-geocoder'],
 
           // Heavy PDF and analysis libraries - lazy load these
           'heavy-vendor': ['pdf-lib'],

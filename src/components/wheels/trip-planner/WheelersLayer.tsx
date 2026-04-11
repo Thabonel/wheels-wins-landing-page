@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
-interface WheelersLayerProps {
-  map: React.MutableRefObject<mapboxgl.Map | undefined>;
-  isVisible: boolean;
+function useSafeAuth() {
+  try {
+    return useAuth();
+  } catch {
+    return { user: null };
+  }
 }
 
 interface UserLocation {
@@ -25,236 +28,248 @@ interface UserLocation {
   } | null;
 }
 
-// Safe auth hook that doesn't crash if AuthProvider is missing
-function useSafeAuth() {
-  try {
-    return useAuth();
-  } catch (error) {
-    console.warn('WheelersLayer: AuthProvider not available, proceeding without authentication');
-    return { user: null };
-  }
+interface WheelersLayerProps {
+  map: React.MutableRefObject<mapboxgl.Map | undefined>;
+  isVisible: boolean;
+}
+
+const SOURCE_ID = 'wheelers-source';
+const CLUSTER_LAYER = 'wheelers-clusters';
+const CLUSTER_COUNT_LAYER = 'wheelers-cluster-count';
+const POINTS_LAYER = 'wheelers-points';
+const LABELS_LAYER = 'wheelers-labels';
+
+function buildFeatureCollection(locations: UserLocation[]): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: locations.map(loc => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [loc.current_longitude, loc.current_latitude],
+      },
+      properties: {
+        id: String(loc.id),
+        userId: loc.user_id,
+        name: loc.user_profiles?.full_name || 'Wheeler',
+        initial: (loc.user_profiles?.full_name || 'W').charAt(0).toUpperCase(),
+        rigType: loc.user_profiles_extended?.rig_type || '',
+        updatedAt: loc.updated_at || '',
+      },
+    })),
+  };
 }
 
 export default function WheelersLayer({ map, isVisible }: WheelersLayerProps) {
   const { user } = useSafeAuth();
   const [userLocations, setUserLocations] = useState<UserLocation[]>([]);
-  const [markers, setMarkers] = useState<mapboxgl.Marker[]>([]);
+  const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const layersAddedRef = useRef(false);
 
-  // Fetch user locations from database
-  const fetchUserLocations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('user_locations')
-        .select(`
-          *,
-          user_profiles (
-            full_name,
-            avatar_url
-          ),
-          user_profiles_extended (
-            rig_type
-          )
-        `)
-        .eq('status', 'active')
-        .neq('user_id', user?.id || '') // Don't show current user
-        .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Only show locations updated in last 24 hours
-
-      if (error) {
-        console.error('Error fetching user locations:', error);
-        return;
-      }
-
-      // Transform and filter the data to match our interface
-      const validData = (data || [])
-        .filter((location: any) => location.user_profiles && !('error' in location.user_profiles))
-        .map((location: any): UserLocation => ({
-          id: location.id,
-          user_id: location.user_id,
-          current_latitude: location.current_latitude,
-          current_longitude: location.current_longitude,
-          status: location.status,
-          updated_at: location.updated_at,
-          user_profiles: location.user_profiles,
-          user_profiles_extended: location.user_profiles_extended,
-        }));
-      setUserLocations(validData);
-    } catch (error) {
-      console.error('Error fetching user locations:', error);
-    }
-  };
-
-  // Create user markers on the map
-  const createUserMarkers = () => {
-    if (!map.current || !isVisible) return;
-
-    // Clear existing markers
-    markers.forEach(marker => marker.remove());
-    setMarkers([]);
-
-    const newMarkers: mapboxgl.Marker[] = [];
-
-    userLocations.forEach((location) => {
-      const { current_latitude, current_longitude, user_profiles, user_profiles_extended } = location;
-      
-      // Create marker element
-      const markerEl = document.createElement('div');
-      markerEl.className = 'wheeler-marker';
-      markerEl.style.cssText = `
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        border: 3px solid #10b981;
-        background: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: transform 0.2s ease;
-        position: relative;
-      `;
-
-      // Add avatar or placeholder
-      if (user_profiles?.avatar_url) {
-        const img = document.createElement('img');
-        img.src = user_profiles.avatar_url;
-        img.style.cssText = `
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          object-fit: cover;
-        `;
-        markerEl.appendChild(img);
-      } else {
-        // Default user icon
-        markerEl.innerHTML = `
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-        `;
-      }
-
-      // Add rig type indicator
-      const rigType = location.user_profiles_extended?.rig_type;
-      if (rigType) {
-        const rigBadge = document.createElement('div');
-        rigBadge.style.cssText = `
-          position: absolute;
-          bottom: -2px;
-          right: -2px;
-          width: 16px;
-          height: 16px;
-          background: #3b82f6;
-          border: 2px solid white;
-          border-radius: 50%;
-          font-size: 8px;
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-        `;
-        rigBadge.textContent = rigType.charAt(0).toUpperCase();
-        markerEl.appendChild(rigBadge);
-      }
-
-      // Add hover effects
-      markerEl.addEventListener('mouseenter', () => {
-        markerEl.style.transform = 'scale(1.1)';
-      });
-
-      markerEl.addEventListener('mouseleave', () => {
-        markerEl.style.transform = 'scale(1)';
-      });
-
-      // Create popup with user info
-      const popup = new mapboxgl.Popup({
-        offset: 25,
-        closeButton: true,
-        closeOnClick: true
-      }).setHTML(`
-        <div style="padding: 8px; min-width: 200px;">
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            ${user_profiles?.avatar_url ? 
-              `<img src="${user_profiles.avatar_url}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />` :
-              `<div style="width: 32px; height: 32px; border-radius: 50%; background: #f3f4f6; display: flex; align-items: center; justify-content: center;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-              </div>`
-            }
-            <div>
-              <div style="font-weight: 600; color: #111827;">${user_profiles?.full_name || 'Wheeler'}</div>
-              ${rigType ? `<div style="font-size: 12px; color: #6b7280;">${rigType}</div>` : ''}
-            </div>
-          </div>
-          <div style="font-size: 12px; color: #6b7280;">
-            Last seen: ${location.updated_at ? new Date(location.updated_at).toLocaleString() : 'Recently'}
-          </div>
-          <button onclick="window.dispatchEvent(new CustomEvent('connectToWheeler', { detail: { userId: '${location.user_id}', name: '${user_profiles?.full_name || 'Wheeler'}' } }))" 
-                  style="margin-top: 8px; background: #10b981; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">
-            Connect
-          </button>
-        </div>
-      `);
-
-      // Create marker
-      const marker = new mapboxgl.Marker({ element: markerEl })
-        .setLngLat([current_longitude, current_latitude])
-        .setPopup(popup)
-        .addTo(map.current);
-
-      newMarkers.push(marker);
-    });
-
-    setMarkers(newMarkers);
-  };
-
-  // Handle connecting to other users
   useEffect(() => {
-    const handleConnectToWheeler = (event: CustomEvent) => {
-      const { userId, name } = event.detail;
-      toast({
-        title: "Connection Request",
-        description: `Sent connection request to ${name}. They'll be notified!`,
-      });
-      
-      // Here you could implement actual connection logic
-      // For example, creating a friend request or starting a chat
+    if (!isVisible || !user?.id) return;
+
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_locations')
+          .select(`*, user_profiles (full_name, avatar_url), user_profiles_extended (rig_type)`)
+          .eq('status', 'active')
+          .neq('user_id', user.id)
+          .gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+        if (error) {
+          console.error('Error fetching wheeler locations:', error);
+          return;
+        }
+
+        const valid = (data || [])
+          .filter((loc: any) => loc.user_profiles && !('error' in loc.user_profiles))
+          .map((loc: any): UserLocation => ({
+            id: loc.id,
+            user_id: loc.user_id,
+            current_latitude: loc.current_latitude,
+            current_longitude: loc.current_longitude,
+            status: loc.status,
+            updated_at: loc.updated_at,
+            user_profiles: loc.user_profiles,
+            user_profiles_extended: loc.user_profiles_extended,
+          }));
+
+        setUserLocations(valid);
+      } catch (error) {
+        console.error('Error fetching wheeler locations:', error);
+      }
     };
 
-    window.addEventListener('connectToWheeler', handleConnectToWheeler as EventListener);
-    return () => {
-      window.removeEventListener('connectToWheeler', handleConnectToWheeler as EventListener);
-    };
-  }, []);
-
-  // Fetch locations when component mounts or visibility changes
-  useEffect(() => {
-    if (isVisible) {
-      fetchUserLocations();
-      // Set up periodic updates every 2 minutes
-      const interval = setInterval(fetchUserLocations, 2 * 60 * 1000);
-      return () => clearInterval(interval);
-    }
+    fetchLocations();
+    const interval = setInterval(fetchLocations, 2 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [isVisible, user?.id]);
 
-  // Create/remove markers based on visibility and data
-  useEffect(() => {
-    if (isVisible) {
-      createUserMarkers();
-    } else {
-      // Remove all markers when not visible
-      markers.forEach(marker => marker.remove());
-      setMarkers([]);
-    }
-    
-    return () => {
-      markers.forEach(marker => marker.remove());
-    };
-  }, [isVisible, userLocations]);
+  const removeLayers = useCallback((m: mapboxgl.Map) => {
+    [LABELS_LAYER, POINTS_LAYER, CLUSTER_COUNT_LAYER, CLUSTER_LAYER].forEach(id => {
+      if (m.getLayer(id)) m.removeLayer(id);
+    });
+    if (m.getSource(SOURCE_ID)) m.removeSource(SOURCE_ID);
+    layersAddedRef.current = false;
+  }, []);
 
-  return null; // This component only manages map layers, no render needed
+  const setupLayers = useCallback((m: mapboxgl.Map, data: GeoJSON.FeatureCollection) => {
+    if (layersAddedRef.current) {
+      const source = m.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource;
+      if (source) { source.setData(data); return; }
+    }
+
+    removeLayers(m);
+
+    m.addSource(SOURCE_ID, {
+      type: 'geojson',
+      data,
+      cluster: true,
+      clusterMaxZoom: 14,
+      clusterRadius: 50,
+    });
+
+    m.addLayer({
+      id: CLUSTER_LAYER,
+      type: 'circle',
+      source: SOURCE_ID,
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-color': '#10b981',
+        'circle-radius': ['step', ['get', 'point_count'], 16, 5, 22, 10, 28],
+        'circle-stroke-width': 3,
+        'circle-stroke-color': '#ffffff',
+      },
+    });
+
+    m.addLayer({
+      id: CLUSTER_COUNT_LAYER,
+      type: 'symbol',
+      source: SOURCE_ID,
+      filter: ['has', 'point_count'],
+      layout: {
+        'text-field': ['get', 'point_count_abbreviated'],
+        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+        'text-size': 12,
+      },
+      paint: { 'text-color': '#ffffff' },
+    });
+
+    m.addLayer({
+      id: POINTS_LAYER,
+      type: 'circle',
+      source: SOURCE_ID,
+      filter: ['!', ['has', 'point_count']],
+      paint: {
+        'circle-radius': 10,
+        'circle-color': '#10b981',
+        'circle-stroke-width': 3,
+        'circle-stroke-color': '#ffffff',
+      },
+    });
+
+    m.addLayer({
+      id: LABELS_LAYER,
+      type: 'symbol',
+      source: SOURCE_ID,
+      filter: ['!', ['has', 'point_count']],
+      layout: {
+        'text-field': ['get', 'initial'],
+        'text-font': ['DIN Offc Pro Bold', 'Arial Unicode MS Bold'],
+        'text-size': 11,
+        'text-allow-overlap': true,
+      },
+      paint: { 'text-color': '#ffffff' },
+    });
+
+    m.on('click', POINTS_LAYER, (e) => {
+      if (!e.features?.[0]) return;
+      const props = e.features[0].properties!;
+      const coords = (e.features[0].geometry as GeoJSON.Point).coordinates.slice() as [number, number];
+
+      popupRef.current?.remove();
+
+      const updatedStr = props.updatedAt
+        ? `Last seen: ${new Date(props.updatedAt).toLocaleString()}`
+        : 'Recently active';
+
+      const popupEl = document.createElement('div');
+      popupEl.style.padding = '10px';
+
+      const nameEl = document.createElement('div');
+      Object.assign(nameEl.style, { fontWeight: '600', fontSize: '14px', marginBottom: '4px' });
+      nameEl.textContent = props.name;
+      popupEl.appendChild(nameEl);
+
+      if (props.rigType) {
+        const rigEl = document.createElement('div');
+        Object.assign(rigEl.style, { fontSize: '12px', color: '#10b981', marginBottom: '4px' });
+        rigEl.textContent = props.rigType;
+        popupEl.appendChild(rigEl);
+      }
+
+      const timeEl = document.createElement('div');
+      Object.assign(timeEl.style, { fontSize: '12px', color: '#6b7280', marginBottom: '8px' });
+      timeEl.textContent = updatedStr;
+      popupEl.appendChild(timeEl);
+
+      const btn = document.createElement('button');
+      btn.textContent = 'Connect';
+      Object.assign(btn.style, { background: '#10b981', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', width: '100%' });
+      btn.addEventListener('click', () => {
+        toast({
+          title: 'Connection Request',
+          description: `Sent connection request to ${props.name}. They'll be notified!`,
+        });
+      });
+      popupEl.appendChild(btn);
+
+      popupRef.current = new mapboxgl.Popup({ offset: 14, maxWidth: '240px' })
+        .setLngLat(coords)
+        .setDOMContent(popupEl)
+        .addTo(m);
+    });
+
+    m.on('click', CLUSTER_LAYER, (e) => {
+      const features = m.queryRenderedFeatures(e.point, { layers: [CLUSTER_LAYER] });
+      if (!features[0]) return;
+      const source = m.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource;
+      source.getClusterExpansionZoom(features[0].properties?.cluster_id, (err, zoom) => {
+        if (err || zoom == null) return;
+        m.easeTo({ center: (features[0].geometry as GeoJSON.Point).coordinates as [number, number], zoom });
+      });
+    });
+
+    m.on('mouseenter', POINTS_LAYER, () => { m.getCanvas().style.cursor = 'pointer'; });
+    m.on('mouseleave', POINTS_LAYER, () => { m.getCanvas().style.cursor = ''; });
+    m.on('mouseenter', CLUSTER_LAYER, () => { m.getCanvas().style.cursor = 'pointer'; });
+    m.on('mouseleave', CLUSTER_LAYER, () => { m.getCanvas().style.cursor = ''; });
+
+    layersAddedRef.current = true;
+  }, [removeLayers]);
+
+  useEffect(() => {
+    const m = map?.current;
+    if (!m) return;
+
+    const data = buildFeatureCollection(isVisible ? userLocations : []);
+
+    const onStyleLoad = () => {
+      layersAddedRef.current = false;
+      setupLayers(m, data);
+    };
+
+    if (m.isStyleLoaded()) setupLayers(m, data);
+    m.on('style.load', onStyleLoad);
+
+    return () => {
+      m.off('style.load', onStyleLoad);
+      popupRef.current?.remove();
+      removeLayers(m);
+    };
+  }, [map, userLocations, isVisible, setupLayers, removeLayers]);
+
+  return null;
 }
