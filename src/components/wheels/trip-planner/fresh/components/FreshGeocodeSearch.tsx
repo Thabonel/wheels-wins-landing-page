@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import mapboxgl from 'mapbox-gl';
+import { geocoding } from '@/services/mapboxProxy';
 import { guardedJson } from '@/utils/mapboxGuard';
 
 interface FreshGeocodeSearchProps {
@@ -62,21 +63,29 @@ export default function FreshGeocodeSearch({
 
   const performSearch = async (query: string) => {
     setIsSearching(true);
-    
+
     try {
-      const data = await guardedJson(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
-        `access_token=${mapboxgl.accessToken}&` +
-        `country=AU,NZ,US,CA,GB&` + // Focus on common countries
-        `types=place,locality,address,poi&` +
-        `limit=5`,
-        undefined,
-        'geocoding'
-      );
+      // Use backend proxy (keeps API token server-side)
+      const data = await geocoding.forward(query, {
+        country: ['AU', 'NZ', 'US', 'CA', 'GB'],
+        types: ['place', 'locality', 'address', 'poi'],
+        limit: 5,
+      });
       setSearchResults(data.features || []);
-    } catch (error) {
-      console.error('Geocoding error:', error);
-      setSearchResults([]);
+    } catch (proxyError) {
+      // Fallback to direct API if proxy unavailable
+      try {
+        const data = await guardedJson(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
+          `access_token=${mapboxgl.accessToken}&country=AU,NZ,US,CA,GB&types=place,locality,address,poi&limit=5`,
+          undefined,
+          'geocoding'
+        );
+        setSearchResults(data.features || []);
+      } catch (fallbackError) {
+        console.error('Geocoding error:', fallbackError);
+        setSearchResults([]);
+      }
     } finally {
       setIsSearching(false);
     }

@@ -23,7 +23,6 @@ import {
   Brain,
   Target
 } from 'lucide-react';
-import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
 import {
   BudgetCalculator,
   BudgetSettings,
@@ -38,7 +37,6 @@ import { useAuth } from '@/context/AuthContext';
 import { aiBudgetAssistant } from '@/services/ml/aiBudgetAssistant';
 
 interface BudgetSidebarProps {
-  directionsControl?: React.MutableRefObject<MapboxDirections | undefined>;
   isVisible: boolean;
   onClose: () => void;
   waypoints?: Waypoint[];
@@ -56,7 +54,6 @@ const iconMap = {
 };
 
 export default function BudgetSidebar({
-  directionsControl,
   isVisible,
   onClose,
   waypoints = []
@@ -85,36 +82,6 @@ export default function BudgetSidebar({
     duration: 45, // hours
     waypoints,
   });
-
-  // Extract route data from directions control
-  useEffect(() => {
-    if (directionsControl?.current) {
-      const updateRouteData = () => {
-        try {
-          const route = directionsControl.current?.getRoute();
-          if (route && route.legs) {
-            const totalDistance = route.legs.reduce((sum, leg) => sum + (leg.distance || 0), 0);
-            const totalDuration = route.legs.reduce((sum, leg) => sum + (leg.duration || 0), 0);
-            
-            setRouteData({
-              distance: totalDistance / 1000, // Convert to km
-              duration: totalDuration / 3600, // Convert to hours
-              waypoints,
-            });
-          }
-        } catch (error) {
-          console.warn('Error extracting route data:', error);
-        }
-      };
-
-      directionsControl.current.on?.('route', updateRouteData);
-      updateRouteData(); // Initial update
-
-      return () => {
-        directionsControl.current?.off?.('route', updateRouteData);
-      };
-    }
-  }, [directionsControl, waypoints]);
 
   // Calculate costs and budget status
   const costBreakdown = useMemo((): CostBreakdown => {

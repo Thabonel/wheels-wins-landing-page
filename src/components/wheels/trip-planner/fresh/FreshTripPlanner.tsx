@@ -2,8 +2,6 @@ import React, { useRef, useState, useEffect } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { Edit3, Bot, ArrowLeft } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import MapboxDirections from '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions';
-import '@mapbox/mapbox-gl-directions/dist/mapbox-gl-directions.css';
 import './fresh-trip-planner.css';
 import '@/styles/mapbox-fixes.css';
 import { toast } from 'sonner';
@@ -90,7 +88,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const isAddingWaypointRef = useRef(false);
   const [isLocationTrackingActive, setIsLocationTrackingActive] = useState(false);
   const isLocationTrackingActiveRef = useRef(false);
-  const [hasDirectionsRoute, setHasDirectionsRoute] = useState(false);
   const [mapOverlays, setMapOverlays] = useState([
     { id: 'traffic', name: 'Traffic', enabled: false },
     { id: 'fires', name: 'Active Fires', enabled: false },
@@ -116,7 +113,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const geolocateControlRef = useRef<mapboxgl.GeolocateControl | null>(null);
-  const directionsRef = useRef<MapboxDirections | null>(null);
   const pendingTemplateRef = useRef<any>(null);
   const handleManualMapInteractionRef = useRef<((e: any) => void) | null>(null);
 
@@ -418,66 +414,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
       // This ensures the entire trip planner (including toolbar) goes fullscreen
       newMap.addControl(new FreshFullscreenControl(), 'top-right');
       
-      // Add Mapbox Directions control for draggable routes
-      if (!directionsRef.current) {
-        directionsRef.current = new MapboxDirections({
-          accessToken: mapboxgl.accessToken,
-          unit: 'metric',
-          profile: 'mapbox/driving',
-          interactive: true,  // Enable route dragging
-          controls: {
-            inputs: false,  // Hide inputs since we use custom UI
-            instructions: false,
-            profileSwitcher: false
-          },
-          flyTo: false,
-          alternatives: true,
-          congestion: true,
-          geometries: 'geojson',
-          // CRITICAL: Hide Directions control's default markers to prevent conflicts
-          markers: {
-            start: false,
-            end: false,
-            waypoint: false
-          },
-          // Disable automatic geocoding that might create location markers
-          geocoder: false,
-          // Disable location tracking in Directions control
-          trackUserLocation: false
-        });
-        
-        newMap.addControl(directionsRef.current, 'top-left');
-        
-        console.log('🗺️ Mapbox Directions control configured with hidden markers to prevent conflicts');
-        
-        // Sync with our waypoint system when route changes
-        directionsRef.current.on('route', (event) => {
-          if (event.route && event.route.length > 0) {
-            const route = event.route[0];
-            console.log('🛣️ Route updated via drag:', route);
-            setHasDirectionsRoute(true);
-            // Update internal route state with the modified route
-            if (typeof waypointManager.updateRouteFromDrag === 'function') {
-              waypointManager.updateRouteFromDrag(route);
-            }
-          }
-        });
-        
-        // Listen for route clear events
-        directionsRef.current.on('clear', () => {
-          console.log('🧹 Directions route cleared');
-          setHasDirectionsRoute(false);
-        });
-        // Debug: Confirm markers are hidden
-        console.log('🔍 Directions control marker settings:', {
-          startMarker: false,
-          endMarker: false, 
-          waypointMarker: false,
-          geocoder: false,
-          trackUserLocation: false
-        });
-      }
-      
       // Track management is now handled by React component FreshTrackPanel
       // No need for vanilla JS control initialization
       
@@ -575,10 +511,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     
     // Cleanup
     return () => {
-      if (directionsRef.current && mapRef.current) {
-        mapRef.current.removeControl(directionsRef.current);
-        directionsRef.current = null;
-      }
       if (geolocateControlRef.current && mapRef.current) {
         mapRef.current.removeControl(geolocateControlRef.current);
         geolocateControlRef.current = null;
@@ -604,23 +536,6 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   // Track panel state is now managed by React component directly
   // No need for manual control updates
   
-  // Sync waypoints with Directions control
-  useEffect(() => {
-    if (directionsRef.current && waypointManager.waypoints.length >= 2) {
-      const origin = waypointManager.waypoints[0];
-      const destination = waypointManager.waypoints[waypointManager.waypoints.length - 1];
-      
-      // Set origin and destination on the directions control
-      directionsRef.current.setOrigin([origin.coordinates[0], origin.coordinates[1]]);
-      directionsRef.current.setDestination([destination.coordinates[0], destination.coordinates[1]]);
-      
-      console.log('🇺️ Synced waypoints with Directions control:', { origin: origin.name, destination: destination.name });
-    } else if (directionsRef.current && waypointManager.waypoints.length === 0) {
-      // Clear directions when waypoints are cleared
-      directionsRef.current.removeRoutes();
-    }
-  }, [waypointManager.waypoints]);
-  
   // Handle map style changes
   useEffect(() => {
     if (map) {
@@ -645,49 +560,104 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     }
   }, [isAddingWaypoint, map]);
   
-  // Handle traffic layer
+  // Handle traffic layer with proper source/layer separation
   useEffect(() => {
     if (!map) return;
-    
-    const handleStyleLoad = () => {
+
+    const addTrafficLayer = () => {
       if (showTraffic) {
-        if (!map.getLayer('traffic')) {
+        if (!map.getSource('mapbox-traffic')) {
+          map.addSource('mapbox-traffic', {
+            type: 'vector',
+            url: 'mapbox://mapbox.mapbox-traffic-v1'
+          });
+        }
+        if (!map.getLayer('traffic-line')) {
           map.addLayer({
-            id: 'traffic',
+            id: 'traffic-line',
             type: 'line',
-            source: {
-              type: 'vector',
-              url: 'mapbox://mapbox.mapbox-traffic-v1'
-            },
+            source: 'mapbox-traffic',
             'source-layer': 'traffic',
             paint: {
               'line-color': [
-                'case',
-                ['==', ['get', 'congestion'], 'low'], '#00ff00',
-                ['==', ['get', 'congestion'], 'moderate'], '#ffff00',
-                ['==', ['get', 'congestion'], 'heavy'], '#ff8800',
-                ['==', ['get', 'congestion'], 'severe'], '#ff0000',
-                '#000000'
+                'match', ['get', 'congestion'],
+                'low', '#22c55e',
+                'moderate', '#eab308',
+                'heavy', '#f97316',
+                'severe', '#ef4444',
+                '#6b7280'
               ],
-              'line-width': 3
+              'line-width': [
+                'interpolate', ['linear'], ['zoom'],
+                7, 1,
+                14, 4,
+                18, 8
+              ]
             }
           });
         }
       } else {
-        if (map.getLayer('traffic')) {
-          map.removeLayer('traffic');
-        }
+        if (map.getLayer('traffic-line')) map.removeLayer('traffic-line');
+        if (map.getSource('mapbox-traffic')) map.removeSource('mapbox-traffic');
       }
     };
-    
-    map.on('style.load', handleStyleLoad);
-    handleStyleLoad(); // Call immediately in case style is already loaded
-    
+
+    if (map.isStyleLoaded()) addTrafficLayer();
+    map.on('style.load', addTrafficLayer);
+
     return () => {
-      map.off('style.load', handleStyleLoad);
+      map.off('style.load', addTrafficLayer);
     };
   }, [showTraffic, map]);
-  
+
+  // Click on route line to add intermediate waypoint
+  useEffect(() => {
+    if (!map) return;
+
+    const handleRouteClick = async (e: mapboxgl.MapMouseEvent) => {
+      if (waypointManager.waypoints.length < 2) return;
+
+      const { lng, lat } = e.lngLat;
+      toast.loading('Adding stop on route...');
+
+      try {
+        const response = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}&limit=1`
+        );
+        const data = await response.json();
+        const placeName = data.features?.[0]?.place_name || `Stop at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+        // Insert as second-to-last waypoint (before destination)
+        const newWaypoints = [...waypointManager.waypoints];
+        newWaypoints.splice(newWaypoints.length - 1, 0, {
+          id: `wp-${Date.now()}`,
+          coordinates: [lng, lat] as [number, number],
+          name: placeName.split(',')[0],
+          address: placeName,
+        });
+        waypointManager.setWaypoints(newWaypoints);
+        toast.dismiss();
+        toast.success('Stop added - recalculating route');
+      } catch {
+        toast.dismiss();
+        toast.error('Failed to add stop');
+      }
+    };
+
+    const setCrosshair = () => { map.getCanvas().style.cursor = 'crosshair'; };
+    const resetCursor = () => { map.getCanvas().style.cursor = ''; };
+
+    map.on('click', 'route-main', handleRouteClick);
+    map.on('mouseenter', 'route-main', setCrosshair);
+    map.on('mouseleave', 'route-main', resetCursor);
+
+    return () => {
+      map.off('click', 'route-main', handleRouteClick);
+      map.off('mouseenter', 'route-main', setCrosshair);
+      map.off('mouseleave', 'route-main', resetCursor);
+    };
+  }, [map, waypointManager]);
+
   // Handle map click to add waypoint
   const handleMapClick = async (e: mapboxgl.MapLayerMouseEvent) => {
     console.log('🎯 Map clicked! isAddingWaypoint ref:', isAddingWaypointRef.current, 'state:', isAddingWaypoint);
@@ -751,8 +721,8 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Save trip handler
   const handleSaveTrip = async () => {
-    if (waypointManager.waypoints.length < 2 && !hasDirectionsRoute) {
-      toast.error('Please add at least 2 waypoints or create a route');
+    if (waypointManager.waypoints.length < 2) {
+      toast.error('Please add at least 2 waypoints');
       return;
     }
     
@@ -766,46 +736,15 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Export to navigation apps handler
   const handleExportRoute = () => {
-    if (waypointManager.waypoints.length < 2 && !hasDirectionsRoute) {
-      toast.error('Add at least 2 waypoints or create a route to export');
+    if (waypointManager.waypoints.length < 2) {
+      toast.error('Add at least 2 waypoints to export');
       return;
     }
     setShowNavigationExport(true);
   };
   
-  // Extract waypoints for export (from either waypoint manager or Directions control)
   const getExportWaypoints = () => {
-    // If we have waypoints in manager, use those
-    if (waypointManager.waypoints.length >= 2) {
-      return waypointManager.waypoints;
-    }
-
-    // If we have a directions route, extract origin/destination
-    if (hasDirectionsRoute && directionsRef.current) {
-      try {
-        const origin = directionsRef.current.getOrigin();
-        const destination = directionsRef.current.getDestination();
-
-        if (origin && destination) {
-          return [
-            {
-              coordinates: origin.geometry.coordinates,
-              name: origin.place_name || origin.text || 'Start',
-              address: origin.place_name || origin.text
-            },
-            {
-              coordinates: destination.geometry.coordinates,
-              name: destination.place_name || destination.text || 'End',
-              address: destination.place_name || destination.text
-            }
-          ];
-        }
-      } catch (error) {
-        console.error('Error extracting waypoints from Directions control:', error);
-      }
-    }
-
-    return [];
+    return waypointManager.waypoints.length >= 2 ? waypointManager.waypoints : [];
   };
 
   const handleShareTrip = () => {
@@ -815,23 +754,18 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
   
   // Navigation handler
   const handleStartNavigation = () => {
-    if (waypointManager.waypoints.length < 2 && !hasDirectionsRoute) {
+    if (waypointManager.waypoints.length < 2) {
       toast.error('Please create a route first');
       return;
     }
-    
+
     setIsNavigating(!isNavigating);
     toast.info(isNavigating ? 'Navigation stopped' : 'Navigation started');
   };
-  
+
   // Clear route handler
   const handleClearRoute = () => {
     waypointManager.clearWaypoints();
-    // Also clear the Directions control route if it exists
-    if (directionsRef.current) {
-      directionsRef.current.removeRoutes();
-    }
-    setHasDirectionsRoute(false);
     toast.info('Route cleared');
   };
   
@@ -1222,7 +1156,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
         showPOI={showPOI}
         showTemplates={showTemplates}
         isAddingWaypoint={isAddingWaypoint}
-        hasRoute={waypointManager.waypoints.length >= 2 || hasDirectionsRoute}
+        hasRoute={waypointManager.waypoints.length >= 2 }
       />
 
       {/* Edit Mode Indicator */}
