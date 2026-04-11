@@ -79,15 +79,20 @@ export function useTextToSpeech(initialOptions: TextToSpeechOptions = {}) {
     const voices = speechSynthesis.getVoices();
     logger.debug('Available TTS voices:', voices.length);
 
+    const pamVoice = voices.find(v =>
+      v.lang.startsWith('en') && /female|samantha|karen|zira|fiona|moira|tessa|victoria/i.test(v.name)
+    ) || voices.find(v =>
+      v.lang.startsWith('en') && !/male|daniel|aaron|david|james|thomas|fred/i.test(v.name)
+    ) || voices.find(v => v.default) || voices[0] || null;
+
     setState(prev => ({
       ...prev,
       availableVoices: voices,
-      selectedVoice: prev.selectedVoice || voices.find(v => v.default) || voices[0] || null
+      selectedVoice: prev.selectedVoice || pamVoice
     }));
 
-    // Set default voice in options if not already set
-    if (!options.current.voice && voices.length > 0) {
-      options.current.voice = voices.find(v => v.default) || voices[0];
+    if (!options.current.voice && pamVoice) {
+      options.current.voice = pamVoice;
     }
   }, [state.isSupported]);
 

@@ -103,7 +103,7 @@ interface VoiceState {
 // Default settings following research best practices
 const DEFAULT_SETTINGS: VoiceSettings = {
   enabled: true,
-  voice: 'alloy',
+  voice: 'coral',
   rate: 1.0,
   volume: 0.8,
   autoPlay: true,
