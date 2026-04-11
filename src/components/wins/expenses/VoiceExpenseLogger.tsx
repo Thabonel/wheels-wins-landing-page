@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Mic, MicOff, Volume2, Car } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -59,7 +59,6 @@ export default function VoiceExpenseLogger({
     setIsDriving(newState);
     
     if (newState) {
-      // Speak instructions when entering driving mode
       if ('speechSynthesis' in window) {
         const utterance = new SpeechSynthesisUtterance(
           "Driving mode activated. Voice expense logging is ready. " +
@@ -67,6 +66,13 @@ export default function VoiceExpenseLogger({
           "For example: 'log 45 dollars for gas'"
         );
         utterance.rate = 0.9;
+        const voices = speechSynthesis.getVoices();
+        const pamVoice = voices.find(v =>
+          v.lang.startsWith('en') && /female|samantha|karen|zira|fiona|moira|tessa|victoria/i.test(v.name)
+        ) || voices.find(v =>
+          v.lang.startsWith('en') && !/male|daniel|aaron|david|james|thomas|fred/i.test(v.name)
+        );
+        if (pamVoice) utterance.voice = pamVoice;
         window.speechSynthesis.speak(utterance);
       }
     }

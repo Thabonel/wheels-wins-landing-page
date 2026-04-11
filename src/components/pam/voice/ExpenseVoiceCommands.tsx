@@ -271,6 +271,13 @@ export function useExpenseVoiceCommands(config: VoiceCommandConfig) {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
+      const voices = speechSynthesis.getVoices();
+      const pamVoice = voices.find(v =>
+        v.lang.startsWith('en') && /female|samantha|karen|zira|fiona|moira|tessa|victoria/i.test(v.name)
+      ) || voices.find(v =>
+        v.lang.startsWith('en') && !/male|daniel|aaron|david|james|thomas|fred/i.test(v.name)
+      );
+      if (pamVoice) utterance.voice = pamVoice;
       window.speechSynthesis.speak(utterance);
     }
   };
