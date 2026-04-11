@@ -565,6 +565,7 @@ const FreshTripPlanner: React.FC<FreshTripPlannerProps> = ({
     if (!map) return;
 
     const addTrafficLayer = () => {
+      if (!map.getStyle()) return;
       if (showTraffic) {
         if (!map.getSource('mapbox-traffic')) {
           map.addSource('mapbox-traffic', {

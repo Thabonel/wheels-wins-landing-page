@@ -232,6 +232,7 @@ export default function FreshPOILayer({ map, filters }: FreshPOILayerProps) {
     return () => {
       map.off('style.load', onStyleLoad);
       popupRef.current?.remove();
+      if (!map.getStyle()) return;
       if (map.getLayer(CLUSTER_COUNT_LAYER)) map.removeLayer(CLUSTER_COUNT_LAYER);
       if (map.getLayer(CLUSTER_LAYER)) map.removeLayer(CLUSTER_LAYER);
       if (map.getLayer(UNCLUSTERED_LAYER)) map.removeLayer(UNCLUSTERED_LAYER);

@@ -108,6 +108,7 @@ export default function WheelersLayer({ map, isVisible }: WheelersLayerProps) {
   }, [isVisible, user?.id]);
 
   const removeLayers = useCallback((m: mapboxgl.Map) => {
+    if (!m.getStyle()) { layersAddedRef.current = false; return; }
     [LABELS_LAYER, POINTS_LAYER, CLUSTER_COUNT_LAYER, CLUSTER_LAYER].forEach(id => {
       if (m.getLayer(id)) m.removeLayer(id);
     });
