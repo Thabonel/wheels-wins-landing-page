@@ -23,7 +23,7 @@ bleach==6.2.0
 # OpenAI removed - migrated to Anthropic Claude 3.5 Sonnet
 supabase==2.17.0
 httpx==0.28.1
-requests==2.32.4
+requests==2.33.0
 urllib3>=2.6.2  # Security fix: CVE-2025-66471, CVE-2025-66476 (compression DoS)
 elevenlabs>=1.0.0  # Premium TTS for PAM voice
 
