@@ -53,7 +53,7 @@ APScheduler==3.12.0
 
 # Essential processing - UPDATED TO ADDRESS TORCH WARNINGS
 numpy==1.26.4
-Pillow==12.1.1  # Security fix: CVE-2026-25990
+Pillow==12.2.0  # Security fix: CVE-2026-25990 - OOB write via invalid PSD tile extents (integer overflow)
 
 # System monitoring
 psutil==7.0.1
@@ -88,7 +88,7 @@ openai-whisper>=20241226
 
 # Search and web processing
 googlemaps==4.12.2
-lxml==5.3.0
+lxml==6.1.0
 
 # DEVELOPMENT AND TESTING DEPENDENCIES (for development only)
 # pytest==8.3.0

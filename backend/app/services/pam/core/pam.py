@@ -1858,6 +1858,53 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             logger.error(f"Error calling Claude API: {e}", exc_info=True)
             raise
 
+    # Tools that send content to other users - require explicit confirmation in the
+    # user's message before PAM executes them.
+    _TOOLS_REQUIRING_CONFIRMATION = {
+        "message_friend": "send a direct message to another user",
+        "create_post": "publish a post to the community feed",
+    }
+
+    _CONFIRMATION_PHRASES = {
+        "yes", "yep", "yeah", "confirm", "confirmed", "go ahead",
+        "send it", "do it", "proceed", "ok", "okay", "sure",
+    }
+
+    def _check_tool_needs_confirmation(self, tool_name: str) -> str | None:
+        """
+        Return a human-readable prompt string if the tool needs explicit user
+        confirmation, or None if it can proceed immediately.
+
+        Looks at the last user text message in conversation history.  If it
+        contains an affirmative phrase the tool is allowed to proceed.
+        """
+        if tool_name not in self._TOOLS_REQUIRING_CONFIRMATION:
+            return None
+
+        last_user_text = ""
+        for msg in reversed(self.conversation_history):
+            if msg.get("role") == "user":
+                content = msg.get("content", "")
+                if isinstance(content, str):
+                    last_user_text = content.lower()
+                elif isinstance(content, list):
+                    # Extract text from content blocks
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            last_user_text = block.get("text", "").lower()
+                            break
+                if last_user_text:
+                    break
+
+        if any(phrase in last_user_text for phrase in self._CONFIRMATION_PHRASES):
+            return None
+
+        action_description = self._TOOLS_REQUIRING_CONFIRMATION[tool_name]
+        return (
+            f"I'm about to {action_description}. "
+            f"Please confirm by saying 'yes' or 'go ahead'."
+        )
+
     async def _execute_tools(self, content: List[Any]) -> List[Dict[str, Any]]:
         """
         Execute tools that Claude requested
@@ -1978,6 +2025,16 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                         # DIAGNOSTIC: Log tool execution details
                         logger.info(f"🔍 DIAGNOSTIC: Executing {tool_name} for user {self.user_id}")
                         logger.info(f"🔍 DIAGNOSTIC: Tool params={json.dumps(tool_input, default=str)[:500]}")
+
+                        # Confirmation gate for outbound social actions
+                        confirmation_check = self._check_tool_needs_confirmation(tool_name)
+                        if confirmation_check:
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": f"CONFIRMATION_REQUIRED: {confirmation_check}"
+                            })
+                            continue
 
                         # Call the tool
                         result = await tool_functions[tool_name](**tool_input)

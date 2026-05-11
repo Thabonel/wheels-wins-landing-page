@@ -1,7 +1,14 @@
 """
-PAM AI Security Guardrail
-LangChain-compatible callback handler that protects PAM from prompt injection,
-jailbreaking, and data exfiltration attacks.
+PAM AI Security Guardrail - NOT WIRED INTO RUNTIME
+
+This class extends LangChain's BaseCallbackHandler, but PAM uses the Anthropic
+SDK directly (not LangChain). As a result, on_llm_start / on_tool_start callbacks
+never fire in production. This file provides no runtime protection.
+
+Active security is in: app/services/pam/security/safety_layer.py
+Runtime gate for social tools is in: app/services/pam/core/pam.py (_check_tool_needs_confirmation)
+
+Kept for test compatibility only (tests/test_security_travel_fix.py).
 """
 
 # LangChain imports - only import when actually using with LangChain

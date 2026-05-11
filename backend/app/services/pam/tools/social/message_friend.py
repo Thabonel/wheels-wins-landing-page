@@ -7,6 +7,7 @@ Example usage:
 - "DM Sarah about the campground recommendation"
 """
 
+import os
 import logging
 from typing import Any, Dict
 from datetime import datetime
@@ -25,6 +26,29 @@ from app.services.pam.tools.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+_MAX_MESSAGE_LENGTH = 2000
+_RATE_LIMIT_MESSAGES = 10
+_RATE_LIMIT_WINDOW_SECONDS = 3600
+
+
+async def _check_rate_limit(user_id: str) -> bool:
+    """Return True if user is within rate limit, False if exceeded."""
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        return True  # No Redis configured - skip rate limiting
+    try:
+        import redis.asyncio as aioredis
+        client = aioredis.from_url(redis_url, decode_responses=True)
+        key = f"msg_rate:{user_id}"
+        count = await client.incr(key)
+        if count == 1:
+            await client.expire(key, _RATE_LIMIT_WINDOW_SECONDS)
+        await client.aclose()
+        return count <= _RATE_LIMIT_MESSAGES
+    except Exception:
+        # Redis unavailable - allow message to proceed
+        return True
 
 
 async def message_friend(
@@ -52,6 +76,24 @@ async def message_friend(
         validate_uuid(user_id, "user_id")
         validate_uuid(recipient_id, "recipient_id")
         validate_required(message, "message")
+
+        if user_id == recipient_id:
+            raise ValidationError(
+                "Cannot send a message to yourself",
+                context={"user_id": user_id}
+            )
+
+        if len(message) > _MAX_MESSAGE_LENGTH:
+            raise ValidationError(
+                f"Message too long ({len(message)} chars). Maximum is {_MAX_MESSAGE_LENGTH} characters.",
+                context={"length": len(message), "max": _MAX_MESSAGE_LENGTH}
+            )
+
+        if not await _check_rate_limit(user_id):
+            raise ValidationError(
+                f"Rate limit reached: maximum {_RATE_LIMIT_MESSAGES} messages per hour.",
+                context={"user_id": user_id, "limit": _RATE_LIMIT_MESSAGES}
+            )
 
         try:
             validated = MessageFriendInput(
