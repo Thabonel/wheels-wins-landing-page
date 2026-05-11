@@ -10,8 +10,8 @@ pydantic==2.13.0
 pydantic-settings==2.5.0
 
 # Authentication and security - UPDATED TO ADDRESS CRYPTOGRAPHY WARNINGS
-PyJWT[crypto]==2.11.0
-cryptography==46.0.5  # Updated to address ARC4, Blowfish, CAST5, IDEA, SEED, TripleDES warnings + CVE-2026-26007
+PyJWT[crypto]==2.12.1  # Security fix: CVE in <2.12.1
+cryptography==48.0.0  # Security fix: CVE-2026-26007 and later advisories
 email-validator==2.4.0
 passlib[bcrypt]==1.7.4
 
@@ -20,7 +20,7 @@ openai>=1.52.0,<2.0.0
 supabase==2.24.0
 httpx==0.29.1
 requests==2.32.4
-urllib3==2.6.3
+urllib3==2.7.0  # Security fix: CVE-2026-44432 (decompression bomb via streaming API)
 
 # Database essentials
 redis==6.2.1
