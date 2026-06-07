@@ -1191,7 +1191,7 @@ import { PAMClient } from '@pam/client';
 
 const client = new PAMClient({
   baseURL: 'https://pam-backend.onrender.com',
-  apiKey: process.env.PAM_API_KEY,
+  apiKey: <TOKEN>,
   timeout: 10000,
   retries: 3
 });
