@@ -181,3 +181,6 @@ scripts/import-mcp-servers.sh
 
 # Archived Documentation (historical context only)
 docs/archive/
+
+# Local secrets
+*.env.*

@@ -63,9 +63,9 @@ REDIS_PASSWORD=your-redis-password
 # External API Keys
 OPENAI_API_KEY=<OPENAI_API_KEY>
 ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>
-GOOGLE_CUSTOM_SEARCH_API_KEY=your-google-search-api-key
+GOOGLE_CUSTOM_SEARCH_API_KEY=${API_KEY}
 GOOGLE_CUSTOM_SEARCH_ENGINE_ID=your-google-search-engine-id
-MAPBOX_API_KEY=pk.your-mapbox-api-key
+MAPBOX_API_KEY=${API_KEY}
 
 # PAM Configuration
 PAM_ENABLED=true
@@ -761,11 +761,11 @@ python scripts/health_check.py
 
 # Test PAM functionality
 curl -X GET http://localhost:8000/api/v1/pam/database/stats \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 
 # Test PAM intelligence
 curl -X POST http://localhost:8000/api/v1/pam/intelligence/user-360/USER_ID \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 
 # Run comprehensive PAM tests
 python test_pam_100_percent_control.py
@@ -827,7 +827,7 @@ RUN apt-get remove --purge -y wget curl && \
 ```bash
 # Comprehensive PAM health check
 curl -X GET "http://localhost:8000/api/v1/pam/database/health" \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 
 # Expected response:
 # {

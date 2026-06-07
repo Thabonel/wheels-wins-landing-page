@@ -89,7 +89,7 @@ Content-Type: application/json
 
 #### 3. Token Usage
 ```http
-Authorization: Bearer <TOKEN>
+Authorization: Bearer ${ACCESS_TOKEN}
 ```
 
 #### 4. Token Refresh
@@ -1191,7 +1191,7 @@ import { PAMClient } from '@pam/client';
 
 const client = new PAMClient({
   baseURL: 'https://pam-backend.onrender.com',
-  apiKey: <TOKEN>,
+  apiKey: ${SUPABASE_ANON_KEY},
   timeout: 10000,
   retries: 3
 });
@@ -1242,7 +1242,7 @@ from pam_client.types import Location, DateRange
 
 client = PAMClient(
     base_url='https://pam-backend.onrender.com',
-    api_key=os.getenv('PAM_API_KEY'),
+    api_key=${API_KEY}('PAM_API_KEY'),
     timeout=10.0
 )
 

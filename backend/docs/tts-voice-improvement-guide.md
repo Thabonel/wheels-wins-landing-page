@@ -133,7 +133,7 @@ asyncio.run(main())
 ```bash
 curl -X POST "http://localhost:8000/api/v1/pam/voice" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{
     "text": "Hello! This is PAM with improved voice quality.",
     "voice_id": "en-US-JennyNeural"

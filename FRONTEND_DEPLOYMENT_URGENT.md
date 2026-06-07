@@ -4,8 +4,8 @@
 The backend logs show that the frontend is still sending UUID tokens instead of JWT tokens, causing authentication failures.
 
 ## Current Status
-- **Backend**: Still receiving `token=21a2151a-cd37-41d5-a1c7-124bb05e7a6a` (UUID)
-- **Expected**: Should receive JWT token like `token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+- **Backend**: Still receiving `token=${AUTH_TOKEN}` (UUID)
+- **Expected**: Should receive JWT token like `token=${AUTH_TOKEN}`
 - **Result**: Continuous authentication loops with "JWT decode failed: Not enough segments"
 
 ## Code Status

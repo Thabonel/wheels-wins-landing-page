@@ -121,7 +121,7 @@ curl http://localhost:3000/api/health
 curl http://localhost:8000/api/health/detailed
 
 # Supabase connection test
-curl -H "apikey: YOUR_SUPABASE_KEY" \
+curl -H "apikey: ${SUPABASE_ANON_KEY}" \
      "YOUR_SUPABASE_URL/rest/v1/profiles?select=id&limit=1"
 ```
 

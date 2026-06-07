@@ -186,7 +186,7 @@ export const corsHeaders = {
 supabase functions deploy nari-dia-tts
 
 # Set environment variables
-supabase secrets set HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+supabase secrets set HUGGINGFACE_API_KEY=${API_KEY}
 ```
 
 ## Environment Variables
@@ -202,7 +202,7 @@ SUPABASE_KEY=<SUPABASE_ANON_KEY>
 SUPABASE_SERVICE_KEY=your-supabase-service-key
 
 # HuggingFace API (for Supabase function)
-HUGGINGFACE_API_KEY=your_huggingface_api_key_here
+HUGGINGFACE_API_KEY=${API_KEY}
 
 # OpenAI (for Whisper STT and PAM LLM)
 OPENAI_API_KEY=<OPENAI_API_KEY>
@@ -270,7 +270,7 @@ curl -X POST "https://your-backend-url.com/api/v1/voice" \
 
 # Test voice pipeline (requires audio file)
 curl -X POST "https://your-backend-url.com/api/v1/pam/voice" \
-  -H "Authorization: Bearer your-jwt-token" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -F "audio=@test_audio.wav"
 ```
 

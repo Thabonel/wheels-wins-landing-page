@@ -609,7 +609,7 @@ WHERE tablename IN ('pam_savings_events', 'monthly_savings_summary');
 ```bash
 # Test each endpoint
 curl -X GET https://api.yoursite.com/api/v1/pam/savings/guarantee-status \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 3. **Frontend Functionality**
@@ -803,12 +803,12 @@ AND saved_date < '2025-02-01';
 ```bash
 # Get guarantee status
 curl -X GET "https://api.yoursite.com/api/v1/pam/savings/guarantee-status" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json"
 
 # Record a savings event
 curl -X POST "https://api.yoursite.com/api/v1/pam/savings/record" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
     "savings_type": "fuel_optimization",

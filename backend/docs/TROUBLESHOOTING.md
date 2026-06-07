@@ -233,7 +233,7 @@ sudo ntpdate -s time.nist.gov  # Linux
 ```bash
 # Token should be in format: Bearer <token>
 # Not: <token> or Bearer<token>
-curl -H "Authorization: Bearer your-token-here" http://localhost:8000/api/protected
+curl -H "Authorization: Bearer ${ACCESS_TOKEN}" http://localhost:8000/api/protected
 ```
 
 ### Issue: Supabase Auth integration problems
@@ -643,7 +643,7 @@ from app.core.config import settings
 
 async def test_openai_connection():
     try:
-        client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        client = openai.AsyncOpenAI(api_key=${API_KEY})
         response = await client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": "Hello"}],

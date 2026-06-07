@@ -578,7 +578,7 @@ class TestVulnerabilities:
         response = client.post(
             "/api/v1/pam/chat",
             json={"invalid": "data"},
-            headers={"Authorization": "Bearer invalid_token"}
+            headers={"Authorization": "Bearer ${ACCESS_TOKEN}"}
         )
         
         # Error response should not contain:

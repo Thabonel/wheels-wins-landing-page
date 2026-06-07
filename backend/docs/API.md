@@ -410,7 +410,7 @@ import { PAMClient } from '@pam/client';
 
 const client = new PAMClient({
   baseURL: 'https://pam-backend.onrender.com',
-  apiKey: 'your-api-key'
+  apiKey: '${API_KEY}'
 });
 
 // Send chat message
@@ -432,7 +432,7 @@ from pam_client import PAMClient
 
 client = PAMClient(
     base_url='https://pam-backend.onrender.com',
-    api_key='your-api-key'
+    api_key='${API_KEY}'
 )
 
 # Send chat message

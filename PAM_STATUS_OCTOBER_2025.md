@@ -111,7 +111,7 @@ curl https://wheels-wins-backend-staging.onrender.com/api/v1/pam/health
 **Test it:**
 ```bash
 curl -X POST https://wheels-wins-backend-staging.onrender.com/api/v1/pam/chat \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"message": "What can you help me with?"}'
 ```

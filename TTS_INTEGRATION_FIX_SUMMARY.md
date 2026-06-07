@@ -171,7 +171,7 @@ interface TTSResponse {
 
 ```bash
 # Supabase Edge Function Environment Variable
-NARI_LABS_DIA_API_KEY=SG_your_segmind_api_key_here
+NARI_LABS_DIA_API_KEY=${API_KEY}
 ```
 
 ### Setting in Supabase
@@ -181,7 +181,7 @@ NARI_LABS_DIA_API_KEY=SG_your_segmind_api_key_here
 supabase functions deploy nari-dia-tts
 
 # Set API key
-supabase secrets set NARI_LABS_DIA_API_KEY=SG_your_key_here
+supabase secrets set NARI_LABS_DIA_API_KEY=${API_KEY}
 ```
 
 ## API Usage Examples
@@ -237,7 +237,7 @@ const response = await fetch('/functions/v1/nari-dia-tts', {
 ```bash
 # Run comprehensive test suite
 cd supabase/functions/nari-dia-tts
-export NARI_LABS_DIA_API_KEY=SG_your_key_here
+export NARI_LABS_DIA_API_KEY=${API_KEY}
 deno run --allow-net --allow-env test.ts
 ```
 
@@ -247,7 +247,7 @@ deno run --allow-net --allow-env test.ts
 # Test basic functionality
 curl -X POST "https://your-project.supabase.co/functions/v1/nari-dia-tts" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-jwt-token" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{"text":"Hello world!","voice_type":"monologue"}'
 ```
 

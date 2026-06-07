@@ -49,14 +49,14 @@ The backend currently accepts both JWT and UUID tokens:
 
 #### ❌ Still Using Old Code (UUID)
 ```
-"token=21a2151a-cd37-41d5-a1c7-124bb05e7a6a"
+"token=${AUTH_TOKEN}"
 "JWT decode failed: Not enough segments"
 "WebSocket authentication failed: 401: Invalid JWT format"
 ```
 
 #### ✅ Using New Code (JWT)
 ```
-"token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+"token=${AUTH_TOKEN}"
 "WebSocket authenticated for user: [user-id]"
 "Using JWT authentication"
 ```
