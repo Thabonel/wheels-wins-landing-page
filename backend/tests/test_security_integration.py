@@ -31,10 +31,10 @@ class TestAuthentication:
     
     def test_jwt_token_generation(self):
         """Test JWT token generation"""
-        from app.core.auth import create_access_token
+        from app.core.auth import create_accessToken
         
         user_data = {"sub": "user123", "email": "test@example.com"}
-        token = create_access_token(user_data)
+        token = create_accessToken(user_data)
         
         # Decode and verify
         decoded = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
@@ -438,7 +438,7 @@ class TestEncryption:
         from app.core.security import encrypt_data, decrypt_data
         
         sensitive_data = {
-            "api_key": "sk-1234567890",
+            "credential_name": "sk-1234567890",
             "ssn": "123-45-6789",
             "credit_card": "4111111111111111"
         }
@@ -447,7 +447,7 @@ class TestEncryption:
         encrypted = encrypt_data(json.dumps(sensitive_data))
         
         # Should be encrypted
-        assert "api_key" not in encrypted
+        assert "credential_name" not in encrypted
         assert "123-45-6789" not in encrypted
         
         # Decrypt
@@ -552,7 +552,7 @@ class TestVulnerabilities:
         
         sensitive_data = {
             "password": "secret123",
-            "api_key": "sk-123456",
+            "credential_name": "sk-123456",
             "token": "bearer_token_here"
         }
         

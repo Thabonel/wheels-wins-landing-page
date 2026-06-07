@@ -70,7 +70,7 @@ Content-Type: application/json
     "region": "Australia",
     "created_at": "2024-01-15T10:30:00Z"
   },
-  "access_token": "omitted",
+  "accessToken": "omitted",
   "token_type": "bearer",
   "expires_in": 3600
 }
@@ -1191,7 +1191,7 @@ import { PAMClient } from '@pam/client';
 
 const client = new PAMClient({
   baseURL: 'https://pam-backend.onrender.com',
-  apiKey: ${SUPABASE_ANON_KEY},
+  credentialName: ${SUPABASE_ANON_KEY},
   timeout: 10000,
   retries: 3
 });
@@ -1242,7 +1242,7 @@ from pam_client.types import Location, DateRange
 
 client = PAMClient(
     base_url='https://pam-backend.onrender.com',
-    api_key=${API_KEY}('PAM_API_KEY'),
+    credential_name=${API_KEY}('PAM_API_KEY'),
     timeout=10.0
 )
 

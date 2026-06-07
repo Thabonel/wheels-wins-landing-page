@@ -96,7 +96,7 @@ APP_URL=https://pam-backend.onrender.com
 LANGFUSE_SECRET_KEY=sk-lf-80d3f56e-...
 LANGFUSE_PUBLIC_KEY=pk-lf-8b9dd334-...
 LANGFUSE_HOST=https://cloud.langfuse.com
-AGENTOPS_API_KEY=${API_KEY}
+AGENTOPS_API_KEY=${AGENTOPS_TOKEN}
 ```
 
 ## 🔧 **KEY FIXES APPLIED IN THIS VERSION**
@@ -134,7 +134,7 @@ AGENTOPS_API_KEY=${API_KEY}
 - Logging detailed and informative
 
 ### **🔄 Before Full Production (Planned)**
-- Rotate all API keys (already planned)
+- Rotate all credentials (already planned)
 - Update Render environment variables with new keys
 - Address cosmetic configuration warnings (optional)
 - Enable additional observability platforms (optional)
@@ -158,10 +158,10 @@ AGENTOPS_API_KEY=${API_KEY}
 ---
 
 ## 🚨 **IMPORTANT SECURITY NOTE**
-API keys were exposed during troubleshooting session and MUST be rotated before full production deployment as planned.
+credentials were exposed during troubleshooting session and MUST be rotated before full production deployment as planned.
 
 ## 📋 **NEXT STEPS (Optional Optimizations)**
-1. Rotate API keys (already planned)
+1. Rotate credentials (already planned)
 2. Investigate platform status indicators (cosmetic)
 3. Clean up Supabase dummy client warnings (cosmetic)
 4. Optimize bundle sizes (performance enhancement)

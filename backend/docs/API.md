@@ -38,7 +38,7 @@ Content-Type: application/json
 **Response:**
 ```json
 {
-  "access_token": "omitted",
+  "accessToken": "omitted",
   "token_type": "bearer",
   "expires_in": 3600,
   "user": {
@@ -410,7 +410,7 @@ import { PAMClient } from '@pam/client';
 
 const client = new PAMClient({
   baseURL: 'https://pam-backend.onrender.com',
-  apiKey: '${API_KEY}'
+  credentialName: '${API_KEY}'
 });
 
 // Send chat message
@@ -432,7 +432,7 @@ from pam_client import PAMClient
 
 client = PAMClient(
     base_url='https://pam-backend.onrender.com',
-    api_key='${API_KEY}'
+    credential_name='${API_KEY}'
 )
 
 # Send chat message
