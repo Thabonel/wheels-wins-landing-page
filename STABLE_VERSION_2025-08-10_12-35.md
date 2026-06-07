@@ -93,7 +93,7 @@ APP_URL=https://pam-backend.onrender.com
 
 ### **✅ Observability Variables (Set but showing as not configured)**
 ```bash
-LANGFUSE_SECRET_KEY=sk-lf-80d3f56e-...
+LANGFUSE_SECRET_KEY is configured in the deployment environment
 LANGFUSE_PUBLIC_KEY=pk-lf-8b9dd334-...
 LANGFUSE_HOST=https://cloud.langfuse.com
 AGENTOPS_API_KEY=${AGENTOPS_TOKEN}

@@ -438,7 +438,7 @@ class TestEncryption:
         from app.core.security import encrypt_data, decrypt_data
         
         sensitive_data = {
-            "credential_name": "sk-1234567890",
+            "credential_label": "omitted in test",
             "ssn": "123-45-6789",
             "credit_card": "4111111111111111"
         }
@@ -552,7 +552,7 @@ class TestVulnerabilities:
         
         sensitive_data = {
             "password": "secret123",
-            "credential_name": "sk-123456",
+            "credential_label": "omitted in test",
             "token": "bearer_token_here"
         }
         
