@@ -668,135 +668,70 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
       setIsContinuousMode(true);
       setConversationMode('voice'); // Enable voice responses when voice mode starts
 
-      // Show connecting feedback
-      logger.info('🔄 Connecting to PAM voice system...');
+      // Use free browser speech recognition + PAM backend (DeepSeek) for voice
+      // instead of paid OpenAI Realtime API
+      logger.info('🎤 Starting free browser voice mode (STT → DeepSeek → browser TTS)');
 
-      // Get API base URL from environment - environment-aware detection
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ||
-        (window.location.hostname === 'wheelsandwins.com'
-          ? 'https://pam-backend.onrender.com'  // Production
-          : 'https://wheels-wins-backend-staging.onrender.com');  // Staging
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert('Voice input not supported in your browser. Please use text chat instead.');
+        setIsContinuousMode(false);
+        setConversationMode('text');
+        return;
+      }
 
-      // Get JWT token from Supabase session
-      const authToken = session.access_token;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = settings?.display_preferences?.language || 'en-US';
 
-      // Prepare user context for PAM
-      const userLanguage = settings?.display_preferences?.language || 'en';
-      const userLocation = settings?.location_preferences?.default_location || locationState.currentLocation;
+      const wakeWords = ['hey pam', 'hey, pam', 'hi pam', 'hi, pam'];
 
-      // Create PAM Hybrid Voice service (OpenAI voice + Claude reasoning)
-      const service = createVoiceService({
-        userId: user.id,
-        apiBaseUrl,
-        authToken,
-        voice: 'coral', // Warm, friendly female voice
-        language: userLanguage, // User's preferred language
-        location: userLocation ? {
-          lat: userLocation.latitude || 0,
-          lng: userLocation.longitude || 0,
-          city: userLocation.city,
-          region: userLocation.state
-        } : undefined,
-        currentPage: 'pam_chat',
-        onTranscript: (text) => {
-          // Filter out wake word activation phrases
-          const wakeWords = ['hey pam', 'hey, pam', 'hi pam', 'hi, pam'];
-          const cleanedText = text.toLowerCase().trim();
+      recognition.onresult = (event: any) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            let text: string = event.results[i][0].transcript.trim();
+            if (!text) continue;
 
-          // Ignore if text is ONLY the wake word
-          if (wakeWords.some(ww => cleanedText === ww)) {
-            logger.debug('🔇 Ignoring wake word only:', text);
-            return;
-          }
-
-          // If text STARTS with wake word, remove it
-          let filteredText = text;
-          wakeWords.forEach(wakeWord => {
-            const regex = new RegExp(`^${wakeWord}[,\\s]+`, 'i');
-            filteredText = filteredText.replace(regex, '').trim();
-          });
-
-          // Skip if nothing left after filtering
-          if (filteredText.length === 0) {
-            logger.debug('🔇 Empty after filter:', text);
-            return;
-          }
-
-          // Add user's transcribed speech as a message
-          const newMessage: PamMessage = {
-            id: Date.now().toString(),
-            content: filteredText,
-            sender: "user",
-            timestamp: new Date().toISOString(),
-          };
-          setMessages((prev) => [...prev, newMessage]);
-        },
-        onResponse: (text) => {
-          // Add PAM's response as a message
-          // CRITICAL: shouldSpeak: false because OpenAI Realtime handles TTS in hybrid mode
-          // Setting this to true would cause DOUBLE VOICE (both OpenAI and local TTS)
-          const newMessage: PamMessage = {
-            id: Date.now().toString(),
-            content: text,
-            sender: "pam",
-            timestamp: new Date().toISOString(),
-            shouldSpeak: false, // OpenAI Realtime handles TTS - don't use local TTS
-          };
-          setMessages((prev) => [...prev, newMessage]);
-        },
-        onStatusChange: (status) => {
-          setIsSpeaking(status.isSpeaking);
-          setIsListening(status.isListening);
-
-          // Automatic conversation end detection
-          // When PAM finishes speaking AND user is silent → start 10-second timeout
-          // If user speaks again → clear timeout
-          // CRITICAL: Don't timeout if waiting for Claude supervisor response
-          const bothSilent = !status.isSpeaking && !status.isListening;
-          const waitingForResponse = status.isWaitingForSupervisor;
-
-          if (bothSilent && !waitingForResponse) {
-            // Clear any existing timeout
-            if (conversationEndTimeoutRef.current) {
-              clearTimeout(conversationEndTimeoutRef.current);
+            for (const w of wakeWords) {
+              const rx = new RegExp(`^${w.replace(/,/g, ',\\s*')}[,\\s]*`, 'i');
+              text = text.replace(rx, '').trim();
             }
 
-            // Start 10-second silence timeout (gives user time to respond after PAM speaks)
-            logger.debug('🔇 Both silent - starting 10s conversation end timer');
-            conversationEndTimeoutRef.current = setTimeout(() => {
-              logger.info('⏱️ Conversation ended (10s silence) - auto-switching to wake word');
-              stopContinuousVoiceMode();
-            }, 10000); // 10 seconds of silence
-          } else if (waitingForResponse) {
-            // Waiting for Claude - clear any timeout and don't start new one
-            if (conversationEndTimeoutRef.current) {
-              logger.debug('🔄 Waiting for supervisor response - clearing silence timer');
-              clearTimeout(conversationEndTimeoutRef.current);
-              conversationEndTimeoutRef.current = null;
-            }
-          } else {
-            // User is speaking or PAM is speaking - clear timeout
-            if (conversationEndTimeoutRef.current) {
-              logger.debug('🎤 Activity detected - clearing conversation end timer');
-              clearTimeout(conversationEndTimeoutRef.current);
-              conversationEndTimeoutRef.current = null;
-            }
+            if (!text) continue;
+
+            logger.debug('🎤 Voice input:', text);
+            const msgEvent = new CustomEvent('pam-send-message', { detail: { message: text } });
+            window.dispatchEvent(msgEvent);
+
+            setIsListening(false);
+            setIsSpeaking(true);
           }
         }
-      });
+      };
 
-      // Start voice session (microphone → OpenAI → Claude → response)
-      await service.start();
+      recognition.onerror = (event: any) => {
+        logger.error('Browser speech recognition error:', event.error);
+        if (event.error === 'no-speech' || event.error === 'aborted') return;
 
-      // Set both state and ref (ref is used in timeout callbacks to avoid stale closure)
-      setRealtimeService(service);
-      realtimeServiceRef.current = service;
+        recognition.stop();
+        setIsContinuousMode(false);
+        setConversationMode('text');
+      };
 
-      logger.info('✅ PAM voice mode active (OpenAI voice + Claude reasoning!)');
+      recognition.onend = () => {
+        logger.debug('Browser speech recognition ended');
+        setIsListening(false);
+      };
+
+      recognition.start();
+      setIsListening(true);
+
+      logger.info('✅ Free browser voice mode active (Web Speech API → DeepSeek → browser TTS)');
+      return;
 
     } catch (error) {
       logger.error('❌ Failed to start voice mode:', error);
-      // Revert UI state on error
       setIsContinuousMode(false);
       alert(`Failed to start voice mode: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
