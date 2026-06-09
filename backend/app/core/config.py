@@ -213,10 +213,8 @@ class Settings(BaseSettings):
 
     @field_validator("ANTHROPIC_API_KEY", mode="before")
     @classmethod
-    def validate_anthropic_api_key(cls, v):
-        """Validate Anthropic API key format and check alternative environment variables"""
+    def validate_anthropic_api_key_alt_env(cls, v):
         if not v:
-            # Check for alternative environment variable names
             import os
             alternative_names = [
                 'VITE_ANTHROPIC_API_KEY',
@@ -230,38 +228,23 @@ class Settings(BaseSettings):
                     break
 
             if not v:
-                # Import here to avoid circular imports
-                import os
-                # Check if the actual environment variable we're using exists
-                if not os.getenv('ANTHROPIC-WHEELS-KEY'):
-                    raise ValueError(
-                        "Anthropic API key is required for PAM functionality. "
-                        "Please set ANTHROPIC_API_KEY or ANTHROPIC-WHEELS-KEY environment variable. "
-                        "Get your API key from https://console.anthropic.com/settings/keys"
-                    )
-                # If ANTHROPIC-WHEELS-KEY exists, use it
-                v = os.getenv('ANTHROPIC-WHEELS-KEY')
+                logger.warning(
+                    "ANTHROPIC_API_KEY not set - Anthropic AI provider will be unavailable. "
+                    "Get your API key from https://console.anthropic.com/settings/keys"
+                )
+                return ""
 
-        # Convert to string for validation if it's a SecretStr
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
 
         if key_str == "<ANTHROPIC_TOKEN>":
-            raise ValueError(
-                "Please replace the placeholder Anthropic API key with your actual key. "
-                "Get your API key from https://console.anthropic.com/settings/keys"
-            )
+            logger.warning("Anthropic API key is still the placeholder value")
+            return ""
 
         if not key_str.startswith('sk-ant-'):
-            raise ValueError(
-                "Invalid Anthropic API key format. "
+            logger.warning(
+                "Anthropic API key format may be incorrect. "
                 "Anthropic API keys should start with 'sk-ant-'. "
                 "Please check your key at https://console.anthropic.com/settings/keys"
-            )
-
-        if len(key_str) < 20:
-            raise ValueError(
-                "Anthropic API key appears to be too short. "
-                "Please verify your key at https://console.anthropic.com/settings/keys"
             )
 
         return v
