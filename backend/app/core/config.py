@@ -902,7 +902,7 @@ SECRET_KEY = settings.SECRET_KEY.get_secret_value()
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 SUPABASE_URL = str(settings.SUPABASE_URL)
-SUPABASE_SERVICE_ROLE_KEY = <SUPABASE_SERVICE_ROLE_KEY>
+SUPABASE_SERVICE_ROLE_KEY = settings.SUPABASE_SERVICE_ROLE_KEY.get_secret_value()
 
 # Maintain backward compatibility with old module structure
 class UnifiedSettings:
