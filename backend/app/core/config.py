@@ -616,10 +616,6 @@ class Settings(BaseSettings):
         
         # Check required settings with detailed validation
         required_settings = {
-            "ANTHROPIC_API_KEY": {
-                "message": "Anthropic API key is required for PAM functionality",
-                "validation": self._validate_anthropic_key
-            },
             "SUPABASE_URL": {
                 "message": "Supabase URL is required for authentication",
                 "validation": None
@@ -753,9 +749,15 @@ class Settings(BaseSettings):
         
         if not validation["valid"]:
             if self.NODE_ENV == Environment.PRODUCTION:
-                print("🛑 CRITICAL: Invalid configuration for production!")
-                print("   Application startup blocked due to configuration issues.")
-                sys.exit(1)
+                # Only block startup for critical missing config (Supabase)
+                critical_issues = [i for i in validation["issues"] if "SUPABASE" in i.upper()]
+                if critical_issues:
+                    print("🛑 CRITICAL: Invalid configuration for production!")
+                    print("   Application startup blocked due to configuration issues.")
+                    sys.exit(1)
+                else:
+                    print("⚠️  WARNING: Non-critical configuration issues detected.")
+                    print("   Application will start but some features may not work.")
             else:
                 print("⚠️  WARNING: Configuration issues detected.")
                 print("   Application will start but some features may not work.")
