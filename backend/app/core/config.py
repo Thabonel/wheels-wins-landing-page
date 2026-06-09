@@ -80,28 +80,19 @@ class Settings(BaseSettings):
     @field_validator("GEMINI_API_KEY", mode="before")
     @classmethod
     def validate_gemini_api_key(cls, v):
-        """Validate Gemini API key format and provide helpful error messages"""
         if not v:
-            raise ValueError(
-                "Gemini API key is required for PAM functionality. "
-                "Please set GEMINI_API_KEY environment variable. "
+            logger.warning(
+                "GEMINI_API_KEY not set - Gemini AI provider will be unavailable. "
                 "Get your API key from https://makersuite.google.com/app/apikey"
             )
+            return ""
 
-        # Convert to string for validation if it's a SecretStr
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
 
-        # Basic validation - Gemini API keys typically start with 'AIza'
         if not key_str.startswith('AIza'):
             logger.warning(
                 "Gemini API key format may be incorrect. "
                 "Google API keys typically start with 'AIza'. "
-                "Please verify your key at https://makersuite.google.com/app/apikey"
-            )
-
-        if len(key_str) < 20:
-            raise ValueError(
-                "Gemini API key appears to be too short. "
                 "Please verify your key at https://makersuite.google.com/app/apikey"
             )
 
@@ -152,30 +143,22 @@ class Settings(BaseSettings):
     @field_validator("ANTHROPIC_API_KEY", mode="before")
     @classmethod
     def validate_anthropic_api_key(cls, v):
-        """Validate Anthropic API key format and provide helpful error messages"""
         if not v:
-            raise ValueError(
-                "Anthropic API key is required for PAM functionality. "
-                "Please set ANTHROPIC_API_KEY environment variable. "
+            logger.warning(
+                "ANTHROPIC_API_KEY not set - Anthropic AI provider will be unavailable. "
                 "Get your API key from https://console.anthropic.com/settings/keys"
             )
-        
-        # Convert to string for validation if it's a SecretStr
+            return ""
+
         key_str = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
-        
+
         if not key_str.startswith('sk-ant-'):
-            raise ValueError(
-                "Invalid Anthropic API key format. "
+            logger.warning(
+                "Anthropic API key format may be incorrect. "
                 "Anthropic API keys should start with 'sk-ant-'. "
                 "Please check your key at https://console.anthropic.com/settings/keys"
             )
-        
-        if len(key_str) < 20:
-            raise ValueError(
-                "Anthropic API key appears to be too short. "
-                "Please verify your key at https://console.anthropic.com/settings/keys"
-            )
-        
+
         return v
     
     # Anthropic Model Configuration
