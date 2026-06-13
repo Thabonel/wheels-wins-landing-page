@@ -661,32 +661,38 @@ async def websocket_endpoint(
                 
             # Receive message from client
             try:
-                message_start_time = time.time()
                 raw_data = await websocket.receive_json()
-                logger.info(f"📨 [DEBUG] WebSocket message received from user {user_id}")
+                message_start_time = time.time()
+                raw_message_type = raw_data.get("type")
+
+                if raw_message_type not in ["ping", "pong"]:
+                    logger.info(f"📨 [DEBUG] WebSocket message received from user {user_id}")
 
                 # SECURITY: WebSocket message rate limiting
-                ws_rate_limiter = get_websocket_rate_limiter()
-                is_allowed, rate_info = await ws_rate_limiter.check_rate_limit(user_id)
+                # Keepalive frames are handled separately below and should not count
+                # against user chat rate limits.
+                if raw_message_type not in ["ping", "pong"]:
+                    ws_rate_limiter = get_websocket_rate_limiter()
+                    is_allowed, rate_info = await ws_rate_limiter.check_rate_limit(user_id)
 
-                if not is_allowed:
-                    # Rate limit exceeded - send error and skip processing
-                    logger.warning(
-                        f"⚠️ WebSocket rate limit exceeded for user {user_id}: "
-                        f"{rate_info.get('limit')} messages/{rate_info.get('window')}s"
-                    )
-                    await safe_send_json(websocket, {
-                        "type": "error",
-                        "message": "Rate limit exceeded. Please slow down your messages.",
-                        "error_code": "RATE_LIMIT_EXCEEDED",
-                        "rate_limit": {
-                            "limit": rate_info.get("limit"),
-                            "window": rate_info.get("window"),
-                            "retry_after": rate_info.get("retry_after"),
-                            "reset": rate_info.get("reset")
-                        }
-                    })
-                    continue  # Skip this message, continue receiving
+                    if not is_allowed:
+                        # Rate limit exceeded - send error and skip processing
+                        logger.warning(
+                            f"⚠️ WebSocket rate limit exceeded for user {user_id}: "
+                            f"{rate_info.get('limit')} messages/{rate_info.get('window')}s"
+                        )
+                        await safe_send_json(websocket, {
+                            "type": "error",
+                            "message": "Rate limit exceeded. Please slow down your messages.",
+                            "error_code": "RATE_LIMIT_EXCEEDED",
+                            "rate_limit": {
+                                "limit": rate_info.get("limit"),
+                                "window": rate_info.get("window"),
+                                "retry_after": rate_info.get("retry_after"),
+                                "reset": rate_info.get("reset")
+                            }
+                        })
+                        continue  # Skip this message, continue receiving
 
                 # Calculate message size for logging
                 message_size = len(json.dumps(raw_data, cls=DateTimeEncoder, ensure_ascii=False))
@@ -698,7 +704,8 @@ async def websocket_endpoint(
                     secure_message = SecureWebSocketMessage(**raw_data)
                     # Convert back to dict with validated/sanitized data
                     data = secure_message.dict()
-                    logger.info(f"✅ [SECURITY] WebSocket message validated and sanitized for user {user_id}")
+                    if data.get("type") not in ["ping", "pong"]:
+                        logger.info(f"✅ [SECURITY] WebSocket message validated and sanitized for user {user_id}")
                     
                     # Additional security checks using middleware
                     message_content = secure_message.get_message_content()
@@ -902,12 +909,12 @@ async def websocket_endpoint(
                     
                     continue
             
-            logger.info(f"  - Message type: {data.get('type')}")
-            logger.info(f"  - Message content preview: {str(data.get('content', data.get('message', 'N/A')))[:100]}...")
+            if data.get("type") not in ["ping", "pong"]:
+                logger.info(f"  - Message type: {data.get('type')}")
+                logger.info(f"  - Message content preview: {str(data.get('content', data.get('message', 'N/A')))[:100]}...")
             
             # Process different message types
             if data.get("type") == "ping":
-                logger.info(f"🏓 [DEBUG] Ping received from {user_id}, sending pong")
                 await safe_send_json(websocket, {"type": "pong"})
                 
             elif data.get("type") == "pong":
@@ -1077,15 +1084,18 @@ async def websocket_endpoint(
                     "message": f"Unknown message type: {data.get('type')}"
                 })
             
-            # Log successful message processing
-            processing_duration = (time.time() - message_start_time) * 1000  # Convert to milliseconds
-            pam_logger.log_websocket_message(
-                user_id=user_id,
-                connection_id=connection_id,
-                message_type=data.get('type', 'unknown'),
-                message_size_bytes=message_size,
-                processing_duration_ms=processing_duration
-            )
+            # Log successful user/system message processing. Keepalive frames are
+            # intentionally excluded to avoid noisy logs and misleading idle-time
+            # durations in monitoring.
+            if data.get("type") not in ["ping", "pong"]:
+                processing_duration = (time.time() - message_start_time) * 1000  # Convert to milliseconds
+                pam_logger.log_websocket_message(
+                    user_id=user_id,
+                    connection_id=connection_id,
+                    message_type=data.get('type', 'unknown'),
+                    message_size_bytes=message_size,
+                    processing_duration_ms=processing_duration
+                )
                 
     except WebSocketDisconnect:
         # Calculate connection duration if available
