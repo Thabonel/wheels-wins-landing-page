@@ -994,6 +994,19 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
         }
       }
 
+      if (isLocationQuery && !locationObj) {
+        logger.debug('📍 Location query has no coordinates, requesting current device location');
+        const location = await requestUserLocation();
+        if (location) {
+          currentLocation = `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+          locationObj = { latitude: location.latitude, longitude: location.longitude };
+          setUserContext(prev => ({
+            ...prev,
+            current_location: currentLocation
+          }));
+        }
+      }
+
       // Silent GPS fetch for every message when permission is already granted.
       // Always run even if locationObj was set from userContext string - device GPS is
       // more precise and fresh than stored profile coords. maximumAge:60s means instant return.
@@ -1009,22 +1022,31 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
           });
           if (gpsPos) {
             locationObj = { latitude: gpsPos.coords.latitude, longitude: gpsPos.coords.longitude };
+            let cachedBeforeGps: any = {};
+            let cachedLocationChanged = false;
             try {
               const existing = JSON.parse(localStorage.getItem('lastKnownLocation') || '{}');
+              cachedBeforeGps = existing;
+              cachedLocationChanged = typeof existing.lat === 'number' && typeof existing.lng === 'number'
+                ? Math.abs(existing.lat - gpsPos.coords.latitude) > 0.02 || Math.abs(existing.lng - gpsPos.coords.longitude) > 0.02
+                : true;
+
+              const { city, state, country, address, ...freshBase } = existing;
               localStorage.setItem('lastKnownLocation', JSON.stringify({
-                ...existing,
+                ...(cachedLocationChanged ? freshBase : existing),
                 lat: gpsPos.coords.latitude,
                 lng: gpsPos.coords.longitude,
                 accuracy: gpsPos.coords.accuracy,
                 timestamp: Date.now(),
               }));
             } catch { /* ignore storage errors */ }
-            // Await reverse geocode only when no city is cached yet - ensures this message
-            // gets city data. When already cached, run in background without blocking.
-            const _hasCachedCity = (() => {
-              try { return !!(JSON.parse(localStorage.getItem('lastKnownLocation') || '{}')?.city); }
-              catch { return false; }
-            })();
+            // Await reverse geocode for location-sensitive queries, missing city data,
+            // or changed GPS coordinates. This prevents stale city labels like Sydney
+            // being paired with the user's actual current coordinates.
+            const shouldWaitForReverseGeocode =
+              isLocationQuery ||
+              cachedLocationChanged ||
+              !cachedBeforeGps?.city;
 
             const _geocodePromise = (async () => {
               const token = getMapboxPublicToken();
@@ -1091,7 +1113,7 @@ const PamImplementation: React.FC<PamProps> = ({ mode = "floating" }) => {
               }
             })();
 
-            if (!_hasCachedCity) {
+            if (shouldWaitForReverseGeocode) {
               await _geocodePromise;
             }
           }
