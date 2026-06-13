@@ -46,7 +46,6 @@ function validateEnvironment() {
 
   const requiredEnvVars = [
     'VITE_SUPABASE_URL',
-    'VITE_SUPABASE_ANON_KEY',
     'VITE_MAPBOX_TOKEN'
   ];
 
@@ -64,6 +63,13 @@ function validateEnvironment() {
         allValid = false;
       }
     });
+
+    if (envContent.includes('VITE_SUPABASE_PUBLISHABLE_KEY') || envContent.includes('VITE_SUPABASE_ANON_KEY')) {
+      console.log('✅ VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY found');
+    } else {
+      console.log('❌ VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY missing');
+      allValid = false;
+    }
   } else {
     console.log('⚠️  .env.local not found - assuming production environment variables are set via Netlify');
   }

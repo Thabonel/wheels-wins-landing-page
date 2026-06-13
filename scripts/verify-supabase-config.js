@@ -10,14 +10,14 @@ console.log('=====================================\n');
 
 // Check environment variables
 const url = process.env.VITE_SUPABASE_URL;
-const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+const publishableKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 console.log('1. Environment Variables Check:');
 console.log('--------------------------------');
 console.log(`VITE_SUPABASE_URL: ${url ? '✅ Set' : '❌ Missing'}`);
-console.log(`VITE_SUPABASE_ANON_KEY: ${anonKey ? '✅ Set' : '❌ Missing'}`);
+console.log(`VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY: ${publishableKey ? '✅ Set' : '❌ Missing'}`);
 
-if (!url || !anonKey) {
+if (!url || !publishableKey) {
   console.log('\n❌ Missing environment variables. Please set them in Netlify dashboard.');
   process.exit(1);
 }
@@ -39,14 +39,16 @@ try {
   console.log(`❌ Invalid URL format: ${error.message}`);
 }
 
-console.log('\n3. Anon Key Validation:');
+console.log('\n3. Supabase Public Key Validation:');
 console.log('------------------------');
-if (anonKey.startsWith('eyJ')) {
-  console.log('✅ Key appears to be a JWT token');
+if (publishableKey.startsWith('sb_publishable_') || publishableKey.startsWith('sb_publi_')) {
+  console.log('✅ Key uses the current Supabase publishable key format');
+} else if (publishableKey.startsWith('eyJ')) {
+  console.log('❌ Key uses the deprecated JWT anon key format. Replace it with the Supabase publishable key.');
   
   try {
     // Decode JWT header and payload (without verification)
-    const [header, payload] = anonKey.split('.').slice(0, 2).map(part => 
+    const [header, payload] = publishableKey.split('.').slice(0, 2).map(part => 
       JSON.parse(Buffer.from(part, 'base64').toString())
     );
     
@@ -78,14 +80,14 @@ if (anonKey.startsWith('eyJ')) {
     console.log('⚠️  Could not decode JWT:', error.message);
   }
 } else {
-  console.log('❌ Key does not appear to be a JWT token');
+  console.log('❌ Key does not appear to use the current Supabase publishable key format');
 }
 
 console.log('\n4. Configuration Summary:');
 console.log('-------------------------');
 console.log('To fix "Invalid API key" error:');
-console.log('1. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are from the SAME project');
-console.log('2. Get both values from: https://app.supabase.com/project/[your-project]/settings/api');
+console.log('1. Ensure VITE_SUPABASE_URL and the publishable key are from the SAME project');
+console.log('2. Set VITE_SUPABASE_PUBLISHABLE_KEY, or put the publishable key in VITE_SUPABASE_ANON_KEY for compatibility');
 console.log('3. Update in Netlify: Settings → Environment Variables');
 console.log('4. Redeploy after updating variables');
 

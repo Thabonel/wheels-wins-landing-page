@@ -4,22 +4,22 @@ import type { Database } from '../integrations/supabase/types';
 // Safe Supabase client initialization with better error handling
 export function createSafeSupabaseClient() {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-  const SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY> || '';
+  const SUPABASE_PUBLIC_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
   // Log environment state
   console.group('🔍 Supabase Environment Check');
   console.log('VITE_SUPABASE_URL:', SUPABASE_URL ? `${SUPABASE_URL.substring(0, 30)}...` : 'NOT SET');
-  console.log('VITE_SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
+  console.log('VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY:', SUPABASE_PUBLIC_KEY ? 'SET' : 'NOT SET');
   console.log('Build Mode:', import.meta.env.MODE);
   console.log('Is Production:', import.meta.env.PROD);
   console.groupEnd();
 
   // If environment variables are missing, return a mock client for debugging
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_PUBLIC_KEY) {
     console.error('⚠️ Supabase environment variables are missing!');
     console.error('Please configure the following in Netlify:');
     console.error('- VITE_SUPABASE_URL');
-    console.error('- VITE_SUPABASE_ANON_KEY');
+    console.error('- VITE_SUPABASE_PUBLISHABLE_KEY');
     
     // Return null to prevent the "Invalid URL" error
     return null;
@@ -36,7 +36,7 @@ export function createSafeSupabaseClient() {
   // Create the actual client
   return createClient<Database>(
     SUPABASE_URL,
-    SUPABASE_ANON_KEY,
+    SUPABASE_PUBLIC_KEY,
     {
       auth: {
         persistSession: true,

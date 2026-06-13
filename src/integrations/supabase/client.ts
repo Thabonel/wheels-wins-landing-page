@@ -3,7 +3,7 @@ import type { Database } from './types';
 
 // Load Supabase configuration from environment variables - NO HARDCODED FALLBACKS
 let SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-let SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY> || '';
+let SUPABASE_PUBLIC_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // Auto-detect and fix swapped environment variables (common Netlify configuration issue)
 const isJWTToken = (value: string) => value.startsWith('eyJ') && value.includes('.');
@@ -23,8 +23,8 @@ if ((import.meta.env.MODE === 'staging' || (typeof window !== 'undefined' && win
     urlLength: SUPABASE_URL?.length,
     urlFirst20: `${SUPABASE_URL?.substring(0, 20)}...`,
     urlLast20: `...${SUPABASE_URL?.substring(SUPABASE_URL.length - 20)}`,
-    hasKey: !!SUPABASE_ANON_KEY,
-    keyPrefix: `${SUPABASE_ANON_KEY?.substring(0, 10)}...`,
+    hasKey: !!SUPABASE_PUBLIC_KEY,
+    keyPrefix: `${SUPABASE_PUBLIC_KEY?.substring(0, 10)}...`,
     urlHasSpaces: SUPABASE_URL?.includes(' '),
     urlHasNewlines: SUPABASE_URL?.includes('\n'),
     urlHasTrailingSlash: SUPABASE_URL?.endsWith('/'),
@@ -32,11 +32,11 @@ if ((import.meta.env.MODE === 'staging' || (typeof window !== 'undefined' && win
 }
 
 // Check if variables are swapped and auto-correct
-if (isJWTToken(SUPABASE_URL) && isValidURL(SUPABASE_ANON_KEY)) {
+if (isJWTToken(SUPABASE_URL) && isValidURL(SUPABASE_PUBLIC_KEY)) {
   console.warn('🔄 Detected swapped Supabase environment variables - auto-correcting...');
   const temp = SUPABASE_URL;
-  SUPABASE_URL = SUPABASE_ANON_KEY;
-  SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY>
+  SUPABASE_URL = SUPABASE_PUBLIC_KEY;
+  SUPABASE_PUBLIC_KEY = temp;
 }
 
 // Clean up URL formatting issues
@@ -75,7 +75,7 @@ function createSupabaseClient(): ReturnType<typeof createClient<Database>> {
 
   // Reload environment variables on each attempt (handles race conditions)
   const currentURL = import.meta.env.VITE_SUPABASE_URL || '';
-  const currentKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const currentKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
   console.log(`🚀 Supabase client initialization attempt ${initializationAttempts}`, {
     hasURL: !!currentURL,
@@ -88,7 +88,8 @@ function createSupabaseClient(): ReturnType<typeof createClient<Database>> {
   if (!currentURL || !currentKey) {
     const envVars = {
       VITE_SUPABASE_URL: currentURL || 'undefined',
-      VITE_SUPABASE_ANON_KEY: currentKey ? '[REDACTED]' : 'undefined',
+      VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ? '[REDACTED]' : 'undefined',
+      VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY ? '[REDACTED]' : 'undefined',
       MODE: import.meta.env.MODE,
       PROD: import.meta.env.PROD,
       DEV: import.meta.env.DEV,
@@ -100,7 +101,7 @@ function createSupabaseClient(): ReturnType<typeof createClient<Database>> {
     throw new Error(
       `Missing required Supabase environment variables for ${import.meta.env.MODE} mode (attempt ${initializationAttempts}/${MAX_INIT_ATTEMPTS}). ` +
       `VITE_SUPABASE_URL: ${currentURL ? 'SET' : 'MISSING'}, ` +
-      `VITE_SUPABASE_ANON_KEY: ${currentKey ? 'SET' : 'MISSING'}. ` +
+      `VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY: ${currentKey ? 'SET' : 'MISSING'}. ` +
       'Please configure these in your Netlify site environment variables.'
     );
   }
@@ -229,8 +230,8 @@ if (import.meta.env.MODE === 'development' || import.meta.env.MODE === 'staging'
       const client = getSupabaseClient();
       console.log('🔧 Supabase Client Configuration:', {
         url: SUPABASE_URL,
-        hasAnonKey: !!SUPABASE_ANON_KEY,
-        keyPrefix: `${SUPABASE_ANON_KEY?.substring(0, 10)}...`,
+        hasAnonKey: !!SUPABASE_PUBLIC_KEY,
+        keyPrefix: `${SUPABASE_PUBLIC_KEY?.substring(0, 10)}...`,
         authStorageKey: 'pam-auth-token',
         flowType: 'pkce'
       });

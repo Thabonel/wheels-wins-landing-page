@@ -107,7 +107,7 @@ export async function investigateAuthIssue(): Promise<AuthInvestigationReport> {
   // 1. Client Configuration Analysis
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
     report.clientConfig = {
       url: supabaseUrl,
@@ -175,7 +175,7 @@ export async function investigateAuthIssue(): Promise<AuthInvestigationReport> {
   // 4. Network Test - Updated to avoid restricted root endpoint
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
     const startTime = Date.now();
     // Test a specific table endpoint instead of root endpoint to avoid April 8th restriction
@@ -269,8 +269,8 @@ export function generateAuthDiagnosis(report: AuthInvestigationReport): string[]
 
   // Check client configuration
   if (!report.clientConfig.hasAnonKey) {
-    issues.push('Missing or invalid Supabase anonymous key');
-    recommendations.push('Verify VITE_SUPABASE_ANON_KEY environment variable');
+    issues.push('Missing or invalid Supabase publishable key');
+    recommendations.push('Verify VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY environment variable');
   }
 
   // Check session state

@@ -7,9 +7,9 @@ import { Database } from '@/integrations/supabase/types';
 
 // For demo purposes only - In production, these operations should be handled by backend APIs
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabasePublicKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabasePublicKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
@@ -17,7 +17,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // All admin operations should be protected by backend APIs with proper authentication
 export const supabaseAdmin = createClient<Database>(
   supabaseUrl,
-  supabaseAnonKey,
+  supabasePublicKey,
   {
     auth: {
       autoRefreshToken: false,
@@ -77,7 +77,7 @@ export async function validateAdminUser(userToken: string): Promise<{ userId: st
   try {
     // Verify the JWT token using regular Supabase client
     const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createClient(supabaseUrl, supabasePublicKey);
     
     // Set the auth token
     const { data: { user }, error: authError } = await supabase.auth.getUser(userToken);

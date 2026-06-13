@@ -13,7 +13,7 @@ export const ENV = {
   
   // Supabase Configuration
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || '',
-  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+  SUPABASE_PUBLIC_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '',
   
   // External APIs
   MAPBOX_TOKEN: import.meta.env.VITE_MAPBOX_TOKEN || '',
@@ -86,8 +86,12 @@ export const getEnvironmentConfig = () => {
 
 // Validation function to ensure required environment variables are set
 export const validateEnvironment = () => {
-  const requiredVars = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
+  const requiredVars = ['VITE_SUPABASE_URL'];
   const missingVars = requiredVars.filter(varName => !import.meta.env[varName]);
+  const missingSupabaseKey = !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY && !import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (missingSupabaseKey) {
+    missingVars.push('VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY');
+  }
   
   if (missingVars.length > 0) {
     console.error('Missing required environment variables:', missingVars);

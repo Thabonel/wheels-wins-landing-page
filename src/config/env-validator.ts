@@ -5,6 +5,7 @@
 
 interface EnvironmentConfig {
   VITE_SUPABASE_URL: string;
+  VITE_SUPABASE_PUBLISHABLE_KEY: string;
   VITE_SUPABASE_ANON_KEY: string;
   VITE_MAPBOX_TOKEN?: string;
   VITE_MAPBOX_PUBLIC_TOKEN?: string;
@@ -26,10 +27,10 @@ export function validateEnvironment(): ValidationResult {
     config: {}
   };
 
-  // Required environment variables
+  // Required environment variables. Supabase publishable keys replace legacy anon keys,
+  // but keep anon as a fallback while older environments are migrated.
   const requiredEnvVars = [
-    'VITE_SUPABASE_URL',
-    'VITE_SUPABASE_ANON_KEY'
+    'VITE_SUPABASE_URL'
   ];
 
   // Optional environment variables
@@ -59,6 +60,15 @@ export function validateEnvironment(): ValidationResult {
         result.config[envVar as keyof EnvironmentConfig] = value;
       }
     }
+  }
+
+  const supabasePublicKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabasePublicKey) {
+    result.errors.push('Missing required environment variable: VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY');
+    result.isValid = false;
+  } else {
+    result.config.VITE_SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    result.config.VITE_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
   }
 
   // Check optional variables (only warn in production or if features require them)

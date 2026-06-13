@@ -32,7 +32,7 @@ export const EnvDebugger: React.FC = () => {
               <h4 className="font-semibold text-red-700">Environment Variables:</h4>
               <ul className="space-y-1">
                 <li>VITE_SUPABASE_URL: {import.meta.env.VITE_SUPABASE_URL ? '✅ Set' : '❌ Missing'}</li>
-                <li>VITE_SUPABASE_ANON_KEY: {import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}</li>
+                <li>VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY: {(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY) ? '✅ Set' : '❌ Missing'}</li>
                 <li>VITE_MAPBOX_TOKEN: {import.meta.env.VITE_MAPBOX_TOKEN ? '✅ Set' : '⚠️ Missing'}</li>
               </ul>
             </div>
