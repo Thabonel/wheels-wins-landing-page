@@ -386,11 +386,11 @@ export default function APIKeyManagement() {
                 
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <code className="text-sm">
-                    <div>ANTHROPIC_API_KEY=<ANTHROPIC_API_KEY>
-                    <div>LANGFUSE_SECRET_KEY=<API_TOKEN></div>
-                    <div>LANGFUSE_PUBLIC_KEY=pk-lf-your-public-key-here</div>
-                    <div>LANGFUSE_HOST=https://cloud.langfuse.com</div>
-                    <div>OBSERVABILITY_ENABLED=true</div>
+                    <div>ANTHROPIC_API_KEY={"<ANTHROPIC_API_KEY>"}</div>
+                    <div>LANGFUSE_SECRET_KEY={"<API_TOKEN>"}</div>
+                    <div>LANGFUSE_PUBLIC_KEY={"pk-lf-your-public-key-here"}</div>
+                    <div>LANGFUSE_HOST={"https://cloud.langfuse.com"}</div>
+                    <div>OBSERVABILITY_ENABLED={"true"}</div>
                   </code>
                 </div>
               </div>
