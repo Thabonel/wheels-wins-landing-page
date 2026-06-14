@@ -1681,6 +1681,9 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                 )
                 logger.info(f"✅ AI Orchestrator response from {orchestrator_response.provider} ({orchestrator_response.model}) in {orchestrator_response.latency_ms:.1f}ms")
             except Exception as orch_err:
+                print(f"🚨 PAM Orchestrator bridge failed: {orch_err}", flush=True)
+                import traceback
+                traceback.print_exc()
                 logger.warning(f"⚠️ AI Orchestrator unavailable: {orch_err}")
 
             # Fall back to direct Anthropic if orchestrator not available
