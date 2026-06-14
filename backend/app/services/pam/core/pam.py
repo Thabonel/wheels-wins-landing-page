@@ -1680,6 +1680,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                     user_id=self.user_id
                 )
                 logger.info(f"✅ AI Orchestrator response from {orchestrator_response.provider} ({orchestrator_response.model}) in {orchestrator_response.latency_ms:.1f}ms")
+                print(f"✅ ORCHESTRATOR SUCCESS: provider={orchestrator_response.provider}, content_len={len(orchestrator_response.content or '')}, function_calls={len(orchestrator_response.function_calls or [])}", flush=True)
             except Exception as orch_err:
                 print(f"🚨 PAM Orchestrator bridge failed: {orch_err}", flush=True)
                 import traceback
@@ -1689,7 +1690,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
             # Fall back to direct Anthropic if orchestrator not available
             if orchestrator_response and not orchestrator_response.function_calls:
                 # Simple text response — no tools needed
-                # Use orchestrator response directly
+                print(f"✅ ORCHESTRATOR TEXT PATH: content_len={len(orchestrator_response.content or '')}", flush=True)
                 assistant_message = orchestrator_response.content
 
                 if not assistant_message or not assistant_message.strip():
@@ -1782,6 +1783,7 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                 }
 
             # If orchestrator not available, fall back to direct Anthropic
+            print(f"⚠️ ORCHESTRATOR FALLBACK: response={'None' if not orchestrator_response else 'error'}, client={'None' if not self.client else 'exists'}", flush=True)
             if not self.client:
                 raise RuntimeError("No AI provider available — neither orchestrator nor Anthropic client is configured")
 
