@@ -1396,7 +1396,7 @@ async def handle_websocket_chat(websocket: WebSocket, data: dict, user_id: str, 
         # 2. DISABLED: Edge processing (was incorrectly intercepting queries)
         # Edge processing was matching "what vehicle do I have" to time queries
         # Disabled to let Simple Gemini Service handle all queries properly
-        logger.info(f"⚡ [DEBUG] Skipping edge processing - using Simple Gemini Service for all queries")
+        logger.info(f"⚡ [DEBUG] Skipping edge processing - routing to AI Orchestrator")
 
         # Edge processing is disabled - skip to orchestrator
         if False:  # Never execute edge processing
@@ -1683,7 +1683,7 @@ async def handle_websocket_chat_streaming(websocket: WebSocket, data: dict, user
         # 2. DISABLED: Edge processing (was incorrectly intercepting queries)
         # Edge processing was matching "what vehicle do I have" to time queries
         # Disabled to let Simple Gemini Service handle all queries properly
-        logger.info(f"⚡ [DEBUG] Skipping edge processing - using Simple Gemini Service for all queries")
+        logger.info(f"⚡ [DEBUG] Skipping edge processing - routing to AI Orchestrator")
         
         # 3. Try LangGraph Agent processing first (if enabled) - streaming mode
         if pam_agent_orchestrator and is_feature_enabled("ENABLE_PAM_AGENTIC", user_id):
@@ -1938,23 +1938,9 @@ async def get_streaming_ai_response(message: str, context: dict, conversation_hi
             if "actions" in enhanced_response:
                 context["visual_action"] = enhanced_response["actions"]
             
-            # Check if this is a fallback/error response - if so, try Simple Gemini Service
+            # Check if this is a fallback/error response - log but don't retry (Gemini disabled)
             if "technical difficulties" in response_text.lower() or enhanced_response.get("error") or "unable to process" in response_text.lower():
-                logger.warning(f"Orchestrator returned fallback/error response, trying Simple Gemini Service...")
-
-                try:
-                    from app.services.pam.simple_gemini_service import get_simple_gemini_service
-                    simple_service = await get_simple_gemini_service()
-
-                    if simple_service.is_initialized:
-                        response_text = await simple_service.generate_response(message, context, user_id, user_jwt)
-                        logger.info("✅ [SECONDARY FALLBACK] Simple Gemini Service provided response")
-                    else:
-                        logger.error("❌ [SECONDARY FALLBACK] Simple Gemini Service not initialized, using original response")
-                        # Keep the original response_text
-                except Exception as fallback_error:
-                    logger.error(f"❌ [SECONDARY FALLBACK] Simple Gemini Service failed: {fallback_error}")
-                    # Keep the original response_text
+                logger.warning(f"Orchestrator returned fallback/error response: {response_text[:100]}")
             else:
                 # Only try streaming if we got a valid response
                 # Check if AI service supports streaming
@@ -1978,21 +1964,7 @@ async def get_streaming_ai_response(message: str, context: dict, conversation_hi
                     
         except Exception as orchestrator_error:
             logger.warning(f"Enhanced orchestrator failed: {orchestrator_error}")
-            logger.info("🔄 [FALLBACK] Trying Simple Gemini Service...")
-
-            try:
-                from app.services.pam.simple_gemini_service import get_simple_gemini_service
-                simple_service = await get_simple_gemini_service()
-
-                if simple_service.is_initialized:
-                    response_text = await simple_service.generate_response(message, context, user_id, user_jwt)
-                    logger.info("✅ [FALLBACK] Simple Gemini Service provided response")
-                else:
-                    response_text = "I'm having trouble processing your request right now. Please try again in a moment."
-                    logger.error("❌ [FALLBACK] Simple Gemini Service not initialized")
-            except Exception as fallback_error:
-                logger.error(f"❌ [FALLBACK] Simple Gemini Service failed: {fallback_error}")
-                response_text = "I'm having trouble processing your request right now. Please try again in a moment."
+            response_text = "I'm having trouble processing your request right now. Please try again."
         
         # Simulate streaming by chunking the response
         chunks = split_response_into_chunks(response_text)
@@ -2904,135 +2876,18 @@ async def voice_options(request: Request):
         cache_bust=True
     )
 
-# Simple Gemini Service Status endpoint
+# Simple Gemini Service endpoints disabled — Gemini cancelled, using AI Orchestrator
 @router.get("/simple-service-status")
 async def simple_gemini_service_status():
-    """Check Simple Gemini Service status and initialization"""
-    try:
-        from app.services.pam.simple_gemini_service import get_simple_gemini_service
+    return {"status": "disabled", "service": "Simple Gemini Service", "message": "Gemini cancelled. Using AI Orchestrator (DeepSeek/Anthropic/OpenAI)."}
 
-        simple_service = await get_simple_gemini_service()
-        status = simple_service.get_status()
-
-        return {
-            "status": "available" if status["initialized"] else "unavailable",
-            "timestamp": datetime.utcnow().isoformat(),
-            "service": "Simple Gemini Service",
-            "details": status,
-            "message": "Simple Gemini Service ready for PAM fallback" if status["initialized"] else "Simple Gemini Service not initialized"
-        }
-
-    except Exception as e:
-        pam_logger.error(f"Simple Gemini Service status check failed: {e}")
-        return {
-            "status": "error",
-            "timestamp": datetime.utcnow().isoformat(),
-            "service": "Simple Gemini Service",
-            "error": str(e),
-            "message": "Failed to check Simple Gemini Service status"
-        }
-
-# Simple Gemini Service Test endpoint
 @router.post("/simple-service-test")
 async def simple_gemini_service_test(request: dict):
-    """Test Simple Gemini Service directly with a message"""
-    try:
-        from app.services.pam.simple_gemini_service import get_simple_gemini_service
+    return {"status": "disabled", "service": "Simple Gemini Service", "message": "Gemini cancelled. Using AI Orchestrator (DeepSeek/Anthropic/OpenAI)."}
 
-        message = request.get("message", "Hello! Can you help me?")
-
-        simple_service = await get_simple_gemini_service()
-
-        if not simple_service.is_initialized:
-            return {
-                "status": "error",
-                "timestamp": datetime.utcnow().isoformat(),
-                "message": "Simple Gemini Service not initialized",
-                "service": "Simple Gemini Service Test"
-            }
-
-        # Test the service with the provided message
-        response = await simple_service.generate_response(message)
-
-        return {
-            "status": "success",
-            "timestamp": datetime.utcnow().isoformat(),
-            "service": "Simple Gemini Service Test",
-            "request_message": message,
-            "response_message": response,
-            "message": "Simple Gemini Service responding correctly"
-        }
-
-    except Exception as e:
-        pam_logger.error(f"Simple Gemini Service test failed: {e}")
-        return {
-            "status": "error",
-            "timestamp": datetime.utcnow().isoformat(),
-            "service": "Simple Gemini Service Test",
-            "error": str(e),
-            "message": "Failed to test Simple Gemini Service"
-        }
-
-# Enhanced Profile Integration Test endpoint
 @router.post("/profile-integration-test")
 async def profile_integration_test(request: dict):
-    """Test Simple Gemini Service with profile integration (requires auth)"""
-    try:
-        from app.services.pam.simple_gemini_service import get_simple_gemini_service
-
-        message = request.get("message", "what vehicle am i driving")
-        user_id = request.get("user_id")
-        user_jwt = request.get("user_jwt")
-
-        if not user_id:
-            return {
-                "status": "error",
-                "timestamp": datetime.utcnow().isoformat(),
-                "message": "user_id is required for profile integration test",
-                "service": "Profile Integration Test"
-            }
-
-        if not user_jwt:
-            return {
-                "status": "error",
-                "timestamp": datetime.utcnow().isoformat(),
-                "message": "user_jwt is required for profile integration test",
-                "service": "Profile Integration Test"
-            }
-
-        simple_service = await get_simple_gemini_service()
-
-        if not simple_service.is_initialized:
-            return {
-                "status": "error",
-                "timestamp": datetime.utcnow().isoformat(),
-                "message": "Simple Gemini Service not initialized",
-                "service": "Profile Integration Test"
-            }
-
-        # Test the service with profile integration (user_id and JWT)
-        response = await simple_service.generate_response(message, {}, user_id, user_jwt)
-
-        return {
-            "status": "success",
-            "timestamp": datetime.utcnow().isoformat(),
-            "service": "Profile Integration Test",
-            "request_message": message,
-            "user_id": user_id,
-            "jwt_provided": bool(user_jwt),
-            "response_message": response,
-            "message": "Profile integration test completed - check logs for debug info"
-        }
-
-    except Exception as e:
-        pam_logger.error(f"Profile integration test failed: {e}")
-        return {
-            "status": "error",
-            "timestamp": datetime.utcnow().isoformat(),
-            "service": "Profile Integration Test",
-            "error": str(e),
-            "message": "Failed to test profile integration"
-        }
+    return {"status": "disabled", "service": "Profile Integration Test", "message": "Gemini cancelled. Using AI Orchestrator (DeepSeek/Anthropic/OpenAI)."}
 
 # Include debug profile integration router
 from app.api.v1.debug_profile_integration import router as debug_router

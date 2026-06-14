@@ -187,10 +187,10 @@ class SemanticExtractor:
         api_key = os.getenv("ANTHROPIC-WHEELS-KEY") or settings.anthropic_api_key
 
         if not ANTHROPIC_AVAILABLE:
-            logger.warning("Anthropic package not available - extractor will be limited")
+            logger.info("Anthropic not configured - extractor will use regex fallback (DeepSeek is primary AI)")
             self.client = None
         elif not api_key:
-            logger.warning("Anthropic API key not found - extractor will be limited")
+            logger.info("Anthropic not configured - extractor will use regex fallback (DeepSeek is primary AI)")
             self.client = None
         else:
             self.client = anthropic.Anthropic(api_key=api_key)
