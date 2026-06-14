@@ -172,12 +172,9 @@ class PAM:
         self.user_language = user_language
         self.user_context = user_context or {}
 
-        # Initialize Claude client (try both key names for compatibility)
+        # Initialize Claude client (optional — orchestrator handles provider selection)
         api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC-WHEELS-KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY or ANTHROPIC-WHEELS-KEY environment variable not set")
-
-        self.client = AsyncAnthropic(api_key=api_key)
+        self.client = AsyncAnthropic(api_key=api_key) if api_key else None
 
         # Use hardcoded Claude Sonnet 4.5 model (fixes gpt-5.1-instant fallback issue)
         from app.config.ai_providers import ANTHROPIC_MODEL
@@ -1645,6 +1642,145 @@ Remember: You're here to help RVers travel smarter and save money. Your mission 
                 logger.info(f"🎯 Intelligent routing: {selection.reasoning} -> using {current_model}")
 
             max_retries = 3  # Try selected + 2 fallbacks max
+
+            # Try AI Orchestrator first (supports DeepSeek, OpenAI, Anthropic)
+            orchestrator_response = None
+            try:
+                from app.services.ai.ai_orchestrator import ai_orchestrator
+                from app.services.ai.provider_interface import AIMessage
+
+                orchestrator_messages = []
+                for msg in messages:
+                    content = msg.get("content", "")
+                    if isinstance(content, list):
+                        content = " ".join(
+                            b.get("text", "") for b in content
+                            if isinstance(b, dict) and b.get("type") == "text"
+                        )
+                    if content:
+                        orchestrator_messages.append(AIMessage(
+                            role=msg.get("role", "user"),
+                            content=str(content)
+                        ))
+
+                # Convert Anthropic tool format (input_schema) to OpenAI format (parameters)
+                # for orchestrator compatibility with DeepSeek/OpenAI providers
+                orchestrator_tools = []
+                for t in tools_to_use:
+                    converted = {
+                        "name": t.get("name"),
+                        "description": t.get("description", ""),
+                        "parameters": t.get("input_schema", {"type": "object", "properties": {}})
+                    }
+                    orchestrator_tools.append(converted)
+
+                orchestrator_response = await ai_orchestrator.complete(
+                    messages=orchestrator_messages,
+                    functions=orchestrator_tools,
+                    user_id=self.user_id
+                )
+                logger.info(f"✅ AI Orchestrator response from {orchestrator_response.provider} ({orchestrator_response.model}) in {orchestrator_response.latency_ms:.1f}ms")
+            except Exception as orch_err:
+                logger.warning(f"⚠️ AI Orchestrator unavailable: {orch_err}")
+
+            # Fall back to direct Anthropic if orchestrator not available
+            if orchestrator_response and not orchestrator_response.function_calls:
+                # Simple text response — no tools needed
+                # Use orchestrator response directly
+                assistant_message = orchestrator_response.content
+
+                if not assistant_message or not assistant_message.strip():
+                    assistant_message = "I received your message. How can I help?"
+
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": assistant_message,
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                return {
+                    "text": assistant_message,
+                    "ui_actions": []
+                }
+
+            if orchestrator_response and orchestrator_response.function_calls:
+                # Tool use detected — execute tools
+                class MockContentBlock:
+                    pass
+
+                mock_blocks = []
+                for fc in orchestrator_response.function_calls:
+                    logger.info(f"🔧 [Orchestrator] Executing tool: {fc.get('name', '')}")
+                    block = MockContentBlock()
+                    block.type = "tool_use"
+                    block.name = fc.get("name", "")
+                    block.input = fc.get("arguments", {})
+                    block.id = fc.get("id", f"call_{int(time.time())}")
+                    mock_blocks.append(block)
+
+                # Execute tools via existing executor
+                tool_results = await self._execute_tools(mock_blocks)
+                ui_actions = self._extract_ui_actions(tool_results)
+
+                # Build content dicts for history
+                content_dicts = [
+                    {"type": "tool_use", "name": fc.get("name", ""),
+                     "input": fc.get("arguments", {}), "id": fc.get("id", "")}
+                    for fc in orchestrator_response.function_calls
+                ]
+
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": content_dicts,
+                    "timestamp": datetime.now().isoformat()
+                })
+                self.conversation_history.append({
+                    "role": "user",
+                    "content": tool_results,
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                # Call orchestrator again with tool results for final response
+                try:
+                    followup_messages = []
+                    for msg in self._build_claude_messages():
+                        content = msg.get("content", "")
+                        if isinstance(content, list):
+                            content = " ".join(
+                                b.get("text", "") for b in content
+                                if isinstance(b, dict) and b.get("type") == "text"
+                            )
+                        if content:
+                            followup_messages.append(AIMessage(
+                                role=msg.get("role", "user"),
+                                content=str(content)
+                            ))
+
+                    final_response = await ai_orchestrator.complete(
+                        messages=followup_messages,
+                        user_id=self.user_id
+                    )
+                    assistant_message = final_response.content or ""
+                except Exception:
+                    assistant_message = self._synthesize_response_from_tool_results(tool_results) or "Here are the results."
+
+                if not assistant_message.strip():
+                    assistant_message = self._synthesize_response_from_tool_results(tool_results) or "Done."
+
+                self.conversation_history.append({
+                    "role": "assistant",
+                    "content": assistant_message,
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                return {
+                    "text": assistant_message,
+                    "ui_actions": ui_actions
+                }
+
+            # If orchestrator not available, fall back to direct Anthropic
+            if not self.client:
+                raise RuntimeError("No AI provider available — neither orchestrator nor Anthropic client is configured")
 
             for attempt in range(max_retries):
                 try:
