@@ -79,7 +79,9 @@ class DeepSeekProvider(AIProviderInterface):
 
     async def initialize(self) -> bool:
         """Initialize DeepSeek client using OpenAI SDK with custom base URL"""
+        print(f"🔑 DeepSeekProvider.initialize: OPENAI_SDK_AVAILABLE={OPENAI_SDK_AVAILABLE}, api_key_set={bool(self.config.api_key)}", flush=True)
         if not OPENAI_SDK_AVAILABLE:
+            print(f"❌ DeepSeek: OpenAI SDK not available (pip install openai)", flush=True)
             self._status = AIProviderStatus.UNHEALTHY
             return False
 
@@ -91,9 +93,13 @@ class DeepSeekProvider(AIProviderInterface):
 
             # Test the connection
             status, message = await self.health_check()
+            print(f"🔑 DeepSeek health_check: status={status}, message={message}", flush=True)
             return status == AIProviderStatus.HEALTHY
 
         except Exception as e:
+            print(f"❌ DeepSeek init failed: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             logger.error(f"Failed to initialize DeepSeek provider: {e}")
             self._status = AIProviderStatus.UNHEALTHY
             return False

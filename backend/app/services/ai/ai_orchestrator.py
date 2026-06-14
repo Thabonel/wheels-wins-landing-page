@@ -168,6 +168,8 @@ class AIOrchestrator:
         # Initialize DeepSeek provider for free-tier users (cost-effective)
         # Best for: High volume free-tier traffic, ~90% cost reduction vs Claude
         deepseek_available = hasattr(infra_settings, 'DEEPSEEK_API_KEY') and infra_settings.DEEPSEEK_API_KEY
+        deepseek_raw = infra_settings.DEEPSEEK_API_KEY.get_secret_value()[:15] if infra_settings.DEEPSEEK_API_KEY else "NONE"
+        print(f"🔑 ORCHESTRATOR DEBUG: DeepSeek available={deepseek_available}, key_prefix={deepseek_raw}...", flush=True)
         logger.info(f"🔑 DeepSeek API Key available: {deepseek_available}")
 
         if deepseek_available:
@@ -180,12 +182,18 @@ class AIOrchestrator:
                     timeout_seconds=30
                 )
                 deepseek_provider = DeepSeekProvider(deepseek_config)
+                print(f"🔑 ORCHESTRATOR DEBUG: Calling DeepSeek initialize()...", flush=True)
                 if await deepseek_provider.initialize():
                     self.providers.append(deepseek_provider)
+                    print(f"✅ ORCHESTRATOR DEBUG: DeepSeek initialized OK", flush=True)
                     logger.info("✅ DeepSeek (V3) initialized successfully (free-tier provider)")
                 else:
+                    print(f"❌ ORCHESTRATOR DEBUG: DeepSeek initialize() returned False", flush=True)
                     logger.error("❌ Failed to initialize DeepSeek provider")
             except Exception as e:
+                print(f"❌ ORCHESTRATOR DEBUG: DeepSeek init exception: {e}", flush=True)
+                import traceback
+                traceback.print_exc()
                 logger.error(f"Error initializing DeepSeek provider: {e}")
 
         # Gemini provider DISABLED - Using OpenAI (GPT-5.1) + Anthropic (Claude) only
