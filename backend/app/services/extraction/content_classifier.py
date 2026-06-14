@@ -64,10 +64,10 @@ class ContentClassifier:
         api_key = os.getenv("ANTHROPIC-WHEELS-KEY") or settings.anthropic_api_key
 
         if not ANTHROPIC_AVAILABLE:
-            logger.warning("Anthropic package not available - classifier will use fallback")
+            logger.info("Anthropic not configured - classifier will use keyword fallback (DeepSeek is primary AI)")
             self.client = None
         elif not api_key:
-            logger.warning("Anthropic API key not found - classifier will use fallback")
+            logger.info("Anthropic not configured - classifier will use keyword fallback (DeepSeek is primary AI)")
             self.client = None
         else:
             self.client = anthropic.Anthropic(api_key=api_key)

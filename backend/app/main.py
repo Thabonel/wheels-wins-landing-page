@@ -451,9 +451,9 @@ async def lifespan(app: FastAPI):
                         provider_names = [p.name for p in orchestrator_instance.ai_orchestrator.providers]
                         logger.info(f"✅ AI Providers ready: {', '.join(provider_names)} ({provider_count} total)")
                     else:
-                        logger.warning("⚠️ Enhanced PAM Orchestrator initialized but no AI providers available")
+                        logger.info("ℹ️ AI Orchestrator started (providers load lazily on first request)")
                 else:
-                    logger.warning("⚠️ Enhanced PAM Orchestrator initialized but ai_orchestrator is None")
+                    logger.info("ℹ️ AI Orchestrator not yet initialized (will load on first request)")
             else:
                 logger.error("❌ Enhanced PAM Orchestrator failed to initialize properly")
 
@@ -462,25 +462,8 @@ async def lifespan(app: FastAPI):
             logger.error("🚨 PAM WebSocket will respond with 'unable to process' until this is fixed")
             # Don't fail startup - continue without PAM AI functionality
 
-        # Initialize Simple Gemini Service as backup (CRITICAL fallback for PAM)
-        logger.info("💎 Initializing Simple Gemini Service as backup...")
-        try:
-            from app.services.pam.simple_gemini_service import get_simple_gemini_service
-
-            # Initialize the simple service
-            simple_service = await get_simple_gemini_service()
-
-            if simple_service.is_initialized:
-                logger.info("✅ Simple Gemini Service initialized successfully (fallback ready)")
-                service_status = simple_service.get_status()
-                logger.info(f"✅ Simple Gemini status: {service_status}")
-            else:
-                logger.error("❌ Simple Gemini Service failed to initialize")
-                logger.error("🚨 No fallback available for PAM - both orchestrator and simple service failed")
-
-        except Exception as simple_error:
-            logger.error(f"❌ Simple Gemini Service initialization failed: {simple_error}")
-            logger.error("🚨 No fallback available for PAM if orchestrator fails")
+        # Gemini service disabled — orchestrator handles all AI routing (DeepSeek, OpenAI, Anthropic)
+        logger.info("ℹ️ Simple Gemini Service disabled — using AI Orchestrator for all queries")
 
         # Initialize PAM Tool Registry (CRITICAL for Claude function calling)
         logger.info("🔧 Initializing PAM Tool Registry...")

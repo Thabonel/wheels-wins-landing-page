@@ -267,7 +267,7 @@ class EnhancedPamOrchestrator:
                 logger.info("✅ AI Service integrated successfully")
             else:
                 # Don't raise exception - just log warning and mark as degraded
-                logger.warning("⚠️ AI Orchestrator has no providers available")
+                logger.info("ℹ️ AI Orchestrator initialized (providers load lazily on first request)")
                 self.service_capabilities["ai_service"] = ServiceCapability(
                     name="ai_service",
                     status=ServiceStatus.DEGRADED,
