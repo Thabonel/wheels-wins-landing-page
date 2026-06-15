@@ -3,7 +3,7 @@ import type { Database } from './types';
 
 // Load Supabase configuration from environment variables - NO HARDCODED FALLBACKS
 let SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-let SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY> || '';
+let SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // Auto-detect and fix swapped environment variables (common Netlify configuration issue)
 const isJWTToken = (value: string) => value.startsWith('eyJ') && value.includes('.');
@@ -36,7 +36,7 @@ if (isJWTToken(SUPABASE_URL) && isValidURL(SUPABASE_ANON_KEY)) {
   console.warn('🔄 Detected swapped Supabase environment variables - auto-correcting...');
   const temp = SUPABASE_URL;
   SUPABASE_URL = SUPABASE_ANON_KEY;
-  SUPABASE_ANON_KEY = <SUPABASE_ANON_KEY>
+  SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 }
 
 // Clean up URL formatting issues
