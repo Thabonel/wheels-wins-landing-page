@@ -1,0 +1,89 @@
+{
+  "schema_version": "2026-06-16",
+  "v2_target_count": 37,
+  "domains": [
+    {
+      "name": "travel",
+      "priority": "high",
+      "tools": [
+        {"name": "find_campgrounds", "disposition": "adapt", "effect": "READ", "status": "migrated"},
+        {"name": "optimize_route", "disposition": "adapt", "effect": "READ", "status": "migrated"},
+        {"name": "get_weather", "disposition": "merge", "effect": "READ", "status": "migrated"},
+        {"name": "find_cheap_gas", "disposition": "adapt", "effect": "READ", "status": "pending"},
+        {"name": "get_road_conditions", "disposition": "adapt", "effect": "READ", "status": "pending"},
+        {"name": "estimate_travel_time", "disposition": "adapt", "effect": "READ", "status": "pending"},
+        {"name": "find_attractions", "disposition": "adapt", "effect": "READ", "status": "pending"},
+        {"name": "calculate_gas_cost", "disposition": "adapt", "effect": "READ", "status": "pending"},
+        {"name": "plan_trip", "disposition": "adapt", "effect": "WRITE", "status": "pending"}
+      ]
+    },
+    {
+      "name": "money",
+      "priority": "high",
+      "tools": [
+        {"name": "add_expense", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "get_spending", "disposition": "merge", "effect": "READ", "status": "pending"},
+        {"name": "set_budget", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "categorize_expense", "disposition": "adapt", "effect": "WRITE", "status": "pending"}
+      ]
+    },
+    {
+      "name": "calendar",
+      "priority": "high",
+      "tools": [
+        {"name": "list_calendar_events", "disposition": "adapt", "effect": "READ", "status": "migrated"},
+        {"name": "create_calendar_event", "disposition": "adapt", "effect": "WRITE", "status": "migrated"},
+        {"name": "delete_calendar_event", "disposition": "adapt", "effect": "DELETE", "status": "pending"}
+      ]
+    },
+    {
+      "name": "profile",
+      "priority": "medium",
+      "tools": [
+        {"name": "load_profile", "disposition": "adapt", "effect": "READ", "status": "migrated"},
+        {"name": "update_profile", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "update_settings", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "add_vehicle", "disposition": "adapt", "effect": "WRITE", "status": "pending"}
+      ]
+    },
+    {
+      "name": "community",
+      "priority": "medium",
+      "tools": [
+        {"name": "get_feed", "disposition": "adapt", "effect": "READ", "status": "pending"},
+        {"name": "create_post", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "like_post", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "send_message", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "follow_user", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "search_posts", "disposition": "merge", "effect": "READ", "status": "pending"},
+        {"name": "create_community_event", "disposition": "adapt", "effect": "WRITE", "status": "pending"}
+      ]
+    },
+    {
+      "name": "vehicle",
+      "priority": "medium",
+      "tools": [
+        {"name": "list_fuel_entries", "disposition": "merge", "effect": "READ", "status": "pending"},
+        {"name": "add_fuel_entry", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "delete_fuel_entry", "disposition": "adapt", "effect": "DELETE", "status": "pending"},
+        {"name": "get_maintenance", "disposition": "merge", "effect": "READ", "status": "pending"},
+        {"name": "add_maintenance", "disposition": "adapt", "effect": "WRITE", "status": "pending"},
+        {"name": "delete_maintenance", "disposition": "adapt", "effect": "DELETE", "status": "pending"}
+      ]
+    }
+  ],
+  "retired_tools": [
+    "weather_advisor", "predict_end_of_month", "find_savings_opportunities",
+    "track_savings", "export_budget_report", "manage_finances", "mapbox_navigator",
+    "save_favorite_spot", "search_travel_videos", "export_data",
+    "share_location", "submit_community_tip", "search_tips",
+    "scan_fuel_receipt_with_confidence",
+    "get_transition_progress", "get_transition_tasks", "create_transition_task",
+    "complete_transition_task", "log_shakedown_trip", "add_shakedown_issue",
+    "get_shakedown_summary", "add_equipment_item", "mark_equipment_purchased",
+    "get_equipment_list", "get_launch_week_status", "complete_launch_task",
+    "save_recipe", "search_recipes", "share_recipe", "manage_dietary_prefs",
+    "manage_pantry", "plan_meals", "generate_shopping_list",
+    "search_products", "get_product_details", "recommend_products", "compare_prices"
+  ]
+}
