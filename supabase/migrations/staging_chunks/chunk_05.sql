@@ -1,4 +1,3 @@
-    FOR ALL USING (auth.role() = 'service_role');
 
 -- =====================================================
 -- 2. CREATE USER_WISHLISTS TABLE

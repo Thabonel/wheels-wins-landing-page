@@ -951,4 +951,4 @@ CREATE POLICY "Users can manage own fuel log" ON fuel_log
   FOR ALL USING (auth.uid() = user_id);
 
 -- RLS Policies for vehicle_expenses
-CREATE POLICY "Users can manage own vehicle expenses" ON vehicle_expenses
+-- NOTE: vehicle_expenses policy in chunk_02

@@ -1,3 +1,5 @@
+-- CONTINUED FROM CHUNK_01
+CREATE POLICY "Users can manage own vehicle expenses" ON vehicle_expenses
   FOR ALL USING (auth.uid() = user_id);
 
 -- RLS Policies for service_reminders

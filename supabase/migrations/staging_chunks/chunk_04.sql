@@ -973,3 +973,4 @@ CREATE POLICY "users_manage_own_affiliate_sales" ON public.affiliate_sales
     FOR ALL USING (auth.uid() = user_id);
 
 CREATE POLICY "service_role_full_access_affiliate_sales" ON public.affiliate_sales
+    FOR ALL USING (auth.role() = 'service_role');
