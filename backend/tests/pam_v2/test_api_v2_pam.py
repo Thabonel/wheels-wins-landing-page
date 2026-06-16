@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import get_current_user as deps_get_current_user
 from app.api.v2 import pam as pam_api
 from app.core.feature_flags import FeatureFlags, get_feature_flags
+from app.services.pam_v2.idempotency import idempotency_guard
 from app.services.pam_v2.models import (
     FakeModelClient,
     FinishEvent,
@@ -95,6 +96,8 @@ def parse_sse(response) -> List[Dict[str, Any]]:
 
 
 class TestPamV2TurnEndpoint:
+    def setup_method(self):
+        idempotency_guard.clear()
     def test_feature_flag_disabled_returns_error(self):
         app = make_test_app(enabled=False)
         with TestClient(app) as client:
@@ -182,3 +185,21 @@ class TestPamV2TurnEndpoint:
                 _ = next(response.iter_text())
 
         assert response.status_code == 200
+
+    def test_duplicate_client_message_id_returns_conflict(self, monkeypatch):
+        app = make_test_app(enabled=True)
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+        with TestClient(app) as client:
+            first = client.post(
+                "/api/v2/pam/turn",
+                json={"message": "First", "client_message_id": "dup_1"},
+            )
+            assert first.status_code == 200
+
+            second = client.post(
+                "/api/v2/pam/turn",
+                json={"message": "Second", "client_message_id": "dup_1"},
+            )
+            assert second.status_code == 409
+            assert second.json()["code"] == "duplicate_message"

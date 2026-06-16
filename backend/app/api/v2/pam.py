@@ -74,6 +74,17 @@ async def pam_v2_turn(
     if not flags.PAM_V2_ENABLED:
         return _error_response("not_enabled", "Pam V2 is not enabled", status.HTTP_403_FORBIDDEN)
 
+    from app.services.pam_v2.idempotency import idempotency_guard
+
+    if idempotency_guard.is_processed(turn_request.client_message_id):
+        return _error_response(
+            "duplicate_message",
+            "This message has already been processed",
+            status.HTTP_409_CONFLICT,
+        )
+
+    idempotency_guard.mark_processed(turn_request.client_message_id)
+
     provider = flags.PAM_V2_PROVIDER or "openai"
     model = flags.PAM_V2_MODEL
     if not model:
