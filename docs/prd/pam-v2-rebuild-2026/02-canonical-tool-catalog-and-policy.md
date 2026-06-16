@@ -183,23 +183,40 @@ Rollback: disable V2 or revert these isolated modules. No database migration is 
 
 ## Agent Notes — Session Log
 
-- (timestamp) …
+- 2026-06-16: Defined V2 tool types in `backend/app/services/pam_v2/tools/types.py`: `ToolSpec`, `ToolContext`, `ToolResult`, `ToolCall`, effects, risks, scopes, approval policies.
+- 2026-06-16: Implemented policy engine in `backend/app/services/pam_v2/tools/policy.py`: approval rules, authorization, audit records.
+- 2026-06-16: Implemented catalog in `backend/app/services/pam_v2/tools/catalog.py` and namespaces in `namespaces.py`.
+- 2026-06-16: Implemented executor in `backend/app/services/pam_v2/tools/executor.py` with validation, authorization, timeout, retry, and safe failures.
+- 2026-06-16: Created handler registry in `backend/app/services/pam_v2/tools/handlers.py`.
+- 2026-06-16: Wrapped five read-only adapters:
+  - `load_profile` (profile namespace)
+  - `get_weather` (travel namespace)
+  - `list_calendar_events` (calendar namespace)
+  - `optimize_route` (travel namespace)
+  - `find_campgrounds` (travel namespace)
+- 2026-06-16: Added `backend/tests/pam_v2/test_tools.py` — 13 tests passing.
+- 2026-06-16: All `pam_v2` tests pass (28 total), evaluation fixtures validate (51/51).
 
 ## Agent Notes — Decisions
 
-- Decision / rationale / alternatives
+- Tool handlers are plain async functions registered by decorator; no V1 `BaseTool` dependency.
+- Adapters reuse existing service helpers (`get_weather`, `get_calendar_events`, `optimize_route`, `find_rv_parks`) rather than reimplementing logic.
+- Retry is disabled by default and only allowed for idempotent tools.
+- Write/delete tools require explicit approval regardless of policy flag.
+- Cross-user access is denied at the policy layer for OWN-scope tools.
 
 ## Agent Notes — Open Questions
 
-- …
+- Should the executor emit `tool_started`/`tool_completed` events directly, or return `ToolResult` and let the runtime wrap them? Currently returns `ToolResult` for runtime-agnostic design.
+- Should timeout values be environment-configurable? Currently hardcoded presets.
 
 ## Agent Notes — Regression Checklist
 
-- [ ] Tool metadata invariants
-- [ ] Authorization denial tests
-- [ ] Timeout/retry/error redaction tests
-- [ ] Five adapter suites
-- [ ] V2 contracts/evaluations
-- [ ] V1 Pam smoke tests
-- [ ] Isolation validator
+- [x] Tool metadata invariants
+- [x] Authorization denial tests
+- [x] Timeout/retry/error redaction tests
+- [x] Five adapter suites
+- [x] V2 contracts/evaluations
+- [ ] V1 Pam smoke tests (collection verified; runtime smoke not executed)
+- [x] Isolation validator
 
