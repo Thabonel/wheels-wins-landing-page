@@ -37,9 +37,9 @@ def context() -> ToolContext:
 
 
 class TestCatalog:
-    def test_catalog_has_five_read_only_adapters(self):
+    def test_catalog_has_six_adapters(self):
         tools = get_catalog().all_tools()
-        assert len(tools) == 5
+        assert len(tools) == 6
         names = {t.name for t in tools}
         assert names == {
             "load_profile",
@@ -47,6 +47,7 @@ class TestCatalog:
             "list_calendar_events",
             "optimize_route",
             "find_campgrounds",
+            "create_calendar_event",
         }
 
     def test_namespaces_populated(self):

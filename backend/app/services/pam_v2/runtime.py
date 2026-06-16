@@ -16,6 +16,7 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 from uuid import UUID
 
 from app.models.schemas.pam_v2 import (
+    ApprovalRequiredEvent,
     ErrorEvent,
     PamEventV2,
     ToolCompletedEvent,
@@ -92,12 +93,14 @@ class PamV2Runtime:
         catalog: ToolCatalog,
         config: Optional[RuntimeConfig] = None,
         repo: Optional[ConversationRepository] = None,
+        approval_service: Any = None,
     ):
         self.model_client = model_client
         self.executor = executor
         self.catalog = catalog
         self.config = config or RuntimeConfig()
         self.repo = repo
+        self.approval_service = approval_service
 
     async def run(
         self,
@@ -105,6 +108,7 @@ class PamV2Runtime:
         tool_context: ToolContext,
         history: Optional[List[Message]] = None,
         extra_context: Optional[Dict[str, Any]] = None,
+        approval_token: Optional[str] = None,
     ) -> AsyncIterator[PamEventV2]:
         """Run one bounded turn and yield V2 events."""
         state = RuntimeState(
