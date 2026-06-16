@@ -1,10 +1,13 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 import Pam from "@/components/Pam";
+import PamV2 from "@/components/PamV2";
 import Header from "@/components/header/Header";
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
 import OfflineBanner from "@/components/OfflineBanner";
+
+const USE_PAM_V2 = import.meta.env.VITE_USE_PAM_2 === "true";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -38,7 +41,7 @@ export default function Layout({ children }: LayoutProps) {
       </footer>
 
       {/* PAM AI Assistant - floating bubble on all pages */}
-      <Pam />
+      {USE_PAM_V2 ? <PamV2 /> : <Pam />}
     </div>
   );
 }
