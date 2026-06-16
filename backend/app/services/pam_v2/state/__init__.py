@@ -1,3 +1,8 @@
+from .fake import (
+    FakeApprovalRepository,
+    FakeCompactSummaryRepository,
+    FakeConversationRepository,
+)
 from .models import (
     ApprovalRecord,
     ApprovalStatus,
@@ -25,6 +30,9 @@ __all__ = [
     "CompactSummaryRepository",
     "ConversationRecord",
     "ConversationRepository",
+    "FakeApprovalRepository",
+    "FakeCompactSummaryRepository",
+    "FakeConversationRepository",
     "MessageRecord",
     "MessageRole",
     "ToolCallRecord",
