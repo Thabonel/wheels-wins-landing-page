@@ -12,6 +12,7 @@ from .base import (
     UsageEvent,
 )
 from .fake import FakeModelClient, ScriptedResponse, SlowFakeModelClient
+from .openai_responses import OpenAIResponsesClient
 
 __all__ = [
     "FakeModelClient",
@@ -21,6 +22,7 @@ __all__ = [
     "ModelClientConfig",
     "ModelErrorEvent",
     "ModelEvent",
+    "OpenAIResponsesClient",
     "ScriptedResponse",
     "SlowFakeModelClient",
     "TextDeltaEvent",
