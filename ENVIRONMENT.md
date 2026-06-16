@@ -140,7 +140,7 @@ Environment variables are loaded in this order (later overrides earlier):
 | `PAM_FUNCTION_CALLING_ENABLED` | boolean | true | Enable function calling |
 | `PAM_V2_ENABLED` | boolean | false | Enable Pam V2 runtime and endpoints (staging only) |
 | `PAM_V2_PROVIDER` | string | openai | V2 model provider adapter: `openai` or `anthropic` |
-| `PAM_V2_MODEL` | string | None | Specific model name (e.g. `gpt-4o-mini`, `kimi-k2.5`) |
+| `PAM_V2_MODEL` | string | None | Specific model name (e.g. `gpt-5.4-mini`, `kimi-k2.5`) |
 
 ### Security Features
 

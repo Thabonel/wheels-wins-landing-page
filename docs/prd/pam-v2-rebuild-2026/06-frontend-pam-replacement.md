@@ -183,24 +183,40 @@ Rollback: disable frontend V2 flag or redeploy prior staging commit. Backend V2 
 
 ## Agent Notes — Session Log
 
-- (timestamp) …
+- 2026-06-17: Completed PRD 06 frontend replacement slice.
+  - Split V2 chat state into `src/services/pamV2/pamV2Reducer.ts` (pure reducer, `eventToAction`, schema-version-aware).
+  - Added typed SSE transport in `src/services/pamV2/pamV2Transport.ts`.
+  - Rebuilt `usePamV2Chat` hook using `useAuth` context, with `sendMessage`, `approve`, `reject`, `cancel`, `clearChat`, `clearError`.
+  - Rebuilt `src/components/PamV2.tsx` with hook integration, approval UI, action registry, keyboard focus, and ARIA live region.
+  - Added `src/services/pamV2/actions/PamActionRegistry.tsx` with typed renderers and safe unknown-action fallback.
+  - Added unit tests: reducer (18), transport (6), hook (6), component (7) — 37 passing.
+  - Removed obsolete `src/services/pamV2/pamV2Client.ts`.
+  - Updated `ENVIRONMENT.md` and PRD 03 to recommend `gpt-5.4-mini` instead of `gpt-4o-mini`.
+  - Type-check and targeted tests pass; no new lint errors introduced.
 
 ## Agent Notes — Decisions
 
-- Decision / rationale / alternatives
+- V2 frontend does not import `pamService`, V1 WebSocket hooks, voice hybrid service, or browser provider clients.
+- State is a pure reducer with deterministic IDs passed via actions; transport only parses and dispatches typed events.
+- `useAuth` context supplies the token; no additional Supabase singleton is created in V2 UI code.
+- Approval flow shows exact action summary, approve/reject controls, and never logs the approval token.
+- Action registry is component-based with fallback for unknown action types.
+- Empty-content user messages (created by approval continuation) are not rendered.
+- SSE schema-version mismatch is treated as a recoverable error surfaced to the user.
+- Default V2 text model changed from `gpt-4o-mini` to `gpt-5.4-mini` per current OpenAI guidance.
 
 ## Agent Notes — Open Questions
 
-- …
+- (none)
 
 ## Agent Notes — Regression Checklist
 
-- [ ] Reducer transition suite
-- [ ] Stream parser/cancellation
-- [ ] Approval UI
-- [ ] Action registry
-- [ ] V1/V2 exclusive routing
-- [ ] Mobile/desktop/dark/accessibility
-- [ ] E2E read/write/resume/interruption
-- [ ] Bundle/provider-key audit
+- [x] Reducer transition suite
+- [x] Stream parser/cancellation
+- [x] Approval UI
+- [x] Action registry
+- [x] V1/V2 exclusive routing (via `VITE_USE_PAM_2` flag in `Layout.tsx`)
+- [ ] Mobile/desktop/dark/accessibility (manual QA on staging)
+- [ ] E2E read/write/resume/interruption (Playwright after staging deploy)
+- [ ] Bundle/provider-key audit (after build)
 

@@ -1,60 +1,104 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useAuth } from "@/context/AuthContext";
+import { createInitialState, v2ChatReducer, type V2ChatAction, type V2ChatState } from "./pamV2Reducer";
+import { streamTurn } from "./pamV2Transport";
 
-import {
-  V2ChatState,
-  V2ChatMessage,
-  createInitialState,
-  v2ChatReducer,
-  streamTurn,
-} from "./pamV2Client";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+function generateId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
 
 export function usePamV2Chat() {
+  const { token, isAuthenticated } = useAuth();
   const [state, dispatch] = useReducer(v2ChatReducer, null, createInitialState);
+  const stateRef = useRef(state);
   const abortRef = useRef<AbortController | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setReady(!!data.session?.access_token);
-    });
-  }, []);
+    stateRef.current = state;
+  }, [state]);
 
-  const sendMessage = useCallback(
-    async (content: string, approvalToken?: string) => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) return;
+  useEffect(() => {
+    setReady(isAuthenticated && !!token);
+  }, [isAuthenticated, token]);
 
-      const id = crypto.randomUUID();
-      dispatch({ type: "ADD_USER_MESSAGE", payload: { id, content } });
+  const runStream = useCallback(
+    async (content: string, clientMessageId: string, approvalToken?: string) => {
+      const authToken = token;
+      if (!authToken) {
+        dispatch({
+          type: "ERROR",
+          payload: { code: "not_authenticated", message: "Please sign in to chat with Pam." },
+        });
+        return;
+      }
 
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
-      await streamTurn({
-        message: content,
-        conversationId: state.conversationId,
-        clientMessageId: id,
-        approvalToken,
-        authToken: token,
-        onEvent: dispatch,
-        onError: (err) =>
-          dispatch({
-            type: "ERROR",
-            payload: { event: "error", message: err.message, code: "client_error", schema_version: "2026-06-16", trace_id: "", sequence: 0 },
-          }),
-        signal: ctrl.signal,
+      try {
+        await streamTurn({
+          message: content,
+          conversationId: stateRef.current.conversationId,
+          clientMessageId,
+          approvalToken,
+          authToken,
+          onEvent: dispatch,
+          onError: (err) =>
+            dispatch({
+              type: "ERROR",
+              payload: { code: "client_error", message: err.message },
+            }),
+          signal: ctrl.signal,
+        });
+      } finally {
+        abortRef.current = null;
+      }
+    },
+    [token],
+  );
+
+  const sendMessage = useCallback(
+    async (content: string, approvalToken?: string) => {
+      if (stateRef.current.streaming) return;
+      const trimmed = content.trim();
+      if (!trimmed && !approvalToken) return;
+
+      const clientMessageId = generateId();
+      dispatch({
+        type: "ADD_USER_MESSAGE",
+        payload: {
+          userMessageId: clientMessageId,
+          assistantMessageId: generateId(),
+          content: trimmed,
+        },
       });
 
-      abortRef.current = null;
+      await runStream(trimmed, clientMessageId, approvalToken);
     },
-    [state.conversationId],
+    [runStream],
   );
+
+  const approve = useCallback(
+    async (approvalToken: string) => {
+      dispatch({
+        type: "APPROVAL_RESPONSE",
+        payload: { approvalToken, response: "approved" },
+      });
+      await sendMessage("", approvalToken);
+    },
+    [sendMessage],
+  );
+
+  const reject = useCallback((approvalToken: string) => {
+    dispatch({
+      type: "APPROVAL_RESPONSE",
+      payload: { approvalToken, response: "rejected" },
+    });
+  }, []);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
@@ -63,10 +107,21 @@ export function usePamV2Chat() {
 
   const clearChat = useCallback(() => {
     cancel();
-    dispatch({ type: "TURN_COMPLETED", payload: { finish_reason: "completed" } });
-    // HACK: force state reset by creating fresh state
-    location.reload();
+    dispatch({ type: "RESET" });
   }, [cancel]);
 
-  return { state, sendMessage, cancel, clearChat, ready };
+  const clearError = useCallback(() => {
+    dispatch({ type: "CLEAR_ERROR" });
+  }, []);
+
+  return {
+    state,
+    sendMessage,
+    approve,
+    reject,
+    cancel,
+    clearChat,
+    clearError,
+    ready,
+  };
 }

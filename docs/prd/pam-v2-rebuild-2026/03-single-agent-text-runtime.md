@@ -207,7 +207,7 @@ Rollback: disable V2, leaving V1 untouched. Revert SDK changes if they affect V1
 ## Agent Notes — Open Questions
 
 - constraints.txt pins openai==1.35.3 but is not actively used; should be reconciled with requirements.txt (openai>=2.15.0). No breakage from V1 tests.
-- Staging deploy will need OPENAI_API_KEY configured in Render env. V2 requires model via PAM_V2_MODEL.
+- Staging deploy will need OPENAI_API_KEY configured in Render env. V2 requires model via PAM_V2_MODEL (use `gpt-5.4-mini` or newer).
 - Real model evaluation on staging deferred — no staging API key available in this context.
 
 ## Agent Notes — Regression Checklist
