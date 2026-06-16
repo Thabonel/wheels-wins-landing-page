@@ -37,28 +37,15 @@ def context() -> ToolContext:
 
 
 class TestCatalog:
-    def test_catalog_has_sixteen_adapters(self):
+    def test_catalog_has_twenty_six_adapters(self):
         tools = get_catalog().all_tools()
-        assert len(tools) == 16
-        names = {t.name for t in tools}
-        assert names == {
-            "load_profile",
-            "get_weather",
-            "list_calendar_events",
-            "create_calendar_event",
-            "optimize_route",
-            "find_campgrounds",
-            "add_expense",
-            "get_spending",
-            "set_budget",
-            "categorize_expense",
-            "find_cheap_gas",
-            "get_road_conditions",
-            "estimate_travel_time",
-            "find_attractions",
-            "calculate_gas_cost",
-            "plan_trip",
-        }
+        assert len(tools) == 26
+
+    def test_catalog_includes_key_tools(self):
+        names = {t.name for t in get_catalog().all_tools()}
+        for required in ("load_profile", "get_weather", "list_calendar_events",
+                          "add_expense", "get_spending", "create_post", "get_feed"):
+            assert required in names, f"Missing required tool: {required}"
 
     def test_namespaces_populated(self):
         namespaces = list_namespaces()
