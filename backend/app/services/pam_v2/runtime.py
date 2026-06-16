@@ -13,6 +13,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Dict, List, Optional
+from uuid import UUID
 
 from app.models.schemas.pam_v2 import (
     ErrorEvent,
@@ -36,6 +37,14 @@ from app.services.pam_v2.models import (
     UsageEvent,
 )
 from app.services.pam_v2.prompts import PROMPT_VERSION, build_messages
+from app.services.pam_v2.state import (
+    ConversationRecord,
+    ConversationRepository,
+    MessageRecord,
+    MessageRole,
+    ToolCallRecord,
+    canonical_arguments_hash,
+)
 from app.services.pam_v2.tools.catalog import ToolCatalog
 from app.services.pam_v2.tools.executor import ToolExecutor
 from app.services.pam_v2.tools.types import ToolContext, ToolResult, ToolSpec
@@ -82,11 +91,13 @@ class PamV2Runtime:
         executor: ToolExecutor,
         catalog: ToolCatalog,
         config: Optional[RuntimeConfig] = None,
+        repo: Optional[ConversationRepository] = None,
     ):
         self.model_client = model_client
         self.executor = executor
         self.catalog = catalog
         self.config = config or RuntimeConfig()
+        self.repo = repo
 
     async def run(
         self,
@@ -109,6 +120,38 @@ class PamV2Runtime:
             conversation_id=state.conversation_id,
             client_message_id=state.client_message_id,
         )
+
+        # Persistence: load/create conversation, check duplicate, load history.
+        if self.repo is not None:
+            conv_id = _to_uuid(tool_context.conversation_id)
+            existing = await self.repo.get_conversation(conv_id)
+            if existing is None:
+                await self.repo.create_conversation(
+                    user_id=tool_context.user_id,
+                    title=f"Pam V2 - {user_message[:50]}",
+                )
+
+            if await self.repo.is_client_message_duplicate(conv_id, tool_context.client_message_id):
+                yield ErrorEvent(
+                    event="error",
+                    trace_id=state.trace_id,
+                    sequence=state.next_sequence(),
+                    code="duplicate_message",
+                    message="This message has already been processed.",
+                )
+                yield TurnCompletedEvent(
+                    event="turn_completed",
+                    trace_id=state.trace_id,
+                    sequence=state.next_sequence(),
+                    conversation_id=state.conversation_id,
+                    client_message_id=state.client_message_id,
+                    finish_reason="error",
+                )
+                return
+
+            if history is None:
+                loaded = await self.repo.get_conversation_messages(conv_id, limit=50)
+                history = _messages_from_records(loaded)
 
         exposed_tools = self._select_tools()
         state.messages = build_messages(
@@ -153,6 +196,10 @@ class PamV2Runtime:
                 client_message_id=state.client_message_id,
                 finish_reason="error",
             )
+
+        # Persist the turn's messages and tool calls.
+        if self.repo is not None:
+            await self._persist_turn(state, tool_context)
 
     async def _loop(
         self,
@@ -340,6 +387,34 @@ class PamV2Runtime:
             finish_reason="max_iterations",
         )
 
+    async def _persist_turn(
+        self,
+        state: RuntimeState,
+        tool_context: ToolContext,
+    ) -> None:
+        """Save messages and tool calls from this turn to the repository."""
+        if self.repo is None:
+            return
+
+        conv_id = _to_uuid(tool_context.conversation_id)
+
+        for msg in state.messages:
+            # Skip system messages (not stored).
+            if msg.role == "system":
+                continue
+
+            record = MessageRecord(
+                message_id=uuid.uuid4(),
+                conversation_id=conv_id,
+                client_message_id=tool_context.client_message_id,
+                role=MessageRole(msg.role),
+                content=msg.content,
+                tool_call_id=msg.tool_call_id,
+                tool_name=str(msg.tool_calls[0].tool_name) if msg.tool_calls else None,
+                tool_arguments=msg.tool_calls[0].arguments if msg.tool_calls else None,
+            )
+            await self.repo.add_message(record)
+
     def _select_tools(self) -> List[ToolSpec]:
         """Return read-only tools, capped by configuration."""
         tools = [t for t in self.catalog.all_tools() if t.effect.value == "read"]
@@ -370,3 +445,27 @@ def _to_tool_call(event: ToolCallEvent) -> Any:
         tool_name=event.tool_name,
         arguments=event.arguments,
     )
+
+
+def _to_uuid(value: str) -> UUID:
+    """Safely convert a string to UUID. Falls back to a namespace-based UUID."""
+    if isinstance(value, UUID):
+        return value
+    try:
+        return UUID(value)
+    except (ValueError, AttributeError):
+        return uuid.uuid5(uuid.NAMESPACE_DNS, f"pam-v2-{value}")
+
+
+def _messages_from_records(records: List[MessageRecord]) -> List[Message]:
+    """Convert repository MessageRecords to runtime Message objects."""
+    result: List[Message] = []
+    for rec in records:
+        if rec.role in (MessageRole.USER, MessageRole.ASSISTANT, MessageRole.SYSTEM):
+            result.append(
+                Message(
+                    role=rec.role.value,
+                    content=rec.content,
+                )
+            )
+    return result
