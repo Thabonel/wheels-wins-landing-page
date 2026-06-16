@@ -187,24 +187,37 @@ Rollback: disable V2, leaving V1 untouched. Revert SDK changes if they affect V1
 
 ## Agent Notes — Session Log
 
-- (timestamp) …
+- 2026-06-16 Slice 1: Defined ModelClient protocol, Message/ToolSchema/ModelEvent types, scripted FakeModelClient. 6 tests.
+- 2026-06-16 Slice 2: Implemented OpenAIResponsesClient with SSE translation and safe error mapping. Validated openai 2.15.0 supports Responses API. Pinned `openai>=2.15.0` in requirements.txt. 10 tests.
+- 2026-06-16 Slice 3: Added versioned system prompt builder (PROMPT_VERSION 2026-06-16), tool summary by namespace, secret filtering. 10 tests.
+- 2026-06-16 Slice 4: Built PamV2Runtime with bounded loop (max_iterations, time, tool_calls, output_chars). Converts ToolSpec→ToolSchema, executes via canonical executor. 9 trajectory tests.
+- 2026-06-16 Slice 5: Added POST /api/v2/pam/turn SSE streaming endpoint with auth and feature flag. 6 tests.
+- 2026-06-16 Slice 6: Added IdempotencyGuard (TTL 300s, max 1000 entries). 6 idempotency + 1 integration test.
+- 2026-06-16 Slice 7: Run evaluations: 76 V2 tests passing + 51 eval fixtures passing. quality:check has 16 pre-existing errors.
 
 ## Agent Notes — Decisions
 
-- Decision / rationale / alternatives
+- Prompts.py avoids importing tool types to prevent heavy adapter import chain at module load. Uses `_ToolLike` Protocol instead.
+- `get_feature_flags()` used with `Depends()` in route handlers for testability rather than direct calls.
+- OpenAI Responses API chosen because installed SDK 2.15.0 supports it natively. Anthropic adapter deferred to later PRD.
+- SSE format (text/event-stream) chosen over NDJSON for standard streaming compatibility.
+- Idempotency is in-memory only for now (TTL-based). Redis-backed fallback deferred to PRD 04.
+- Static instructions precede dynamic context in prompt to support prompt caching.
 
 ## Agent Notes — Open Questions
 
-- …
+- constraints.txt pins openai==1.35.3 but is not actively used; should be reconciled with requirements.txt (openai>=2.15.0). No breakage from V1 tests.
+- Staging deploy will need OPENAI_API_KEY configured in Render env. V2 requires model via PAM_V2_MODEL.
+- Real model evaluation on staging deferred — no staging API key available in this context.
 
 ## Agent Notes — Regression Checklist
 
-- [ ] Model adapter tests
-- [ ] Scripted runtime trajectories
-- [ ] Tool policy/executor suite
-- [ ] Streaming contract tests
-- [ ] Cancellation and idempotency
-- [ ] V1 route smoke tests
-- [ ] Evaluation report
-- [ ] Staging build and isolation validator
+- [x] Model adapter tests (16)
+- [x] Scripted runtime trajectories (9)
+- [x] Tool policy/executor suite (13)
+- [x] Streaming contract tests (7)
+- [x] Cancellation and idempotency (6+1)
+- [ ] V1 route smoke tests (manual)
+- [x] Evaluation report (51/51)
+- [x] Staging build and isolation validator
 
