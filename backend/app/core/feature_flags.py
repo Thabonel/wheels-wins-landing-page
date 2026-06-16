@@ -78,6 +78,11 @@ class FeatureFlags(BaseSettings):
     ENABLE_VOICE_COMMANDS: bool = False
     ENABLE_AR_NAVIGATION: bool = False
     ENABLE_BLOCKCHAIN_PAYMENTS: bool = False
+    
+    # Pam V2 Rebuild Flags
+    PAM_V2_ENABLED: bool = False  # Enable Pam V2 runtime and endpoints
+    PAM_V2_PROVIDER: str = "openai"  # Model provider adapter: openai | anthropic
+    PAM_V2_MODEL: Optional[str] = None  # Specific model name from provider
     ENABLE_AI_TRIP_ASSISTANT: bool = False
     
     # A/B Testing Flags

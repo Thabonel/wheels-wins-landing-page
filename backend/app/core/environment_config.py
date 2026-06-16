@@ -102,6 +102,11 @@ class EnvironmentConfig(BaseSettings):
     PAM_FUNCTION_CALLING_ENABLED: bool = Field(default=True)
     PAM_CONTEXT_WINDOW: int = Field(default=8000, ge=1000, le=32000)
     
+    # Pam V2 Rebuild Flags
+    PAM_V2_ENABLED: bool = Field(default=False)
+    PAM_V2_PROVIDER: str = Field(default="openai")
+    PAM_V2_MODEL: Optional[str] = Field(default=None)
+    
     # Security Features
     SECURITY_ENHANCED_MODE: bool = Field(default=True)
     SECURITY_RATE_LIMITING: bool = Field(default=True)
@@ -307,6 +312,15 @@ class EnvironmentConfig(BaseSettings):
         if len(v.get_secret_value()) < 32:
             raise ValueError("Secret keys must be at least 32 characters long")
         return v
+    
+    @field_validator("PAM_V2_PROVIDER")
+    @classmethod
+    def validate_pam_v2_provider(cls, v):
+        """Validate Pam V2 provider selection"""
+        allowed = {"openai", "anthropic"}
+        if v.lower() not in allowed:
+            raise ValueError(f"PAM_V2_PROVIDER must be one of {allowed}, got {v}")
+        return v.lower()
     
     # =====================================================
     # HELPER METHODS
