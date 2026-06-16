@@ -1,0 +1,1124 @@
+{
+  "version": "2026-06-16",
+  "fixtures": [
+    {
+      "id": "pam-v2-eval-001",
+      "name": "greeting",
+      "description": "Evaluation case 1: greeting",
+      "request": {
+        "conversation_id": "conv-eval-001",
+        "client_message_id": "msg-eval-001",
+        "message": "Hi Pam",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.484943+00:00"
+    },
+    {
+      "id": "pam-v2-eval-002",
+      "name": "weather_request",
+      "description": "Evaluation case 2: weather_request",
+      "request": {
+        "conversation_id": "conv-eval-002",
+        "client_message_id": "msg-eval-002",
+        "message": "What's the weather in Sydney?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485467+00:00"
+    },
+    {
+      "id": "pam-v2-eval-003",
+      "name": "route_request",
+      "description": "Evaluation case 3: route_request",
+      "request": {
+        "conversation_id": "conv-eval-003",
+        "client_message_id": "msg-eval-003",
+        "message": "Route from Sydney to Melbourne",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485474+00:00"
+    },
+    {
+      "id": "pam-v2-eval-004",
+      "name": "calendar_list",
+      "description": "Evaluation case 4: calendar_list",
+      "request": {
+        "conversation_id": "conv-eval-004",
+        "client_message_id": "msg-eval-004",
+        "message": "What do I have tomorrow?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485477+00:00"
+    },
+    {
+      "id": "pam-v2-eval-005",
+      "name": "calendar_create_approval",
+      "description": "Evaluation case 5: calendar_create_approval",
+      "request": {
+        "conversation_id": "conv-eval-005",
+        "client_message_id": "msg-eval-005",
+        "message": "Create a dinner event at 7pm",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "approval_required"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485480+00:00"
+    },
+    {
+      "id": "pam-v2-eval-006",
+      "name": "profile_read",
+      "description": "Evaluation case 6: profile_read",
+      "request": {
+        "conversation_id": "conv-eval-006",
+        "client_message_id": "msg-eval-006",
+        "message": "What's my name?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485483+00:00"
+    },
+    {
+      "id": "pam-v2-eval-007",
+      "name": "expense_read",
+      "description": "Evaluation case 7: expense_read",
+      "request": {
+        "conversation_id": "conv-eval-007",
+        "client_message_id": "msg-eval-007",
+        "message": "Show my recent expenses",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485485+00:00"
+    },
+    {
+      "id": "pam-v2-eval-008",
+      "name": "empty_message_rejected",
+      "description": "Evaluation case 8: empty_message_rejected",
+      "request": {
+        "conversation_id": "conv-eval-008",
+        "client_message_id": "msg-eval-008",
+        "message": "   ",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "error"
+      ],
+      "expects_error": true,
+      "created_at": "2026-06-16T04:52:31.485488+00:00"
+    },
+    {
+      "id": "pam-v2-eval-009",
+      "name": "voice_greeting",
+      "description": "Evaluation case 9: voice_greeting",
+      "request": {
+        "conversation_id": "conv-eval-009",
+        "client_message_id": "msg-eval-009",
+        "message": "Hey Pam",
+        "channel": "voice",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485490+00:00"
+    },
+    {
+      "id": "pam-v2-eval-010",
+      "name": "approval_token",
+      "description": "Evaluation case 10: approval_token",
+      "request": {
+        "conversation_id": "conv-eval-010",
+        "client_message_id": "msg-eval-010",
+        "message": "Yes, create it",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": "tok-approve-1"
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485493+00:00"
+    },
+    {
+      "id": "pam-v2-eval-011",
+      "name": "timezone_locale",
+      "description": "Evaluation case 11: timezone_locale",
+      "request": {
+        "conversation_id": "conv-eval-011",
+        "client_message_id": "msg-eval-011",
+        "message": "Weather",
+        "channel": "text",
+        "locale": "en-US",
+        "timezone": "America/New_York",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485495+00:00"
+    },
+    {
+      "id": "pam-v2-eval-012",
+      "name": "travel_info",
+      "description": "Evaluation case 12: travel_info",
+      "request": {
+        "conversation_id": "conv-eval-012",
+        "client_message_id": "msg-eval-012",
+        "message": "Tell me about Byron Bay",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485498+00:00"
+    },
+    {
+      "id": "pam-v2-eval-013",
+      "name": "budget_read",
+      "description": "Evaluation case 13: budget_read",
+      "request": {
+        "conversation_id": "conv-eval-013",
+        "client_message_id": "msg-eval-013",
+        "message": "What's my budget for this month?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485500+00:00"
+    },
+    {
+      "id": "pam-v2-eval-014",
+      "name": "community_post_read",
+      "description": "Evaluation case 14: community_post_read",
+      "request": {
+        "conversation_id": "conv-eval-014",
+        "client_message_id": "msg-eval-014",
+        "message": "Show recent community tips",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485503+00:00"
+    },
+    {
+      "id": "pam-v2-eval-015",
+      "name": "document_read",
+      "description": "Evaluation case 15: document_read",
+      "request": {
+        "conversation_id": "conv-eval-015",
+        "client_message_id": "msg-eval-015",
+        "message": "Find my medical documents",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485505+00:00"
+    },
+    {
+      "id": "pam-v2-eval-016",
+      "name": "complex_itinerary",
+      "description": "Evaluation case 16: complex_itinerary",
+      "request": {
+        "conversation_id": "conv-eval-016",
+        "client_message_id": "msg-eval-016",
+        "message": "Plan a 3 day trip to the Blue Mountains",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485507+00:00"
+    },
+    {
+      "id": "pam-v2-eval-017",
+      "name": "fuel_price",
+      "description": "Evaluation case 17: fuel_price",
+      "request": {
+        "conversation_id": "conv-eval-017",
+        "client_message_id": "msg-eval-017",
+        "message": "Fuel prices near me",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485510+00:00"
+    },
+    {
+      "id": "pam-v2-eval-018",
+      "name": "campsite_search",
+      "description": "Evaluation case 18: campsite_search",
+      "request": {
+        "conversation_id": "conv-eval-018",
+        "client_message_id": "msg-eval-018",
+        "message": "Campgrounds near Nabiac",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485512+00:00"
+    },
+    {
+      "id": "pam-v2-eval-019",
+      "name": "vehicle_maintenance",
+      "description": "Evaluation case 19: vehicle_maintenance",
+      "request": {
+        "conversation_id": "conv-eval-019",
+        "client_message_id": "msg-eval-019",
+        "message": "When is my next service due?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485514+00:00"
+    },
+    {
+      "id": "pam-v2-eval-020",
+      "name": "trip_match",
+      "description": "Evaluation case 20: trip_match",
+      "request": {
+        "conversation_id": "conv-eval-020",
+        "client_message_id": "msg-eval-020",
+        "message": "Anyone going to Cairns in July?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485516+00:00"
+    },
+    {
+      "id": "pam-v2-eval-021",
+      "name": "reminder_set",
+      "description": "Evaluation case 21: reminder_set",
+      "request": {
+        "conversation_id": "conv-eval-021",
+        "client_message_id": "msg-eval-021",
+        "message": "Remind me to check tyre pressure",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "approval_required"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485519+00:00"
+    },
+    {
+      "id": "pam-v2-eval-022",
+      "name": "expense_add",
+      "description": "Evaluation case 22: expense_add",
+      "request": {
+        "conversation_id": "conv-eval-022",
+        "client_message_id": "msg-eval-022",
+        "message": "I spent $50 on fuel",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "approval_required"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485521+00:00"
+    },
+    {
+      "id": "pam-v2-eval-023",
+      "name": "location_share",
+      "description": "Evaluation case 23: location_share",
+      "request": {
+        "conversation_id": "conv-eval-023",
+        "client_message_id": "msg-eval-023",
+        "message": "Where am I?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485523+00:00"
+    },
+    {
+      "id": "pam-v2-eval-024",
+      "name": "knowledge_search",
+      "description": "Evaluation case 24: knowledge_search",
+      "request": {
+        "conversation_id": "conv-eval-024",
+        "client_message_id": "msg-eval-024",
+        "message": "How do I pack a caravan?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485526+00:00"
+    },
+    {
+      "id": "pam-v2-eval-025",
+      "name": "support_ticket",
+      "description": "Evaluation case 25: support_ticket",
+      "request": {
+        "conversation_id": "conv-eval-025",
+        "client_message_id": "msg-eval-025",
+        "message": "I need help with my account",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485528+00:00"
+    },
+    {
+      "id": "pam-v2-eval-026",
+      "name": "subscription_status",
+      "description": "Evaluation case 26: subscription_status",
+      "request": {
+        "conversation_id": "conv-eval-026",
+        "client_message_id": "msg-eval-026",
+        "message": "What plan am I on?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485530+00:00"
+    },
+    {
+      "id": "pam-v2-eval-027",
+      "name": "long_message",
+      "description": "Evaluation case 27: long_message",
+      "request": {
+        "conversation_id": "conv-eval-027",
+        "client_message_id": "msg-eval-027",
+        "message": "I am planning a long road trip from Sydney to Perth via Adelaide and Melbourne. Can you help me find campsites and estimate fuel costs?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485533+00:00"
+    },
+    {
+      "id": "pam-v2-eval-028",
+      "name": "unicode_message",
+      "description": "Evaluation case 28: unicode_message",
+      "request": {
+        "conversation_id": "conv-eval-028",
+        "client_message_id": "msg-eval-028",
+        "message": "Bonjour \ud83c\udde6\ud83c\uddfa",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485535+00:00"
+    },
+    {
+      "id": "pam-v2-eval-029",
+      "name": "numeric_only",
+      "description": "Evaluation case 29: numeric_only",
+      "request": {
+        "conversation_id": "conv-eval-029",
+        "client_message_id": "msg-eval-029",
+        "message": "12345",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485538+00:00"
+    },
+    {
+      "id": "pam-v2-eval-030",
+      "name": "special_chars",
+      "description": "Evaluation case 30: special_chars",
+      "request": {
+        "conversation_id": "conv-eval-030",
+        "client_message_id": "msg-eval-030",
+        "message": "What's the weather? @#$%",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485540+00:00"
+    },
+    {
+      "id": "pam-v2-eval-031",
+      "name": "max_length_message",
+      "description": "Evaluation case 31: max_length_message",
+      "request": {
+        "conversation_id": "conv-eval-031",
+        "client_message_id": "msg-eval-031",
+        "message": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485542+00:00"
+    },
+    {
+      "id": "pam-v2-eval-032",
+      "name": "message_too_long",
+      "description": "Evaluation case 32: message_too_long",
+      "request": {
+        "conversation_id": "conv-eval-032",
+        "client_message_id": "msg-eval-032",
+        "message": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "error"
+      ],
+      "expects_error": true,
+      "created_at": "2026-06-16T04:52:31.485545+00:00"
+    },
+    {
+      "id": "pam-v2-eval-033",
+      "name": "tool_error",
+      "description": "Evaluation case 33: tool_error",
+      "request": {
+        "conversation_id": "conv-eval-033",
+        "client_message_id": "msg-eval-033",
+        "message": "Weather in InvalidPlace12345",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485547+00:00"
+    },
+    {
+      "id": "pam-v2-eval-034",
+      "name": "action_render",
+      "description": "Evaluation case 34: action_render",
+      "request": {
+        "conversation_id": "conv-eval-034",
+        "client_message_id": "msg-eval-034",
+        "message": "Show me my calendar for next week",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "action",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485549+00:00"
+    },
+    {
+      "id": "pam-v2-eval-035",
+      "name": "multiple_tools",
+      "description": "Evaluation case 35: multiple_tools",
+      "request": {
+        "conversation_id": "conv-eval-035",
+        "client_message_id": "msg-eval-035",
+        "message": "What's the weather and best route to Brisbane?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485552+00:00"
+    },
+    {
+      "id": "pam-v2-eval-036",
+      "name": "clarification",
+      "description": "Evaluation case 36: clarification",
+      "request": {
+        "conversation_id": "conv-eval-036",
+        "client_message_id": "msg-eval-036",
+        "message": "Book it",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485554+00:00"
+    },
+    {
+      "id": "pam-v2-eval-037",
+      "name": "cancel_approval",
+      "description": "Evaluation case 37: cancel_approval",
+      "request": {
+        "conversation_id": "conv-eval-037",
+        "client_message_id": "msg-eval-037",
+        "message": "No, cancel",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": "tok-cancel-1"
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485556+00:00"
+    },
+    {
+      "id": "pam-v2-eval-038",
+      "name": "expired_token",
+      "description": "Evaluation case 38: expired_token",
+      "request": {
+        "conversation_id": "conv-eval-038",
+        "client_message_id": "msg-eval-038",
+        "message": "Yes do it",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": "tok-expired"
+      },
+      "expected_event_types": [
+        "turn_started",
+        "error"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485559+00:00"
+    },
+    {
+      "id": "pam-v2-eval-039",
+      "name": "rate_limit_hint",
+      "description": "Evaluation case 39: rate_limit_hint",
+      "request": {
+        "conversation_id": "conv-eval-039",
+        "client_message_id": "msg-eval-039",
+        "message": "Help",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485561+00:00"
+    },
+    {
+      "id": "pam-v2-eval-040",
+      "name": "voice_with_approval",
+      "description": "Evaluation case 40: voice_with_approval",
+      "request": {
+        "conversation_id": "conv-eval-040",
+        "client_message_id": "msg-eval-040",
+        "message": "Create meeting at 9am",
+        "channel": "voice",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "approval_required"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485563+00:00"
+    },
+    {
+      "id": "pam-v2-eval-041",
+      "name": "holiday_query",
+      "description": "Evaluation case 41: holiday_query",
+      "request": {
+        "conversation_id": "conv-eval-041",
+        "client_message_id": "msg-eval-041",
+        "message": "Public holidays in Queensland",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485566+00:00"
+    },
+    {
+      "id": "pam-v2-eval-042",
+      "name": "insurance_query",
+      "description": "Evaluation case 42: insurance_query",
+      "request": {
+        "conversation_id": "conv-eval-042",
+        "client_message_id": "msg-eval-042",
+        "message": "Do I have insurance details saved?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485568+00:00"
+    },
+    {
+      "id": "pam-v2-eval-043",
+      "name": "marketplace_search",
+      "description": "Evaluation case 43: marketplace_search",
+      "request": {
+        "conversation_id": "conv-eval-043",
+        "client_message_id": "msg-eval-043",
+        "message": "Show caravan listings under 30k",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485571+00:00"
+    },
+    {
+      "id": "pam-v2-eval-044",
+      "name": "event_search",
+      "description": "Evaluation case 44: event_search",
+      "request": {
+        "conversation_id": "conv-eval-044",
+        "client_message_id": "msg-eval-044",
+        "message": "Caravan shows near me",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485573+00:00"
+    },
+    {
+      "id": "pam-v2-eval-045",
+      "name": "notification_preference",
+      "description": "Evaluation case 45: notification_preference",
+      "request": {
+        "conversation_id": "conv-eval-045",
+        "client_message_id": "msg-eval-045",
+        "message": "Turn off notifications",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "approval_required"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485576+00:00"
+    },
+    {
+      "id": "pam-v2-eval-046",
+      "name": "profile_update",
+      "description": "Evaluation case 46: profile_update",
+      "request": {
+        "conversation_id": "conv-eval-046",
+        "client_message_id": "msg-eval-046",
+        "message": "Update my nickname to Traveller",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "approval_required"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485579+00:00"
+    },
+    {
+      "id": "pam-v2-eval-047",
+      "name": "delete_data",
+      "description": "Evaluation case 47: delete_data",
+      "request": {
+        "conversation_id": "conv-eval-047",
+        "client_message_id": "msg-eval-047",
+        "message": "Delete my account",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "approval_required"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485582+00:00"
+    },
+    {
+      "id": "pam-v2-eval-048",
+      "name": "medical_emergency",
+      "description": "Evaluation case 48: medical_emergency",
+      "request": {
+        "conversation_id": "conv-eval-048",
+        "client_message_id": "msg-eval-048",
+        "message": "I need the nearest hospital",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "tool_started",
+        "tool_completed",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485585+00:00"
+    },
+    {
+      "id": "pam-v2-eval-049",
+      "name": "offline_hint",
+      "description": "Evaluation case 49: offline_hint",
+      "request": {
+        "conversation_id": "conv-eval-049",
+        "client_message_id": "msg-eval-049",
+        "message": "I'm going offline",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485587+00:00"
+    },
+    {
+      "id": "pam-v2-eval-050",
+      "name": "feedback",
+      "description": "Evaluation case 50: feedback",
+      "request": {
+        "conversation_id": "conv-eval-050",
+        "client_message_id": "msg-eval-050",
+        "message": "That was helpful",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485605+00:00"
+    },
+    {
+      "id": "pam-v2-eval-051",
+      "name": "ambiguous",
+      "description": "Evaluation case 51: ambiguous",
+      "request": {
+        "conversation_id": "conv-eval-051",
+        "client_message_id": "msg-eval-051",
+        "message": "What about this?",
+        "channel": "text",
+        "locale": "en-AU",
+        "timezone": "Australia/Sydney",
+        "approval_token": null
+      },
+      "expected_event_types": [
+        "turn_started",
+        "text_delta",
+        "turn_completed"
+      ],
+      "expects_error": false,
+      "created_at": "2026-06-16T04:52:31.485611+00:00"
+    }
+  ]
+}

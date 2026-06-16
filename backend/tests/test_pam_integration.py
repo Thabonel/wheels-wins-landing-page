@@ -672,9 +672,9 @@ class TestProductionConfiguration:
         # Create production settings
         with patch.dict(os.environ, {"NODE_ENV": "production"}):
             settings = Settings(
-                OPENAI_API_KEY=<OPENAI_API_KEY>
+                OPENAI_API_KEY="test-openai-key",
                 SUPABASE_URL="https://test.supabase.co",
-                SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
+                SUPABASE_SERVICE_ROLE_KEY="test-service-role-key",
                 SESSION_COOKIE_SECURE=True,
                 APP_URL="https://production.com"
             )
@@ -692,9 +692,9 @@ class TestProductionConfiguration:
         with patch.dict(os.environ, {"NODE_ENV": "production"}):
             # Test insecure settings
             settings = Settings(
-                OPENAI_API_KEY=<OPENAI_API_KEY>
+                OPENAI_API_KEY="test-openai-key",
                 SUPABASE_URL="https://test.supabase.co",
-                SUPABASE_SERVICE_ROLE_KEY=<SUPABASE_SERVICE_ROLE_KEY>
+                SUPABASE_SERVICE_ROLE_KEY="test-service-role-key",
                 SESSION_COOKIE_SECURE=False,  # Insecure
                 APP_URL="http://localhost:8080"  # Localhost in production
             )

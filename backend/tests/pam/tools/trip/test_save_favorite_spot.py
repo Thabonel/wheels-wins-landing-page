@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 
-MODULE_PATH = Path("backend/app/services/pam/tools/trip/save_favorite_spot.py")
+MODULE_PATH = Path(__file__).parents[4] / "app/services/pam/tools/trip/save_favorite_spot.py"
 SPEC = importlib.util.spec_from_file_location("save_favorite_spot_module", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader

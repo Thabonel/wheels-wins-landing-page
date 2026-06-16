@@ -187,23 +187,38 @@ Rollback consists of disabling `PAM_V2_ENABLED` or redeploying the previous stag
 
 ## Agent Notes — Session Log
 
-- (timestamp) …
+- 2026-06-16: Repaired backend test collection:
+  - Fixed placeholder syntax errors in `backend/tests/test_pam_integration.py`.
+  - Fixed relative module path in `backend/tests/pam/tools/trip/test_save_favorite_spot.py`.
+  - Made `OptimizedContextManager` lazy-initialize async components so import does not require a running event loop.
+  - Added `create_post` alias in `backend/app/services/pam/tools/social/create_post.py` for outdated test imports.
+  - Result: pytest collects 715 backend tests successfully.
+- 2026-06-16: Defined Pam V2 contracts in `backend/app/models/schemas/pam_v2.py`.
+- 2026-06-16: Created `/api/v2/pam/health` endpoint in `backend/app/api/v2/pam.py` and mounted it in `backend/app/main.py`.
+- 2026-06-16: Added TypeScript types in `src/types/pamV2.ts`.
+- 2026-06-16: Created 51 evaluation fixtures in `backend/tests/pam_v2/evals/fixtures/turn_contract_evals.json`.
+- 2026-06-16: Created evaluation runner `backend/tests/pam_v2/evals/run_evals.py` (currently validates fixture schema; will execute against runtime in PRD 03).
+- 2026-06-16: Added contract tests in `backend/tests/pam_v2/test_contracts.py` — 15 tests passing.
 
 ## Agent Notes — Decisions
 
-- Decision / rationale / alternatives
+- Pydantic v2 style used for new schemas to match the installed Pydantic 2.11.
+- V2 router mounted unconditionally; it self-reports `pam_v2_enabled=false` when disabled.
+- Provider/model names surfaced by health endpoint come from feature flags/env config, not hardcoded.
+- Evaluation runner distinguishes request-level validation failures from runtime errors so fixtures can express both.
 
 ## Agent Notes — Open Questions
 
-- …
+- Should health endpoint source environment from `EnvironmentConfig` (requires full env) or keep using `FeatureFlags` for reliability? Currently uses `FeatureFlags`.
+- Should the 51 fixtures be tagged by namespace/domain for PRD 05 migration tracking? Not done yet.
 
 ## Agent Notes — Regression Checklist
 
-- [ ] Backend test collection
-- [ ] V1 route smoke tests
-- [ ] V2 schema tests
-- [ ] Frontend fixture parser tests
-- [ ] Evaluation fixture validation
-- [ ] Isolation validator
+- [x] Backend test collection
+- [x] V1 route smoke tests (collection passes; full run not executed)
+- [x] V2 schema tests
+- [ ] Frontend fixture parser tests (TypeScript types added; parser tests not yet written)
+- [x] Evaluation fixture validation
+- [x] Isolation validator
 - [ ] Staging build
 

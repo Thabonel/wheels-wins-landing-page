@@ -226,3 +226,7 @@ async def approve_and_publish_post(
             "Failed to publish post",
             context={"draft_id": draft_id, "user_id": user_id, "error": str(e)}
         )
+
+
+# Backward-compatible alias used by existing tests and V1 callers
+create_post = create_post_draft

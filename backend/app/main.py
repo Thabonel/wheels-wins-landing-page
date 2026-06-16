@@ -107,6 +107,7 @@ from app.api.v1 import (
     trips,  # Trip management API for PAM integration
     # camping,  # Loaded separately with import guard
 )
+from app.api.v2 import pam as pam_v2
 from app.api.v1 import system_settings as system_settings_api
 from app.api.v1 import ai_structured as ai_structured_api
 from app.api.v1 import ai_ingest as ai_ingest_api
@@ -948,6 +949,7 @@ app.include_router(receipt_parsing_router, prefix="/api/v1", tags=["Receipt Pars
 app.include_router(ocr_router, prefix="/api/v1", tags=["OCR"])
 app.include_router(social.router, prefix="/api", tags=["Social"])
 app.include_router(pam.router, prefix="/api/v1/pam", tags=["PAM"])
+app.include_router(pam_v2.router, prefix="/api/v2/pam", tags=["PAM V2"])
 
 # PAM Voice Hybrid: OpenAI Realtime API (voice I/O) + Claude Sonnet 4.5 (reasoning)
 app.include_router(pam_realtime_hybrid.router, prefix="/api/v1", tags=["PAM Voice Hybrid"])

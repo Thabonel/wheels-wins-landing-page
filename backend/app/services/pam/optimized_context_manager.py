@@ -76,8 +76,17 @@ class OptimizedContextManager:
             "min_time_ms": float('inf')
         })
         
-        # Initialize async components
-        asyncio.create_task(self._initialize_async_components())
+        # Initialize async components lazily to avoid requiring a running event loop at import time
+        try:
+            asyncio.get_running_loop()
+            asyncio.create_task(self._initialize_async_components())
+        except RuntimeError:
+            self.cache_manager = None
+    
+    async def ensure_initialized(self):
+        """Ensure async components are initialized before use"""
+        if self.cache_manager is None:
+            await self._initialize_async_components()
     
     async def _initialize_async_components(self):
         """Initialize async components like cache manager"""
