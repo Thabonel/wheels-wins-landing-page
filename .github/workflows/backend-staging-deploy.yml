@@ -42,6 +42,7 @@ jobs:
         python -m pytest tests/unit/ -v --tb=short --no-cov -o "addopts="
         
     - name: Deploy to Render
+      continue-on-error: true
       env:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         RENDER_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
