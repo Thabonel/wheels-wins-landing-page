@@ -45,6 +45,7 @@ jobs:
         VITE_ENABLE_BETA_FEATURES: true
         VITE_ENABLE_DEBUG_TOOLS: true
         VITE_ENABLE_TEST_DATA: true
+        VITE_USE_PAM_2: true
         
     - name: Deploy to Netlify Staging
       uses: nwtgck/actions-netlify@v3.0
