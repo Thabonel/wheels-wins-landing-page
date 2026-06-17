@@ -94,12 +94,7 @@ jobs:
             -H "Accept: application/json" \
             -H "Authorization: Bearer ${RENDER_API_KEY}")
 
-          STATUS=$(DEPLOY_RESPONSE="$DEPLOY_RESPONSE" python -c '
-          import json, os
-          data = json.loads(os.environ["DEPLOY_RESPONSE"])
-          deploy = data.get("deploy", data)
-          print(deploy.get("status", "unknown"))
-          ')
+          STATUS=$(DEPLOY_RESPONSE="$DEPLOY_RESPONSE" python -c 'import json, os, sys; data=json.loads(os.environ["DEPLOY_RESPONSE"]); deploy=data.get("deploy", data); print(deploy.get("status", "unknown")); sys.exit(0)' || echo "unknown")
           
           if [ "$STATUS" = "live" ]; then
             echo "✅ Deployment successful!"
@@ -126,15 +121,11 @@ jobs:
 
         for i in {1..30}; do
           if HEALTH_RESPONSE=$(curl --fail --show-error --silent "$HEALTH_URL" 2>/dev/null); then
-            HEALTH_RESPONSE="$HEALTH_RESPONSE" python -c '
-            import json, os, sys
-            data = json.loads(os.environ["HEALTH_RESPONSE"])
-            if data.get("pam_v2_enabled") is not True:
-                raise SystemExit(f"Pam V2 health check returned disabled state: {data}")
-            print("✅ Pam V2 health check passed")
-            sys.exit(0)
-            '
-            exit 0
+            if HEALTH_RESPONSE="$HEALTH_RESPONSE" python -c 'import json, os, sys; data=json.loads(os.environ["HEALTH_RESPONSE"]); sys.exit(0 if data.get("pam_v2_enabled") is True else 1)'; then
+              echo "✅ Pam V2 health check passed"
+              exit 0
+            fi
+            echo "⚠️ Pam V2 health check returned disabled state: $HEALTH_RESPONSE"
           fi
           echo "Health check not ready yet, waiting..."
           sleep 10
