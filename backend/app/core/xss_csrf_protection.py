@@ -432,7 +432,8 @@ class XSSCSRFProtectionMiddleware(BaseHTTPMiddleware):
             "/favicon.ico",
             "/metrics",
             "/api/auth/csrf-token",  # Endpoint to get CSRF tokens
-            "/api/v1/pam",  # PAM base endpoint
+            "/api/v1/pam",  # PAM V1 base endpoint
+            "/api/v2/pam",  # PAM V2 base endpoint
             "/api/v1/pam/voice",  # PAM voice endpoint
             "/api/v1/pam/chat",  # PAM chat endpoint
             "/api/v1/pam/ws",  # PAM WebSocket endpoint
