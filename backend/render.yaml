@@ -41,6 +41,10 @@ services:
       # Pam V2
       - key: PAM_V2_ENABLED
         value: true
+      - key: PAM_V2_PROVIDER
+        value: echo
+      - key: PAM_V2_MODEL
+        value: echo
       # TTS Configuration
       - key: TTS_ENABLED
         value: true

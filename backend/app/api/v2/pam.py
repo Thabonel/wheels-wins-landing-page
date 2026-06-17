@@ -26,6 +26,7 @@ from app.models.schemas.pam_v2 import (
     TurnCompletedEvent,
 )
 from app.services.pam_v2.models import ModelClientConfig, OpenAIResponsesClient
+from app.services.pam_v2.models.fake import EchoModelClient
 from app.services.pam_v2.runtime import PamV2Runtime, RuntimeConfig
 from app.services.pam_v2.tools.executor import get_executor
 from app.services.pam_v2.tools.types import ToolContext
@@ -36,11 +37,14 @@ router = APIRouter(tags=["PAM V2"])
 
 def _create_v2_runtime(provider: str, model: str, api_key: str) -> PamV2Runtime:
     """Factory for the V2 runtime; separated for testability."""
-    if provider != "openai":
+    if provider == "echo":
+        model_client = EchoModelClient(ModelClientConfig(model=model, api_key=""))
+    elif provider != "openai":
         raise ValueError(f"Unsupported V2 provider: {provider}")
+    else:
+        client_config = ModelClientConfig(model=model, api_key=api_key)
+        model_client = OpenAIResponsesClient(client_config)
 
-    client_config = ModelClientConfig(model=model, api_key=api_key)
-    model_client = OpenAIResponsesClient(client_config)
     executor = get_executor()
     return PamV2Runtime(model_client, executor, executor.catalog, RuntimeConfig())
 

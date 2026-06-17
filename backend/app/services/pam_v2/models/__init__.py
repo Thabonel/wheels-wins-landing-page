@@ -11,10 +11,11 @@ from .base import (
     ToolSchema,
     UsageEvent,
 )
-from .fake import FakeModelClient, ScriptedResponse, SlowFakeModelClient
+from .fake import EchoModelClient, FakeModelClient, ScriptedResponse, SlowFakeModelClient
 from .openai_responses import OpenAIResponsesClient
 
 __all__ = [
+    "EchoModelClient",
     "FakeModelClient",
     "FinishEvent",
     "Message",
