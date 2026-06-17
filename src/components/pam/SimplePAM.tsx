@@ -8,7 +8,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 // import claudeService, { type ChatMessage as ClaudeMessage } from '@/services/claude';
 // import { getToolsForClaude } from '@/services/pam/tools/toolRegistry';
 import { PamApiService } from '@/services/pamApiService';
-import { routeMessageThroughSkills } from '@/services/pam/skills';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { VoiceSettings } from './voice/VoiceSettings';
@@ -244,49 +243,14 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
         throw new Error('User authentication required');
       }
 
-      let responseContent: string;
-
-      // Try local skill routing first for fast, controlled responses
-      if (user?.id) {
-        const skillResult = await routeMessageThroughSkills(user.id, textToSend, token);
-        if (skillResult.handled && skillResult.response) {
-          responseContent = skillResult.response;
-          if (skillResult.skillName) {
-            responseContent = `**[${skillResult.skillName}]**\n\n${responseContent}`;
-          }
-
-          setMessages(prev => {
-            const filtered = prev.filter(msg => msg.id !== 'loading');
-            return [...filtered, {
-              id: generateId(),
-              role: 'assistant',
-              content: responseContent,
-              timestamp: new Date()
-            }];
-          });
-
-          setTimeout(() => {
-            speakResponse(responseContent);
-          }, 100);
-
-          if (onMessageSent) {
-            onMessageSent(textToSend, responseContent);
-          }
-
-          setIsLoading(false);
-          setTimeout(() => inputRef.current?.focus(), 100);
-          return;
-        }
-      }
-
       // Use backend PAM API service for authenticated users
       const response = await pamApiService.sendMessage({
         message: textToSend,
         user_id: user.id,
         context: {
           current_page: 'simple-pam-test',
-          conversation_mode: conversationMode,
-          is_voice: conversationMode === 'voice',
+          conversation_mode: conversationMode, // "voice" or "text" - controls TTS
+          is_voice: conversationMode === 'voice', // CRITICAL: Tell backend to use all tools for voice
           session_data: {
             conversation_length: messages.length
           }
@@ -294,7 +258,7 @@ export const SimplePAM: React.FC<SimplePAMProps> = ({
       }, token);
 
       // Remove loading message and add response
-      responseContent = response.response || response.message || response.content || 'Sorry, I did not receive a proper response.';
+      const responseContent = response.response || response.message || response.content || 'Sorry, I did not receive a proper response.';
 
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.id !== 'loading');
