@@ -36,14 +36,22 @@ router = APIRouter(tags=["PAM V2"])
 
 
 def _create_v2_runtime(provider: str, model: str, api_key: str) -> PamV2Runtime:
-    """Factory for the V2 runtime; separated for testability."""
+    """Factory for the V2 runtime; separated for testability.
+
+    Falls back to EchoModelClient when the OpenAI key is missing or does not
+    look like a real OpenAI key.  Set a valid OPENAI_API_KEY environment
+    variable on Render to switch back to the full OpenAI provider.
+    """
     if provider == "echo":
         model_client = EchoModelClient(ModelClientConfig(model=model, api_key=""))
-    elif provider != "openai":
-        raise ValueError(f"Unsupported V2 provider: {provider}")
+    elif provider == "openai":
+        if not api_key or not api_key.startswith("sk-"):
+            model_client = EchoModelClient(ModelClientConfig(model="echo", api_key=""))
+        else:
+            client_config = ModelClientConfig(model=model, api_key=api_key)
+            model_client = OpenAIResponsesClient(client_config)
     else:
-        client_config = ModelClientConfig(model=model, api_key=api_key)
-        model_client = OpenAIResponsesClient(client_config)
+        raise ValueError(f"Unsupported V2 provider: {provider}")
 
     executor = get_executor()
     return PamV2Runtime(model_client, executor, executor.catalog, RuntimeConfig())
