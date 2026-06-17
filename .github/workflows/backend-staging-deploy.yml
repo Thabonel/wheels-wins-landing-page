@@ -28,7 +28,6 @@ jobs:
         pip install -r requirements.txt
         
     - name: Run backend tests
-      continue-on-error: true
       working-directory: ./backend
       env:
         ANTHROPIC_API_KEY: "<ANTHROPIC_TOKEN>"
@@ -41,55 +40,104 @@ jobs:
       run: |
         python -m pytest tests/unit/ -v --tb=short --no-cov -o "addopts="
         
+    - name: Ensure Pam V2 feature flag is enabled
+      env:
+        RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        RENDER_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+      run: |
+        set -euo pipefail
+
+        curl --fail --show-error --silent -X PUT \
+          "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/env-vars" \
+          -H "Accept: application/json" \
+          -H "Authorization: Bearer ${RENDER_API_KEY}" \
+          -H "Content-Type: application/json" \
+          -d '[{"key": "PAM_V2_ENABLED", "value": "true"}]'
+
+        echo "✅ PAM_V2_ENABLED set to true on Render staging"
+
     - name: Deploy to Render
       env:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         RENDER_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
       run: |
-        # Trigger deployment via Render API
-        curl -X POST \
+        set -euo pipefail
+
+        DEPLOY_RESPONSE=$(curl --fail --show-error --silent -X POST \
           "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
+          -H "Accept: application/json" \
           -H "Authorization: Bearer ${RENDER_API_KEY}" \
           -H "Content-Type: application/json" \
-          -d '{"clearCache": "clear"}'
+          -d '{"clearCache": "clear"}')
+
+        DEPLOY_ID=$(python -c '
+        import json, os, sys
+        data = json.loads(os.environ["DEPLOY_RESPONSE"])
+        deploy = data.get("deploy", data)
+        deploy_id = deploy.get("id")
+        if not deploy_id:
+            print(json.dumps(data, indent=2), file=sys.stderr)
+            raise SystemExit("Render deploy response did not include a deploy id")
+        print(deploy_id)
+        ')
         
-        echo "✅ Deployment triggered for staging backend"
+        echo "RENDER_DEPLOY_ID=${DEPLOY_ID}" >> "$GITHUB_ENV"
+        echo "✅ Deployment triggered for staging backend: ${DEPLOY_ID}"
         
     - name: Wait for deployment
       env:
         RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         RENDER_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
       run: |
+        set -euo pipefail
+
         echo "⏳ Waiting for deployment to complete..."
         sleep 30  # Initial wait
         
-        # Check deployment status (simplified - you can enhance this)
-        for i in {1..20}; do
-          STATUS=$(curl -s \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" | \
-            python -c "import sys, json; print(json.load(sys.stdin)['service']['status'])" 2>/dev/null || echo "checking")
+        for i in {1..40}; do
+          DEPLOY_RESPONSE=$(curl --fail --show-error --silent \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${RENDER_DEPLOY_ID}" \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}")
+
+          STATUS=$(DEPLOY_RESPONSE="$DEPLOY_RESPONSE" python -c '
+          import json, os
+          data = json.loads(os.environ["DEPLOY_RESPONSE"])
+          deploy = data.get("deploy", data)
+          print(deploy.get("status", "unknown"))
+          ')
           
           if [ "$STATUS" = "live" ]; then
             echo "✅ Deployment successful!"
-            break
+            exit 0
+          fi
+
+          if [[ "$STATUS" == *failed || "$STATUS" == "canceled" ]]; then
+            echo "❌ Render deployment failed with status: $STATUS"
+            exit 1
           fi
           
           echo "Status: $STATUS - waiting..."
           sleep 15
         done
+
+        echo "❌ Timed out waiting for Render deploy ${RENDER_DEPLOY_ID}"
+        exit 1
         
     - name: Health check
       run: |
+        set -euo pipefail
+
         # Wait a bit more for service to stabilize
         sleep 10
 
-        # Check health endpoint (STAGING, not production)
-        HEALTH_URL="https://wheels-wins-backend-staging.onrender.com/health"
-        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_URL)
+        HEALTH_URL="https://wheels-wins-backend-staging.onrender.com/api/v2/pam/health"
+        HEALTH_RESPONSE=$(curl --fail --show-error --silent "$HEALTH_URL")
         
-        if [ $HTTP_STATUS -eq 200 ]; then
-          echo "✅ Health check passed!"
-        else
-          echo "⚠️ Health check returned status: $HTTP_STATUS"
-        fi
+        HEALTH_RESPONSE="$HEALTH_RESPONSE" python -c '
+        import json, os
+        data = json.loads(os.environ["HEALTH_RESPONSE"])
+        if data.get("pam_v2_enabled") is not True:
+            raise SystemExit(f"Pam V2 health check returned disabled state: {data}")
+        print("✅ Pam V2 health check passed")
+        '
