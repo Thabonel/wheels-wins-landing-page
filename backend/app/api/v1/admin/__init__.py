@@ -14,6 +14,7 @@ from app.core.admin_security import verify_admin_access, verify_super_admin_acce
 
 from .model_config import router as model_config_router
 from .intelligent_router import router as intelligent_router_router
+from .ai_control_center import router as ai_control_router
 
 logger = get_logger(__name__)
 
@@ -23,6 +24,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 # Include sub-routers with secure authentication
 router.include_router(model_config_router)
 router.include_router(intelligent_router_router)
+router.include_router(ai_control_router)
 
 # Secure admin metrics endpoint
 @router.get("/metrics")

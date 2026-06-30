@@ -23,7 +23,8 @@ import {
   Bug,
   Zap,
   UserCheck,
-  BookOpen
+  BookOpen,
+  BrainCircuit
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -54,6 +55,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     { name: 'Learning Dashboard', icon: Brain },
     { name: 'AI Observability', icon: Activity },
     { name: 'AI Router', icon: Brain },
+    { name: 'AI Control Center', icon: BrainCircuit },
     { name: 'AI Index', icon: Database },
     { name: 'Testing Dashboard', icon: TestTube },
     { name: 'Integration Testing', icon: TestTube },

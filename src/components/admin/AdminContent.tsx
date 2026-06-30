@@ -5,6 +5,7 @@ import AuthDebugAdmin from './AuthDebugAdmin';
 import AuthTestingPanel from './AuthTestingPanel';
 import IntegrationTestingDashboard from './IntegrationTestingDashboard';
 import { KnowledgeApproval } from './KnowledgeApproval';
+import AIAdminControlCenter from './AIAdminControlCenter';
 import {
   LearningDashboard,
   AIRouterMetrics,
@@ -54,6 +55,8 @@ const AdminContent: React.FC<AdminContentProps> = ({ activeSection }) => {
         return <ObservabilityDashboard />;
       case 'AI Router':
         return <AIRouterMetrics />;
+      case 'AI Control Center':
+        return <AIAdminControlCenter />;
       case 'AI Index':
         return <AIIndexer />;
       case 'Testing Dashboard':
